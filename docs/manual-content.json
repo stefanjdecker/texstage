@@ -1,0 +1,684 @@
+{
+  "title": "texstage user manual",
+  "subtitle": "Presenter and participant guide",
+  "version": "0.2.1.dev0",
+  "date": "2026-10-27",
+  "pages": [
+    {
+      "title": "texstage user manual",
+      "layout": "cover",
+      "subtitle": "Presenter and participant guide",
+      "blocks": [
+        {
+          "p": "A practical guide to presenting Beamer decks, running live quizzes and participating from a phone."
+        },
+        {
+          "p": "For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference."
+        },
+        {
+          "p": "Version 0.2.1.dev0 - unpublished development candidate. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/02-presenter-workspace.jpg",
+          "caption": "The private presenter workspace."
+        },
+        {
+          "file": "images/manual/08-phone-single-choice.jpg",
+          "caption": "A participant answers in the browser."
+        }
+      ]
+    },
+    {
+      "title": "Start your first session",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "Use the new texstage checkout and a fresh Python 3.12+ environment. Deck builds need pdflatex and Beamer from TeX Live or MiKTeX. The source checkout contains the examples and dependency locks used below. The candidate is not assumed to be available on PyPI."
+        },
+        {
+          "heading": "1  Create and activate an environment"
+        },
+        {
+          "code": "python -m venv .venv\n# Windows PowerShell\n.\\.venv\\Scripts\\Activate.ps1\n# Linux or macOS\n# . .venv/bin/activate"
+        },
+        {
+          "heading": "2  Install the locked dependencies and this checkout"
+        },
+        {
+          "code": "python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt\npython -m pip install --require-hashes --only-binary=:all: -r requirements/build.txt\npython -m pip install --no-deps --no-build-isolation ."
+        },
+        {
+          "heading": "3  Preview and present the example"
+        },
+        {
+          "code": "texstage pdf --present examples/manual/demo.tex\ntexstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel"
+        },
+        {
+          "p": "Use an unused port for rehearsal (8765 in this example). The present command builds a missing or out-of-date deck, starts a local server if needed, and opens the browser presenter. Use its printed server address. If a server is already running on that port, present reuses it; choose another port to keep the demo separate. The manual uses long 240-second rounds for rehearsal."
+        },
+        {
+          "p": "For environment activation, missing TeX packages and wheel-only installation, see [installation.md](installation.md). For an already configured environment, start at step 3. Keep existing course environments and tools pins unchanged during rehearsal."
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "Choose a deck",
+      "layout": "columns",
+      "subtitle": "",
+      "blocks": [
+        {
+          "heading": "Open the library"
+        },
+        {
+          "p": "The presenter is at `/stage` on your quiz server. On the server laptop it normally obtains the local presenter key automatically. A remote presenter uses an authorized key or a paired device."
+        },
+        {
+          "bullets": [
+            "Choose **Present** on the deck you want to use.",
+            "Use search to find a deck across folders. Choose **By name** or **Newest first** to change the order.",
+            "Use **New folder** and the deck actions menu to organize your library.",
+            "Use **Upload a deck** for a `.bundle.zip` created by texstage build. Upload the bundle, not an arbitrary PDF."
+          ]
+        },
+        {
+          "p": "A deck built while the library is open appears after a reload. A browser presentation requires a build containing the stage PDF; rebuild without `--no-stage` if it is missing."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/01-deck-library.jpg",
+          "caption": "Deck library. Present opens the private presenter workspace; the three-dot menu contains deck actions."
+        }
+      ]
+    },
+    {
+      "title": "Know your presenter workspace",
+      "layout": "columns",
+      "subtitle": "",
+      "blocks": [
+        {
+          "bullets": [
+            "**Current slide, left:** the step being presented, including live quiz content.",
+            "**Next, upper right:** a preview of the next step. It may show the correct answer before the audience sees it.",
+            "**Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.",
+            "**Top bar:** session PIN, connection indicator, latency, player count and join address. Projector, exports and session controls are here.",
+            "**Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview."
+          ]
+        },
+        {
+          "p": "Show the **Projector** window to the audience. Keep this presenter window private: its notes, previews and controls are for you. Drag the dividers to adjust the slide and notes areas; double-click a divider to restore its default position."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/02-presenter-workspace.jpg",
+          "caption": "Presenter workspace with text notes. Next previews the join slide. The elapsed lecture timer is separate from a quiz countdown."
+        }
+      ]
+    },
+    {
+      "title": "Connect the audience",
+      "layout": "figure",
+      "subtitle": "",
+      "blocks": [
+        {
+          "bullets": [
+            "Choose **Projector**, move that window onto the audience display, and use an extended desktop. If a pop-up is blocked, allow the projector window for this server. The projector can enter full screen when clicked; F is the presenter freeze shortcut, not its full-screen command.",
+            "Advance to the join slide. Participants scan its QR code or open its address, enter the current PIN and choose a nickname.",
+            "Test the join address on a real phone before the session. The screenshots use 127.0.0.1 for a local demonstration; on a phone that address points to the phone itself. Use the reachable address printed by your actual server."
+          ]
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/03-presenter-join.jpg",
+          "caption": "The join slide shows the session address, PIN, QR code and player count. The PIN shown here is only an example."
+        }
+      ]
+    },
+    {
+      "title": "Join and wait on your phone",
+      "layout": "gallery",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "No app installation is needed. Open the session address in a browser, enter the PIN shown in the room and a nickname, then tap **Join**. A QR code may prefill the PIN. **You're in!** confirms that joining succeeded."
+        },
+        {
+          "p": "When the question appears, read it first. The reading screen deliberately has no answer buttons. Wait for the presenter to advance again. Keep this browser tab open throughout the session."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/04-phone-join.jpg",
+          "caption": "Enter the current PIN and a nickname."
+        },
+        {
+          "file": "images/manual/05-phone-lobby.jpg",
+          "caption": "Wait for the presenter after joining."
+        },
+        {
+          "file": "images/manual/06-phone-reading.jpg",
+          "caption": "Read first; the answers open on the next step."
+        }
+      ]
+    },
+    {
+      "title": "Run a timed question",
+      "layout": "columns",
+      "subtitle": "",
+      "blocks": [
+        {
+          "bullets": [
+            "**Read:** advance onto the reading step. The question appears on the shared screen and phones, without starting the round.",
+            "**Open:** advance once more. A three-second Get ready countdown precedes the answer timer.",
+            "**Control:** move the pointer over the live quiz to find **Pause**, **+10 s** and **Stop the question**. Pausing the quiz also pauses the answering interface on phones.",
+            "**Close:** the round can close when the time runs out, when all connected participants have answered, or when you stop it.",
+            "**Reveal:** advance to the reveal step or use **Show the answer** when offered. Discuss the explanation and results."
+          ]
+        },
+        {
+          "p": "The answer counter is accepted answers / (accepted answers + connected players still waiting). A submitted answer remains counted if its phone disconnects. Unanswered offline participants drop out of the denominator until they reconnect."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/07-presenter-question.jpg",
+          "caption": "A question is open, with its countdown and answer counter. The private Next pane already previews the reveal."
+        }
+      ]
+    },
+    {
+      "title": "Submit an answer and read feedback",
+      "layout": "gallery",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "For a single-choice or true/false question, tap one answer to submit it immediately. For multiple selections and other input forms, use **Submit**. **Answer sent** confirms acceptance; wait for the reveal rather than tapping again."
+        },
+        {
+          "p": "After reveal, the phone shows the result, points and rank when scoring is enabled. Polls and practice rounds have different feedback. The score here is illustrative: timing, question settings and streaks can affect points."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/08-phone-single-choice.jpg",
+          "caption": "Tap one answer in a single-choice round."
+        },
+        {
+          "file": "images/manual/09-phone-answer-sent.jpg",
+          "caption": "The submitted answer is acknowledged."
+        },
+        {
+          "file": "images/manual/11-phone-feedback.jpg",
+          "caption": "Feedback appears after the presenter reveals it."
+        }
+      ]
+    },
+    {
+      "title": "Reveal and discuss the result",
+      "layout": "figure",
+      "subtitle": "",
+      "blocks": [
+        {
+          "bullets": [
+            "The reveal can show the correct choices, response counts and an explanation authored in the deck. Give the group time to discuss why an answer is correct.",
+            "Going backwards does not automatically restart a question. Its previous state and results are retained.",
+            "**Ask again (practice)** reruns the question without points and rewinds later questions so they can run anew. Use it deliberately: it also discards the affected later answers and points. Use **New game** for a fresh group and a new PIN."
+          ]
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/10-presenter-reveal.jpg",
+          "caption": "Reveal view for the planet question. The correct answer is marked and the authored explanation is visible."
+        }
+      ]
+    },
+    {
+      "title": "Use the different answer formats",
+      "layout": "gallery",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "For **multiple choice**, tap every intended answer and then **Submit**; selected answers have check marks. For **numeric** questions, set the slider or enter a number, check its units and submit. For **ordering**, use the up/down buttons to arrange the items before submitting."
+        },
+        {
+          "p": "Text and open-response questions provide a text field. Sketch questions provide a drawing pad with pen colors, Undo, Clear and Submit. A poll can use one or several choices and has no correct answer. Follow the instructions shown on that round."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/13-phone-multiple-choice.jpg",
+          "caption": "Multiple selections need an explicit Submit."
+        },
+        {
+          "file": "images/manual/16-phone-numeric.jpg",
+          "caption": "Numeric input can be a bounded slider."
+        },
+        {
+          "file": "images/manual/17-phone-ordering.jpg",
+          "caption": "Reorder the items using the up/down buttons."
+        }
+      ]
+    },
+    {
+      "title": "Navigate and control the shared display",
+      "layout": "columns",
+      "subtitle": "",
+      "blocks": [
+        {
+          "heading": "Move through the deck"
+        },
+        {
+          "p": "Use **Next / Previous**, the arrow keys, PageDown / PageUp, or a clicker. Space and Enter also advance. A frame can contain several steps: reading, answering and reveal are different steps of the same quiz frame."
+        },
+        {
+          "p": "Choose **Overview** or press **G** to jump to a frame. Type a frame number and press Enter to jump directly. Home and End go to the first and last steps. Esc closes the overview or leaves a selected tool."
+        },
+        {
+          "heading": "Control what the room sees"
+        },
+        {
+          "bullets": [
+            "**Black (B)** or **White (W)** temporarily covers the projector output.",
+            "**Freeze (F)** holds the projector while you navigate privately. Select it again to resume live display.",
+            "**T** controls the elapsed lecture timer. It does not pause a live quiz round."
+          ]
+        },
+        {
+          "p": "Keep the overview private: its thumbnails may include reveal answers. Test your clicker and projector window before participants arrive."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/12-presenter-overview.jpg",
+          "caption": "Overview displays one thumbnail per frame and lets the presenter jump directly. Correct answers can be visible in these thumbnails."
+        }
+      ]
+    },
+    {
+      "title": "Ask and moderate audience questions",
+      "layout": "mixed",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "In the presenter, open **Q&A** and enable **open for the phones**. Participants then get a **Questions** tab where they can submit a question and upvote another open question. Their own question cannot be upvoted by them."
+        },
+        {
+          "p": "Use **Show** to place a question on the projector, **Hide** to remove it from the screen, and **Done** when it has been addressed. Delete and Block are moderation actions. Closing the panel alone does not close submissions; turn off **open for the phones** when finished. Questions are displayed without the participant nickname."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/14-phone-questions.jpg",
+          "caption": "A participant submits a question from the Questions tab."
+        },
+        {
+          "file": "images/manual/15-presenter-questions.jpg",
+          "caption": "The presenter chooses which question to show and when to mark it done."
+        }
+      ]
+    },
+    {
+      "title": "Use annotation and optional presenter tools",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "table": {
+            "headers": [
+              "Tool",
+              "How to use it"
+            ],
+            "rows": [
+              [
+                "Pen / Marker / Eraser",
+                "Select a tool, choose a color and width, then draw on the current slide. Undo and Redo change ink; Clear removes the current frame's ink. A compatible pen can draw while navigation mode is selected."
+              ],
+              [
+                "Laser / Zoom",
+                "Use Laser to point. With Zoom selected, drag a box over the slide; use Zoom or Z again to return to the full slide."
+              ],
+              [
+                "Whiteboard / Grid",
+                "Insert a whiteboard page after the current frame. Write or draw on it as you would on a slide. It can be included in the annotated PDF."
+              ],
+              [
+                "Poll",
+                "Ask an unplanned Yes / No, A-F, scale, word-cloud, text or sketch question. Set the question, choices and time, then choose Ask now. Return to the deck with the next-step command or Esc."
+              ],
+              [
+                "Devices",
+                "On the laptop choose Pair a device. Open or scan the offered link on the other device, then approve the request on the laptop. Only approve devices you intend to give presenter control."
+              ],
+              [
+                "Record",
+                "Choose the microphone and start recording; in the browser chooser select the projector window or display. Select the intended audience output, not the private presenter view. Stop recording before exporting it."
+              ],
+              [
+                "Sketches / Activities",
+                "These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities provides controls for authored live activities."
+              ]
+            ],
+            "widths": [
+              0.2,
+              0.8
+            ]
+          }
+        },
+        {
+          "p": "Recording and device/screen integration depend on browser support and permissions. Microphone and screen recording were not part of the screenshot session. Rehearse them on the presenting computer before class. The [authoring guide](authoring.md) and [installation guide](installation.md) cover the wider workflows."
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "Finish the session and export the material",
+      "layout": "mixed",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "A podium slide finishes the quiz session and shows final standings on phones. **After the lecture** opens the export tools; opening that panel alone does not end a quiz. **New game**, or returning to the join slide after a podium, starts a new session with a new PIN."
+        },
+        {
+          "p": "Choose **Make the PDF** for the last-shown version of each frame, ink and whiteboard pages; the PDF is also saved to the server archive. **Results (CSV)** exports participant results. The archive ZIP combines the annotated PDF, if generated, and results. Recorded takes appear in the Recordings list. Review student-facing files before sharing; keep result data and presenter credentials private."
+        }
+      ],
+      "images": [
+        {
+          "file": "images/manual/18-phone-final-rank.jpg",
+          "caption": "The phone displays the final rank at the end."
+        },
+        {
+          "file": "images/manual/19-after-the-lecture.jpg",
+          "caption": "Generate the annotated PDF and download the archive. No recording was made in this example."
+        }
+      ]
+    },
+    {
+      "title": "Author a small quiz and choose the right export",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "A quiz belongs in a Beamer document. Give each question a stable, unique ID. Mark correct choices with `\\choice*`; ordinary `\\choice` entries are distractors. `\\explain` supplies feedback. The existing authoring guide describes all question types and options."
+        },
+        {
+          "code": "\\documentclass{beamer}\n\\usepackage{texquiz}\n\\begin{document}\n\\quizjoinframe\n\\begin{quiz}[id=planet, time=20]{Which planet is known as the Red Planet?}\n  \\choice{Venus}\n  \\choice*{Mars}\n  \\explain{Mars appears reddish because of iron oxide on its surface.}\n\\end{quiz}\n\\quizpodiumframe\n\\end{document}"
+        },
+        {
+          "table": {
+            "headers": [
+              "Command or file",
+              "Use"
+            ],
+            "rows": [
+              [
+                "texstage pdf deck.tex",
+                "Handout with quiz placeholders; the default PDF mode."
+              ],
+              [
+                "texstage pdf --solutions deck.tex",
+                "Questions with correct answers and explanations."
+              ],
+              [
+                "texstage pdf --present deck.tex",
+                "A static PDF preview of the live presentation steps."
+              ],
+              [
+                "texstage build deck.tex",
+                "Build the live PowerPoint file, static PowerPoint fallback and server bundle."
+              ],
+              [
+                "deck.bundle.zip",
+                "Upload this package to a texstage server."
+              ],
+              [
+                "deck.pptx / deck-static.pptx",
+                "The live deck needs the server/add-in and may carry its presenter key. The static fallback has no live quiz."
+              ]
+            ],
+            "widths": [
+              0.38,
+              0.62
+            ]
+          }
+        },
+        {
+          "p": "Output normally goes to `texquiz-out` beside the source; use `--output-dir` to choose another location. For PowerPoint, install the add-in on the presenting PC, then use `texstage present deck.tex --powerpoint`. Rehearse with `texstage check deck.pptx` and start from its preparation slide. Keep the live PPTX out of student downloads."
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "Troubleshoot before and during a session",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "table": {
+            "headers": [
+              "Symptom",
+              "What to do"
+            ],
+            "rows": [
+              [
+                "A phone cannot open the join page",
+                "Use the actual reachable server address, not localhost or 127.0.0.1. Check the network and firewall. Open /api/status at that same address from the phone. Campus networks may isolate devices; use a suitable hotspot or configured hosted server/tunnel."
+              ],
+              [
+                "The PIN is rejected",
+                "Read the current PIN from the presenter or join slide. New game creates a different PIN; an old screenshot or previous session PIN will not work."
+              ],
+              [
+                "The phone has no answer buttons",
+                "A lobby or reading screen is normal. Wait for the presenter to open the round. If it says Paused, the presenter must resume the quiz."
+              ],
+              [
+                "The phone says Reconnecting",
+                "Restore its network connection and keep the same browser/tab. A saved participant token lets the same player resume after a reload. A different browser or cleared storage can lose that identity."
+              ],
+              [
+                "The presenter needs a key",
+                "Use the correct server's authorized presenter key or pair the device from the laptop. Participants need only the PIN and nickname."
+              ],
+              [
+                "Projector does not open or move",
+                "Allow its pop-up for this server. Move the window manually if automatic placement is unavailable. Use extended displays so the presenter stays private."
+              ],
+              [
+                "The projector seems stuck",
+                "Check Freeze, Black and White. Return to normal display. Also check the presenter connection indicator."
+              ],
+              [
+                "A question will not restart",
+                "Going backwards preserves its state. Choose Ask again for practice or New game for a new session; review the rewind effects first."
+              ],
+              [
+                "A deck or stage PDF is missing",
+                "Reload the library after building, upload the .bundle.zip to the intended server, or rebuild without --no-stage. Check the first LaTeX error if the build failed."
+              ],
+              [
+                "Recording has no sound",
+                "Check browser permission, the selected microphone and its level meter. Make a short rehearsal recording and play it back."
+              ]
+            ],
+            "widths": [
+              0.25,
+              0.75
+            ]
+          }
+        },
+        {
+          "p": "Before class: verify the build, join from a real phone, rehearse one question and its reveal, check the projector and notes, and know which static PDF/PPTX you will use if the live connection fails."
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "Participant quick reference",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "heading": "Join"
+        },
+        {
+          "bullets": [
+            "Scan the QR code or open the address shown in the room.",
+            "Enter the current PIN and a nickname. Tap Join and wait for You're in!.",
+            "Keep the same browser tab open so a reconnection can restore your place."
+          ]
+        },
+        {
+          "heading": "Answer"
+        },
+        {
+          "bullets": [
+            "Read the question first. The presenter decides when answers open.",
+            "Single choice or true/false: tap one answer; it submits immediately.",
+            "Multiple choice: select all intended answers, then tap Submit.",
+            "Number, text, ordering or sketch: complete the input, then tap Submit.",
+            "Wait for Answer sent and then the reveal. Your result and score appear when the round allows it."
+          ]
+        },
+        {
+          "heading": "Ask for help"
+        },
+        {
+          "bullets": [
+            "If Questions is available, submit a question there or upvote another question.",
+            "If you cannot connect, tell the presenter. Check the current PIN and that your network can reach the displayed address.",
+            "Do not enter a presenter key. The participant page needs only the session PIN and nickname."
+          ]
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "Presenter shortcut card",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "table": {
+            "headers": [
+              "Action",
+              "Shortcut",
+              "Action",
+              "Shortcut"
+            ],
+            "rows": [
+              [
+                "Next / previous",
+                "Right / Left, PageDown / PageUp",
+                "Overview",
+                "G"
+              ],
+              [
+                "Jump to frame",
+                "Number, then Enter",
+                "Black / White",
+                "B / W"
+              ],
+              [
+                "Freeze / unfreeze",
+                "F",
+                "Elapsed timer",
+                "T"
+              ],
+              [
+                "Pen / Marker / Eraser",
+                "P / H / E",
+                "Laser / Zoom",
+                "L / Z"
+              ],
+              [
+                "Whiteboard / Grid",
+                "N / Shift+N",
+                "Undo / Redo",
+                "Ctrl+Z / Ctrl+Y"
+              ]
+            ],
+            "widths": [
+              0.24,
+              0.28,
+              0.25,
+              0.23
+            ]
+          }
+        },
+        {
+          "p": "This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown."
+        }
+      ],
+      "images": []
+    },
+    {
+      "title": "About the screenshots and further help",
+      "layout": "text",
+      "subtitle": "",
+      "blocks": [
+        {
+          "p": "The screenshots show texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures."
+        },
+        {
+          "p": "All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface can use German according to browser language."
+        },
+        {
+          "p": "The source deck is [examples/manual/demo.tex](../examples/manual/demo.tex). It uses 240-second quiz rounds for capture and rehearsal. Replace the example local join address and choose a realistic round duration for teaching. Live session join information comes from the server's advertised address."
+        },
+        {
+          "table": {
+            "headers": [
+              "Companion guide",
+              "Contents"
+            ],
+            "rows": [
+              [
+                "installation.md",
+                "Source/wheel installation, TeX requirements, hosting overview and common setup failures."
+              ],
+              [
+                "authoring.md",
+                "Full quiz syntax, question options, presentation workflows and hosting details."
+              ],
+              [
+                "integration.md",
+                "Supported Python integration API for companion course tools."
+              ],
+              [
+                "dependencies.md",
+                "Locked environments and dependency updates."
+              ],
+              [
+                "SECURITY.md",
+                "Private reporting and handling of keys, inputs and server data."
+              ],
+              [
+                "releasing.md",
+                "Publication prerequisites and candidate validation."
+              ]
+            ],
+            "widths": [
+              0.25,
+              0.75
+            ]
+          }
+        },
+        {
+          "p": "For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example. Remove presenter keys and participant data from logs or screenshots before sharing them."
+        },
+        {
+          "p": "Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate the two reading formats."
+        }
+      ],
+      "images": []
+    }
+  ]
+}

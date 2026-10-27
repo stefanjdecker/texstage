@@ -1,0 +1,65 @@
+% SPDX-License-Identifier: Apache-2.0
+\documentclass[aspectratio=169]{beamer}
+\usetheme{default}
+\definecolor{manualblue}{RGB}{30,58,95}
+\setbeamercolor{structure}{fg=manualblue}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\usepackage{texquiz}
+% Long rounds give readers time to reproduce the screenshots. Use shorter times in class.
+\quizsetup{time=240, join-url={http://127.0.0.1:8765/play}}
+\begin{document}
+\begin{frame}{Learning together}
+  \Large A short tour of texstage
+  \medskip
+  \normalsize
+  \begin{itemize}
+    \item Follow the slides on the shared screen.
+    \item Join with a phone to answer the questions.
+    \item Wait for the presenter before submitting an answer.
+  \end{itemize}
+  \note{Welcome everyone. Open the Projector window on the audience display. Keep this presenter window and these notes private.}
+\end{frame}
+
+\quizjoinframe[note={Invite participants to scan the QR code or open the displayed address. They enter the current PIN and a nickname. This local manual demo uses synthetic participants only.}]
+
+\begin{quiz}[id=planet]{Which planet is known as the Red Planet?}
+  \choice{Venus}
+  \choice*{Mars}
+  \choice{Jupiter}
+  \choice{Neptune}
+  \explain{Mars appears reddish because of iron oxide on its surface.}
+  \note{On the reading slide, let the group read first. Advance once more to display the choices and start the timed question. Discuss the explanation after revealing the answer.}
+\end{quiz}
+
+\begin{quiz}[id=tools]{Which tools help you present a lesson?}
+  \choice*{Speaker notes}
+  \choice{Sharing the presenter key with the audience}
+  \choice*{A separate projector window}
+  \choice{Showing the correct answers before the question}
+  \explain{Speaker notes and a separate projector window support the presenter while keeping private controls out of the audience view.}
+\end{quiz}
+
+\begin{quiz}[id=confidence, type=poll, leaderboard=false]{How confident do you feel about joining a live quiz?}
+  \choice{Ready to try}
+  \choice{I would like one more example}
+  \choice{I need help connecting}
+\end{quiz}
+
+\begin{quiz}[id=sides, type=numeric, answer=6, min=0, max=12, step=1]{How many sides does a hexagon have?}
+  \explain{A hexagon has six sides.}
+\end{quiz}
+
+\begin{quiz}[id=steps, type=order]{Put these steps in order.}
+  \step{Join the session}
+  \step{Read the question}
+  \step{Submit your answer}
+  \step{Discuss the result}
+\end{quiz}
+
+\quizpodiumframe
+\begin{frame}{Keep exploring}
+  Ask a question, discuss the feedback, and try another round.
+  \note{End the session when the group is finished, then review the available exports.}
+\end{frame}
+\end{document}

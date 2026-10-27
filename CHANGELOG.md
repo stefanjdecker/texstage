@@ -7,6 +7,8 @@
 - Added hashed runtime/build/development locks, CI, source-archive rebuild checks
   and an installed-wheel smoke check.
 - Added installation, development, contribution and release documentation.
+- Added an illustrated user manual in Markdown and PDF, 19 screenshots of a
+  synthetic session, a runnable manual demo, and locked PDF build dependencies.
 
 This candidate has not been published. DBIS styles and course commands are owned
 by the companion lecture-tools project. Publication rights for retained developer

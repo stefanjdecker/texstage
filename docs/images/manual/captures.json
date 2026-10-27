@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "version": "0.2.1.dev0",
+  "source_revision": "daf0976b67954613a839b111f9696e41ab000433",
+  "captured_on": "2026-10-27",
+  "demo_source": "examples/manual/demo.tex",
+  "method": "Raw screenshots of the running application in an isolated synthetic session. Phone views use a 390 x 844 browser viewport, not physical phone hardware.",
+  "desktop_viewport": [
+    1280,
+    720
+  ],
+  "phone_viewport": [
+    390,
+    844
+  ],
+  "screenshots": [
+    {
+      "file": "images/manual/01-deck-library.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "cd1b4ee92a466a3c31f8068e051e667d8e4ed4c9dc39c89ad06b02951b86fd25",
+      "description": "Deck library. Present opens the private presenter workspace; the three-dot menu contains deck actions."
+    },
+    {
+      "file": "images/manual/02-presenter-workspace.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "33ae2fcddad1b57a8ed1e67d13f3f2792f986200e6fe26a322a0e91e659a5cf9",
+      "description": "Presenter workspace with text notes. Next previews the join slide. The elapsed lecture timer is separate from a quiz countdown."
+    },
+    {
+      "file": "images/manual/03-presenter-join.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "4af10a0386133e038b8b5a4a23310ad8d1c54eb5ab088dd99ba0d2013d4e771a",
+      "description": "The join slide shows the session address, PIN, QR code and player count. The PIN shown here is only an example."
+    },
+    {
+      "file": "images/manual/04-phone-join.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "715ac05efc7c4c87f28f6895cb6ddb6f5b4e2c5f5550f35de9580717bf635530",
+      "description": "Enter the current PIN and a nickname."
+    },
+    {
+      "file": "images/manual/05-phone-lobby.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "e734912ce4ef1a70fe97eeb0378f4ce4c2cfa08922c6bf476b7f020656d81b31",
+      "description": "Wait for the presenter after joining."
+    },
+    {
+      "file": "images/manual/06-phone-reading.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "eeb458038a07fc9da8c3ee23639ae92a98d0464532db9a9ed34fd5359c218c77",
+      "description": "Read first; the answers open on the next step."
+    },
+    {
+      "file": "images/manual/07-presenter-question.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "013146deeb33d1ab8d0c1930a3401b4594dbff9031ad228cac6e04580b620bc4",
+      "description": "A question is open, with its countdown and answer counter. The private Next pane already previews the reveal."
+    },
+    {
+      "file": "images/manual/08-phone-single-choice.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "8577dd27b452fa68933f1ac6044c8dba3e9b8303c8302dc5e2495c7eeec13258",
+      "description": "Tap one answer in a single-choice round."
+    },
+    {
+      "file": "images/manual/09-phone-answer-sent.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "b2b058d6d41c5ac5f21c0f03d2b9f7a79c72d8563134d78286882345f8ee51a3",
+      "description": "The submitted answer is acknowledged."
+    },
+    {
+      "file": "images/manual/10-presenter-reveal.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "6e3f0b2813d866822991fadd78b1650c6ea9881d33269738480044ee0fc15843",
+      "description": "Reveal view for the planet question. The correct answer is marked and the authored explanation is visible."
+    },
+    {
+      "file": "images/manual/11-phone-feedback.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "e0657c2b5e76aba3990438e47fa94e45b37e65573d328bb30dfffc6316ae5da8",
+      "description": "Feedback appears after the presenter reveals it."
+    },
+    {
+      "file": "images/manual/12-presenter-overview.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "8c753670a2b8b9b90f963b2cf306be2e37ed107da308f5169b8753ee6f806934",
+      "description": "Overview displays one thumbnail per frame and lets the presenter jump directly. Correct answers can be visible in these thumbnails."
+    },
+    {
+      "file": "images/manual/13-phone-multiple-choice.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "de4aa7a50599ac78234891930fc6f4a1227c95685308b94356358c1dfc3dc006",
+      "description": "Multiple selections need an explicit Submit."
+    },
+    {
+      "file": "images/manual/14-phone-questions.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "69df8697ab793be6f2cd446acff5c570035c36fb988db8f8e12606eebae5faf5",
+      "description": "A participant submits a question from the Questions tab."
+    },
+    {
+      "file": "images/manual/15-presenter-questions.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "1543aaa3d66eb456507c9371d3cb93d1eac587e6082fbe0b5496076f50ea0e7d",
+      "description": "The presenter chooses which question to show and when to mark it done."
+    },
+    {
+      "file": "images/manual/16-phone-numeric.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "07c2db99e1a570167f51256500af4a71400552fca5162ba881e493d186d08f00",
+      "description": "Numeric input can be a bounded slider."
+    },
+    {
+      "file": "images/manual/17-phone-ordering.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "89d44265043e2f49ff61a85018925d099911c59c071b405ee8becd0b70b9064e",
+      "description": "Reorder the items using the up/down buttons."
+    },
+    {
+      "file": "images/manual/18-phone-final-rank.jpg",
+      "width": 390,
+      "height": 843,
+      "sha256": "f1d8b7aee3a5f304ba747b877ec589ea962efd3235d1cae4b3996e8a012923d6",
+      "description": "The phone displays the final rank at the end."
+    },
+    {
+      "file": "images/manual/19-after-the-lecture.jpg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "940c7ac31220a4d044c060ee2090a7b26ad4b74a3206b7ac7091371a1cce268e",
+      "description": "Generate the annotated PDF and download the archive. No recording was made in this example."
+    }
+  ]
+}

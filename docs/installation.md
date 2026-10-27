@@ -1,5 +1,8 @@
 # Install and present a first deck
 
+For a walkthrough with presenter and phone screenshots, read the
+[illustrated user manual](manual.md) or [download the PDF](manual.pdf).
+
 This candidate is installed from a local checkout or a verified candidate wheel.
 Python 3.12+ is required. Deck builds use `pdflatex` and Beamer from TeX Live or
 MiKTeX. The server can serve already-built bundles without a TeX installation.

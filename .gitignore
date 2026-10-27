@@ -19,3 +19,5 @@ deploy/.env
 /.release-check/
 
 /test-results.xml
+/.manual-data/
+/.manual-build/

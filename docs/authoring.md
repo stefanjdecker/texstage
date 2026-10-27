@@ -1,5 +1,8 @@
 # Writing quizzes in LaTeX
 
+For presenting and participating, see the [illustrated user manual](manual.md)
+with [PDF edition](manual.pdf).
+
 `latex/texquiz.sty` adds live quizzes to any Beamer deck. A quiz is written where it is shown:
 either as a frame of its own, or inside one of your frames, next to the material it is about.
 

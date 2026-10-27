@@ -49,6 +49,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 
 | Guide | Use it for |
 |---|---|
+| [Illustrated user manual](docs/manual.md) ([PDF](docs/manual.pdf)) | Presenter walkthrough, phone screenshots, Q&A, exports and quick references |
 | [Installation and quick start](docs/installation.md) | Requirements, first deck, troubleshooting and deployment |
 | [Authoring](docs/authoring.md) | Quiz syntax, build modes and presenting |
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |

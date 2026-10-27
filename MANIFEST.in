@@ -3,6 +3,8 @@ graft docs
 prune docs/history
 graft examples/demo
 prune examples/demo/texquiz-out
+graft examples/manual
+prune examples/manual/texquiz-out
 graft deploy
 exclude deploy/.env
 graft tests

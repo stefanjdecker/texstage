@@ -10,6 +10,7 @@ No local paths, private indexes or credentials are embedded in the locks.
 | `runtime.txt` | Runtime dependency set |
 | `build.txt` | Build frontend, setuptools backend and the lock generator |
 | `dev.txt` | Runtime, build and test dependencies; constrained by both other locks |
+| `docs.txt` | texstage's PDF manual renderer and its dependencies; constrained by runtime pins |
 | `*.in` | Generated direct inputs; edit pyproject.toml rather than these files |
 | `lock-manifest.json` | Hashes of dependency metadata, generator, inputs and lock outputs |
 
@@ -61,7 +62,7 @@ The first command keeps current pins where compatible. To select new versions:
 python maintenance/lock_dependencies.py --upgrade
 ```
 
-Review all three profiles and the manifest together; then run the tests and
+Review all profiles and the manifest together; then run the tests and
 installed-wheel checks described in [development.md](development.md). Changing
 the resolver version also requires updating `UV_VERSION` in the generator and
 regenerating with that version. The script resolves all profiles before replacing

@@ -35,16 +35,19 @@ def inputs():
         runtime.extend(pair["requires_dist"])
     runtime = sorted(set(runtime), key=str.lower)
     build = [*project["build-system"]["requires"], "build>=1.2,<2", "uv==" + UV_VERSION]
-    return {
+    profiles = {
         "runtime": "\n".join(runtime) + "\n",
         "build": "\n".join(build) + "\n",
         "dev": "-r runtime.in\n-r build.in\n-c runtime.txt\n-c build.txt\n" + "\n".join(meta["optional-dependencies"]["dev"]) + "\n",
     }
+    if "docs" in meta["optional-dependencies"]:
+        profiles["docs"] = "-c runtime.txt\n" + "\n".join(meta["optional-dependencies"]["docs"]) + "\n"
+    return profiles
 
 
 def snapshot():
     paths = ["pyproject.toml", "maintenance/lock_dependencies.py"]
-    paths += ["requirements/" + profile + suffix for profile in ("runtime", "build", "dev") for suffix in (".in", ".txt")]
+    paths += ["requirements/" + profile + suffix for profile in inputs() for suffix in (".in", ".txt")]
     if (ROOT / "requirements/texstage.json").exists():
         paths += ["requirements/texstage.json", "texstage-assets.lock.json"]
     return {name: digest(ROOT / name) for name in paths}
@@ -70,7 +73,7 @@ def main():
         return
     result = subprocess.run(["uv", "--version"], check=True, capture_output=True, text=True)
     assert result.stdout.split()[1] == UV_VERSION, f"Use uv {UV_VERSION}, pinned in requirements/build.txt"
-    # Resolve all three profiles before replacing any checked-in file.
+    # Resolve all profiles before replacing any checked-in file.
     with tempfile.TemporaryDirectory(prefix="dependency-locks-") as temporary:
         work = Path(temporary)
         for profile, contents in expected.items():
@@ -89,7 +92,7 @@ def main():
     manifest = {"schema_version": 1, "resolver": "uv " + UV_VERSION,
                 "python": ">=3.12", "universal": True, "files": snapshot()}
     (ROOT / "requirements/lock-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
-    print("Updated runtime, build and dev locks; review changes and run the CI checks")
+    print("Updated " + ", ".join(expected) + " locks; review changes and run the CI checks")
 
 
 if __name__ == "__main__":
