@@ -8,3 +8,7 @@ exclude deploy/.env
 graft tests
 global-exclude __pycache__ *.py[cod] .env
 include provenance/original-NOTICE
+
+include CONTRIBUTING.md SECURITY.md CHANGELOG.md
+graft requirements
+graft maintenance

@@ -17,7 +17,9 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY latex/texstage.sty latex/texquiz.sty latex/texvideo.sty latex/texactivity.sty ./latex/
 COPY src ./src
-RUN pip install . \
+COPY requirements ./requirements
+RUN pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt \
+ && pip install --no-deps --no-build-isolation . \
  && useradd --system --home-dir /data texstage \
  && mkdir -p /data/bundles && chown -R texstage /data
 

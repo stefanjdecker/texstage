@@ -1,4 +1,11 @@
-# First refactoring increment
+# Refactoring history
+
+Current release infrastructure is documented in [development.md](development.md),
+[dependencies.md](dependencies.md) and [releasing.md](releasing.md). CI workflows,
+hashed locks, synthetic examples and public guides are now present. Hosted CI
+runs and publication decisions are still pending.
+
+## First refactoring increment (historical record)
 
 Implemented on 27 October 2026, from combined lecture-tools commit
 `6388b6ba48d8c4f770c81cc66c992a3d5c9cde26`. The source snapshot and per-file

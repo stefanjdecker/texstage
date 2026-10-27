@@ -11,3 +11,11 @@ deploy/.env
 /test-output*/
 /artifacts/
 /artifacts-build.log
+
+/.ci-venv/
+/.wheel-venv/
+/.base-venv/
+/wheelhouse/
+/.release-check/
+
+/test-results.xml

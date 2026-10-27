@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-27",
+  "scope": "Release preparation in the two new repositories only; no publication or course migration",
+  "environment": "Windows, CPython 3.14.4, TeX Live 2026 and Node; new venvs populated from hash-verified third-party wheels, without the original environment on sys.path",
+  "texstage_suite": {
+    "passed": 297,
+    "failed": 0,
+    "skipped": 0,
+    "runs": "291 main tests plus 6 temporary Windows registry tests; 2 subtests also passed"
+  },
+  "lecture_tools_suite": {
+    "passed": 51,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lecture_tools_independent_ci_subset": {
+    "passed": 22,
+    "deselected": 1,
+    "note": "All-command import test intentionally belongs to the paired suite; texstage uninstalled for this base subset"
+  },
+  "checks": [
+    "Hash-verified locked installations from downloaded wheels into new environments",
+    "pip check in development and installed-pair environments",
+    "Offline lock-manifest freshness check",
+    "All three workflow files validated with official SHA256-verified actionlint 1.7.7; optional shellcheck/pyflakes integrations disabled",
+    "Local file-link checks for maintained public Markdown documentation",
+    "Wheel and sdist builds; every wheel member byte-identical after rebuilding from the source archive",
+    "Installed base lecture-tools wheel without optional runtime dependencies: skills, packaged command, plain TeX and missing-extra diagnostic",
+    "Installed pair: metadata, API, actual generic-style hashes, static course build and live bundle",
+    "Installed texstage console/resources and synthetic live deck",
+    "Documented minimal-course example built from a disposable copy",
+    "35-page style regression across five language/box/notes profiles in the full lecture-tools suite"
+  ],
+  "non_failing_warnings": [
+    "Starlette TestClient deprecates its httpx integration; current tests pass",
+    "Separate Windows registry run reported pytest cache permissions under mixed sandbox/user identities; tests themselves passed"
+  ],
+  "not_run": [
+    "Hosted GitHub Actions jobs; no remote is configured",
+    "Linux, Python 3.12/3.13 and macOS execution on this Windows host",
+    "Docker build/startup; no local Docker daemon was available (CI job configured)",
+    "Interactive browser/PowerPoint COM or compiled macOS AppleScript rehearsal",
+    "Real-course builds or migrations",
+    "Publication rights decisions or complete history/security audit"
+  ],
+  "artifact_record": "Final archives and hashes are stored separately in dist/release-preparation/SHA256SUMS and validation.json in each delivered local repository. They are not committed source files.",
+  "protected_sources": {
+    "original_tracked_file_hashes": 249,
+    "original_head": "6388b6ba48d8c4f770c81cc66c992a3d5c9cde26",
+    "original_status": "unchanged and clean",
+    "courses_checked": 4,
+    "course_checks": "HEAD, tools gitlink and tracked status unchanged; ignored course files were not exhaustively inventoried"
+  }
+}

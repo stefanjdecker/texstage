@@ -1,0 +1,13 @@
+# Changelog
+
+## Unreleased — 0.2.1.dev0 candidate
+
+- Extracted the standalone runtime, server, browser assets and four generic styles.
+- Added the supported lazy `texstage.api` facade for companion integrations.
+- Added hashed runtime/build/development locks, CI, source-archive rebuild checks
+  and an installed-wheel smoke check.
+- Added installation, development, contribution and release documentation.
+
+This candidate has not been published. DBIS styles and course commands are owned
+by the companion lecture-tools project. Publication rights for retained developer
+utilities and hosted/platform validation remain release prerequisites.

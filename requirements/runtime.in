@@ -1,0 +1,7 @@
+lxml>=5
+pillow>=11
+pypdfium2>=5
+python-pptx>=1.0
+segno>=1.6
+starlette>=0.46
+uvicorn[standard]>=0.34

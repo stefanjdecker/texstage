@@ -2,7 +2,8 @@ texstage, with texquiz
 Copyright 2026 Stefan Decker
 
 Apache License 2.0 covers src/texstage (excluding separately licensed vendor code),
-the four generic latex/*.sty packages, tests, examples/demo, deploy, and documentation.
+the four generic latex/*.sty packages, tests, examples/demo, deploy, documentation,
+and the newly written release infrastructure in maintenance/, .github/ and requirements/.
 Retain the licenses supplied with vendored libraries.
 
 The developer utilities tools/simulate.py and tools/slideshow.ps1 were excluded
