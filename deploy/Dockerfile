@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-# The texstage server as a container (docs/design.md, section 8). Built from the repository
+# The texstage server as a container (docs/architecture/design.md, section 8). Built from the repository
 # root by docker-compose.yml next to this file; on its own:
 #
 #   docker build -f deploy/Dockerfile -t texstage .

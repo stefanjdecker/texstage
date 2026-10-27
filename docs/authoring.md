@@ -423,7 +423,7 @@ address is new - nothing to rebuild. `texstage check` tries that address over th
 too. `--no-tunnel` serves in the room's network again. Try the lecture hall's network once:
 cloudflared needs to get out to Cloudflare (port 7844).
 
-**On a hosted server** (set up from `deploy/`, see `docs/design.md` Â§8): register its add-in
+**On a hosted server** (set up from `deploy/`, see `docs/architecture/design.md` Â§8): register its add-in
 once per PC, and build the decks for it - or point a built deck at it:
 
 ```bash

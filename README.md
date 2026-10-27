@@ -69,8 +69,8 @@ deck.tex` without a command presents as well.
 The phones join at the address the join slide shows.
 
 The source distribution holds the documentation: `docs/authoring.md` (writing quizzes, the
-builds, presenting), `docs/design.md` and `docs/texstage-design.md` (how it works), and
-`docs/content-types-design.md` (what comes next: videos, notebook cells).
+builds, presenting), `docs/architecture/design.md` and `docs/architecture/texstage-design.md` (how it works), and
+`docs/architecture/content-types-design.md` (what comes next: videos, notebook cells).
 
 ## Licence
 
