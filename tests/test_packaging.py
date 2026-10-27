@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "texstage"
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 # the LaTeX packages the wheel carries (latex/dbis-slides.sty is the lectures', not texstage's)
-STYLES = ["texstage.sty", "texquiz.sty", "texquiz-theme-dbis.sty", "texvideo.sty", "texactivity.sty"]
+STYLES = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]
 
 
 def own_sources():

@@ -17,7 +17,6 @@ import pytest
 from fake_bundle import make_bundle
 from texstage import cli
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 
 
 def touch(path: Path, t: float):
@@ -156,50 +155,5 @@ def test_a_build_has_the_stage_pdf_by_default(tmp_path, monkeypatch):
     assert seen == [True, False, True]
 
 
-@pytest.fixture
-def chapter_script(tmp_path, monkeypatch):
-    """texstage-present.py, loaded here, in a lecture with the chapters 01-Test and 02-More."""
-    lec = tmp_path / "lecture"
-    for chapter in ("01-Test", "02-More"):
-        touch(lec / chapter / "001.tex", 1_000_000)
-    (lec / "notes").mkdir()                                        # not a chapter: no frames
-    (lec / "dbis-style.sty").write_text("% the lecture's style", encoding="utf-8")
-    monkeypatch.setenv("LECTURE_ROOT", str(lec))
-    monkeypatch.syspath_prepend(str(SCRIPTS))                       # its lecture.py; sys.path back afterwards
-    monkeypatch.delitem(sys.modules, "lecture", raising=False)
-    spec = importlib.util.spec_from_file_location("texstage_present", SCRIPTS / "texstage-present.py")
-    script = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(script)
-    return lec, script
 
 
-def test_present_a_chapter(chapter_script, monkeypatch):
-    """texstage-present.py <chapter>: the chapter built first if needed (texstage-build.py), then
-    texstage present on its build/texquiz - every other chapter's served too."""
-    lec, script = chapter_script
-    out, more = (lec / c / "build" / "texquiz" for c in ("01-Test", "02-More"))
-    builds, presented = [], []
-
-    def build(cmd):
-        builds.append([Path(cmd[1]).name, *cmd[2:]])
-        return SimpleNamespace(returncode=0)
-    monkeypatch.setattr(script, "subprocess", SimpleNamespace(run=build))
-    monkeypatch.setattr(script, "texstage", lambda argv: presented.append(argv) or 0)
-
-    def present(*args):
-        monkeypatch.setattr(sys, "argv", ["texstage-present.py", *args])
-        return script.main()
-    assert present("01-Test", "--powerpoint", "--port", "8475") == 0         # not built yet
-    assert builds == [["texstage-build.py", "01-Test", "--server", "http://localhost:8475"]]
-    assert presented == [["present", str(out), str(more), "--no-build", "--powerpoint", "--port", "8475"]]
-    fb = make_bundle(out, stage=True)
-    os.utime(fb.path / "deck.json", (2_000_000, 2_000_000))
-    touch(lec / "01-Test" / "slides.tex", 3_000_000)                         # written from the frames
-    assert present("01-Test") == 0 and len(builds) == 1                      # up to date
-    assert presented[-1] == ["present", str(out), str(more), "--no-build"]
-    assert present("01-Test", "--build", "--no-check") == 0                  # built anyway
-    assert builds[-1] == ["texstage-build.py", "01-Test", "--no-check"]
-    touch(lec / "01-Test" / "001.tex", 3_000_000)                            # a frame edited, and LaTeX fails
-    monkeypatch.setattr(script, "subprocess", SimpleNamespace(run=lambda cmd: SimpleNamespace(returncode=1)))
-    assert present("01-Test") == 1 and len(presented) == 3                  # nothing new to present
-    assert present("01-Test", "--no-build") == 0 and len(presented) == 4     # the build as it is

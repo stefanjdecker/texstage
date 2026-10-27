@@ -14,8 +14,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_
 WORKDIR /app
 # what the package is built from (pyproject.toml): the server needs none of the LaTeX files,
 # but the package includes them
-COPY pyproject.toml README-texstage.md LICENSE NOTICE ./
-COPY latex/texstage.sty latex/texquiz.sty latex/texquiz-theme-dbis.sty latex/texvideo.sty latex/texactivity.sty ./latex/
+COPY pyproject.toml README.md LICENSE NOTICE ./
+COPY latex/texstage.sty latex/texquiz.sty latex/texvideo.sty latex/texactivity.sty ./latex/
 COPY src ./src
 RUN pip install . \
  && useradd --system --home-dir /data texstage \

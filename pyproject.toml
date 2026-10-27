@@ -6,15 +6,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texstage"
-version = "0.2.0"
+version = "0.2.1.dev0"
 description = "Beamer decks presented live, with quizzes authored in LaTeX (texquiz) - in the browser or in PowerPoint"
-readme = "README-texstage.md"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "src/texstage/web/vendor/*/LICENSE*"]
 authors = [{ name = "Stefan Decker" }]
 keywords = ["latex", "beamer", "quiz", "classroom", "audience response", "presentation", "lecture"]
 classifiers = [
+  "Private :: Do Not Upload",
   "Development Status :: 4 - Beta",
   "Environment :: Web Environment",
   "Intended Audience :: Education",
@@ -57,4 +58,4 @@ packages = ["texstage", "texstage.build", "texstage.server", "texstage.latex",
 
 [tool.setuptools.package-data]
 texstage = ["web/**/*"]      # the pages the server serves (phone, host console, live views, texstage)
-"texstage.latex" = ["texstage.sty", "texquiz.sty", "texquiz-theme-dbis.sty", "texvideo.sty", "texactivity.sty"]
+"texstage.latex" = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]

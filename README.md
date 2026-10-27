@@ -1,5 +1,7 @@
 # texstage
 
+Development extraction, version 0.2.1.dev0. This local snapshot is not a published release.
+
 Beamer decks presented live. **texstage** presents a LaTeX Beamer deck in the browser - a
 presenter window and a projector window - or in PowerPoint, and brings live content onto its
 slides. The first kind is **texquiz**, live quizzes written in the deck: a quiz is a `quiz`
@@ -41,7 +43,7 @@ come in. (Until 2026-10-10 the whole package was called texquiz.)
 ## Install
 
 ```bash
-pip install texstage
+python -m pip install -e .
 ```
 
 Python 3.12 or newer. Building decks needs a TeX distribution with `pdflatex` and Beamer

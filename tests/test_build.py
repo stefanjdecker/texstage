@@ -14,7 +14,6 @@ import pytest
 from lxml import etree
 from pptx import Presentation
 
-from fake_lecture import DOC, make_lecture, run
 from texstage import DEFAULT_SERVER
 from texstage.build.pdf import Pdf
 from texstage.build.builder import BuildError, BuildOptions, build
@@ -470,35 +469,6 @@ def test_check_finds_a_quiz_frame_that_runs_into_the_footline(tmp_path):
 
 # ------------------------------------------------------------------ a course chapter
 
-def test_course_chapter(tmp_path, monkeypatch):
-    """A DBIS lecture chapter (German), built with the lecture's own tools/:
-    texstage-build.py combines the chapter and builds slides.tex, named after the chapter,
-    into build/texquiz (which the lectures' .gitignore covers). The DBIS theme shows no
-    leaderboard unless the quiz asks for one (the last scored quiz of a session)."""
-    monkeypatch.setenv("TEXQUIZ_KEY", "chapter-key")            # not the key file in the home folder
-    lec = make_lecture(tmp_path, language="ngerman", boxes="classic")
-    (lec / "lecture.json").write_text('{"course": "DBIS"}', encoding="utf-8")
-    chapter = lec / "01-Test"
-    (chapter / "003.tex").write_text(DOC % r"""\begin{frame}[t,quiz]{Frage: Welche?}
-\begin{quiz}[id=welche]{Welche Normalform?}\choice*{3NF}\choice{2NF}\end{quiz}
-\note{Erst abstimmen lassen.}
-\end{frame}""", encoding="utf-8")
-    (chapter / "004.tex").write_text(DOC % r"""\begin{quiz}[id=wie-viele, type=numeric, answer=4, leaderboard=true]
-{Wie viele Normalformen kennt die Vorlesung?}\end{quiz}""", encoding="utf-8")
-    r = run(lec, "texstage-build.py", "01-Test", "--data", str(tmp_path / "data"))   # not the home folder's
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert "01-Test.pptx: 11 slides, 7 live (2 quizzes, 1 leaderboards)" in r.stdout
-    assert "no \\quizjoinframe" in r.stdout
-    out = chapter / "build" / "texquiz"
-    from texstage.builds import build_folders
-    assert build_folders(tmp_path / "data") == [out.resolve()]           # the laptop's server finds it
-    deck_json = json.loads((out / "01-Test.bundle" / "deck.json").read_text(encoding="utf-8"))
-    assert deck_json["deck"] == "dbis-01-test" and deck_json["name"] == "01-Test"   # course + chapter
-    prs = Presentation(out / "01-Test.pptx")
-    question = next(s for s in prs.slides                                  # the laptop's server, by default
-                    if (addin_properties(s, DEFAULT_SERVER) or {}).get("phase") == "question")
-    assert addin_properties(question, DEFAULT_SERVER)["key"] == "chapter-key"
-    assert question.notes_slide.notes_text_frame.text == "Erst abstimmen lassen."
 
 
 def test_latex_runs_again_while_the_log_asks(tmp_path, monkeypatch):

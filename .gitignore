@@ -7,3 +7,10 @@ examples/**/out/
 deploy/.env
 /build/
 /dist/
+
+/test-output/
+/artifacts/
+/dist/
+/build/
+*.egg-info/
+/artifacts-build.log

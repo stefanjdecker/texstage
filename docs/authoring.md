@@ -10,27 +10,8 @@ either as a frame of its own, or inside one of your frames, next to the material
 \quizsetup{time=20, join-url={https://quiz.example.org}}
 ```
 
-In the DBIS lectures nothing is needed: the shared style (`tools/latex/dbis-slides.sty`)
-loads texquiz with the course look, `texquiz-theme-dbis.sty`, from its own folder. Elsewhere
-the package must be on the TeX search path: `texstage` commands set it up; for a plain
-`pdflatex` add `lecture-tools/latex` to `TEXINPUTS`.
-
-## Planning a chapter's quizzes
-
-In the DBIS lectures a chapter's quizzes are planned before they are written: which learning
-goal each one checks, where it goes, and which misconception each wrong answer stands for.
-The plan is `<chapter>/QUIZ-PLAN.md`; the lecturer approves it, then the frames are written
-and every answer is checked once more; after the lecture the results go into the plan. The
-Claude Code skill `plan-quizzes` (`tools/skills/plan-quizzes/SKILL.md`) walks through this,
-with the courses' conventions: 3–4 quizzes per 90-minute session (about 10 minutes), a join
-frame after the learning goals, a recap first, one leaderboard per session after its last
-scored quiz, then the podium. A lecture makes the shared skills available once with
-
-```bash
-python tools/scripts/install-skills.py
-```
-
-and then asks Claude, e.g., "plan the quizzes for 06-SPARQL-Semantics".
+The texstage commands supply the generic LaTeX search path. Course themes and
+chapter-based wrappers are maintained in the separate lecture-tools project.
 
 ## A quiz with its own frame
 
@@ -50,7 +31,7 @@ anything else is an error. The question is at the top, the answers at the bottom
 
 ## A quiz inside your frame
 
-For questions that come with material — a table, a graph, a listing — keep your frame and add
+For questions that come with material â€” a table, a graph, a listing â€” keep your frame and add
 the option `quiz`; the `quiz` environment then typesets the question and the answer boxes where
 it stands. Fragile frames (listings) work.
 
@@ -84,7 +65,7 @@ In the handout it becomes a placeholder page with the neutral title "Answer" (a 
 "The Answer Is C" would tell). With `=<quiz id>` it also tells the live deck that this slide
 reveals that quiz: the question is closed and scored there, the phones learn whether they were
 right. This fits predict-then-see questions, whose quiz has `reveal=none`: the quiz keeps one
-slide, and after the timer the slide shows what the class answered — without marking the right
+slide, and after the timer the slide shows what the class answered â€” without marking the right
 answer, which comes on the answer frame. Without `reveal=none` the quiz frame gets a second
 slide that reveals the answer itself.
 
@@ -94,7 +75,7 @@ slide that reveals the answer itself.
 
 | Type | Write | Scored |
 |---|---|---|
-| single choice | 2–6 `\choice`, exactly one `\choice*` | yes |
+| single choice | 2â€“6 `\choice`, exactly one `\choice*` | yes |
 | multiple choice | two or more `\choice*` (or `type=multiple`) | yes, exact set (`partial` for partial credit) |
 | true/false | `type=truefalse, answer=true` (or `false`) | yes |
 | poll | `type=poll`, `\choice` only; `select=multiple` for several | no |
@@ -108,7 +89,7 @@ The type is inferred from the body when it is unambiguous (choices with one or s
 `\accept`, `\step`, `answer=true|false|<number>`).
 
 Short-text answers are scored as the text students see: `\accept{AT\&T}` accepts
-`AT&T`, and `\accept{M\"unchen}` accepts `München`. Accents, escaped punctuation,
+`AT&T`, and `\accept{M\"unchen}` accepts `MÃ¼nchen`. Accents, escaped punctuation,
 nonbreaking spaces and ordinary text formatting use Hyperref's Unicode conversion.
 For math or a command without a plain-text representation, supply it explicitly,
 for example `\accept{\texorpdfstring{$x^2$}{x squared}}`. Unsupported conversions
@@ -116,14 +97,14 @@ stop the build rather than silently changing the accepted answer.
 
 Numeric questions require a nonnegative `tolerance`, a positive `step` when set,
 and `min <= max` when both bounds are set. At least part of the correct interval
-(`answer` ± `tolerance`) must lie inside the bounds. An unscored estimate can omit
+(`answer` Â± `tolerance`) must lie inside the bounds. An unscored estimate can omit
 `answer`; its range and step are still checked. With both bounds, the phone shows
 a slider with values `min + k * step` (default `step=1`); at least one selectable
 value must be correct. Give a fractional `step` when the expected answer needs it.
 
 ## Options
 
-On a quiz: `id` (required, unique: lower-case letters, digits, hyphens), `time` (5–240 s),
+On a quiz: `id` (required, unique: lower-case letters, digits, hyphens), `time` (5â€“240 s),
 `points=standard|double|none`, `leaderboard=true|false`, `reveal=slide|none`, `shuffle`,
 `cols=1..6`, `title`.
 
@@ -131,7 +112,7 @@ On a quiz: `id` (required, unique: lower-case letters, digits, hyphens), `time` 
   (the same in every build) and is the same on the slide and the phones. Ordering questions are
   always shown shuffled and never in their solved order.
 - **Columns**: all answers in one row if each fits its cell on one line (the DBIS look allows
-  up to six per row, the default look two — Kahoot's 2 × 2), else two columns if each fits on
+  up to six per row, the default look two â€” Kahoot's 2 Ã— 2), else two columns if each fits on
   two lines, else one answer per row. `cols=` overrides this.
 - **Leaderboards** are added by the builder after a scored quiz is revealed (unless
   `leaderboard=false`); they are not frames, so frame numbers stay the same in every build.
@@ -218,7 +199,7 @@ the same command by the browser presenter's name (`texstage deck.tex`).
 **In the browser instead of PowerPoint** (texstage): `texstage present` opens the presenter
 window on the deck (`http://localhost:8470/stage` lists all decks of the server); *Projector*
 opens the projector window (a click in it makes it full screen). The presenter window shows the
-current and the next step, your notes (the note page, or as text with A−/A+), a timer that starts
+current and the next step, your notes (the note page, or as text with Aâˆ’/A+), a timer that starts
 with the first step - drag the dividers between them to share the window as in PowerPoint (a double
 click puts one back; each browser remembers them); B, W and F make the projector black, white or frozen, G shows all frames, a
 number and Enter jumps there. The quizzes run as with PowerPoint. Write on the slides with a pen
@@ -227,17 +208,17 @@ choose a tool: P pen, H highlighter, E eraser, L laser pointer (it is where the 
 the finger is; with a mouse the cursor itself turns into the red dot), Z zoom (drag a box; the
 whole slide again: a tap on the red "zoomed" label over the slide, the Zoom button, or Z - the
 next slide ends the zoom anyway); N inserts a whiteboard page after the frame (Shift+N with a grid); Ctrl+Z /
-Ctrl+Y. *Clear* erases the frame's ink at once - ↶ or Ctrl+Z brings it back. **Links** on a slide
+Ctrl+Y. *Clear* erases the frame's ink at once - â†¶ or Ctrl+Z brings it back. **Links** on a slide
 (`\href`, `\url` to a web address) work in both windows: over one the cursor turns into a hand
 and shows the address, and a click - with the mouse, or a tap of a finger - opens it in a new
-tab; in the presenter window while navigating (↖), so a tool keeps its clicks, and never with a
+tab; in the presenter window while navigating (â†–), so a tool keeps its clicks, and never with a
 pen, which draws. The ink stays with its
 frame for the lecture. When the deck has ink or whiteboard pages from before, *Present* asks: a
 *new presentation* starts without them (they stay with the earlier lecture in the archive; the
 phones join a new game), *continue that lecture* goes on with them - for a chapter that takes two
 lectures. **A pen display in the hall** that shows the projected picture (a Wacom at the
 lectern): put the projector window on it - its pen draws there too, in the presenter window's pen
-colour and width, the eraser end erases, the side button held shows the laser pointer, and ↶ /
+colour and width, the eraser end erases, the side button held shows the laser pointer, and â†¶ /
 Ctrl+Z in the presenter window take it back; map the tablet's pen to its own screen (Wacom
 settings, Mapping). **An iPad as presenter:** *Devices*, *Pair a
 device* in the presenter window shows a QR code; scan it with the iPad, and allow the iPad when
@@ -245,7 +226,7 @@ the code it shows is the one in the presenter window. The iPad then runs the pre
 itself - write with the Pencil, swipe to step - while the laptop drives the projector; it stays
 paired until you remove it under *Devices*. It needs the laptop's address (the room's network) or
 the tunnel; the number next to the connection's dot is the round trip in milliseconds. Turn off
-Scribble on the iPad (Settings → Apple Pencil → Scribble): with it on, a stroke started quickly
+Scribble on the iPad (Settings â†’ Apple Pencil â†’ Scribble): with it on, a stroke started quickly
 after the last one is lost - iPadOS keeps that touch for its handwriting. **After the
 lecture**, *Make the PDF* gives the annotated PDF for the students - every frame as it was shown
 last, with your ink, and the whiteboard pages, without your notes - and keeps it with the quiz
@@ -259,11 +240,11 @@ server every 10 s into the archive, so a crash loses seconds at most; after *Sto
 lecture* lists it for *Download* (a WebM file - with ffmpeg installed, also with a seek index).
 Changing the deck or starting a new game does not stop it (the projector window follows the deck
 by itself); reloading or closing the presenter window does. The presenter window must be opened
-as `http://localhost:…` (as `texstage present` does) or over HTTPS - browsers record the screen only
-there. **Questions not in the deck:** *Poll* asks one now - yes/no, A–F (answer texts optional:
-with the letters alone, the slide or you give the answers), a scale 1–5, a word cloud, free text
+as `http://localhost:â€¦` (as `texstage present` does) or over HTTPS - browsers record the screen only
+there. **Questions not in the deck:** *Poll* asks one now - yes/no, Aâ€“F (answer texts optional:
+with the letters alone, the slide or you give the answers), a scale 1â€“5, a word cloud, free text
 or a sketch; type the question, with formulas between `$...$`. The projector shows the poll and
-then its results instead of the slide; → or Esc takes it back to your slide. **Questions from the
+then its results instead of the slide; â†’ or Esc takes it back to your slide. **Questions from the
 audience:** *Q&A*, *open for the phones* - the phones get a tab to ask (anonymously) and upvote;
 the panel lists them by votes: *Show* puts one on the projector, *Done*, *Delete*, *Block* (the
 asker cannot ask any more). **Sketches:** for a sketch question (`type=sketch` in the deck, or a
@@ -299,7 +280,7 @@ nickname; a phone that loses its connection, or is reloaded, comes back as the s
 
 Every quiz begins with its **reading slide**: the question alone, the answers' room still
 empty; the phones show the question too. Nothing runs - the class reads as long as you like.
-The next click (→, or the clicker) shows the answers and starts the round: 3 seconds "Get
+The next click (â†’, or the clicker) shows the answers and starts the round: 3 seconds "Get
 ready!", then the countdown. In a speaker script, `[Timer.]` marks that click.
 
 During the countdown, the answer counter shows accepted answers out of **accepted answers
@@ -310,10 +291,10 @@ during a question. Disconnecting alone does not end it: the next accepted answer
 whether everyone connected has answered, and the timer or lecturer can still close it.
 
 On the slides, the mouse shows a few buttons for the lecturer: pause, 10 seconds more, stop
-the question, show the answer, ask again (↻, a practice round without points). A game remembers
+the question, show the answer, ask again (â†», a practice round without points). A game remembers
 every question it has asked, and going back never restarts one - so after a test run, or when
 you restart the slideshow after an interruption, the questions already asked show their old
-results. ↻ on a question rewinds the game there: it asks that question again (practice), and
+results. â†» on a question rewinds the game there: it asks that question again (practice), and
 every question after it runs anew, its old answers and points gone. The host page
 also exports the results as a CSV file (rank, score and every answer per student) and starts a
 new game (new PIN). After the podium, showing the join slide again starts a new game too -
@@ -382,20 +363,20 @@ little for a chapter.
 
 **Uploading a deck by hand.** If a server does not have a deck - the build could not reach
 it, or it was built for another one - open that server's deck list in a browser (the host
-page `…/host`, or texstage's presenter `…/stage`) and click **Upload a deck**, or drop the
+page `â€¦/host`, or texstage's presenter `â€¦/stage`) and click **Upload a deck**, or drop the
 file onto the list: the chapter's `<chapter>.bundle.zip` from `build/texquiz/`. The list says
 what arrived ("uploaded, 12 quizzes, 64 slides"), or that the server has it already. It
 takes the presenter key the page is signed in with. A deck built before 2026-10-09 has no
-`.bundle.zip`: zip its `.bundle` folder (Explorer: Send to → Compressed folder) and upload
+`.bundle.zip`: zip its `.bundle` folder (Explorer: Send to â†’ Compressed folder) and upload
 that.
 
-**The deck page.** texstage's presenter (`…/stage`) keeps the decks in folders of your own:
+**The deck page.** texstage's presenter (`â€¦/stage`) keeps the decks in folders of your own:
 *New folder*, then drag a deck onto a folder - or onto a step of the path above the list - or
-use the deck's ⋯ (*Move to …*, *Rename …*: a name of its own on the page). The search field looks
-through all folders; *By name* or *Newest first* orders them. ⋯ › *Remove from the list* takes a
+use the deck's â‹¯ (*Move to â€¦*, *Rename â€¦*: a name of its own on the page). The search field looks
+through all folders; *By name* or *Newest first* orders them. â‹¯ â€º *Remove from the list* takes a
 deck built on this computer off the list - its build folder stays, and its next build brings it
-back -; a deck uploaded to the server is deleted instead (⋯ › *Delete*), not while a game of it
-is under way. A folder's ⋯ renames, moves or deletes it (what it holds moves up; no deck is
+back -; a deck uploaded to the server is deleted instead (â‹¯ â€º *Delete*), not while a game of it
+is under way. A folder's â‹¯ renames, moves or deletes it (what it holds moves up; no deck is
 deleted). Folders and names are each lecturer's own, kept by the server (`library.json` in its
 data folder).
 
@@ -404,7 +385,7 @@ data folder).
 **On the laptop**, `texstage serve` prints where phones join (the laptop's address in the
 network) and the laptop's other addresses: if the phones are on another network, e.g. a
 hotspot, give that one with `--public-url http://<address>:8470`. Open the printed
-`…/api/status` address on your phone before the lecture - if it does not load, the network
+`â€¦/api/status` address on your phone before the lecture - if it does not load, the network
 keeps phones away from the laptop (eduroam often does): use a hotspot, a tunnel (below), or a
 hosted server. The first start makes Windows ask whether Python may accept connections; allow it.
 
@@ -442,7 +423,7 @@ address is new - nothing to rebuild. `texstage check` tries that address over th
 too. `--no-tunnel` serves in the room's network again. Try the lecture hall's network once:
 cloudflared needs to get out to Cloudflare (port 7844).
 
-**On a hosted server** (set up from `deploy/`, see `docs/design.md` §8): register its add-in
+**On a hosted server** (set up from `deploy/`, see `docs/design.md` Â§8): register its add-in
 once per PC, and build the decks for it - or point a built deck at it:
 
 ```bash
@@ -467,7 +448,7 @@ deck list takes the `.bundle.zip` (above).
 The look is set by a few macros, which a theme redefines: `\texquizprompt`, `\texquizchoice`,
 `\texquizchoicefont`, `\texquizchoiceoverhead`, `\texquizmaxcols`, `\texquizexplanation`,
 `\texquizhint` (see the comments in `texquiz.sty`). `texquiz-theme-dbis.sty` puts the question
-in the course's `\dbisquestion` box and the answers in `dbox-compact` boxes titled A, B, C …,
+in the course's `\dbisquestion` box and the answers in `dbox-compact` boxes titled A, B, C â€¦,
 each with a small shape badge matching the phone buttons.
 
 ## Limitations (v0.1)

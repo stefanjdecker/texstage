@@ -4,7 +4,7 @@
 PowerPoint (docs/content-types-design.md)."""
 from pathlib import Path
 
-__version__ = "0.2.0"
+__version__ = "0.2.1.dev0"
 # The quiz server on the presenting laptop: its port and data folder (database, presenter key,
 # remembered keys, tunnel). The commands, the presenter keys and the build take them from here.
 DEFAULT_PORT = 8470

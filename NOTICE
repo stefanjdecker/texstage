@@ -1,24 +1,14 @@
 texstage, with texquiz
 Copyright 2026 Stefan Decker
 
-Licensed under the Apache License, Version 2.0 (the file LICENSE). The licence covers the
-texstage package of this repository and nothing else in it:
+Apache License 2.0 covers src/texstage (excluding separately licensed vendor code),
+the four generic latex/*.sty packages, tests, examples/demo, deploy, and documentation.
+Retain the licenses supplied with vendored libraries.
 
-  src/texstage/                     the Python package and its web pages
-  latex/texstage.sty                the LaTeX core
-  latex/texquiz.sty                 the LaTeX package of the quiz
-  latex/texquiz-theme-dbis.sty      its theme for the DBIS slide style
-  scripts/texstage-*.py             the scripts a lecture uses (scripts/texquiz-*.py: their
-                                    names until 2026-10-10)
-  tests/                            the tests
-  examples/demo/                    the demo deck
-  deploy/                           the server's container
-  docs/ (except docs/pilot/)        the documentation
-  README-texstage.md, pyproject.toml, LICENSE, NOTICE
-
-Its source files say so in their first lines (SPDX-License-Identifier: Apache-2.0). The DBIS
-lecture tooling in this repository - latex/dbis-slides.sty, the other scripts in scripts/,
-tools/, skills/, docs/pilot/ and README.md - is not covered by this licence.
+The developer utilities tools/simulate.py and tools/slideshow.ps1 were excluded
+from the original license scope. They are retained only in this local snapshot;
+resolve their licensing before publishing the repository. They are not packaged.
+See provenance/original-NOTICE for the original scope.
 
 Third-party software included (src/texstage/web/vendor/, each with its licence file there):
 
