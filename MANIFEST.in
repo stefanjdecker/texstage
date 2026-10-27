@@ -1,6 +1,9 @@
 include LICENSE NOTICE README.md
 graft docs
 prune docs/history
+exclude docs/manual-latex/*.aux docs/manual-latex/*.fdb_latexmk docs/manual-latex/*.fls
+exclude docs/manual-latex/*.log docs/manual-latex/*.out docs/manual-latex/*.pdf
+exclude docs/manual-latex/*.synctex.gz docs/manual-latex/*.toc
 graft examples/demo
 prune examples/demo/texquiz-out
 graft examples/manual

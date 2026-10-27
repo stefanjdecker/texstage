@@ -3,7 +3,7 @@
 
 **Presenter and participant guide**
 
-[Download the illustrated PDF](manual.pdf)
+[Download the illustrated PDF](manual.pdf) | [LaTeX source](manual-latex/main.tex) | [LaTeX build instructions](manual-latex/README.md)
 
 ## Contents
 
@@ -370,4 +370,4 @@ The source deck is [examples/manual/demo.tex](../examples/manual/demo.tex). It u
 
 For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example. Remove presenter keys and participant data from logs or screenshots before sharing them.
 
-Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate the two reading formats.
+Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate all reading formats.

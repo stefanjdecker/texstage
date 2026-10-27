@@ -1,16 +1,21 @@
 # Maintaining the illustrated manual
 
-The [manual](manual.md) and [PDF](manual.pdf) share
+The [Markdown manual](manual.md), [PDF](manual.pdf) and
+[LaTeX edition](manual-latex/README.md) share
 [manual-content.json](manual-content.json) as their text source.
 [build_manual.py](../maintenance/build_manual.py) handles the page layouts,
-Markdown generation, capture integrity checks and build manifest. Edit the JSON
-and renderer, then regenerate both reading formats. Do not edit the generated
-Markdown independently.
+Markdown generation, capture integrity checks and build manifest.
+[manual_latex.py](../maintenance/manual_latex.py) exports ordinary TeX, and
+[manual.sty](manual-latex/manual.sty) controls its layout. Edit the JSON and the
+relevant renderer/style, then regenerate all formats. Do not edit generated
+Markdown or TeX independently for repository updates.
 
 ## Build and check
 
 Use a fresh Python 3.12+ environment in the new texstage checkout. The renderer
-does not need a running texstage server or a TeX installation.
+does not need a running texstage server. Generating the existing PDF, Markdown
+and TeX source needs no TeX installation. Compiling the exported TeX requires
+pdfLaTeX, latexmk and the packages listed in the LaTeX edition's build guide.
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/docs.txt
@@ -27,11 +32,14 @@ To preview without replacing the committed outputs:
 python maintenance/build_manual.py --output-dir .manual-build
 ```
 
-The normal build writes manual.md, manual.pdf and manual-build.json in docs.
+The normal build writes manual.md, manual.pdf, manual-latex/main.tex and
+manual-build.json in docs. With --output-dir, the screenshot assets, LaTeX style
+and build instructions are copied too, so the exported TeX project can compile.
 The manifest records hashes of the text, renderer, capture inventory and outputs.
 The offline --check path uses only the Python standard library. It checks the
-generated Markdown, manifest and screenshot hashes; it does not replace visual
-review. CI also renders a fresh copy on Linux and retains it as a build artifact.
+generated Markdown and TeX, manifest and screenshot hashes; it does not replace
+visual review. CI also renders the original PDF and compiles the LaTeX edition
+on Linux, retaining both as build artifacts.
 
 Render every PDF page with Poppler and inspect text, screenshots, captions,
 tables and page boundaries before committing a refresh:
@@ -81,5 +89,6 @@ python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('docs/image
 ```
 
 Update the manual's version/date and provenance text as appropriate, regenerate,
-run the checks and review the rendered PDF. Changes to the PDF renderer itself
-also require regeneration because the build manifest includes its source hash.
+run the checks and review both rendered PDF editions. Changes to either renderer
+or the LaTeX style also require regeneration because the build manifest includes
+their source hashes.

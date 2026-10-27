@@ -1,0 +1,52 @@
+% SPDX-License-Identifier: Apache-2.0
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{manual}[2026/10/27 texstage illustrated manual layout]
+\RequirePackage[T1]{fontenc}
+\RequirePackage{lmodern}
+\RequirePackage[a4paper,landscape,left=16mm,right=16mm,top=23mm,bottom=17mm,headheight=13pt,headsep=7mm]{geometry}
+\RequirePackage[table]{xcolor}
+\RequirePackage{graphicx}
+\RequirePackage{array}
+\RequirePackage{fancyhdr}
+\RequirePackage{fancyvrb}
+\RequirePackage{enumitem}
+\RequirePackage{titlesec}
+\RequirePackage{hyperref}
+\RequirePackage{bookmark}
+\RequirePackage{microtype}
+\RequirePackage{upquote}
+% Preserve literal CLI punctuation and searchable/copyable glyphs in the PDF.
+\DisableLigatures{encoding=*,family=*}
+\input{glyphtounicode}
+\pdfgentounicode=1
+
+\definecolor{manualPurple}{HTML}{46178F}
+\definecolor{manualInk}{HTML}{172539}
+\definecolor{manualMuted}{HTML}{596577}
+\definecolor{manualPale}{HTML}{F2F0F7}
+\renewcommand{\familydefault}{\sfdefault}
+\AtBeginDocument{\color{manualInk}\fontsize{9.5}{12.2}\selectfont}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\setlength{\emergencystretch}{1em}
+\raggedbottom
+\setlist[itemize]{leftmargin=12pt,label=\textcolor{manualPurple}{\textbullet},itemsep=4pt,topsep=4pt,parsep=0pt}
+\fvset{fontsize=\footnotesize,baselinestretch=1,frame=single,rulecolor=\color{manualPale},framesep=6pt}
+\setlength{\tabcolsep}{7pt}
+\renewcommand{\arraystretch}{1.25}
+\hypersetup{colorlinks=true,linkcolor=manualPurple,urlcolor=manualPurple,bookmarksopen=true}
+\setcounter{tocdepth}{1}
+\titleformat{\section}{\fontsize{20}{24}\selectfont\bfseries\color{manualInk}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{0pt}{7pt}
+\newcommand{\manualsection}[1]{\clearpage\section{#1}}
+\newcommand{\manualsubheading}[1]{\par\smallskip{\bfseries\color{manualPurple}#1\par}\nobreak}
+\newcommand{\manualcaption}{\fontsize{8}{10}\selectfont\color{manualMuted}}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\bfseries\color{manualPurple}texstage / USER MANUAL}
+\fancyhead[R]{\footnotesize\color{manualMuted}\manualversion\enspace | \enspace\manualdate}
+\fancyfoot[L]{\footnotesize\color{manualMuted}Presenter and participant guide | Synthetic demonstration screens}
+\fancyfoot[R]{\footnotesize\color{manualMuted}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.2pt}
+\endinput

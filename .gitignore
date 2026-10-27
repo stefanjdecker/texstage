@@ -21,3 +21,11 @@ deploy/.env
 /test-results.xml
 /.manual-data/
 /.manual-build/
+/docs/manual-latex/*.aux
+/docs/manual-latex/*.fdb_latexmk
+/docs/manual-latex/*.fls
+/docs/manual-latex/*.log
+/docs/manual-latex/*.out
+/docs/manual-latex/*.pdf
+/docs/manual-latex/*.synctex.gz
+/docs/manual-latex/*.toc

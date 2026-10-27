@@ -1,12 +1,15 @@
 {
   "schema_version": 1,
   "inputs": {
-    "docs/manual-content.json": "7e00bd61ddd7952765e4e2d97f3bc5b98f6a03d9d0a429ba7f3ab8a546bcedf2",
+    "docs/manual-content.json": "f44d339c94bd74697d138ba0cbe6b907d3ca2887d5006aedb95860cdfe856969",
     "docs/images/manual/captures.json": "972a25918bd2920c557a507f6b33dac2d09bec6478cee421a99e2de1c8ffb7cd",
-    "maintenance/build_manual.py": "5aa4726e987067c0375168256651d3e3737d81a850346bdeaae5f410ceab65b6"
+    "maintenance/build_manual.py": "a22a8afff77a5bb6970b579f4552c20e9396d79872ffbb78fd69420ca6981b14",
+    "maintenance/manual_latex.py": "4045e9e1e42167b8811623366b28aafe2b0b055fd571b54c63548eb060a684dc",
+    "docs/manual-latex/manual.sty": "6300421a31d2d19b0010a5f326884845dd158a235a8f94aed7e57669897dea60"
   },
   "outputs": {
-    "manual.md": "ec2d7f3f7072fe6a90bfeefc7032391566b14a8d24a4726f8185b1cf86397030",
-    "manual.pdf": "77c7a0c8e6160685266dfd8fd3be0b6bd0de7f44b54a0c83030882ca6dd5b003"
+    "manual.md": "0f3771effd7a86a38db55e6ae2227f02031975b51617a694a32ccb78bef623b5",
+    "manual.pdf": "c05c88d9c22456ec8dff047962616cb7b3f6a3688f7ac1910384e12ea5a5a44b",
+    "manual-latex/main.tex": "ad83661dd1b82451a811efc2a798c2e8051d607b9bd7c8845b5ffa5fcb1725e7"
   }
 }

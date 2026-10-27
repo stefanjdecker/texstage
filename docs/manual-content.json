@@ -675,7 +675,7 @@
           "p": "For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example. Remove presenter keys and participant data from logs or screenshots before sharing them."
         },
         {
-          "p": "Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate the two reading formats."
+          "p": "Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate all reading formats."
         }
       ],
       "images": []

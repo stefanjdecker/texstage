@@ -9,6 +9,8 @@
 - Added installation, development, contribution and release documentation.
 - Added an illustrated user manual in Markdown and PDF, 19 screenshots of a
   synthetic session, a runnable manual demo, and locked PDF build dependencies.
+- Added an editable LaTeX edition of the same manual, with shared screenshots,
+  standalone latexmk build instructions and a CI compilation check.
 
 This candidate has not been published. DBIS styles and course commands are owned
 by the companion lecture-tools project. Publication rights for retained developer
