@@ -520,7 +520,7 @@ VIDEO_DECK = r"""\documentclass[aspectratio=169]{beamer}
 
 
 def test_a_video_deck(tmp_path):
-    """A video (docs/content-types-design.md, section 7): its file and poster in the bundle's
+    r"""A video (docs/architecture/content-types-design.md, section 7): its file and poster in the bundle's
     media/, content-addressed; its box on its slides - the steps of its frame, the second only
     (\only<2>), the frame again (\againframe) -; in both PowerPoint files a native video at the
     box - an online one as its poster, with a link - and no add-in, so no first slide."""

@@ -45,9 +45,7 @@ dev = ["pytest>=8", "httpx>=0.27", "websockets>=13"]   # tests (Starlette's Test
 texstage = "texstage.cli:main"
 
 [tool.setuptools]
-# texstage.latex: the LaTeX packages (latex/texstage.sty, the core; texquiz.sty and its DBIS theme;
-# texvideo.sty, texactivity.sty) - in the repository's latex/ folder, where the DBIS slide style finds them; in the
-# wheel as texstage/latex/
+# Four generic LaTeX packages are installed under texstage/latex/.
 package-dir = { "" = "src", "texstage.latex" = "latex" }
 packages = ["texstage", "texstage.build", "texstage.server", "texstage.latex",
             # the web pages' folders - data, but importable names to Python, so setuptools wants them listed

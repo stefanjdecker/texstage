@@ -8,9 +8,6 @@ deploy/.env
 /build/
 /dist/
 
-/test-output/
+/test-output*/
 /artifacts/
-/dist/
-/build/
-*.egg-info/
 /artifacts-build.log
