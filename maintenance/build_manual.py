@@ -17,6 +17,7 @@ import shutil
 from xml.sax.saxutils import escape
 
 from manual_latex import latex
+from reference_format import markdown as reference_markdown
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
@@ -69,12 +70,13 @@ def check_images(data):
 def build_manifest(output_dir):
     inputs = ["docs/manual-content.json", "docs/images/manual/captures.json",
               "maintenance/build_manual.py", "maintenance/manual_latex.py",
-              "docs/manual-latex/manual.sty"]
+              "docs/manual-latex/manual.sty", "maintenance/reference_format.py",
+              "docs/latex-reference-inventory.json"]
     return {
         "schema_version": 1,
         "inputs": {name: hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in inputs},
         "outputs": {name: hashlib.sha256((output_dir/name).read_bytes()).hexdigest()
-                    for name in ("manual.md", "manual.pdf", "manual-latex/main.tex")},
+                    for name in ("manual.md", "manual.pdf", "manual-latex/main.tex", "latex-reference.md")},
     }
 
 
@@ -232,7 +234,7 @@ def render_pdf(data, target):
         assert bottom >= 14*mm, f"Page {number} ({page['title']}) overflows: bottom {bottom/mm:.1f} mm"
         c.setStrokeColor(colors.HexColor('#DDD7E9')); c.line(margin,11*mm,width-margin,11*mm)
         c.setFont('Helvetica',8); c.setFillColor(muted)
-        c.drawString(margin,7*mm,'Presenter and participant guide  |  Synthetic demonstration screens')
+        c.drawString(margin,7*mm,'Presenter, participant and LaTeX authoring guide')
         c.drawRightString(width-margin,7*mm,f'{number:02d} / {len(data["pages"]):02d}')
         c.showPage()
         print(f"Rendered {number:02d}: {page['title']}")
@@ -248,7 +250,12 @@ def main():
     check_images(data)
     md=markdown(data)
     tex=latex(data)
+    reference=dict(data, title="texstage LaTeX authoring and command reference",
+                   subtitle="Packages, commands, options and developer interfaces",
+                   pages=[p for p in data["pages"] if p.get("reference")])
+    ref_md=reference_markdown(reference)
     if args.check:
+        assert (DOCS/"latex-reference.md").read_text(encoding="utf-8")==ref_md, "Regenerate reference"
         assert (DOCS/'manual.md').read_text(encoding='utf-8')==md,'Regenerate manual.md'
         assert (DOCS/'manual-latex/main.tex').read_text(encoding='utf-8')==tex,'Regenerate LaTeX source'
         assert (DOCS/'manual.pdf').read_bytes().startswith(b'%PDF-'),'Missing manual.pdf'
@@ -265,6 +272,7 @@ def main():
             shutil.copyfile(DOCS/'manual-latex'/name,project/name)
         shutil.copytree(DOCS/'images/manual',args.output_dir/'images/manual',dirs_exist_ok=True)
     render_pdf(data,args.output_dir/'manual.pdf')
+    (args.output_dir/'latex-reference.md').write_text(ref_md,encoding='utf-8',newline='\n')
     (args.output_dir/'manual.md').write_text(md,encoding='utf-8',newline='\n')
     (args.output_dir/'manual-build.json').write_text(
         json.dumps(build_manifest(args.output_dir),indent=2)+'\n',encoding='utf-8',newline='\n')

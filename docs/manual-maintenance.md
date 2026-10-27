@@ -92,3 +92,12 @@ Update the manual's version/date and provenance text as appropriate, regenerate,
 run the checks and review both rendered PDF editions. Changes to either renderer
 or the LaTeX style also require regeneration because the build manifest includes
 their source hashes.
+
+## LaTeX reference maintenance
+
+The manual pages marked `reference: true` also generate `latex-reference.md`.
+There is one content source. After reviewing changed styles, run
+`python maintenance/check_latex_reference.py --write`, update the reference content
+and run `python maintenance/build_manual.py`. Review declarations/defaults against
+source; the inventory is a guard, not a TeX parser or semantic proof.
+CI checks the inventory, names, generated documents and compiled authoring example.

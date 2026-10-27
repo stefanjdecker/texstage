@@ -1,0 +1,73 @@
+% SPDX-License-Identifier: Apache-2.0
+\documentclass[aspectratio=169]{beamer}
+\usepackage{../../latex/texquiz}
+\usepackage{../../latex/texvideo}
+\usepackage{../../latex/texactivity}
+\setbeamertemplate{navigation symbols}{}
+\quizsetup{time=20,leaderboard=false,join-url={http://localhost:8470/play}}
+\begin{document}
+\quizjoinframe[note={Synthetic authoring example.}]
+\begin{quiz}[id=single,type=single,shuffle]{Which number is even?}
+  \choice[id=one]{1}\choice*[id=two]{2}
+  \explain{Two is divisible by two.}
+\end{quiz}
+\begin{quiz}[id=multiple,type=multiple,partial]{Select prime numbers.}
+  \choice*{2}\choice*{3}\choice{4}
+\end{quiz}
+\begin{quiz}[id=boolean,type=truefalse,answer=true]{Two is even.}
+\end{quiz}
+\begin{quiz}[id=poll,type=poll,select=multiple]{Which colors do you like?}
+  \choice{Blue}\choice{Green}\choice{Red}
+\end{quiz}
+\begin{quiz}[id=numeric,type=numeric,answer=2.5,tolerance=0.1,
+  min=0,max=5,step=0.1,unit={ms}]{What latency was measured?}
+  \explain{The measurement is 2.5 ms.}
+\end{quiz}
+\begin{quiz}[id=estimate,type=numeric,min=0,max=100]{Estimate a percentage.}
+\end{quiz}
+\begin{quiz}[id=text,type=text,reveal=none]{Name the query language.}
+  \accept{SPARQL}
+\end{quiz}
+\begin{frame}[answer=text]{Answer}
+  The language is SPARQL.
+\end{frame}
+\begin{quiz}[id=open,type=open,display=list,max-chars=120]{Name a topic to revisit.}
+\end{quiz}
+\begin{quiz}[id=order,type=order,partial]{Put the numbers in ascending order.}
+  \step{1}\step{2}\step{3}
+\end{quiz}
+\begin{quiz}[id=sketch,type=sketch]{Draw a triangle.}
+\end{quiz}
+\quizleaderboardframe
+\begin{frame}{Video poster and link}
+  \centering
+  \video[id=poster-demo,poster=poster.jpg,width=.65\linewidth,
+    url={https://example.invalid/video}]{https://example.invalid/video}
+\end{frame}
+\begin{frame}[t]{Collect triples}
+  \begin{activity}[id=tuples,input=tuple,fields={Subject,Predicate,Object},
+    suggest={Alice,knows,Bob},min=1,review,limit=3,terms=exact]
+    \prompt{Contribute one triple about these people.}
+  \end{activity}
+\end{frame}
+\begin{frame}[t,fragile]{SQL code activity}
+  \begin{activity}[id=sql,input=code,engine=sql,limit=5]
+    \prompt{Return the names from person.}
+    \seed{CREATE TABLE person (name TEXT); INSERT INTO person VALUES ('Alice');}
+    \reference{SELECT name FROM person}
+  \end{activity}
+\end{frame}
+\begin{frame}[t]{SPARQL code activity}
+  \begin{activity}[id=sparql,input=code,engine=sparql,seed=people.ttl,
+    reference=people.rq,tokens={SELECT,WHERE},open=manual]
+    \prompt{Return the names in the graph.}
+  \end{activity}
+\end{frame}
+\begin{frame}[t]{Turtle code activity}
+  \begin{activity}[id=turtle,input=code,engine=turtle,seed=people.ttl,
+    reference=answer.ttl]
+    \prompt{Write a triple giving Alice the name Alice.}
+  \end{activity}
+\end{frame}
+\quizpodiumframe
+\end{document}

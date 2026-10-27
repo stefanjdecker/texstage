@@ -69,3 +69,5 @@ covered by [Apache-2.0](LICENSE). Bundled third-party assets retain their own
 licenses. Some retained developer utilities remain outside that scope and must
 be resolved before repository publication. See [CONTRIBUTING.md](CONTRIBUTING.md),
 [SECURITY.md](SECURITY.md) and [CHANGELOG.md](CHANGELOG.md).
+
+The [LaTeX reference](docs/latex-reference.md) covers all four packages, author commands, options, modes and developer hooks. It is also included in the illustrated manual and its LaTeX edition. See the [runnable authoring examples](examples/reference/README.md).

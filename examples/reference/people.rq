@@ -1,0 +1,1 @@
+SELECT ?name WHERE { ?person <https://example.org/name> ?name }

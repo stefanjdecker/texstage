@@ -424,4 +424,539 @@ For a reproducible problem, record the package version, operating system, browse
 
 Screenshot sources and hashes are listed in \href{../images/manual/captures.json}{images/manual/captures.json}. The \href{../manual-maintenance.md}{manual maintenance guide} explains how to refresh the images and regenerate all reading formats.\par
 
+
+% LaTeX reference: packages and loading
+\manualsection{LaTeX reference: packages and loading}
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev0 candidate.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{texstage.sty} & Shared mode selection, page records, geometry and phone assets. Loaded automatically by every content package; it does not select a course theme. \\
+\rowcolor{manualPale}
+\texttt{texquiz.sty} & Quizzes, quiz/answer frame options, join/leaderboard/podium frames and customizable answer rendering. Requires the core, TikZ and pdftexcmds; QR support is optional. \\
+\texttt{texvideo.sty} & The video command, static posters and live playback metadata. Requires the core, graphicx and TikZ; qrcode is optional. \\
+\rowcolor{manualPale}
+\texttt{texactivity.sty} & Tuple and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. \\
+\texttt{docs/manual-latex/manual.sty} & Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\documentclass[aspectratio=169]{beamer}
+\usepackage{texquiz}
+\usepackage{texvideo}     % only needed for video
+\usepackage{texactivity}  % only needed for activities
+\begin{document}
+% Frames and quiz environments go here.
+\end{document}
+\end{Verbatim}
+
+The texstage CLI supplies the installed style directory. For plain pdfLaTeX, put the four generic files on the TeX search path or use the repository-relative loading shown in the reference example. Do not mix package copies from different revisions. DBIS themes and course notation belong to lecture-tools.\par
+
+
+% Build modes and notes
+\manualsection{Build modes and notes}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}def\textbackslash{}texstagemode\{handout\}} & Define before documentclass. Quiz and answer frames become neutral placeholders; videos remain posters and activities retain their prompts. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}def\textbackslash{}texstagemode\{solutions\}} & Questions, correct choices and explanations are visible. Activity references are printed. Videos remain posters. \\
+\texttt{\textbackslash{}def\textbackslash{}texstagemode\{present\}} & Live layout and .tqz metadata. The builder makes the browser bundle and PowerPoint exports; compiling a raw PDF does not start a live session. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}def\textbackslash{}texquizmode\{...\}} & Legacy alias accepted when texstagemode is absent. An explicitly defined texstagemode takes precedence. \\
+\texttt{No explicit mode} & At begin-document, Beamer notes enabled selects solutions; otherwise handout. Use explicit modes when this distinction matters. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texquiznotes} & Build-owned switch: empty selects extraction-oriented notes on the right; stage selects separate note pages, omits extra phone-asset pages and stabilizes the stage PDF. Let the CLI set it. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+texstage pdf examples/reference/reference.tex
+texstage pdf --solutions examples/reference/reference.tex
+texstage pdf --present examples/reference/reference.tex
+texstage build examples/reference/reference.tex
+\end{Verbatim}
+
+The core needs a LaTeX kernel dated 2023-06-01 or newer. Present mode supports pdfLaTeX and has a LuaLaTeX code path; the supplied examples are validated with pdfLaTeX. XeLaTeX is rejected for present mode. Live video codecs, external display placement and Office playback need separate platform rehearsal.\par
+
+
+% Quiz environments and body commands
+\manualsection{Quiz environments and body commands}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}begin\{quiz\}[keys]\{question\} ... \textbackslash{}end\{quiz\}} & Between frames, creates its own frame. Inside a frame, that frame must have the quiz option. The question is required; one quiz per frame, no authored overlays in quiz frames. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}quizsetup\{keys\}} & Sets deck-wide defaults and display strings. Call after loading texquiz and after any theme whose defaults you want to override. \\
+\texttt{\textbackslash{}choice[id=label]\{text\}} & Adds an incorrect choice. Nonempty text; id defaults to A, B, ... in authored order. Explicit ids use 1-32 ASCII letters/digits/hyphens and must be unique within the quiz. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}choice*[id=label]\{text\}} & Marks a correct choice. Several starred choices infer multiple choice; explicit type=multiple also permits one starred choice. \\
+\texttt{\textbackslash{}explain\{text\}} & At most one explanation per quiz. Shown on the built-in reveal/solutions page; with reveal=none, explain on a separate answer frame. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}accept\{text\}} & One or more accepted answers for type=text. Hyperref converts the authored text to plain Unicode for scoring. Use texorpdfstring for unsupported math/macros. \\
+\texttt{\textbackslash{}step\{text\}} & One nonempty ordering item, written in the correct order. The displayed order is shuffled. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}note\{text\}, \textbackslash{}label\{name\}} & Beamer commands accepted in a quiz body; notes and stable slide references remain available. The quiz title is not its id. \\
+\end{tabular}}\par\medskip
+
+Choice, explanation, acceptance and step commands are local to the quiz body. Do not put arbitrary paragraphs, verbatim or listings directly in that body. Put supporting material in a surrounding fragile,quiz frame and keep the question/reveal layout compact. Explicit choice ids identify authored choices; the public A/B/... labels follow the displayed order after shuffling.\par
+
+
+% Quiz types and scoring
+\manualsection{Quiz types and scoring}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{single} & 2-6 choices, exactly one correct. Inferred when one choice is starred. \\
+\rowcolor{manualPale}
+\texttt{multiple} & 2-6 choices, at least one correct. Exact-set scoring by default; partial=true enables partial credit. \\
+\texttt{truefalse} & answer=true or answer=false; no choice commands. Labels come from true-label and false-label. \\
+\rowcolor{manualPale}
+\texttt{poll} & 2-6 unstarred choices. Explicit type=poll; select=single by default or multiple. No correct answer and no points. \\
+\texttt{numeric} & Decimal answer and optional tolerance; no answer means an unscored estimate. Bounds may produce a slider. \\
+\rowcolor{manualPale}
+\texttt{text} & At least one accept command. Scoring normalizes case, accents and whitespace; author meaningful accepted variants rather than relying on literal TeX source. \\
+\texttt{open} & Unscored free text. display=wordcloud by default, or list; max-chars defaults to 80. \\
+\rowcolor{manualPale}
+\texttt{order} & 2-6 step commands in correct order. Exact ordering by default; partial=true credits correctly placed items. \\
+\texttt{sketch} & Unscored drawing input. No choices, accepted answers, steps or answer key; presenter chooses drawings for display. \\
+\end{tabular}}\par\medskip
+
+Type inference checks ordering items, accepted text, choices, then a boolean/numeric answer. Polls, open text, sketches and numeric estimates without an answer should declare their type. Poll/open/sketch/estimate questions force points=none; explicitly requesting scoring for them is an error. Scoring is server behavior, not a LaTeX calculation.\par
+
+
+% Quiz options: identity, timing and layout
+\manualsection{Quiz options: identity, timing and layout}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{id} & Required, unique across the deck: 1-63 characters, starts with a lower-case letter or digit, then lower-case letters/digits/hyphens. \\
+\rowcolor{manualPale}
+\texttt{type} & single, multiple, truefalse, poll, numeric, text, open, order or sketch; otherwise inferred when unambiguous. \\
+\texttt{time} & Integer 5-240 seconds. Inherits quizsetup; initial default 20. \\
+\rowcolor{manualPale}
+\texttt{points} & standard, double or none. Inherits quizsetup; initial default standard, except forced-unscored types. \\
+\texttt{leaderboard} & true/false; bare key means true. Default follows setup and is false for unscored questions unless explicitly set. Automatic result pages do not increment the authored frame number. \\
+\rowcolor{manualPale}
+\texttt{shuffle} & true/false; bare key means true. Initially false. Deterministic choice shuffling is shared between slide and phones; ordering questions are always shuffled. \\
+\texttt{reveal} & slide (default) creates the built-in reveal; none defers it to an answer frame. \\
+\rowcolor{manualPale}
+\texttt{title} & Title of a generated quiz frame; initially Quiz. Inside an authored frame, use that frame title. A neutral title is used for handout placeholders. \\
+\texttt{cols} & 1-6 forces the choice columns. Unset uses measured fitting and the theme maximum (2 in the generic theme). \\
+\rowcolor{manualPale}
+\texttt{partial} & Boolean, false by default; bare key means true. Meaningful for multiple choice and ordering; it changes credit, not which answer is fully correct. \\
+\end{tabular}}\par\medskip
+
+Time, points, leaderboard, shuffle, reveal and title have setup-level counterparts. Per-question values override them. Other question keys listed on the next page are not accepted by quizsetup.\par
+
+
+% Quiz options: answer data
+\manualsection{Quiz options: answer data}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{select} & Only polls: single (default) or multiple. \\
+\rowcolor{manualPale}
+\texttt{answer} & true/false for truefalse; a decimal for numeric. Omit for an unscored numeric estimate. \\
+\texttt{tolerance} & Numeric tolerance, default 0. Must be nonnegative. \\
+\rowcolor{manualPale}
+\texttt{min, max} & Optional numeric bounds. min must not exceed max; a scored answer interval must intersect the allowed range. Both bounds select a phone slider. \\
+\texttt{step} & Positive numeric slider increment, default 1 when a slider is used. At least one value min + k*step must fall in the correct interval. \\
+\rowcolor{manualPale}
+\texttt{unit} & Optional numeric unit text, initially empty, e.g. ms. \\
+\texttt{display} & Only open text: wordcloud (default) or list. \\
+\rowcolor{manualPale}
+\texttt{max-chars} & Open-text input limit, default 80; the build validates 1-200. The TeX parser accepts digits before the bundle validation applies the range. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\begin{quiz}[id=latency, type=numeric, answer=2.5,
+    tolerance=0.1, min=0, max=5, step=0.1, unit={ms}]{Latency?}
+  \explain{The measured latency was 2.5 ms.}
+\end{quiz}
+\begin{quiz}[id=term, type=text]{Name the language.}
+  \accept{SPARQL}
+  \accept{\texorpdfstring{\textsc{sparql}}{SPARQL}}
+\end{quiz}
+\end{Verbatim}
+
+Use ordinary decimal notation such as -1.5, not exponents or a comma decimal separator. Avoid irrelevant keys: the supported contract is the type-specific one above, even where a parser accepts an unused value.\par
+
+
+% Setup defaults and session frames
+\manualsection{Setup defaults and session frames}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}quizsetup\{time=20, points=standard\}} & Initial time and scoring defaults; same valid values as quiz options. \\
+\rowcolor{manualPale}
+\texttt{leaderboard=true, shuffle=false, reveal=slide} & Initial global behavior. A DBIS theme changes some of these defaults. \\
+\texttt{title=Quiz, join-url=\{\}} & Default quiz title; no static join address until you supply one. The live server supplies the active address/PIN. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}quizjoinframe[title=..., note=\{...\}]} & Creates a join frame outside any frame. Default title Join the quiz. Static modes show join-text and join-url; live mode displays the active session. \\
+\texttt{\textbackslash{}quizleaderboardframe[title=..., note=\{...\}]} & Explicit standings frame outside any frame. Default title Leaderboard. This is separate from automatically inserted post-question standings. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}quizpodiumframe[title=..., note=\{...\}]} & Final standings outside any frame. Default title Final standings; reaching it finishes the live quiz session. \\
+\texttt{title, note (frame keys)} & The only keys accepted by these three frame commands. note is optional, may contain paragraphs, and is carried to presenter notes. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}begin\{frame\}[quiz]} & Hosts an inline quiz. The whole frame is replaced by a neutral placeholder in handout mode. Use fragile,quiz when the supporting material contains listings. \\
+\texttt{\textbackslash{}begin\{frame\}[answer=quiz-id]} & Reveals that quiz on this frame. With bare answer the frame is hidden in the handout, but has no quiz-id association. \\
+\end{tabular}}\par\medskip
+
+For delayed answers, give the quiz reveal=none, then write an answer=its-id frame later. Do not put quizjoinframe, quizleaderboardframe or quizpodiumframe inside a frame: each command creates one.\par
+
+
+% Quiz display strings (1/2)
+\manualsection{Quiz display strings (1/2)}
+These quizsetup keys replace visible static slide text. Values below are the generic English defaults, before a course theme is loaded. They do not configure the language of the phone application.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Setup key & \color{white}\bfseries Initial text \\
+\texttt{join-title} & Join the quiz \\
+\rowcolor{manualPale}
+\texttt{join-text} & During the lecture, join with your phone using the PIN shown on this slide. \\
+\texttt{leaderboard-title} & Leaderboard \\
+\rowcolor{manualPale}
+\texttt{podium-title} & Final standings \\
+\texttt{handout-heading} & Live quiz \\
+\rowcolor{manualPale}
+\texttt{handout-text} & This question is asked live in the lecture. \\
+\texttt{results-text} & The results are shown live in the lecture. \\
+\rowcolor{manualPale}
+\texttt{answer-title} & Answer \\
+\texttt{answer-heading} & Answer \\
+\rowcolor{manualPale}
+\texttt{answer-text} & The answer is shown in the lecture. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\quizsetup{title=Question, true-label=Yes, false-label=No}
+\end{Verbatim}
+
+Use braces for values containing commas or paragraphs. Change the setup after loading a theme to retain your override. For the DBIS German strings and its leaderboard defaults, see the separate lecture-tools style reference.\par
+
+
+% Quiz display strings (2/2)
+\manualsection{Quiz display strings (2/2)}
+These quizsetup keys replace visible static slide text. Values below are the generic English defaults, before a course theme is loaded. They do not configure the language of the phone application.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Setup key & \color{white}\bfseries Initial text \\
+\texttt{true-label} & True \\
+\rowcolor{manualPale}
+\texttt{false-label} & False \\
+\texttt{number-hint} & Enter a number on your phone. \\
+\rowcolor{manualPale}
+\texttt{text-hint} & Type your answer on the phone. \\
+\texttt{multiple-hint} & Several answers can be correct. \\
+\rowcolor{manualPale}
+\texttt{poll-hint} & Tick all that apply. \\
+\texttt{order-hint} & Put the items in the right order on your phone. \\
+\rowcolor{manualPale}
+\texttt{sketch-hint} & Draw your answer on your phone. \\
+\texttt{answer-label} & Answer: \\
+\rowcolor{manualPale}
+\texttt{accepted-label} & Accepted answers: \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\quizsetup{title=Question, true-label=Yes, false-label=No}
+\end{Verbatim}
+
+Use braces for values containing commas or paragraphs. Change the setup after loading a theme to retain your override. For the DBIS German strings and its leaderboard defaults, see the separate lecture-tools style reference.\par
+
+
+% Quiz theme hooks
+\manualsection{Quiz theme hooks}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}texquizprompt\{text\}} & Draws the question within its supplied width. Generic default: large text. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texquizchoice \{label\} \{shape\} \{width\} \{height\} \{state\} \{content\}} & Draw an answer with exactly the supplied geometry. height may be empty for natural height. Reference point must be the lower-left corner. \\
+\texttt{\textbackslash{}texquizchoicefont} & Answer font, generic default normalsize. Redefine with renewcommand. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texquizchoiceoverhead} & Width reserved besides answer text, generic default 2.31cm. Must match the actual box padding and live-count reserve. \\
+\texttt{\textbackslash{}texquizmaxcols} & Maximum automatically chosen columns, generic default 2. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texquizexplanation\{text\}} & Reveal/solutions explanation; default is a light panel. \\
+\texttt{\textbackslash{}texquizhint\{text\}} & Input hint; generic default small text in texquiz-hint color. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texquizbadge\{n\}} & Inline shape badge, n=1..6: triangle, diamond, circle, square, star, hexagon. \\
+\end{tabular}}\par\medskip
+
+The choice label is A, B, ... or an ordering rank. shape is 1-6; state is plain, correct or wrong. Correct and wrong choices must look identical in state plain. Keep geometry consistent because the server overlays counts and live content on the recorded rectangles.\par
+
+Colors are texquiz-1 through texquiz-6, texquiz-correct, texquiz-panel and texquiz-hint. They style the PDF/deck rendering; a TeX color change alone does not restyle the phone UI. Private macros containing @ or \_\_ are implementation details.\par
+
+\begin{Verbatim}
+\renewcommand{\texquizprompt}[1]{{\Large\bfseries #1\par}}
+\end{Verbatim}
+
+
+% Video command and options
+\manualsection{Video command and options}
+Load texvideo, then place the command inside a Beamer frame. Every video requires a local JPEG/PNG poster. Paths are relative to the deck directory. The poster determines the rendered aspect ratio; match it to the video.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}video[keys]\{source\}} & source is a local media file or online address. A local file must exist. The command can be used in overlays and repeated frames. \\
+\rowcolor{manualPale}
+\texttt{poster} & Required image. The bundle builder accepts .jpg, .jpeg and .png. \\
+\texttt{width, height} & Optional graphicx dimensions; with neither, the poster uses its natural dimensions. Supply one dimension to preserve aspect ratio. \\
+\rowcolor{manualPale}
+\texttt{id} & Optional; derived from source basename/address when omitted, lower-cased and normalized. Use an explicit stable id for predictable reuse. \\
+\texttt{start, end} & Optional times in seconds. Omitted means the player default beginning/end. Supply nonnegative values with end after start. Playback interpretation is player-specific. \\
+\rowcolor{manualPale}
+\texttt{loop, muted, autoplay} & Booleans, initially false; a bare key means true. autoplay requests playback on entering the slide, subject to browser policies. \\
+\texttt{url} & Optional online copy for the handout link/QR. If omitted for an online video, its source URL is used; a local video otherwise shows its filename. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\begin{frame}{A short demonstration}
+  \video[id=demo-clip, poster=poster.jpg, width=.75\textwidth,
+         start=5, end=20, muted]{clip.mp4}
+\end{frame}
+\end{Verbatim}
+
+Reusing an id retains the same video and playback state. Its source, poster and playback keys must agree. Repeating the same id twice on one slide is an error. Give separate videos distinct ids.\par
+
+
+% Video output and portability
+\manualsection{Video output and portability}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{Handout / solutions} & Poster plus a play mark and filename or link. A QR code is added for an online link when qrcode.sty is available. The PDF does not embed a playing video. \\
+\rowcolor{manualPale}
+\texttt{Browser presentation} & Local media is copied into the bundle. YouTube, Vimeo and supported direct media URLs get live players; an unsupported online URL produces a warning and keeps its poster. \\
+\texttt{PowerPoint, live and static} & Local media becomes a native movie object. An online video becomes a linked poster. Browser-only playback options are not applied by the current native PowerPoint movie writer. \\
+\rowcolor{manualPale}
+\texttt{Local formats} & The builder recognizes .mp4, .m4v, .webm and .mov. MP4 with H.264/AAC is the documented cross-workflow target; actual playback depends on installed/browser codecs. \\
+\texttt{Network and size} & Online playback needs its provider/network. Local media is duplicated into the bundle and both PPTX files; videos over 100 MiB cause a build warning. \\
+\end{tabular}}\par\medskip
+
+Compilation checks poster geometry and packaging, not successful playback on every browser or Office version. Rehearse actual media on the presentation device. The documentation example uses a synthetic external URL so it builds without downloading media; it is explicitly a poster/link example, not a playable movie test.\par
+
+The full command contract is in texvideo.sty and src/texstage/build/video.py. Do not interpret a warning-only online URL as proof that an embedded browser player exists for it.\par
+
+
+% Activity environment and common options
+\manualsection{Activity environment and common options}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}begin\{activity\}[keys] ... \textbackslash{}end\{activity\}} & Place inside a Beamer frame; one activity per frame. The environment does not create a frame. A repeated frame may reuse the same unchanged activity id. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}prompt\{formatted text\}} & Activity instruction. Used in the static box and rendered for phones. One prompt per activity is the supported authoring pattern. \\
+\texttt{\textbackslash{}reference\{verbatim text\}} & Code activity reference answer; may be repeated for alternative solutions. Use a fragile frame for inline verbatim. File form: reference=answer.rq or an engine-appropriate text file. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}seed\{verbatim text\}} & Inline code-activity data. Use a fragile frame, or prefer seed=data.ttl / seed=data.sql. If a seed file and inline seed are both supplied, the file takes precedence. \\
+\texttt{id} & Required, 1-63 lower-case letters/digits/hyphens, starting with a letter or digit. Same id must keep the same definition. \\
+\rowcolor{manualPale}
+\texttt{input} & tuple (default) or code. Code input requires engine and seed data. \\
+\texttt{width, height} & Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. \\
+\rowcolor{manualPale}
+\texttt{open} & auto (default) opens when the frame is reached; manual waits for the presenter. \\
+\texttt{limit} & Contributions per student: 1-50. Default 10 for tuple, 5 for code. \\
+\end{tabular}}\par\medskip
+
+The exported TexactivityPrompt, TexactivityReference and TexactivitySeed commands are the implementation backing for the local prompt/reference/seed aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.\par
+
+
+% Tuple activities: options and example
+\manualsection{Tuple activities: options and example}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{fields} & Two or three labels. Default Subject, Predicate, Object. First/last fields become nodes; a third, middle field labels the edge. \\
+\rowcolor{manualPale}
+\texttt{suggest} & Optional comma-separated suggestions. At most 40 entries, each 1-60 characters, after conversion/unescaping. \\
+\texttt{min} & Required supporting contributions before a tuple appears on the projector: integer 1-1000, default 1. \\
+\rowcolor{manualPale}
+\texttt{review} & Boolean, default false; bare key means true. Enables presenter review. \\
+\texttt{terms} & exact (default) preserves term identity; loose groups case, accents and spacing. Use exact for RDF-like identifiers. \\
+\rowcolor{manualPale}
+\texttt{engine} & Not allowed for tuple input. Code-specific seed, reference and tokens produce build warnings if supplied to a tuple activity. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\begin{frame}{Build a small graph}
+  \begin{activity}[id=class-graph, fields={Person, Knows, Person},
+      suggest={Alice,Bob,Chris}, min=1, review, height=.5\textheight]
+    \prompt{Add one connection between two people.}
+  \end{activity}
+\end{frame}
+\end{Verbatim}
+
+Handout, solutions and PowerPoint show the static activity prompt. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.\par
+
+
+% Code activities: engines and data
+\manualsection{Code activities: engines and data}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{engine=sparql} & Queries a Turtle seed (.ttl). References contain SPARQL queries. \\
+\rowcolor{manualPale}
+\texttt{engine=sql} & Queries tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. \\
+\texttt{engine=turtle} & Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. \\
+\rowcolor{manualPale}
+\texttt{seed} & Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. \\
+\texttt{reference} & Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. \\
+\rowcolor{manualPale}
+\texttt{tokens} & Extra keyboard buttons: up to 40 entries of 1-60 characters. Engine punctuation is added automatically. Escape TeX punctuation in key values, e.g. backslash followed by \# or \%. \\
+\texttt{Unused tuple keys} & fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied. \\
+\end{tabular}}\par\medskip
+
+The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.\par
+
+The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.\par
+
+
+% Code activity example and build checks
+\manualsection{Code activity example and build checks}
+\begin{Verbatim}
+\begin{frame}[fragile]{Query the people table}
+  \begin{activity}[id=names, input=code, engine=sql,
+      height=.4\textheight, open=manual, tokens={SELECT,FROM,ORDER BY}]
+    \prompt{Return all names in alphabetical order.}
+    \seed{CREATE TABLE people(name TEXT);
+INSERT INTO people VALUES ('Bob'), ('Alice');}
+    \reference{SELECT name FROM people ORDER BY name;}
+  \end{activity}
+\end{frame}
+\end{Verbatim}
+
+For ordinary course files, prefer seed=people.sql and reference=names.sql. This avoids embedding verbatim in a macro argument or a non-fragile frame. All paths are resolved from the deck directory; keep referenced files with the source export.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{texstage pdf --solutions} & Shows activity references and quiz answers. Verify that long code and explanations fit the frame. \\
+\rowcolor{manualPale}
+\texttt{texstage build} & Validates the .tqz records, seed files, media and public/private bundle split. It also checks quiz layout in present and solutions modes. \\
+\texttt{Browser rehearsal} & Open one activity, submit synthetic input, inspect results and reveal behavior. Compilation alone is not a browser/Office interoperability test. \\
+\end{tabular}}\par\medskip
+
+Runnable examples and an isolated validation command are provided in \href{../../examples/reference/README.md}{examples/reference/README.md}. They use dedicated output/data directories and do not load existing courses.\par
+
+
+% Activity labels and documentation helpers
+\manualsection{Activity labels and documentation helpers}
+The activity label hooks are ordinary macros. Redefine them after loading texactivity to localize static slide text; they do not change the phone UI language.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.420000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.580000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Hook & \color{white}\bfseries Default and contract \\
+\texttt{\textbackslash{}texactivitylabel} & No arguments. Default: Live activity -- on your phones. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texactivityreferencelabel} & No arguments. Default: Reference. Used above solution reference text. \\
+\end{tabular}}\par\medskip
+
+\begin{Verbatim}
+\renewcommand{\texactivitylabel}{Live task -- use your phone}
+\end{Verbatim}
+
+\texttt{docs/manual-latex/manual.sty} only controls this manual: landscape A4, typography, colors, tables and headers/footers. Its \texttt{\textbackslash{}manualsection\{title\}} starts a new page/section; \texttt{\textbackslash{}manualsubheading\{title\}} formats a small heading; \texttt{\textbackslash{}manualcaption} selects caption text. The document supplies \texttt{\textbackslash{}manualversion} and \texttt{\textbackslash{}manualdate}.\par
+
+This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, fancyhdr, fancyvrb, enumitem, titlesec, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.\par
+
+
+% Core interfaces for package developers
+\manualsection{Core interfaces for package developers}
+These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are documented for maintainers of the current candidate, not a promise of a versioned plugin ABI. Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.\par
+
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}texstage\_if\_mode:nTF \{mode\}\{yes\}\{no\}} & Tests the resolved mode; T and F variants are also defined. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_error:n \{message\}} & Raises a package error. \\
+\texttt{\textbackslash{}texstage\_hex:n \{text\}} & Encodes record text as hex. V and e variants accept a variable or expanded content. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_emit:n \{record\}} & Writes an expanded record immediately in present mode. \\
+\texttt{\textbackslash{}texstage\_on\_page:n \{record\}} & Writes at shipout, freezing the current logical page number; position values are expanded later. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_page\_record:nnn \{kind\}\{id\}\{phase\}} & Associates a live item and phase with a page. \\
+\texttt{\textbackslash{}texstage\_savepos:, \textbackslash{}texstage\_lastx:, \textbackslash{}texstage\_lasty:} & Save the current position and read engine coordinates in scaled points. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_rect:nnnnn \{id\}\{phase\}\{key\}\{width\}\{height\}} & Records a rectangle at the current lower-left reference point. \\
+\texttt{\textbackslash{}texstage\_vmark:nnn \{id\}\{phase\}\{key\}} & Records a horizontal boundary across linewidth in vertical mode for a live region. \\
+\end{tabular}}\par\medskip
+
+Do not emit arbitrary records from a course deck. The Python build registry must understand the content type, its public metadata, private answer data, phone assets and rendering. Shipout and shrink corrections are coordinated by the core.\par
+
+
+% Core asset and layout helpers
+\manualsection{Core asset and layout helpers}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{\textbackslash{}texstage\_check\_mark:nn \{kind\}\{id\}} & Adds a layout-check log mark outside handout mode. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_stage\_notes:} & Enables stage-note bookkeeping and deterministic pdfTeX metadata; normally called through the build-owned notes switch. \\
+\texttt{\textbackslash{}texstage\_asset\_box:nn \{width\}\{content\}} & Typesets the next extra-page asset into a global box. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_asset\_add:nnn \{id\}\{key\}\{natural width\}} & Associates that box with an item and records its unbroken natural width. Call after asset\_box. \\
+\texttt{\textbackslash{}texstage\_asset:nnnn \{id\}\{key\}\{width\}\{content\}} & Combined asset creation and natural-width measurement. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_ship\_assets:} & Ships recorded extra pages after the slides. The normal stage compile suppresses these; authors should not call it themselves. \\
+\texttt{\textbackslash{}texstage\_vfill:} & Vertical fill that wins over Beamer top-aligned-frame fill. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_vbox\_set:Nnn \{box variable\}\{width\}\{content\}} & Sets a zero-depth box whose reference point is its lower-left corner. \\
+\texttt{\textbackslash{}texstage\_once:n \{code\}} & Runs code only on the first overlay of the current frame. \\
+\rowcolor{manualPale}
+\texttt{\textbackslash{}texstage\_check\_outside\_frame:n \{command name\}} & Errors when a frame-creating command is used inside a frame. \\
+\end{tabular}}\par\medskip
+
+Names containing @, names beginning \_\_, parser temporaries and global state variables are implementation details. The core also patches Beamer shrink/shipout handling; do not copy those internals into themes. The maintained inventory records source hashes so changes require a documentation review.\par
+
+
+% LaTeX examples and common authoring failures
+\manualsection{LaTeX examples and common authoring failures}
+{\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\rowcolor{manualPurple}
+\color{white}\bfseries Syntax / option & \color{white}\bfseries Meaning and default \\
+\texttt{Unknown key or invalid id} & Check the correct key namespace: quizsetup, quiz, choice, special frame, video or activity. Use stable ids and avoid underscores in quiz/activity ids. \\
+\rowcolor{manualPale}
+\texttt{Text outside a quiz command} & Move material into the surrounding quiz frame, or into the question/choice/explanation argument. \\
+\texttt{Reference/seed breaks compilation} & Use a fragile frame for inline verbatim, or external UTF-8 data/reference files. \\
+\rowcolor{manualPale}
+\texttt{No correct slider value} & Choose bounds and a positive step that actually contain a value in answer +/- tolerance. \\
+\texttt{Answers appear in a handout} & Check the selected build mode and whether authored answer frames carry the answer option. \\
+\rowcolor{manualPale}
+\texttt{Static activity in PowerPoint} & Expected for this candidate. Use the browser presenter for live activities. \\
+\texttt{Overfull or excessive shrink} & Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. \\
+\rowcolor{manualPale}
+\texttt{Theme overlay is misaligned} & Keep answer-box width/height and lower-left reference point consistent with the hook contract. \\
+\end{tabular}}\par\medskip
+
+The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/code activity records. Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.\par
+
+The \href{../latex-reference-inventory.json}{reference inventory} and \href{../../examples/reference/README.md}{example build instructions} accompany this chapter. Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
+
 \end{document}

@@ -2,6 +2,9 @@
 
 ## Unreleased — 0.2.1.dev0 candidate
 
+- Added a source-reviewed LaTeX package/command reference to the shared manual,
+  a standalone reference page, compiled authoring examples and CI coverage checks.
+
 - Extracted the standalone runtime, server, browser assets and four generic styles.
 - Added the supported lazy `texstage.api` facade for companion integrations.
 - Added hashed runtime/build/development locks, CI, source-archive rebuild checks

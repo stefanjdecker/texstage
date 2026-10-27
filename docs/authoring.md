@@ -462,3 +462,7 @@ each with a small shape badge matching the phone buttons.
 - One quiz per frame.
 - Tested with pdfLaTeX (TeX Live 2026) only. The present build needs pdfLaTeX or LuaLaTeX
   (LuaLaTeX untested); XeLaTeX is rejected for it.
+
+For all four packages, exact options/defaults, output modes and developer hooks,
+see the [complete LaTeX reference](latex-reference.md). It is included in the
+[manual PDF](manual.pdf) and [LaTeX edition](manual-latex/README.md).

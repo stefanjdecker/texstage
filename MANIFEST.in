@@ -17,3 +17,5 @@ include provenance/original-NOTICE
 include CONTRIBUTING.md SECURITY.md CHANGELOG.md
 graft requirements
 graft maintenance
+
+graft examples/reference
