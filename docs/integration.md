@@ -20,3 +20,16 @@ their generated styles pinned to the tested texstage release; do not import
 implementation modules or insert another checkout's source path.
 
 This local development snapshot is 0.2.1.dev0. It is not a published release.
+
+## Modular course tooling
+
+Lecture-tools 0.1.0.dev1 keeps its command implementations in the lecture_tools
+package. Its existing scripts delegate to that package, and all shared PDF/live
+services still use this facade. No additional texstage API or runtime change was
+needed for the command and DBIS style decomposition.
+
+Course styles, database and graph notation, DBIS appearance and optional live
+loading are separate modules in the companion lecture-tools repository. The
+compatibility loaders continue to use the pinned texstage 0.2.1.dev0 style snapshot.
+The companion repository documents the modules and their validation in
+docs/package-and-style-modules.md and docs/validation-phase2.json.

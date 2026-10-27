@@ -5,8 +5,12 @@ Implemented on 27 October 2026, from combined lecture-tools commit
 attribution are recorded in `provenance/`. Local history starts with an extraction
 commit; the choice of history for publication is still open.
 
-This increment establishes the two project boundaries. It does not complete
-the entire refactoring plan in the adjacent lecture-tools-refactor repository.
+This file records the first increment. The subsequent lecture-tools 0.1.0.dev1
+increment completes Python command relocation and extracts the reusable style
+modules; see the companion repository's docs/package-and-style-modules.md and
+docs/validation-phase2.json. The texstage runtime/API is unchanged.
+
+The full release and real-course migration plan remains incomplete.
 
 | Plan step | Result |
 |---|---|
@@ -48,7 +52,7 @@ Wheel/source-archive build and isolated installed-package checks are recorded in
 TeX Live and Node.js. Linux/macOS, a Docker image build, interactive PowerPoint,
 and real-course rendering comparisons are not yet validated.
 
-## Next implementation step
+## Next step recorded at the first increment
 
 Move command implementations into the package while leaving tested thin wrappers,
 then extract the DBIS style into core, theme and subject modules without changing
