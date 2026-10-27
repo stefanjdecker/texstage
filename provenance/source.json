@@ -1,0 +1,1316 @@
+{
+  "source_project": "lecture-tools",
+  "source_commit": "6388b6ba48d8c4f770c81cc66c992a3d5c9cde26",
+  "extraction": "Attributed local snapshot; public history/licensing decision pending.",
+  "files": [
+    {
+      "source": ".gitattributes",
+      "destination": ".gitattributes",
+      "source_git_blob": "3f809d295832fc0fa29f1152c208e634fc32a2c8",
+      "sha256": "ffe3912600b3389556515f432165bd261628fd4dc25e7058a19537af6b1fe7c0",
+      "license_scope": "not covered by current NOTICE: publication license decision required"
+    },
+    {
+      "source": ".gitignore",
+      "destination": ".gitignore",
+      "source_git_blob": "0af0a27d842a7341279f165c8eff9080a81ea87e",
+      "sha256": "a4e86f987e515360773e96e406fa341162c9ab0583dfc2eb308028ffc74b5cdb",
+      "license_scope": "not covered by current NOTICE: publication license decision required"
+    },
+    {
+      "source": "LICENSE",
+      "destination": "LICENSE",
+      "source_git_blob": "d9a10c0d8e868ebf8da0b3dc95bb0be634c34bfe",
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "MANIFEST.in",
+      "destination": "MANIFEST.in",
+      "source_git_blob": "92e039f5184c38b3f38100652faffe20e9be56ee",
+      "sha256": "2b020d6b5b8f724c242a4949308377b960977edcd357a51d72fbbf3746337861",
+      "license_scope": "not covered by current NOTICE: publication license decision required"
+    },
+    {
+      "source": "NOTICE",
+      "destination": "NOTICE",
+      "source_git_blob": "28f17ed74db9cfbe8fe36b3fb7792e9eca52a37b",
+      "sha256": "cba17ac4ceacc74a69c9a097957697e0e884478c474df53eadc8965cf110e2cc",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "README-texstage.md",
+      "destination": "README.md",
+      "source_git_blob": "9e8b63a08e0eeaab152a4345949a5033f1b0b615",
+      "sha256": "5d73387d32c2a91eae0b8de6ac1c5011dc7c63ac2e9f6b30de340436eee24418",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "deploy/Caddyfile",
+      "destination": "deploy/Caddyfile",
+      "source_git_blob": "31033bc0b313f6fedd1172392e5abb4916d58d18",
+      "sha256": "0cc91698b5a31c4a2b41f8dccb0ae8cd5bd2ef5fb55084d24c5236e5dd4433c7",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "deploy/Dockerfile",
+      "destination": "deploy/Dockerfile",
+      "source_git_blob": "4578a3a4f3371c6ed04f12cb32c8818858425613",
+      "sha256": "7e6c9c26baf888c7dc6df5bc32912dd13ee3d6b39b86dd49711b8eae99c1c9c1",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "deploy/docker-compose.yml",
+      "destination": "deploy/docker-compose.yml",
+      "source_git_blob": "34ef469221511184e485238269d06fa63730429f",
+      "sha256": "2414f693b69ffcebc58fa5311b04527e88fecfa5bf07562af0187dd26f70a51e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/authoring.md",
+      "destination": "docs/authoring.md",
+      "source_git_blob": "3daed4f07a014cb5c0f62b89b33e7a34bc2e502a",
+      "sha256": "673fd3c1cf7bc9e1836fb01c43ee860c145659928913dc873d49ff9d5e109712",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/content-types-design.md",
+      "destination": "docs/architecture/content-types-design.md",
+      "source_git_blob": "048b59b67599c3c90ba168bb0027e493de81bb76",
+      "sha256": "a258ec010b0722d2d38d30bd120bcb1fe63047b55867a9570730bd9592ae8b93",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/design.md",
+      "destination": "docs/architecture/design.md",
+      "source_git_blob": "1c5fa1fc5b6cf3e76ffd89e617f26e8724b2ae11",
+      "sha256": "fe06f0a2e3cf178e03f8c9dc7fab2e9b84e38e88b69f85b89746c013e4d75765",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/live-activities-design.md",
+      "destination": "docs/architecture/live-activities-design.md",
+      "source_git_blob": "7aa1eb501774d27ed7dfd7b035efe92ce438fa41",
+      "sha256": "140830a4f9f7afd1e57df5e0a79efba1cf8a11be3a0f1435d8a6367056b85a37",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/README.md",
+      "destination": "docs/history/spike/README.md",
+      "source_git_blob": "dcdaaaf14a75fff3f04dfa77f9a9d0c98033ec39",
+      "sha256": "dcf6c0355b1d000e890fd54d16a365b7a85a8cd0cddaae0ec2c32e22c95bcddb",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/drive.ps1",
+      "destination": "docs/history/spike/drive.ps1",
+      "source_git_blob": "51a029b9a29ac56697eb978dc94a7afe4d5d71fe",
+      "sha256": "541e382447d25be73b1babaee868f5ef5b763d14f5bed7674dcc153e31a8cefc",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/drive2.ps1",
+      "destination": "docs/history/spike/drive2.ps1",
+      "source_git_blob": "b5a949d8f270eec8c1043b3fd8f466d094979039",
+      "sha256": "46e08ecac6f1fe6c24bbafef15dd387b4f02998cd33b4d0d2f1f494d5cb52b7b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/drive3.ps1",
+      "destination": "docs/history/spike/drive3.ps1",
+      "source_git_blob": "f86ababdcb07ec5cd0f2036e39e154e9983b7ba0",
+      "sha256": "277140a5a2f9e6ebcdf2bb0a4acdf1ea3290224756320f2db12543e4b96ebf3b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/make.py",
+      "destination": "docs/history/spike/make.py",
+      "source_git_blob": "d2619734ae93fa9824bae377a71fe7363a0545c5",
+      "sha256": "49ffb80a6796b009d11789ed7e4776bfb878bd4091109360d1b25b6918320117",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/manifest.xml",
+      "destination": "docs/history/spike/manifest.xml",
+      "source_git_blob": "767b3f4a3f6191bb34beeee6dbbb41bdcddb70a6",
+      "sha256": "66904da3da98a1e2b3d5b0464a5f4762fc65372a5454eced9be840873a1b3c82",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/probe.html",
+      "destination": "docs/history/spike/probe.html",
+      "source_git_blob": "842bf46f159737931645c87cdeacc1375b28b715",
+      "sha256": "8a15577834ad58a876d35d4148fb4db66863f84d395515c9405fe2f683769510",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/spike/server.py",
+      "destination": "docs/history/spike/server.py",
+      "source_git_blob": "82114f166a44f7db94043ca6239affef4a02f771",
+      "sha256": "08620a98a5fae438d68fa4100d24fac7ad8c90c99609d27d9db08d8d0964477b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/texstage-design.md",
+      "destination": "docs/architecture/texstage-design.md",
+      "source_git_blob": "919e397d45e72ac4bbed6b324090f993bbe60834",
+      "sha256": "bd75820873069594b21f0ea341f68d4cb6e69c16e53a0e88f9415b45622a261a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "docs/texstage-requirements.md",
+      "destination": "docs/architecture/texstage-requirements.md",
+      "source_git_blob": "9a9d21b4ecf22f43a7e0c9b500554e994e862cc7",
+      "sha256": "b6d65be65c5dfdcb33f53828641ac306e214adf07017354483e653e69cac82d9",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "examples/demo/demo.tex",
+      "destination": "examples/demo/demo.tex",
+      "source_git_blob": "4d6feffa225f57c3884bb6a9d5a129c93a69c08d",
+      "sha256": "667d13a148aec4e982b0e240951a7702f9bab4d4fb8e91f65b7f3f3798babbd4",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "latex/texactivity.sty",
+      "destination": "latex/texactivity.sty",
+      "source_git_blob": "05873e944b4a2ccd78aad44ec71177b50cca7115",
+      "sha256": "5a71fa9d1850ef7509a009dd6dd922e6d631ce4a9d8b40a8d8270cffac80dfac",
+      "license_scope": "Apache-2.0 SPDX header; reconcile missing explicit NOTICE path"
+    },
+    {
+      "source": "latex/texquiz.sty",
+      "destination": "latex/texquiz.sty",
+      "source_git_blob": "701af1e252f942bd31d91cc3cc176e248999c07b",
+      "sha256": "cf7c62135566589cd4f1fa3d158bc4c4de2456d2882b83a6f4c2dc9a391f50a7",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "latex/texstage.sty",
+      "destination": "latex/texstage.sty",
+      "source_git_blob": "113b8bd793748a5117de9e23ca8eb6fa935b10ba",
+      "sha256": "3176ea275a4f3e0979067675576db8a476052fb534e451bd51b6eed85597f726",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "latex/texvideo.sty",
+      "destination": "latex/texvideo.sty",
+      "source_git_blob": "edc8fe94ba1d1ec9f4d6db9a39b26a97caf1b5ee",
+      "sha256": "68105ae1a224b28f3f01fee6603668335b13d96bc6f65ec31c9ad9751ecd4eab",
+      "license_scope": "Apache-2.0 SPDX header; reconcile missing explicit NOTICE path"
+    },
+    {
+      "source": "pyproject.toml",
+      "destination": "pyproject.toml",
+      "source_git_blob": "db949a9ae3ecffe2cda068f75c8106ccc7c46f81",
+      "sha256": "9af941c726493876391a626a90044ad9895bbe665c921a624dca347fb330b21f",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/__init__.py",
+      "destination": "src/texstage/__init__.py",
+      "source_git_blob": "21ab4e1ddb4e18c6e604bc6c1333238bde970456",
+      "sha256": "2d9e7154b97109e4f461e446c4dd0f9791d371c1e0d4c4de0d5f65fb61b8ffe5",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/addin.py",
+      "destination": "src/texstage/addin.py",
+      "source_git_blob": "dc6599f2d6315712bbf319b01d6393efd033a8f2",
+      "sha256": "27fa40793d4627c74465d5ebbbcf24172c281186a19c8b6401d135ac4e5a211b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/__init__.py",
+      "destination": "src/texstage/build/__init__.py",
+      "source_git_blob": "d8d4147f0b972d898dabde857e0a5d41ff648869",
+      "sha256": "9c84506be0f5776805e2de22a332912491b7d7cc05119d0dc7971c7fbec78085",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/activity.py",
+      "destination": "src/texstage/build/activity.py",
+      "source_git_blob": "e5389f097f8c2ac6486987a98222bf71a7543921",
+      "sha256": "eece08d2ac8a90d7e70079179ff8cd3934465d0de7c8930834813098a92bb0ec",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/builder.py",
+      "destination": "src/texstage/build/builder.py",
+      "source_git_blob": "bebfbcb3e8c8afb758f72bf711b600f049758313",
+      "sha256": "7d9d9cc8fe5a75c895571a82e663c64a990e0114388dfe64e868ec26df62fc07",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/bundle.py",
+      "destination": "src/texstage/build/bundle.py",
+      "source_git_blob": "cc01462d80af776895389258ed89cfb9698ec263",
+      "sha256": "7a52f275c5631e56ab6f3e4e7577c72208a5447640f200951fbd42d8a23ff910",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/check.py",
+      "destination": "src/texstage/build/check.py",
+      "source_git_blob": "1b9f972a74f1f1b58636119010e0e4bf3eaa59f5",
+      "sha256": "9d177d2d6d5b5414a58ed10ad27462cc87861604188072ebe0ce4090107655a9",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/latex.py",
+      "destination": "src/texstage/build/latex.py",
+      "source_git_blob": "be730c0baa3038bf5ec9e7cf08fb403b448c0f0a",
+      "sha256": "5bebbe8daf4cc5e4009868b3de4d1db8307c08a56f203217054c61e074fa72be",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/notes.py",
+      "destination": "src/texstage/build/notes.py",
+      "source_git_blob": "67737e1748fa513de40ca00c2cc401c0ef6109bc",
+      "sha256": "d6148fd2fb5fe48b0523b4b5380a7c73b7084dd788c6aa103492bd9b1d541b62",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/pdf.py",
+      "destination": "src/texstage/build/pdf.py",
+      "source_git_blob": "c3d91b12c51a0bc6fee1b49481c0acd3bf4b8ca0",
+      "sha256": "0bfa3bc1b439b29774f2e9eaa7ba8849f5629329e9e6af1b0de5a5a932a4ec25",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/powerpoint.py",
+      "destination": "src/texstage/build/powerpoint.py",
+      "source_git_blob": "8fedefb39c1c1c39d323367e6a7aee74c522281b",
+      "sha256": "566605d4426bdca023060018d9a197bc87c9994444977bc082383f81e584362e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/quiz.py",
+      "destination": "src/texstage/build/quiz.py",
+      "source_git_blob": "3ec1479061a8a27a7402beaa67a5d6b27399f63b",
+      "sha256": "2983c901055c75f8708584e7e251e42ef6cc916fa8c6918c67552f5d0e278cab",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/raster.py",
+      "destination": "src/texstage/build/raster.py",
+      "source_git_blob": "4c9db3460d28211eef97a2a64d5f8b6cb3a3989c",
+      "sha256": "ffc436bd0082e1a39b71fd785d24d36124dd328eee5f65af2521fc359d7095a0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/stage.py",
+      "destination": "src/texstage/build/stage.py",
+      "source_git_blob": "c596c24d57f8f71ead73988812c340e38873bc49",
+      "sha256": "0aa1c3e0ed9ec1b590cae386cc55211c82d33ffff5a7cfa31598bed171123975",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/tqz.py",
+      "destination": "src/texstage/build/tqz.py",
+      "source_git_blob": "24867c5d5338fea288a55c3cc6dbef4d482b13ee",
+      "sha256": "e141879f9e7b8a013672235bc0ba5dfc9ee440866155037bff0875a902a6a842",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/types.py",
+      "destination": "src/texstage/build/types.py",
+      "source_git_blob": "2e3700c7f2d7dd1ac54fa58fa8a8e4fb61660778",
+      "sha256": "5b1ecdb579ce1a5aca1605d1c4275c6311bce5b83465242376d187edbb934b67",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/build/video.py",
+      "destination": "src/texstage/build/video.py",
+      "source_git_blob": "e8983f63ec90dbdc7dab495f83999b830f9d3242",
+      "sha256": "0fda21fb11e4bd05b4fb80749e2709fa054137df11e1aa9fa531e57f4fe562d8",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/builds.py",
+      "destination": "src/texstage/builds.py",
+      "source_git_blob": "cf05a4e2b0ce53a77379b8a8c5f4d8f3458e5dd7",
+      "sha256": "0f2f8e9835596e3ea107b85dbd1ff5b822d5a579ad32f11094442f5f91aa437b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/cli.py",
+      "destination": "src/texstage/cli.py",
+      "source_git_blob": "24b2b022676fd070ba2d48aba89f346a47315bf8",
+      "sha256": "34117c6cd9cf7c877182f2c078434e51891f6d9429fe1e0f9f15db59c157b9d0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/engines.py",
+      "destination": "src/texstage/engines.py",
+      "source_git_blob": "7a06f0cc1e00b5a989514d1d21ff69d2c4dfe27f",
+      "sha256": "8b0c9aca884f9663c90faa913373b9e294d25e782f55e757ff2285ffa760de61",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/keys.py",
+      "destination": "src/texstage/keys.py",
+      "source_git_blob": "6633d8bf3f1a3a5eb3bee65e9fe8f65839d9c41a",
+      "sha256": "43c5e4e0ccdc3d306bab1b5ea8ccceed96edc7baa0442fde1b0796c82a9382d0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/preflight.py",
+      "destination": "src/texstage/preflight.py",
+      "source_git_blob": "f7a2a78817f758988a458ba57456c574ac47c4a0",
+      "sha256": "b6f9b7499aa14c9460c6b377faa66b776b618d558a96295e06a7afda2921a8d1",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/publish.py",
+      "destination": "src/texstage/publish.py",
+      "source_git_blob": "7650baf4c01820bc635809c8d67d4c9e03e91019",
+      "sha256": "ceddb97fa07761b47c6691fcb9a56a729506de016f4fd77901ea3a4301557658",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/__init__.py",
+      "destination": "src/texstage/server/__init__.py",
+      "source_git_blob": "fbf43e8f1a2fa61aa6042340635e3875ba84446c",
+      "sha256": "519bc005326af73ca0fb3f474648ff95706c3013042991a5d00d1d33e101db78",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/activity.py",
+      "destination": "src/texstage/server/activity.py",
+      "source_git_blob": "3555946dd5eae96a30898b793d354c4683bd5e02",
+      "sha256": "c8d8a5c943556e9c1bd7794ec0db068dc1a6252ddea3fa8037377fff48874e2e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/app.py",
+      "destination": "src/texstage/server/app.py",
+      "source_git_blob": "fd370159ea02f3b7ff9d147602e866f6ead5c20f",
+      "sha256": "b0f3067b903a03eeaf381eb8629af78575ca5c13f29511e4d3a62edfdef4572a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/archive.py",
+      "destination": "src/texstage/server/archive.py",
+      "source_git_blob": "e83d9520ec269b637c314800e5adf93d713c4019",
+      "sha256": "b43b6b32346e11f87731704c4fd614ff4843715e5ea300346fe01b0ce264cac9",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/bundles.py",
+      "destination": "src/texstage/server/bundles.py",
+      "source_git_blob": "2b6b5003923bc9e72a31cb9e58c63235c20fa18d",
+      "sha256": "4936ac26ada717d744c16d8e65cec30f83d8145f667142ae2dd23f2ac8a74c96",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/devices.py",
+      "destination": "src/texstage/server/devices.py",
+      "source_git_blob": "b120a3dfb945cb6ea5ca452f54ad05f9969efbb3",
+      "sha256": "08e999038293c43acaea9f9d8ba131bf61ccbb33deb92a14e7706ff0d2ed7422",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/game.py",
+      "destination": "src/texstage/server/game.py",
+      "source_git_blob": "d9188b173d5eed7e4914d21b45fbcf53e97c280c",
+      "sha256": "77450ff301087c488011a37b87a65cb001f2ff502868f9f91f69edcf7350e016",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/ink.py",
+      "destination": "src/texstage/server/ink.py",
+      "source_git_blob": "0082d8356cbef9114b368b16e20bd3feee7011f0",
+      "sha256": "f39e21ad5d0d1cb34615d59e6b425085251008f37141fcad2fd6d3ba1c540e94",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/lecturers.py",
+      "destination": "src/texstage/server/lecturers.py",
+      "source_git_blob": "51c92f0e074519ab17f0e91b455fd768bc50571c",
+      "sha256": "5242c310f892ea54ddb304c7def18943d22db45600c952ef2cb95bc4e5eb2031",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/library.py",
+      "destination": "src/texstage/server/library.py",
+      "source_git_blob": "9f09b6401a125fea4748b91ac6626f6effd57ef9",
+      "sha256": "fea9801ba7844154443fb1b818d8d1928de688a5045d5b5d28252a5f70b9057d",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/polls.py",
+      "destination": "src/texstage/server/polls.py",
+      "source_git_blob": "d46c113c765797b3d4e09ac55e297ee97127f8bb",
+      "sha256": "b92334bd6722193b3d6196e2a68b775bd364e586232198d672c05f0226724819",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/qa.py",
+      "destination": "src/texstage/server/qa.py",
+      "source_git_blob": "c16170d5a344790469c6dbee6457525e22f16ccc",
+      "sha256": "56a6be835cb301fd6be1f2c9732d2cfffe874c538e908fa5cae12702970a52f0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/scoring.py",
+      "destination": "src/texstage/server/scoring.py",
+      "source_git_blob": "0aa0307a38145986f779c6b8ceabc08a6b344de2",
+      "sha256": "5e5e442e4a8f10f71f54050acea3bafc07f1115b816465201e945ecb9a9ebae2",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/store.py",
+      "destination": "src/texstage/server/store.py",
+      "source_git_blob": "9fc92a2caee73223ce80e244b8d56eb40f89befd",
+      "sha256": "bb4d7bb4ea33940ff45436cc6fc648a4a58308a3897cb1ae8aa509564c261db7",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/tunnel.py",
+      "destination": "src/texstage/server/tunnel.py",
+      "source_git_blob": "4194cb473862db23c3b79894475e6c2182566bfe",
+      "sha256": "9dce8946aadea5453863ea61d5ad6b67e80e3eee6ea41b9b69efa430e4959249",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/types.py",
+      "destination": "src/texstage/server/types.py",
+      "source_git_blob": "9407c944e47fea3368166b1e35046af05708e15d",
+      "sha256": "3ae32d047737c677050a572d25fa1a50c66fdff6ec8df69bcfa734604ea654a3",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/video.py",
+      "destination": "src/texstage/server/video.py",
+      "source_git_blob": "22263c3fb15eac968ae8eaac56a7ff21b836a030",
+      "sha256": "0424f54936a6aadda097446a23da01760aec4931b19d878fb86853401ca905c4",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/server/windows_loop.py",
+      "destination": "src/texstage/server/windows_loop.py",
+      "source_git_blob": "7d32c60ae7fedcace203eb3428e853a75f79dd88",
+      "sha256": "f0f989819e9f6ab7be11337e4f5c4e2f8488a20f35f7dce6ab84df8450651cc8",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/addin/addin.css",
+      "destination": "src/texstage/web/addin/addin.css",
+      "source_git_blob": "a199c8de7974c4a0904e7f708cfcdbf8303a9d93",
+      "sha256": "fff47377b8a228c219745c78bb5ed2210b54f767c7994317866806bb7b1271f0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/addin/addin.js",
+      "destination": "src/texstage/web/addin/addin.js",
+      "source_git_blob": "3b9a62a1e5d160f09da8dcbba8d7c08ae4653b76",
+      "sha256": "3c88e31bed08f6c687f7b061cce864de32accead587093a05eaeec913d8ee49b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/addin/index.html",
+      "destination": "src/texstage/web/addin/index.html",
+      "source_git_blob": "be3b2460bf7ce41498da7c237adda69abb617a32",
+      "sha256": "9ae04e44ba4a8d582a651050b3dce9a0f301e5e90817b86f71add0c6a7557c1b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/engines/common.js",
+      "destination": "src/texstage/web/engines/common.js",
+      "source_git_blob": "73c35f8c8de7b8cad4311bdc7024e7e4eb403722",
+      "sha256": "74b44c091e3e8593302673a69bb9adf0458181b149c406dac001af0583ffbcb3",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/engines/index.js",
+      "destination": "src/texstage/web/engines/index.js",
+      "source_git_blob": "cb0014e2013d627a2dc825acd83683ac50c5d44d",
+      "sha256": "7e46708b77b997bd3217b4c0a4d39ce2294e4e635548dac6fbcd35bcac2bd7b0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/engines/sparql.js",
+      "destination": "src/texstage/web/engines/sparql.js",
+      "source_git_blob": "26f54d67788cd19044449f847e3d1d393f6717b1",
+      "sha256": "96f79bbf6e9d84d23dd71d5b7233c26fd97716e13362ff247abbbbaebdb1b968",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/engines/sql.js",
+      "destination": "src/texstage/web/engines/sql.js",
+      "source_git_blob": "c02c56e8343b2da09f99929714676e527381df94",
+      "sha256": "790407f44be4922b6b8fa0a09fe096575f28a41f6021607ed6033d68842be35f",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/engines/turtle.js",
+      "destination": "src/texstage/web/engines/turtle.js",
+      "source_git_blob": "91bea8e8c733609db32075875ce8da1259fab594",
+      "sha256": "7f08b4e543fd4da816ac114e6f59dcb339743b0686da44ae0398845c5a7d510a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/host/host.css",
+      "destination": "src/texstage/web/host/host.css",
+      "source_git_blob": "e0df65ee685c471ca6d7133fda3a67a68cdfacb3",
+      "sha256": "60ddc73f5230c49927a08563e4efec4dece5919367f580b12392cf2b220a6559",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/host/host.js",
+      "destination": "src/texstage/web/host/host.js",
+      "source_git_blob": "020397caaba3b6b0174edb5aaef7b72720024c26",
+      "sha256": "73fece51b18fbc88f222f6c4998faabe25db5f3c3cb695e86cb19b9eb455ae88",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/host/index.html",
+      "destination": "src/texstage/web/host/index.html",
+      "source_git_blob": "b341552cda6f54acad59caee6b78473fbfe27f69",
+      "sha256": "28732c0ed0de687a841204507d7d6771b8c20d325a494295814f8d2651965878",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/play/activity.js",
+      "destination": "src/texstage/web/play/activity.js",
+      "source_git_blob": "d4578834f60bd1c62d7a48fb7cad78d59281a867",
+      "sha256": "42cf4145239b546d716fa75962525fb272a2a7a41127819d43d4e9a15401e588",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/play/index.html",
+      "destination": "src/texstage/web/play/index.html",
+      "source_git_blob": "44875d3e71869d3374634075b1bea4cd499eea75",
+      "sha256": "481e047a2f1f0902a67dd0762aaa555798982660aa8a3ba4342fbb1ca04aa4c1",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/play/play.css",
+      "destination": "src/texstage/web/play/play.css",
+      "source_git_blob": "c46032e8f67f5cdbbb139267374285012d6fcc73",
+      "sha256": "4e632b73e7e3c34461290cae1cef014ba7a8ef7b19a22a8941b60d384d934f21",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/play/play.js",
+      "destination": "src/texstage/web/play/play.js",
+      "source_git_blob": "01e04a47fd159fd5fed0e431c8eef1cd24ddc3fb",
+      "sha256": "009884ec45522699d032d06026f2f405fcf6fd92fe92f0587dc321a409162008",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/client.js",
+      "destination": "src/texstage/web/shared/client.js",
+      "source_git_blob": "54772bc81424c63ac1c02b41a791682df304aa38",
+      "sha256": "a4601e5fc4528679134cec342b48dc4a3e4509d29080c33ae12ed59d1c32f445",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/live.css",
+      "destination": "src/texstage/web/shared/live.css",
+      "source_git_blob": "3b3020aad46f633e2837c008e12334377cd9dd8b",
+      "sha256": "ad6573f4624d9496bde79d97f761f653016de2232f833a1c2f06fb5ad6c8dbef",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/live.js",
+      "destination": "src/texstage/web/shared/live.js",
+      "source_git_blob": "c95e7edfa390260a56cc7413d3d1deccb2107f51",
+      "sha256": "bfc6e8f625cd27b2508a1ea33616483972e2dcadc2a2c6ec8e9f22c01e7f2cbf",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/shapes.js",
+      "destination": "src/texstage/web/shared/shapes.js",
+      "source_git_blob": "6a8618f7944ef9d425b34bd68a548f72a98ac303",
+      "sha256": "872cff054df0c8d30d557d9e7d9509d4407e5758d603b5c6f0afe5e09c08703d",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/sketch.js",
+      "destination": "src/texstage/web/shared/sketch.js",
+      "source_git_blob": "f8ae5032b48930947daffd83b8cbbb60be2547a1",
+      "sha256": "875ff4cb041cc025b4c16357f74983d82d21a4a9843875f27f0fda5189d541cf",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/text.js",
+      "destination": "src/texstage/web/shared/text.js",
+      "source_git_blob": "1a85f1495227ce97bc7392e290987aa0aca74985",
+      "sha256": "ec1650f08282eb735f0e6423031a9db6b123e36f07e2155c953b8e9e8a584fda",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/shared/upload.js",
+      "destination": "src/texstage/web/shared/upload.js",
+      "source_git_blob": "cdd572e87278cd5e9a3638b9f982349aaa04542d",
+      "sha256": "2c87d33634ff5a956400ff2d8ef76d6e07ec461684ae78cd3c6eb288609b1745",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/activity.js",
+      "destination": "src/texstage/web/stage/activity.js",
+      "source_git_blob": "169090ad3d21ea672119ed710177e3ddc6099b88",
+      "sha256": "3a0f787304631a6f0a73bc543439d2ec4e8a9d1306a54a190244da87a88b4092",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/ask.js",
+      "destination": "src/texstage/web/stage/ask.js",
+      "source_git_blob": "c2b1b63bfccd3b134eca857e65a099e3e154089e",
+      "sha256": "9f5e8f579544e5fe4f7c41fb1175810bd5026a42454eeb18e9e8b47ec172fb2a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/evaluator-worker.js",
+      "destination": "src/texstage/web/stage/evaluator-worker.js",
+      "source_git_blob": "aa9a8828cad9c1370f76ceca43b4ea6a03553588",
+      "sha256": "4d5887763933ed8f2377ace5e834f86fa2b2e5b6abe3367d02e0cc4380177881",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/evaluator.js",
+      "destination": "src/texstage/web/stage/evaluator.js",
+      "source_git_blob": "a09b2edd53d51779a95633826345e828f64974f4",
+      "sha256": "f0178926ffb0653560bd86519c7dd5fd6c4dd68fb1491dc1f35f7cebcd241f90",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/export.js",
+      "destination": "src/texstage/web/stage/export.js",
+      "source_git_blob": "5853e0fded1f1a5270d0738f4429955eebd5d626",
+      "sha256": "e8b51ea245feed96f179f0623e57758b998c1057e1842c475d24ae460bc24a5a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/index.html",
+      "destination": "src/texstage/web/stage/index.html",
+      "source_git_blob": "c0d68df9db150c21b1d140a8d884c1e873970d83",
+      "sha256": "e9b70529b5390706a7776a55754b79979bdbff7ae7760a759aab98634eb52b0b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/ink.js",
+      "destination": "src/texstage/web/stage/ink.js",
+      "source_git_blob": "287ea328ccdec3f78b1159aa1dbc2284af0915de",
+      "sha256": "649d06d8a144ea2f76f50aef997ecacbaaea384fd68e9c08ba3986a05b89e529",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/pdfview.js",
+      "destination": "src/texstage/web/stage/pdfview.js",
+      "source_git_blob": "1bf175a84620ffb32c451fd435124e22d48e6f88",
+      "sha256": "70ec2592c09dbc1a54f5bda4e2eba056af857d3b3e6e2789e818dca53d6f396b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/pen.js",
+      "destination": "src/texstage/web/stage/pen.js",
+      "source_git_blob": "e9e31fa28626e8f7f3573218352099f879b9192b",
+      "sha256": "a03079ad1bdb9f8ef43ad086cef74fdaa514c5f933e1718046bedce40d68adbb",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/presenter.js",
+      "destination": "src/texstage/web/stage/presenter.js",
+      "source_git_blob": "623d0525ce3623cd8cdfcdc170a970340e2ccbe2",
+      "sha256": "5011efc0be12f8385444bfccd2f4d229cd5ec9040df63369a8956dce5160fb06",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/projector.html",
+      "destination": "src/texstage/web/stage/projector.html",
+      "source_git_blob": "4cbab1b9d1007b4e6653cdcf38b65d7990aeb5c5",
+      "sha256": "5b2e6e9a619108df9a695b2fbab59bf863a8d58deffefbef120b82f1739305be",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/projector.js",
+      "destination": "src/texstage/web/stage/projector.js",
+      "source_git_blob": "1d8d4fed706c192a1dc2754ad7c51b1e97267c73",
+      "sha256": "638fdbbab931669a5be414faebdd39e4d692e6731415a63faf454f4dac9752ce",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/record.js",
+      "destination": "src/texstage/web/stage/record.js",
+      "source_git_blob": "e349ea1519ad5db6e28cbf1cf2ec1ff4eeff5116",
+      "sha256": "c227ea42af9fcee12dc15e0acdf79b094c4a01ba45212542482247bed62566dc",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/split.js",
+      "destination": "src/texstage/web/stage/split.js",
+      "source_git_blob": "30739caa327f973b338ab1d39baa8529094ac396",
+      "sha256": "7d506ab7c2f5e1e1453cec271e627d661af62524aeea3a5c0f2265b74b2c8fd7",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/stage.css",
+      "destination": "src/texstage/web/stage/stage.css",
+      "source_git_blob": "c862f62ad64183c7f1da146cbdee92f96d6849d8",
+      "sha256": "d673d7c784cf111630027fea0cc08ce4a24d376fd8264db6ec55e0fc1d0f7fd0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/stage/video.js",
+      "destination": "src/texstage/web/stage/video.js",
+      "source_git_blob": "c18f7d9d0c2ad769b5f34d8c802af815aa16c3cf",
+      "sha256": "53a764607509d997e32c5dffa46a6c4565f542652efcb6b2b117f4134056c356",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "src/texstage/web/vendor/README.md",
+      "destination": "src/texstage/web/vendor/README.md",
+      "source_git_blob": "408596295d3bfb3ce4b655f12a7cc3a45ae881f1",
+      "sha256": "d535101c34e6d7d9318cdd66cea3d95f1a23a972e1e8cd341c85e91147d41548",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/LICENSE",
+      "destination": "src/texstage/web/vendor/katex/LICENSE",
+      "source_git_blob": "37c6433e3bedca7a97e08fe35d98582a5f7bac0c",
+      "sha256": "766ccc1f306c885aa45542a9846bbd0a505b27a0374f146778171c2254ce18e3",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_AMS-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_AMS-Regular.woff2",
+      "source_git_blob": "0acaaff03d4bb7606de02a827aeee338e5a86910",
+      "sha256": "0cdd387c9590a1a9f9794560022dbb59654a7d86f187aa0c81495ad42d3a7308",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Caligraphic-Bold.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Caligraphic-Bold.woff2",
+      "source_git_blob": "f390922eceffe1f6dfb81a3dc086a92d98171b02",
+      "sha256": "de7701e42cf1f4cf0b766c03fb27977207eee2f4fd5d76fa82188406da43ea4c",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Caligraphic-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Caligraphic-Regular.woff2",
+      "source_git_blob": "75344a1f98e37e2c631e178065854c3a81fb842f",
+      "sha256": "5d53e70ad607c2352162dec9e0923fb54ecdafaccbf604cd8dcf7d00facb989b",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Fraktur-Bold.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Fraktur-Bold.woff2",
+      "source_git_blob": "395f28beac23c7b0f7f3a1e714bd8dac253dd3bc",
+      "sha256": "74444efd593c005e3f4573b44524704c0af0a937fe911cca9e94068d0d140d3f",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Fraktur-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Fraktur-Regular.woff2",
+      "source_git_blob": "735f6948d63c8cc7f8233735bb9c8d843c83d804",
+      "sha256": "51814d270d06ff0255dba0799994fa4d8c84d11f09951d47595f4abb1f3602dc",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Bold.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Bold.woff2",
+      "source_git_blob": "ab2ad21da6fbe6c171bb869240954d0ead8f68fd",
+      "sha256": "0f60d1b897938ec918c8ce073092411baf9438f6739465693ff18b0f9d20b021",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-BoldItalic.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-BoldItalic.woff2",
+      "source_git_blob": "5931794de4a2a485fa70099bf2659b145976d043",
+      "sha256": "99cd42a3c072d918f2f44984a807cf7aa16e13545fd0875fc07c6c65f99e715b",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Italic.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Italic.woff2",
+      "source_git_blob": "b50920e138807f385d0b0359f4f0f09891f18406",
+      "sha256": "97479ca6cce906abc961ecac96faa5f9ca2e61b8e7670d475826bcdee9a7c267",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Main-Regular.woff2",
+      "source_git_blob": "eb24a7ba282b03d830fa6c63ee897d92a5188736",
+      "sha256": "c2342cd8b869e01752a9321dc17213fc40d4d04c79688c1d43f2cf316abd7866",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Math-BoldItalic.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Math-BoldItalic.woff2",
+      "source_git_blob": "29657023adc09956249f6295746c8ce4469b50d3",
+      "sha256": "dc47344dbb6cb5b655c8460d561f4df5f501b90c804ad3c6cec65fe322351ab1",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Math-Italic.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Math-Italic.woff2",
+      "source_git_blob": "215c143fd7805a5c2b222bd7892a1a2b09610020",
+      "sha256": "7af58c5ec8f132a2ddde9027c6d7814decce4d3b822a11192a42a20e2e973264",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Bold.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Bold.woff2",
+      "source_git_blob": "cfaa3bda59246b49e94298478d6de3b3208066c8",
+      "sha256": "e99ae51144bf1232efcc1bfe5add36262c6866b0faab24fa75740e1b98577a62",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Italic.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Italic.woff2",
+      "source_git_blob": "349c06dc609f896392fd5bc8b364d3bc3efc9330",
+      "sha256": "00b26ac825e2095056396e0553b8ac26d3f8ad158c3826e28b4c45b385c4714a",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_SansSerif-Regular.woff2",
+      "source_git_blob": "a90eea85f6f7bded69ff5d40114447a6d8b48cfe",
+      "sha256": "68e8c73ef42afd3ccec58bf0fba302cce448938e7fc020a5e31f8a952eee1342",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Script-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Script-Regular.woff2",
+      "source_git_blob": "b3048fc115681ee6c1bc86b0aa158cfbbf59daa3",
+      "sha256": "036d4e95149b69ff9bcc0cd55771efeb25ffa3947293e69acd78d5ac328c684b",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Size1-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Size1-Regular.woff2",
+      "source_git_blob": "c5a8462fbfe2c39a7c1857b9e296e62500a8a8a5",
+      "sha256": "6b47c40166b6dbe21a5dfca7718413f2147fd2399be1ba605d8ad39cedf25dfe",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Size2-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Size2-Regular.woff2",
+      "source_git_blob": "e1bccfe2403a4ed770c1697ae7c15b9e1cd9bc4e",
+      "sha256": "d04c54219f9eaec6d4d4fd42dfb28785975a4794d6b2fc71e566b9cd6db842dd",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Size3-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Size3-Regular.woff2",
+      "source_git_blob": "249a28662218a7a17ad8bd1fe072169ecb666a49",
+      "sha256": "73d591271b1604960cb10bb90fee021670af7297017e0e98480b332d11f51995",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Size4-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Size4-Regular.woff2",
+      "source_git_blob": "680c13085076a2f6c5a7e695935ec3f21cddb65f",
+      "sha256": "a4af7d414440a1c1790825cfb700cf9cf43b0f2c4b04f0ebc523011ad9853ec0",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/fonts/KaTeX_Typewriter-Regular.woff2",
+      "destination": "src/texstage/web/vendor/katex/fonts/KaTeX_Typewriter-Regular.woff2",
+      "source_git_blob": "771f1af705f5cef5f578b3a1e7d8eff66f9b76b0",
+      "sha256": "71d517d67827787cfabdf186914cc3358eda539e37931941f2b2fd4a21f68c0b",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/katex.min.css",
+      "destination": "src/texstage/web/vendor/katex/katex.min.css",
+      "source_git_blob": "056c21a21c465ca5c6e7aeb36c6997131c792bac",
+      "sha256": "d4ab5b8ee16989b070cdb0ea24bd6ad48fc8df1b787f280f29d3ae4f959f2c00",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/katex/katex.min.js",
+      "destination": "src/texstage/web/vendor/katex/katex.min.js",
+      "source_git_blob": "4a6810d6ff1b277c5bdf28138b21c7d593c33fa4",
+      "sha256": "103a53763cc033bba8d175bf3f0ba597c3505c9b6747dd3f2c7bc2a6bfcc8ae7",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/oxigraph/LICENSE-APACHE",
+      "destination": "src/texstage/web/vendor/oxigraph/LICENSE-APACHE",
+      "source_git_blob": "16fe87b06e802f094b3fbb0894b137bca2b16ef1",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/oxigraph/LICENSE-MIT",
+      "destination": "src/texstage/web/vendor/oxigraph/LICENSE-MIT",
+      "source_git_blob": "f47af0fd01e22164b5470724e2de5c539f7f3c4a",
+      "sha256": "1f4f6736adc52ebfda18bb84947e0ef492bd86a408c0e83872efb75ed5e02838",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/oxigraph/web.js",
+      "destination": "src/texstage/web/vendor/oxigraph/web.js",
+      "source_git_blob": "84cd737ce78c7840eecb6f26a91ee5c90757d19c",
+      "sha256": "2fcfdcadc79c9146cee98028a273aebc93df3282eb0299c248595bc529deca41",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/oxigraph/web_bg.wasm",
+      "destination": "src/texstage/web/vendor/oxigraph/web_bg.wasm",
+      "source_git_blob": "a786455e06af744c663e477811e5f33d94fc6056",
+      "sha256": "b95b15accb6b789667b8d8b0b8f139d5de588e572499672ff37ce9ba01c4a428",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/pdf-lib/LICENSE.md",
+      "destination": "src/texstage/web/vendor/pdf-lib/LICENSE.md",
+      "source_git_blob": "7a237e68e37abe7ac934c4e89f49e1a94f161f33",
+      "sha256": "f2c9fc00fdb66eb99ac156ba52d734af66d8d309f65753ae809ad34ee2883bcb",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/pdf-lib/pdf-lib.esm.min.js",
+      "destination": "src/texstage/web/vendor/pdf-lib/pdf-lib.esm.min.js",
+      "source_git_blob": "861bff489601cc6ba73313546871b09f8e54278b",
+      "sha256": "72c052d97b4d5d9fa6cdbdcb7ad709f03d4ddb1122390cb3afeba4d88651d969",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/pdfjs/LICENSE",
+      "destination": "src/texstage/web/vendor/pdfjs/LICENSE",
+      "source_git_blob": "f433b1a53f5b830a205fd2df78e2b34974656c7b",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/pdfjs/pdf.min.mjs",
+      "destination": "src/texstage/web/vendor/pdfjs/pdf.min.mjs",
+      "source_git_blob": "6b665256b79ca3a04d02add546ba82717debe849",
+      "sha256": "57456c8e0c81e46be31174b499ef77f2b9f5ee46d04412ba627320a36755d4c2",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/pdfjs/pdf.worker.min.mjs",
+      "destination": "src/texstage/web/vendor/pdfjs/pdf.worker.min.mjs",
+      "source_git_blob": "cfd094ab353c0abf300283d8ad3044503e98d1f2",
+      "sha256": "9536359f1b8367850d485731ca1d5e45c159a7b7a0912325e539937aa21ceb18",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/perfect-freehand/LICENSE",
+      "destination": "src/texstage/web/vendor/perfect-freehand/LICENSE",
+      "source_git_blob": "bdcc8b850fa75b94f70f2cfd012abf74744cd61c",
+      "sha256": "6a5ac82b42ce0af6a1e5fe39b46f0b52f1368e81e437175e8d9ae21569c8688e",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/perfect-freehand/index.mjs",
+      "destination": "src/texstage/web/vendor/perfect-freehand/index.mjs",
+      "source_git_blob": "b27153456ee3bfb3ee398882b55430abf8ac3a7f",
+      "sha256": "a02e221f71a757e46915a51d8f5ffc8d1788d9134e063b3edd21f429c973d46c",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/sqljs/AUTHORS",
+      "destination": "src/texstage/web/vendor/sqljs/AUTHORS",
+      "source_git_blob": "58de7763d8fc048d3c064f774fe33bda4e0ac216",
+      "sha256": "2bb11c65286bd0f2919022e119671036ff8d85c6cd1522b6ebcc1362e67f2ce5",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/sqljs/LICENSE",
+      "destination": "src/texstage/web/vendor/sqljs/LICENSE",
+      "source_git_blob": "d5c3c98341738da8ae57423fd52e7d4b9dd9ba4c",
+      "sha256": "60a3f6e4d7b29b4321359e683b36cf198d24f58e24582070f56e6fa89d5ee2be",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/sqljs/sql-wasm-browser.js",
+      "destination": "src/texstage/web/vendor/sqljs/sql-wasm-browser.js",
+      "source_git_blob": "c5aa169de187ce10ce8e279e8e6da6fa533e1b12",
+      "sha256": "35e39a73b2e0bc1c2202a4cadb23bcf7a3a77071a39c270f014402968785b95f",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "src/texstage/web/vendor/sqljs/sql-wasm-browser.wasm",
+      "destination": "src/texstage/web/vendor/sqljs/sql-wasm-browser.wasm",
+      "source_git_blob": "f6487ca37a0d13d27420a6b6c7d6d2b516a1108e",
+      "sha256": "38c14f6e379210bc942bdc4ebca44e7bfdb4318ecc1c72ca666a28fdce96670a",
+      "license_scope": "third-party: retain adjacent notices and vendor inventory"
+    },
+    {
+      "source": "tests/conftest.py",
+      "destination": "tests/conftest.py",
+      "source_git_blob": "454948ccdad49f5eb8630becbf5cd26c5d068f55",
+      "sha256": "38469476384a992bce7ffcecb87c031e94d4aa98ff464931ac88ffdd12afac05",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/fake_bundle.py",
+      "destination": "tests/fake_bundle.py",
+      "source_git_blob": "cc273e8a69954d05490bb71311df4cc24d497b4d",
+      "sha256": "48bc5fe0f665275abd08ce3a3716ea657c309d7999f50b65cfec1808a643df24",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_activity.py",
+      "destination": "tests/test_activity.py",
+      "source_git_blob": "9de6460a26a87d483749c1c29368b551dd08a63b",
+      "sha256": "3aa6fe15eafeaeb05278015d20d47a178305a96ace00ea42269385d5ce9f3f9e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_addin.py",
+      "destination": "tests/test_addin.py",
+      "source_git_blob": "3a493aa5679d49905c337a11c25c98ad2fd89e69",
+      "sha256": "67c006733253487180e89486d62f5772eab5c137c5bd746d03c4bded6807f430",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_build.py",
+      "destination": "tests/test_build.py",
+      "source_git_blob": "b447dab3a3b83e55342db91a321df1c980bbef14",
+      "sha256": "61f86562a3efc39598719c1c61d7c510c334501bfcb7f5ce6678e71d61b1639f",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_devices.py",
+      "destination": "tests/test_devices.py",
+      "source_git_blob": "2bc50eefbb78d9c5df752d1255ef222ed72facce",
+      "sha256": "0e006855e6b1ffb9f7eb70d8f2c82b39d9506851362b676813a4c24736bfa905",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_game.py",
+      "destination": "tests/test_game.py",
+      "source_git_blob": "e34e86717f27124022f98dc5cb6a38a946c20446",
+      "sha256": "e0a0edee534772f99fe9818b429527de22c175d724bd62c3cd515d24c19e4bfb",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_latex.py",
+      "destination": "tests/test_latex.py",
+      "source_git_blob": "a54c9aaa1b945a58084b7dc79a4c42ebd5ac69d5",
+      "sha256": "065d0a5d8db8e1cfa3042521875b54afe563150f60e6ffa8310237ada4a01ec2",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_lecturers.py",
+      "destination": "tests/test_lecturers.py",
+      "source_git_blob": "97fb500e7dc32aa540a960b1036845ed53e45230",
+      "sha256": "0b29fa56d5ecd2c6c240dd515c5f7ae4c2e584d5e0f8283ff9db11781aa742c5",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_library.py",
+      "destination": "tests/test_library.py",
+      "source_git_blob": "0f1ccb3b0b27436fce0606f9fe5b0a2f8a1928f6",
+      "sha256": "7da4c9f2ecd6e52df60a2b05e6b52d75760e1f91a796594691635c655e852217",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_packaging.py",
+      "destination": "tests/test_packaging.py",
+      "source_git_blob": "88f2c255ffda071fedba6eedf6de1577e5c04899",
+      "sha256": "3f229fb68b185d0cc61dfef0ac6d15fa9e9edc5660c86a972f556a696a98495d",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_preflight.py",
+      "destination": "tests/test_preflight.py",
+      "source_git_blob": "b1de0f7a927b03c1234eb381e2fa0a258bc020aa",
+      "sha256": "697f1a09a5568169b1576ede40c6f323d3e61e08fcce40b01fea5ffe0251a9ae",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_present.py",
+      "destination": "tests/test_present.py",
+      "source_git_blob": "68dfa8287eaabcd9b7e10d81e30878abbbc7169d",
+      "sha256": "f237527273489bc3cdbe16e34127f6633c9fbde7614cb1b9d076bf4fd237875e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_publish.py",
+      "destination": "tests/test_publish.py",
+      "source_git_blob": "b68fcadf093f0765cbb941f24f1d0603f3f2244a",
+      "sha256": "aaa1038f1897ab906c6265632ed98f02c522ce5201c0f9265988c9333a832f43",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_quiz_validation.py",
+      "destination": "tests/test_quiz_validation.py",
+      "source_git_blob": "5c40d68542681a49ef6746bdee7eccb171846916",
+      "sha256": "222a7d5471dbaddac6ce8675ccd265893b254212270d4ce006e1729116c338fd",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_scoring.py",
+      "destination": "tests/test_scoring.py",
+      "source_git_blob": "3ff62360d5927c1cfe889982ba469840e5f5a545",
+      "sha256": "0c94ebd737750f42a97162b1eb6144f33fcb0cc7f59241a396508832ca694702",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_server.py",
+      "destination": "tests/test_server.py",
+      "source_git_blob": "224051ed0392de8cbe5e04ed5fd28f8ed9d89182",
+      "sha256": "f37cf34b0c9569f24d426df851fe5338f5fc634e0610dd8e0d89ee075618118c",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_shared_media.py",
+      "destination": "tests/test_shared_media.py",
+      "source_git_blob": "b8ad5246a49e2a34c34e602ed07b9a6aa201b651",
+      "sha256": "0c3e612367ec7d5a93f6a071c5be0d278a169720ec71e7209369c22221bfd245",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_tunnel.py",
+      "destination": "tests/test_tunnel.py",
+      "source_git_blob": "962416b7721f40995b0ec7e13da07b3ca8bb2a21",
+      "sha256": "719e017fb7b61ba83fbbd9b952121c31dd743d472a726c28b1c4a5f7ff4973f1",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_activity_engine.py",
+      "destination": "tests/test_web_activity_engine.py",
+      "source_git_blob": "4fa2d66dcb979769a865807a926f5481d843b439",
+      "sha256": "b574edd43e718de724b6cca66a2dcda658be5501f26e6a99b882f2300b922cd3",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_activity_layout.py",
+      "destination": "tests/test_web_activity_layout.py",
+      "source_git_blob": "0a7fd0d3942dfe0cf0ea8194b7ec535b721289f4",
+      "sha256": "383a48dadb6b288b75536ba088c31cc7066a6f53f9822b28ef79f49affa9c786",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_activity_phone.py",
+      "destination": "tests/test_web_activity_phone.py",
+      "source_git_blob": "25f0143857dfad7109b442e5fccc0239502f35a4",
+      "sha256": "830ac55b2106d9b518c8488a25e1777a62c67f9422647709b64ec48c1e16acce",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_answer_counter.py",
+      "destination": "tests/test_web_answer_counter.py",
+      "source_git_blob": "fbe0791516d68d5d3bb60762f69ceeb465b49cfc",
+      "sha256": "3e5b64c94a449c3158da58bf7c8cfa366b495df3c5a3ac57ecb2eb5ae5df64a0",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_client_record.py",
+      "destination": "tests/test_web_client_record.py",
+      "source_git_blob": "c8ac7fba516d51d33b28ec1484507cc6156fa9b8",
+      "sha256": "28225c7d2b906624810c48c4118018783ae8c10bdc1ec9c747e50917d1192638",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_numeric.py",
+      "destination": "tests/test_web_numeric.py",
+      "source_git_blob": "e01480c08a499a8a92785c2baae8bf7370784db7",
+      "sha256": "e046ace692413a61bfbaaca1227ce8b21f727264c83210c3bb64b0e2b72e158b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_projector.py",
+      "destination": "tests/test_web_projector.py",
+      "source_git_blob": "2c6325d618bbc53674c49c387123e373ba3b1680",
+      "sha256": "381d5a255bfd535375f503b6487fe45f061a9093c30034a242b722ca7d45df62",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_web_sketch_gallery.py",
+      "destination": "tests/test_web_sketch_gallery.py",
+      "source_git_blob": "3053fe4b498b03f59b02b03a9e208138f44c62a6",
+      "sha256": "edfcf8c3091349d84d12aeca23655c1fca7bd479533998133a22e765afcaae61",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/test_windows_loop.py",
+      "destination": "tests/test_windows_loop.py",
+      "source_git_blob": "5e98fc4e96454ed155c521cdf1e269d501124d71",
+      "sha256": "901974e701716d3ab10bc78f7a08bf2e127c61391679cea1f78fad62dab72238",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-activity-engine.test.mjs",
+      "destination": "tests/web-activity-engine.test.mjs",
+      "source_git_blob": "5ab8d0c5ee33e109469bc015d30140fabc1eea51",
+      "sha256": "d7bc7f56dc426adb46cab18e52875de20c0a95b76a51fad718faaca5f4e3cb08",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-activity-layout.test.mjs",
+      "destination": "tests/web-activity-layout.test.mjs",
+      "source_git_blob": "8f4cff9235c41448e8c622e5b6e2f882d116b2bc",
+      "sha256": "38b907de87810368c0c0122cfe5dec9a5c9f05bbed175b26488be07731864f8b",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-activity-phone.test.mjs",
+      "destination": "tests/web-activity-phone.test.mjs",
+      "source_git_blob": "bd220ba2d5d34b300128b84233555e201e54a66f",
+      "sha256": "ee6c5ccbe974f3b55ea946f5ce431ecacd493754f640e1d5edccecd1b1905c16",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-activity-sql.test.mjs",
+      "destination": "tests/web-activity-sql.test.mjs",
+      "source_git_blob": "72b52d9b01a72b1ea1c3007f5c891a3f0fa4e926",
+      "sha256": "b023bffa396fb87168955d6ad81f00c9ad93d0d26485f092826f45b998d729cc",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-activity-turtle.test.mjs",
+      "destination": "tests/web-activity-turtle.test.mjs",
+      "source_git_blob": "11a805055ad0d8dce3913395493be7b3c24d180b",
+      "sha256": "2969b6ae2913fbac98965f6f4ce341cf44148dace98ec5236304d80ef95da427",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-answer-counter.test.cjs",
+      "destination": "tests/web-answer-counter.test.cjs",
+      "source_git_blob": "06cc38babaf034e99ef3e4c4cb429a3a704215dc",
+      "sha256": "08fefc3517426f04e859ed3f360d4d2f76f56464e444ba904433f6a73a4d7e13",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-client-record.test.cjs",
+      "destination": "tests/web-client-record.test.cjs",
+      "source_git_blob": "46e951ada868efdcab2f6398c9955c0ebcb87d43",
+      "sha256": "7b3d8925d857aff203f203b03e3ea468461821265610ca4f25e4ef1ba7a4a73a",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-numeric.test.cjs",
+      "destination": "tests/web-numeric.test.cjs",
+      "source_git_blob": "30bfcd0bc0d71933dc98f03824c29cded256e03f",
+      "sha256": "9a17131b3e8a553144c588c75b65db91ff8790ac7ef0854fba180d6252175f7e",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-projector.test.cjs",
+      "destination": "tests/web-projector.test.cjs",
+      "source_git_blob": "1404427e267686e43feae723d0348c5d6b80146c",
+      "sha256": "58880cc4a61489b736c749576a3f30016be664cf31f9807b016351e4723a05c8",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tests/web-sketch-gallery.test.cjs",
+      "destination": "tests/web-sketch-gallery.test.cjs",
+      "source_git_blob": "ef6cd1995afec0f9ea67ced8118a0eaa6ef9ffab",
+      "sha256": "7e7fd697284e727ce72f5ff40bf0cbad29f2b39d604fad54a5cbacf153cd3580",
+      "license_scope": "Apache-2.0 scope identified in current NOTICE; retain attribution"
+    },
+    {
+      "source": "tools/simulate.py",
+      "destination": "tools/simulate.py",
+      "source_git_blob": "b296336789632dd6d0e42959148f9d8aaf159b1a",
+      "sha256": "a5a146b15c0da129ef0ab1172250886083841d716501e609c5aa5968ab54ea1c",
+      "license_scope": "not covered by current NOTICE: publication license decision required"
+    },
+    {
+      "source": "tools/slideshow.ps1",
+      "destination": "tools/slideshow.ps1",
+      "source_git_blob": "cd9daac514734e56d203483bbaf7a84555ee9438",
+      "sha256": "038a537aedf7c43dfb24d160ef5bd954b5499ca7dcd597098575cde30cd07159",
+      "license_scope": "not covered by current NOTICE: publication license decision required"
+    }
+  ]
+}

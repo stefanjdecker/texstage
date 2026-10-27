@@ -1,0 +1,359 @@
+% SPDX-FileCopyrightText: 2026 Stefan Decker
+% SPDX-License-Identifier: Apache-2.0
+%% texstage.sty -- the core of texstage's LaTeX packages: what every kind of live content
+%% on a Beamer slide needs (docs/content-types-design.md, section 4.3).  texquiz.sty, the
+%% quiz, builds on it; a deck loads the content type's package, which loads this one.
+%%
+%%  * The mode, defined before \documentclass: \def\texstagemode{present}, or
+%%    \texquizmode, its name in texquiz (the build defines that one) - handout,
+%%    solutions or present; without one, solutions if Beamer shows notes, else handout.
+%%  * In present mode \jobname.tqz, the records the build reads (src/texstage/build/tqz.py):
+%%    D (the paper), G (an item of a type on this page), R and V (rectangles and marks),
+%%    K and Z (a shrunk frame), X (extra pages after the last slide - the quiz's phone
+%%    pictures).  A type's own records are its business.
+%%  * Log marks for the build's checks: texquiz-check: page <n>, note, <kind> <id>.
+%%  * \texquiznotes (defined by the build): the present compile's notes, typeset for their
+%%    text, or (stage) the deck's own note pages, each a page of its own, for the presenter.
+\NeedsTeXFormat{LaTeX2e}[2023-06-01]
+\ProvidesExplPackage{texstage}{2026-10-10}{0.2.0}{The core of live content in Beamer decks}
+\RequirePackage{pdftexcmds}
+
+% ---------------------------------------------------------------- messages
+\msg_new:nnn { texstage } { mode }
+  { Unknown~\iow_char:N\\texquizmode~'#1'~(use~handout,~solutions~or~present). }
+\msg_new:nnn { texstage } { engine } { Present~mode~needs~pdfLaTeX~or~LuaLaTeX. }
+\msg_new:nnn { texstage } { general } { #1 }
+\cs_generate_variant:Nn \msg_error:nnn { nnV }
+\cs_generate_variant:Nn \str_case:nnF { Vn }
+\cs_new_protected:Npn \texstage_error:n #1
+  { \use:e { \msg_error:nnn { texstage } { general } {#1} } }
+
+% ---------------------------------------------------------------- mode
+% An explicit mode wins.  Otherwise it is settled at \begin{document}: solutions if
+% Beamer shows notes (a lecturer's PDF, e.g. the DBIS course's `build-chapter.py
+% --notes`), else handout.
+\str_new:N \g_texstage_mode_str
+\str_gset:Ne \g_texstage_mode_str
+  {
+    \cs_if_exist:NTF \texstagemode { \texstagemode }
+      { \cs_if_exist:NTF \texquizmode { \texquizmode } { auto } }
+  }
+\str_case:VnF \g_texstage_mode_str
+  { { auto } { } { handout } { } { solutions } { } { present } { } }
+  { \msg_error:nnV { texstage } { mode } \g_texstage_mode_str }
+\AddToHook { begindocument }
+  {
+    \str_if_eq:VnT \g_texstage_mode_str { auto }
+      {
+        \legacy_if:nTF { beamer@notes }
+          { \str_gset:Nn \g_texstage_mode_str { solutions } }
+          { \str_gset:Nn \g_texstage_mode_str { handout } }
+      }
+  }
+\prg_new_conditional:Npnn \texstage_if_mode:n #1 { T , F , TF }
+  { \str_if_eq:VnTF \g_texstage_mode_str {#1} { \prg_return_true: } { \prg_return_false: } }
+\texstage_if_mode:nT { present }
+  {
+    \sys_if_engine_xetex:T { \msg_error:nn { texstage } { engine } }
+  }
+
+% ---------------------------------------------------------------- records (present)
+\iow_new:N \g_texstage_iow
+\cs_new:Npn \texstage_hex:n #1 { \pdf@escapehex { \tl_to_str:n {#1} } }
+\cs_generate_variant:Nn \texstage_hex:n { V , e }
+% expl3 maps \pdfsavepos/\pdflastxpos (pdfTeX) and \savepos (LuaTeX) to these.
+\cs_new_eq:NN \texstage_savepos: \tex_savepos:D
+\cs_new:Npn \texstage_lastx: { \tex_the:D \tex_lastxpos:D }
+\cs_new:Npn \texstage_lasty: { \tex_the:D \tex_lastypos:D }
+% A record now.
+\cs_new_protected:Npn \texstage_emit:n #1
+  { \texstage_if_mode:nT { present } { \iow_now:Ne \g_texstage_iow {#1} } }
+% A record attached to the current page.  The logical page number is frozen now: in
+% second-screen notes mode pgfpages ships the physical page later.  Positions
+% (savepos) are expanded at shipout.
+\cs_new_protected:Npn \texstage_on_page:n #1
+  {
+    \texstage_if_mode:nT { present }
+      { \use:e { \tex_write:D \g_texstage_iow { #1 | \int_use:N \c@page } } }
+  }
+% Item <id> of a type is on this page, in a phase of its own (G records).
+\cs_new_protected:Npn \texstage_page_record:nnn #1#2#3 % kind, id, phase
+  { \texstage_on_page:n { G | #1 | #2 | #3 } }
+% A rectangle of item <id> whose lower-left corner is the current point (horizontal mode).
+\cs_new_protected:Npn \texstage_rect:nnnnn #1#2#3#4#5 % id, phase, key, width, height
+  {
+    \texstage_if_mode:nT { present }
+      {
+        \texstage_savepos:
+        \texstage_on_page:n
+          {
+            R | #1 | #2 | #3
+              | \exp_not:N \texstage_lastx: | \exp_not:N \texstage_lasty:
+              | \dim_to_decimal_in_sp:n {#4} | \dim_to_decimal_in_sp:n {#5}
+          }
+      }
+  }
+% A horizontal line across the text width (vertical mode); pairs of these delimit
+% live areas.
+\cs_new_protected:Npn \texstage_vmark:nnn #1#2#3 % id, phase, key
+  {
+    \texstage_if_mode:nT { present }
+      {
+        \tex_par:D
+        \texstage_savepos:
+        \texstage_on_page:n
+          {
+            V | #1 | #2 | #3
+              | \exp_not:N \texstage_lastx: | \exp_not:N \texstage_lasty:
+              | \dim_to_decimal_in_sp:n { \linewidth }
+          }
+      }
+  }
+
+% Shrunk frames: Beamer typesets the frame body first and then scales the finished
+% box (\beamer@shrinkframebox: pgftext[left,top] under pgftransformscale) - a PDF
+% transformation that \pdfsavepos does not see, so every position recorded inside a
+% shrunk frame is unscaled.  The point the scaling leaves in place is the body box's
+% reference point (its bottom left corner as TeX sees it; measured, see
+% docs/design.md, section 3.3).  In present mode a mark at the top left of the body
+% (Z) and the factor with the body's height (K) are recorded, so the build can map
+% the rectangles.
+\dim_new:N \l__texstage_body_ht_dim
+\cs_new_eq:NN \__texstage_beamer_shrinkframebox: \beamer@shrinkframebox
+\cs_gset_protected:Npn \beamer@shrinkframebox
+  {
+    \texstage_if_mode:nT { present }
+      {
+        \vbox_set:Nn \beamer@framebox
+          {
+            \hbox:n
+              {
+                \texstage_savepos:
+                \texstage_on_page:n { Z | \exp_not:N \texstage_lastx: | \exp_not:N \texstage_lasty: }
+              }
+            \nointerlineskip
+            \vbox_unpack_drop:N \beamer@framebox
+          }
+        \dim_set:Nn \l__texstage_body_ht_dim { \box_ht:N \beamer@framebox }
+      }
+    \__texstage_beamer_shrinkframebox:
+    \texstage_emit:n
+      {
+        K | \int_use:N \c@page | \beamer@factortemp
+          | \dim_to_decimal_in_sp:n { \l__texstage_body_ht_dim }
+      }
+  }
+
+% Log marks for the build's layout check (solutions and present mode): a type marks
+% the pages of its frames, and every shipped page ends with a mark carrying the page
+% number, so the build knows which page an Overfull box or a shrunk frame belongs to.
+% With second-screen notes a note page is shipped as a page of its own, after its
+% slide and with the slide's number.  With stage notes (\def\texquiznotes{stage}) it
+% is numbered on like any page; a note mark before its page mark says that it is a
+% note page.
+\cs_new_protected:Npn \texstage_check_mark:nn #1#2 % kind, id
+  { \texstage_if_mode:nF { handout } { \iow_log:e { texquiz-check:~#1~#2 } } }
+\bool_new:N \g__texstage_note_page_bool
+\AddToHook { shipout / after }
+  {
+    \texstage_if_mode:nF { handout }
+      {
+        \bool_if:NT \g__texstage_note_page_bool
+          {
+            \iow_log:n { texquiz-check:~note }
+            \bool_gset_false:N \g__texstage_note_page_bool
+          }
+        \iow_log:e { texquiz-check:~page~\int_use:N \c@page }
+      }
+  }
+% Stage notes: Beamer's \AtBeginNote code runs while a note page is typeset and flags
+% it for the mark above (added at the start of the document, after a deck's own
+% \AtBeginNote).  The stage PDF has no extra pages, and no dates and no trailer ID
+% either, so that it is the same file when nothing changed.
+\bool_new:N \g__texstage_stage_notes_bool
+\cs_new_protected:Npn \texstage_stage_notes:
+  {
+    \bool_gset_true:N \g__texstage_stage_notes_bool
+    \AtBeginDocument
+      { \tl_gput_left:Nn \beamer@atbeginnote { \bool_gset_true:N \g__texstage_note_page_bool } }
+    \sys_if_engine_pdftex:T
+      {
+        \tex_pdfinfoomitdate:D = 1 \scan_stop:
+        \tex_pdftrailerid:D { }
+      }
+  }
+\cs_new_eq:NN \texstage@stagenotes \texstage_stage_notes:
+
+\texstage_if_mode:nT { present }
+  {
+    \AtBeginDocument
+      {
+        \iow_open:Nn \g_texstage_iow { \c_sys_jobname_str .tqz }
+        \texstage_emit:n
+          {
+            D | texstage-0.2.0
+              | \dim_to_decimal_in_sp:n { \paperwidth }
+              | \dim_to_decimal_in_sp:n { \paperheight }
+          }
+      }
+    \AddToHook { enddocument / afterlastpage }
+      {
+        \bool_if:NF \g__texstage_stage_notes_bool { \texstage_ship_assets: }
+        \iow_close:N \g_texstage_iow
+      }
+  }
+
+% ---------------------------------------------------------------- extra pages (present)
+% Pictures of a type that are not slides (the quiz's phone pictures): typeset while
+% their frame is processed (the deck's fonts and macros), kept in global boxes, and
+% shipped after the last slide as pages of exactly their size (X records, in shipping
+% order) - never in the stage compile.  \texstage_asset_box:nn sets the next box;
+% \texstage_asset_add:nnn then records it with its item, key and natural width (an
+% unbreakable line sticks out of the box: the page is widened, never clipped).
+\dim_const:Nn \c__texstage_asset_pad_dim { 2pt }
+\seq_new:N \g__texstage_assets_seq
+\int_new:N \g__texstage_asset_int
+\box_new:N \l__texstage_tmp_box
+\dim_new:N \l__texstage_wd_dim
+\dim_new:N \l__texstage_ht_dim
+\cs_new_protected:Npn \texstage_asset_box:nn #1#2 % width, content
+  {
+    \int_gincr:N \g__texstage_asset_int
+    \box_new:c { g__texstage_asset_ \int_use:N \g__texstage_asset_int _box }
+    \vbox_gset:cn { g__texstage_asset_ \int_use:N \g__texstage_asset_int _box }
+      {
+        \hsize = #1 \linewidth = \hsize \parindent = 0pt \hfuzz = \c_max_dim
+        \raggedright \normalfont \normalsize \color{black}
+        #2 \par
+      }
+  }
+\cs_new_protected:Npn \texstage_asset_add:nnn #1#2#3 % id, key, natural width
+  {
+    \seq_gput_right:Ne \g__texstage_assets_seq
+      { { \int_use:N \g__texstage_asset_int } { #1 } { #2 } { #3 } }
+  }
+% The real \shipout primitive: pgfpages (second-screen notes) intercepts \shipout, and
+% the kernel moves that interceptor into \tex_shipout:D.  Through it the extra pages
+% would become logical slide pages (physical page size, last one never flushed).
+% Loaded before pgfpages, \tex_shipout:D is still the primitive; loaded after it (e.g.
+% dbis-style.sty with \dbisnotes turns on second-screen notes first), pgfpages has
+% kept the primitive for itself.
+\token_if_primitive:NTF \tex_shipout:D
+  { \cs_new_eq:NN \__texstage_primitive_shipout:w \tex_shipout:D }
+  {
+    \cs_if_exist:NT \pgfpages@originalshipout
+      {
+        \token_if_primitive:NT \pgfpages@originalshipout
+          { \cs_new_eq:NN \__texstage_primitive_shipout:w \pgfpages@originalshipout }
+      }
+    \cs_if_exist:NF \__texstage_primitive_shipout:w
+      {
+        \texstage_error:n
+          { \iow_char:N\\shipout~is~redefined~by~a~package~texstage~does~not~know. }
+        \cs_new_eq:NN \__texstage_primitive_shipout:w \tex_shipout:D
+      }
+  }
+% Both at once, the natural width measured (the widest line; more than the width when a line
+% cannot be broken, e.g. a long IRI): \texstage_asset:nnnn {id}{key}{width}{content}.
+\box_new:N \l__texstage_measure_box
+\box_new:N \l__texstage_line_box
+\dim_new:N \g__texstage_natural_dim
+\cs_new_protected:Npn \texstage_asset:nnnn #1#2#3#4
+  {
+    \texstage_asset_box:nn {#3} {#4}
+    \vbox_set:Nn \l__texstage_measure_box
+      {
+        \hsize = #3 \linewidth = \hsize \parindent = 0pt \raggedright
+        \hfuzz = \c_max_dim \hbadness = 10000
+        \normalfont \normalsize #4 \par
+        \dim_gzero:N \g__texstage_natural_dim
+        \__texstage_measure_lines:
+      }
+    \texstage_asset_add:nnn {#1} {#2} { \dim_use:N \g__texstage_natural_dim }
+  }
+\cs_new_protected:Npn \__texstage_measure_lines:          % the lines, one by one from the end
+  {
+    \tex_unskip:D \tex_unpenalty:D \tex_unkern:D \tex_unskip:D
+    \box_set_to_last:N \l__texstage_line_box
+    \box_if_empty:NF \l__texstage_line_box
+      {
+        \hbox_set:Nn \l__texstage_line_box { \hbox_unpack:N \l__texstage_line_box }
+        \dim_gset:Nn \g__texstage_natural_dim
+          { \dim_max:nn { \g__texstage_natural_dim } { \box_wd:N \l__texstage_line_box } }
+        \__texstage_measure_lines:
+      }
+  }
+\cs_new_protected:Npn \texstage_ship_assets:
+  { \seq_map_inline:Nn \g__texstage_assets_seq { \__texstage_ship_asset:nnnn ##1 } }
+\cs_new_protected:Npn \__texstage_ship_asset:nnnn #1#2#3#4 % number, id, key, natural width
+  {
+    \group_begin:
+      \box_set_eq:Nc \l__texstage_tmp_box { g__texstage_asset_ #1 _box }
+      \dim_set:Nn \l__texstage_wd_dim
+        { \dim_max:nn { \box_wd:N \l__texstage_tmp_box } {#4} + 2 \c__texstage_asset_pad_dim }
+      \dim_set:Nn \l__texstage_ht_dim
+        { \box_ht:N \l__texstage_tmp_box + \box_dp:N \l__texstage_tmp_box + 2 \c__texstage_asset_pad_dim }
+      \tex_pagewidth:D = \l__texstage_wd_dim
+      \tex_pageheight:D = \l__texstage_ht_dim
+      \sys_if_engine_luatex:TF
+        { \tex_pdfvariable:D horigin = 0pt \tex_pdfvariable:D vorigin = 0pt }
+        { \tex_pdfhorigin:D = 0pt \tex_pdfvorigin:D = 0pt }
+      \tex_hoffset:D = 0pt
+      \tex_voffset:D = 0pt
+      \__texstage_primitive_shipout:w \vbox:n
+        {
+          \tex_kern:D \c__texstage_asset_pad_dim
+          \hbox:n { \tex_kern:D \c__texstage_asset_pad_dim \box_use:N \l__texstage_tmp_box }
+          \tex_kern:D \c__texstage_asset_pad_dim
+        }
+      \texstage_emit:n
+        {
+          X | #2 | #3 | \dim_to_decimal_in_sp:n { \l__texstage_wd_dim }
+            | \dim_to_decimal_in_sp:n { \l__texstage_ht_dim }
+        }
+    \group_end:
+  }
+
+% ---------------------------------------------------------------- frames and boxes
+% Beamer ends [t] frames with \vfill; filll-order glue wins over it, so a type's fill
+% really pushes its box down to the bottom.
+\cs_new_protected:Npn \texstage_vfill: { \skip_vertical:n { 0pt plus 1 filll } }
+% A box with depth 0 (lower-left corner = reference point).
+\cs_new_protected:Npn \texstage_vbox_set:Nnn #1#2#3 % box, width, content
+  {
+    \vbox_set:Nn #1
+      {
+        \vbox:n { \hsize = #2 \linewidth = \hsize \parindent = 0pt \raggedright #3 \par }
+        \tex_kern:D 0pt
+      }
+  }
+% A frame body is typeset once per slide: code for the frame's first slide only.
+\cs_new_protected:Npn \texstage_once:n #1
+  { \int_compare:nNnT { \beamer@slideinframe } < { 2 } {#1} }
+\cs_new_protected:Npn \texstage_check_outside_frame:n #1
+  {
+    \legacy_if:nT { beamer@inframe }
+      { \texstage_error:n { #1~must~not~be~used~inside~a~frame~(it~creates~frames). } }
+  }
+\ExplSyntaxOff
+
+% ---------------------------------------------------------------- notes (the build's)
+% \def\texquiznotes{} (the present compile): slides with their notes side by side, as
+% in the course's beamer2pptx.py, so notes stay aligned with overlays.  The note page
+% is typeset for text extraction only: small, ragged right, no hyphenation, paragraphs
+% separated by \parskip.
+% \def\texquiznotes{stage} (the stage compile): the deck's own note pages, to be read in
+% the presenter window - each one a page of its own after its slide, not on a second
+% screen, so the slide pages hold no note text.
+\@ifundefined{texquiznotes}{}{%
+  \def\texstage@tmp{stage}%
+  \ifx\texquiznotes\texstage@tmp
+    \setbeameroption{show notes}%
+    \texstage@stagenotes
+  \else
+    \setbeameroption{show notes on second screen=right}%
+    \setbeamertemplate{note page}{\tiny\raggedright\hyphenpenalty=10000
+      \exhyphenpenalty=10000\setlength{\parskip}{1.2em}\insertnote\par}%
+  \fi}
+
+\endinput

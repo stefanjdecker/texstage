@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+# The source distribution of texstage: the package (pyproject.toml), and what NOTICE says the
+# licence covers besides it - not the DBIS lecture tooling of this repository.
+include LICENSE NOTICE README-texstage.md
+exclude README.md
+graft docs
+prune docs/pilot
+graft examples/demo
+prune examples/demo/texquiz-out
+graft deploy
+exclude deploy/.env
+include scripts/texstage-*.py scripts/texquiz-*.py
+graft tests
+global-exclude __pycache__ *.py[cod] .env

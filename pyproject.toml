@@ -1,0 +1,60 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texstage"
+version = "0.2.0"
+description = "Beamer decks presented live, with quizzes authored in LaTeX (texquiz) - in the browser or in PowerPoint"
+readme = "README-texstage.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "src/texstage/web/vendor/*/LICENSE*"]
+authors = [{ name = "Stefan Decker" }]
+keywords = ["latex", "beamer", "quiz", "classroom", "audience response", "presentation", "lecture"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Web Environment",
+  "Intended Audience :: Education",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Education",
+  "Topic :: Multimedia :: Graphics :: Presentation",
+  "Topic :: Text Processing :: Markup :: LaTeX",
+]
+dependencies = [
+  "pypdfium2>=5",          # the build: rendering slides, the notes' text (Apache-2.0/BSD-3-Clause)
+  "pillow>=11",
+  "python-pptx>=1.0",
+  "lxml>=5",
+  "starlette>=0.46",
+  "uvicorn[standard]>=0.34",
+  "segno>=1.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "httpx>=0.27", "websockets>=13"]   # tests (Starlette's TestClient), tools/simulate.py
+
+[project.scripts]
+texstage = "texstage.cli:main"
+
+[tool.setuptools]
+# texstage.latex: the LaTeX packages (latex/texstage.sty, the core; texquiz.sty and its DBIS theme;
+# texvideo.sty, texactivity.sty) - in the repository's latex/ folder, where the DBIS slide style finds them; in the
+# wheel as texstage/latex/
+package-dir = { "" = "src", "texstage.latex" = "latex" }
+packages = ["texstage", "texstage.build", "texstage.server", "texstage.latex",
+            # the web pages' folders - data, but importable names to Python, so setuptools wants them listed
+            "texstage.web", "texstage.web.addin", "texstage.web.host", "texstage.web.play", "texstage.web.shared",
+            "texstage.web.stage", "texstage.web.engines", "texstage.web.vendor", "texstage.web.vendor.katex",
+            "texstage.web.vendor.katex.fonts", "texstage.web.vendor.oxigraph", "texstage.web.vendor.pdfjs",
+            "texstage.web.vendor.sqljs"]
+
+[tool.setuptools.package-data]
+texstage = ["web/**/*"]      # the pages the server serves (phone, host console, live views, texstage)
+"texstage.latex" = ["texstage.sty", "texquiz.sty", "texquiz-theme-dbis.sty", "texvideo.sty", "texactivity.sty"]

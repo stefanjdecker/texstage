@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 Stefan Decker -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>texstage</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/shared/live.css">
+<link rel="stylesheet" href="/static/stage/stage.css">
+<script type="module" src="/static/stage/presenter.js"></script>
+</head>
+<body class="presenter">
+<header class="top">
+  <span class="brand">texstage</span>
+  <span class="deck" id="deckname"></span>
+  <span class="pin" id="pin"></span>
+  <span class="status" id="status" title="connection"></span>
+  <span class="rtt" id="rtt" title="the round trip to the server"></span>
+  <span class="join" id="join"></span>
+  <span class="rec" id="rec"></span>
+  <span class="actions" id="actions"></span>
+</header>
+<main id="app"></main>
+</body>
+</html>

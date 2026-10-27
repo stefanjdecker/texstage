@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+"""The content types the server knows (docs/content-types-design.md, section 6.2;
+docs/live-activities-design.md, section 7.5).
+
+The quiz is the game itself (game.py, with the audience it shares with polls, Q&A and
+sketches). Every other type lives on the stage and gives the server a module with
+
+    NAME                                  its name, as deck.json's "types" says it
+    MESSAGES                              the messages it takes, "<name>.<what>", from a presenter window
+    handle(call, t, msg)                  one of them (call: Call below); returns the reply's fields or
+                                          None; ValueError: refused
+    view(stage)                           its part of the state every window gets (None: nothing)
+    slide(stage, items, before, after, now)   the stage's state after a slide change
+
+and, as it needs them,
+
+    READS                                 those of its MESSAGES that only read: answered anew, never from
+                                          the reply cache, and open to the projector window too
+    QUIET                                 those that come in bulk (a window's results): the windows get
+                                          the state within 200 ms, as with the phones' answers, not at once
+    PLAYER_MESSAGES, player(call, t, msg) messages from phones (call.player: the phone's player)
+    player_view(call)                     its part of a phone's state (None: nothing)
+    Book                                  its larger data of all games, in memory: Book(), load(rows) at
+                                          start, forget(session) when a game ends, left(conn) when a
+                                          window goes
+    ROWS                                  its tables: {dataclass: (table, columns, key, JSON columns)};
+                                          every table has a column `session`
+    archive(call)                         its files for the game's folder in the lecture archive:
+                                          {name: text}, the names matching ARCHIVE
+    FILES, FILE_TYPES                     bundle files it serves as the pictures are (a pattern of their
+                                          names; deck.json lists them) and their media types by suffix
+    MEDIA, POSTER, TYPES, media(items)    (the video) the bundle files it serves: by ticket, or as pictures
+
+A deck that names a type not here is refused (bundles.py).
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Any, Callable
+
+
+class Refused(ValueError):
+    """A hook refuses a message; `code` is for the client (game.py's GameError codes), the message
+    for people. A plain ValueError is refused as "invalid"."""
+
+    def __init__(self, message: str, code: str = "invalid"):
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass
+class Call:
+    """What a type's hook gets: the game, the type's items in the deck (deck.json's and keys.json's),
+    the time, its Book, and who calls - a window's role and connection, or a phone's player. The
+    hook changes `session.stage[NAME]`, hands rows to `save`, and says which phones should get
+    their state again: `phones` True (all) or a set of player ids."""
+    session: Any
+    items: dict
+    keys: dict
+    now: int
+    book: Any = None
+    role: str | None = None              # stage, display or host; "player" for a phone
+    conn: str | None = None              # the calling connection's key (app.py Conn.key)
+    player: Any = None                   # the calling phone's Player
+    save: Callable = lambda *rows: None
+    phones: Any = field(default_factory=set)
+    changed: bool = True                 # False: nothing to store (the session is not saved)
+
+
+# The types (after Refused and Call, which they use)
+from texstage.server import activity, video  # noqa: E402
+
+TYPES = {video.NAME: video, activity.NAME: activity}
+KNOWN = {"quiz", *TYPES}
+MESSAGES = {m: t for t in TYPES.values() for m in t.MESSAGES}
+READS = {m for t in TYPES.values() for m in getattr(t, "READS", ())}
+QUIET = {m for t in TYPES.values() for m in getattr(t, "QUIET", ())}
+PLAYER_MESSAGES = {m: t for t in TYPES.values() for m in getattr(t, "PLAYER_MESSAGES", ())}
+ROWS = {cls: spec for t in TYPES.values() for cls, spec in getattr(t, "ROWS", {}).items()}
+FILE_TYPES = {suffix: mime for t in TYPES.values() for suffix, mime in getattr(t, "FILE_TYPES", {}).items()}
+FILES = [t.FILES for t in TYPES.values() if hasattr(t, "FILES")]               # patterns of names
+ARCHIVE = [t.ARCHIVE for t in TYPES.values() if hasattr(t, "ARCHIVE")]
+assert READS <= set(MESSAGES), "a read is one of the type's messages"
+
+
+def bundle_file(rel: str) -> bool:
+    """Whether a bundle file is one a type serves as the pictures are served."""
+    return any(re.fullmatch(p, rel) for p in FILES)

@@ -1,0 +1,195 @@
+/* SPDX-FileCopyrightText: 2026 Stefan Decker
+   SPDX-License-Identifier: Apache-2.0 */
+/* The live views over a slide (live.js). The stage is a size container, so everything
+   scales with the slide: 1 cqh = 1 % of the slide's height - the same in a browser window
+   and in the add-in's 1280x720 webview. */
+
+.tq-stage {
+  position: relative;
+  container-type: size;
+  aspect-ratio: var(--tq-aspect, 16 / 9);        /* texstage: the stage PDF's page */
+  overflow: hidden;
+  background: #fff;
+  font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #1d1d1f;
+  user-select: none;
+}
+.tq-slide, .tq-live { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tq-slide { object-fit: contain; }
+.tq-live > * { position: absolute; }
+/* texstage's content types (live.js showTypes): their boxes, and their buttons above the pen */
+.tq-types, .tq-typectl { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tq-types > *, .tq-typectl > * { position: absolute; }
+.tq-small { font-size: 2.6cqh; color: #555; }
+.tq-empty { font-size: 3cqh; color: #777; margin: auto; }
+
+/* timer: a ring that empties; get-ready in grey, the last 5 s in red */
+.tq-timer { display: grid; place-items: center; }
+.tq-timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.tq-timer circle { fill: #fff; stroke-width: 8; }
+.tq-ring-bg { stroke: #e3e3e8; }
+.tq-ring { fill: none !important; stroke: #46178f; stroke-dasharray: 276.46; stroke-linecap: round; transition: stroke-dashoffset .25s linear; }
+.tq-ready .tq-ring { stroke: #8e8e93; }
+.tq-hurry .tq-ring { stroke: #e21b3c; }
+.tq-timer-text { position: relative; font-size: 7cqh; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.tq-timer-sub { position: absolute; bottom: 18%; font-size: 1.8cqh; color: #555; }
+.tq-status {
+  transform: translateX(-100%); white-space: nowrap; font-size: 2.6cqh; font-weight: 600;
+  background: rgba(255, 255, 255, .92); border-radius: .8cqh; padding: .3cqh 1cqh; box-shadow: 0 .2cqh .8cqh rgba(0,0,0,.12);
+}
+/* the timer of a quiz inside the author's frame: a pill on the footline, bottom right */
+.tq-pill {
+  right: 1.2%; bottom: 1.2%; height: 7cqh; display: flex; align-items: center; gap: 1.2cqh; padding: 0 2cqh 0 .6cqh;
+  background: rgba(255, 255, 255, .96); border: .35cqh solid #46178f; border-radius: 4cqh;
+  box-shadow: 0 .4cqh 1.2cqh rgba(0,0,0,.18); font-size: 2.8cqh; font-weight: 700; white-space: nowrap;
+}
+.tq-pill:not([data-role]) { padding-left: 2cqh; }
+.tq-pill-ring { position: relative; width: 5.8cqh; height: 5.8cqh; display: grid; place-items: center; }
+.tq-pill-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.tq-pill-ring circle { fill: #fff; stroke-width: 10; }
+.tq-pill .tq-timer-text { position: relative; font-size: 2.8cqh; }
+.tq-pill .tq-timer-sub { position: static; font-size: 2.4cqh; color: #555; }
+.tq-pill .tq-timer-sub:empty { display: none; }
+.tq-ready .tq-ring { stroke: #8e8e93; }
+.tq-banner {
+  left: 50%; top: 42%; transform: translate(-50%, -50%) rotate(-3deg); font-size: 7cqh; font-weight: 800;
+  color: #fff; background: #46178f; padding: 1cqh 4cqh; border-radius: 1.5cqh; box-shadow: 0 1cqh 3cqh rgba(0,0,0,.25);
+  animation: tq-pop .5s ease-out both, tq-fade .6s 2.2s ease-in forwards;
+}
+@keyframes tq-pop { from { transform: translate(-50%, -50%) scale(.3); opacity: 0; } }
+@keyframes tq-fade { to { opacity: 0; visibility: hidden; } }
+
+/* distribution inside the answer boxes */
+.tq-cell { pointer-events: none; }
+.tq-bar { position: absolute; left: 0; bottom: 0; height: 14%; opacity: .85; border-radius: 0 .6cqh .6cqh 0; transition: width .6s ease-out; }
+.tq-badge {
+  position: absolute; right: 1.2cqh; top: 50%; transform: translateY(-50%); min-width: 6cqh; padding: .4cqh 1cqh;
+  background: #fff; border: .45cqh solid #46178f; border-radius: 3cqh; text-align: center;
+  font-size: 3.4cqh; font-weight: 800; line-height: 1.05; box-shadow: 0 .3cqh 1cqh rgba(0,0,0,.18);
+}
+.tq-badge span { display: block; font-size: 1.7cqh; font-weight: 600; color: #555; }
+.tq-right { outline: .6cqh solid #26890c; outline-offset: .2cqh; border-radius: .8cqh; }
+
+/* results of numeric, text and open questions: in the live area, or a panel */
+.tq-results { display: flex; flex-direction: column; padding: 1.5cqh; }
+.tq-panel {
+  background: rgba(255, 255, 255, .96); border: .3cqh solid #46178f; border-radius: 1.5cqh;
+  box-shadow: 0 1cqh 3cqh rgba(0,0,0,.2); padding: 1.6cqh 2cqh; display: flex; flex-direction: column; gap: .8cqh;
+}
+.tq-panel-title { font-size: 3cqh; font-weight: 800; color: #46178f; }
+.tq-answer { padding: 1.2cqh 1.6cqh; gap: .5cqh; animation: tq-fade-out 1s 10s forwards; }
+.tq-answer .tq-row { font-size: 2.2cqh; }
+.tq-answer .tq-panel-title { font-size: 2.5cqh; }
+.tq-answer .tq-panel-foot { font-size: 2.1cqh; }
+.tq-stage:hover .tq-answer { animation: none; opacity: 1; }
+@keyframes tq-fade-out { to { opacity: 0; } }
+.tq-panel-foot { margin-top: auto; font-size: 2.4cqh; font-weight: 600; color: #333; }
+.tq-hist { flex: 1; display: flex; align-items: stretch; gap: .4cqh; min-height: 0; }
+.tq-hcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; min-width: 0; }
+.tq-hbar { width: 100%; background: #1368ce; border-radius: .5cqh .5cqh 0 0; min-height: 2px; }
+.tq-hcol.tq-ok .tq-hbar { background: #26890c; }
+.tq-hn { font-size: 2cqh; font-weight: 700; }
+.tq-hx { font-size: 1.8cqh; color: #555; height: 2.4cqh; }
+.tq-cloud { flex: 1; display: flex; flex-wrap: wrap; align-content: center; justify-content: center; gap: .4cqh 1.6cqh; font-weight: 700; line-height: 1.1; overflow: hidden; }
+.tq-cloud .tq-ok { color: #26890c; }
+.tq-cloud .tq-no { color: #9a9aa0; }
+.tq-list { margin: 0; padding-left: 4cqh; font-size: 2.6cqh; overflow: hidden; }
+.tq-list b { margin-left: 1.5cqh; color: #46178f; }
+.tq-chart { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.tq-row { display: flex; align-items: center; gap: 1cqh; font-size: 2.6cqh; }
+.tq-row.tq-right { outline: none; font-weight: 800; }
+.tq-shape { width: 3.4cqh; height: 3.4cqh; border-radius: .6cqh; display: grid; place-items: center; flex: none; }
+.tq-shape svg { width: 70%; height: 70%; }
+.tq-rowbar { flex: 1; height: 2cqh; background: #eee; border-radius: 1cqh; overflow: hidden; }
+.tq-rowbar span { display: block; height: 100%; }
+.tq-n { min-width: 4cqh; text-align: right; font-weight: 700; }
+.tq-check { color: #26890c; font-weight: 900; }
+.tq-big { font-size: 8cqh; font-weight: 800; text-align: center; margin-top: 2cqh; }
+
+/* leaderboard over the dimmed slide; rows move from their previous rank */
+.tq-dim { inset: 0; background: rgba(20, 10, 40, .62); animation: tq-in .4s both; }
+@keyframes tq-in { from { opacity: 0; } }
+.tq-lb { left: 20%; width: 60%; top: 12%; }
+.tq-lb-title { text-align: center; font-size: 6cqh; font-weight: 800; color: #fff; margin-bottom: 3cqh; }
+.tq-lb-rows { position: relative; }
+.tq-lb-row {
+  position: absolute; left: 0; right: 0; height: 11cqh; display: flex; align-items: center; gap: 2cqh; padding: 0 3cqh;
+  background: #fff; border-radius: 1.5cqh; font-size: 4.2cqh; font-weight: 700; box-shadow: 0 .5cqh 1.5cqh rgba(0,0,0,.3);
+}
+.tq-lb-row.tq-moving { transition: transform 1.2s cubic-bezier(.2, .8, .2, 1) .3s; }
+.tq-lb-rank { width: 5cqh; color: #46178f; }
+.tq-lb-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tq-lb-move { font-size: 3cqh; }
+.tq-lb-move.up { color: #26890c; }
+.tq-lb-move.down { color: #e21b3c; }
+.tq-lb-score { font-variant-numeric: tabular-nums; }
+
+/* lobby */
+.tq-lobby { display: flex; flex-direction: column; gap: 1.5cqh; }
+.tq-lobby-top { display: flex; align-items: center; justify-content: space-between; gap: 3cqh; }
+.tq-url { font-size: 5cqh; font-weight: 700; margin-bottom: 1.5cqh; }
+.tq-pin { font-size: 13cqh; font-weight: 800; letter-spacing: .3cqh; color: #46178f; line-height: 1; font-variant-numeric: tabular-nums; }
+.tq-qr { height: 34cqh; aspect-ratio: 1; image-rendering: pixelated; }
+.tq-count { font-size: 3.4cqh; font-weight: 700; }
+.tq-names { display: flex; flex-wrap: wrap; gap: 1cqh; overflow: hidden; }
+.tq-chip { font-size: 2.8cqh; font-weight: 600; background: #f0ecf9; color: #46178f; border-radius: 3cqh; padding: .5cqh 1.8cqh; animation: tq-pop-chip .4s ease-out both; }
+@keyframes tq-pop-chip { from { transform: scale(.4); opacity: 0; } }
+
+/* podium */
+.tq-podium { display: flex; align-items: flex-end; justify-content: center; gap: 2cqh; }
+.tq-pod-col { width: 26%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.tq-pod-name { font-size: 4cqh; font-weight: 800; text-align: center; overflow: hidden; text-overflow: ellipsis; max-width: 100%; white-space: nowrap; }
+.tq-pod-score { font-size: 2.8cqh; color: #555; margin-bottom: 1cqh; }
+.tq-pod-block { width: 100%; display: grid; place-items: center; color: #fff; font-size: 8cqh; font-weight: 800; border-radius: 1.5cqh 1.5cqh 0 0; animation: tq-rise 1s ease-out both; transform-origin: bottom; }
+.tq-pod-1 { height: 55%; background: #d89e00; animation-delay: 1.4s; }
+.tq-pod-2 { height: 40%; background: #8e8e93; animation-delay: .7s; }
+.tq-pod-3 { height: 28%; background: #b07040; }
+@keyframes tq-rise { from { transform: scaleY(0); } }
+
+/* texstage M6: a poll of the game on a page of its own (pollRects in live.js) */
+.tq-poll-title { font-size: 2.8cqh; font-weight: 700; color: #46178f; text-transform: uppercase; letter-spacing: .3cqh; }
+.tq-poll-prompt { font-size: 5.2cqh; font-weight: 650; line-height: 1.22; overflow: hidden; }
+.tq-poll-cell {
+  display: flex; align-items: center; gap: 1.6cqh; padding: 0 2cqh; border-radius: 1.4cqh;
+  background: color-mix(in srgb, var(--c) 12%, #fff); border: .45cqh solid var(--c); font-size: 4.2cqh; overflow: hidden;
+}
+.tq-poll-cell b { font-size: 4.6cqh; color: var(--c); }
+.tq-poll-shape { width: 6cqh; height: 6cqh; flex: none; display: grid; place-items: center; background: var(--c); border-radius: 1cqh; }
+.tq-poll-shape svg { width: 62%; height: 62%; }
+.tq-poll-text { flex: 1; min-width: 0; line-height: 1.15; }
+.tq-poll-note { display: grid; place-items: center; font-size: 3.4cqh; color: #6e6e73; }
+.tq-poll-join { font-size: 2.3cqh; color: #6e6e73; text-align: right; }
+.tq-poll-prompt .katex, .tq-poll-cell .katex, .tq-qa-text .katex { font-size: 1.05em; }
+
+/* sketches the lecturer picked */
+.tq-sketch-tile { background: #fff; border: .3cqh solid #d8d3e6; border-radius: 1cqh; overflow: hidden; }
+.tq-sketch-tile svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tq-sketch-n { position: absolute; left: 1cqh; top: .8cqh; font-size: 2.2cqh; font-weight: 700; color: #6e6e73; }
+.tq-sketch-prompt { font-size: 4cqh; }
+.tq-sketch-img { display: block; height: 100%; max-width: 100%; object-fit: contain; object-position: left center; }
+
+/* a question from the audience, over the slide */
+.tq-qa-card {
+  left: 8%; right: 8%; bottom: 4%; display: flex; align-items: center; gap: 2.4cqh; padding: 2cqh 3cqh;
+  background: #fff; border-left: 1.2cqh solid #46178f; border-radius: 1.4cqh; box-shadow: 0 1cqh 4cqh rgba(0, 0, 0, .3);
+  animation: tq-pop-card .4s ease-out both;
+}
+.tq-qa-label { font-size: 2.2cqh; font-weight: 700; color: #46178f; width: 14cqh; flex: none; line-height: 1.2; }
+.tq-qa-text { flex: 1; font-size: 4.2cqh; font-weight: 600; line-height: 1.25; }
+.tq-qa-votes { font-size: 3.4cqh; font-weight: 800; color: #46178f; white-space: nowrap; }
+@keyframes tq-pop-card { from { transform: translateY(30%); opacity: 0; } }
+
+/* lecturer's buttons: only while the mouse moves over the stage */
+.tq-controls {
+  position: absolute; right: 1.5cqh; bottom: 10cqh; display: flex; gap: 1cqh; opacity: 0; transition: opacity .3s;
+}
+.tq-stage:hover .tq-controls { opacity: 1; }
+.tq-controls button {
+  font: 600 2.4cqh system-ui, sans-serif; min-width: 6cqh; height: 5.5cqh; padding: 0 1.6cqh; border-radius: 1cqh;
+  border: none; background: rgba(40, 20, 80, .85); color: #fff; cursor: pointer;
+}
+.tq-controls button:hover { background: #46178f; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tq-stage * { animation: none !important; transition: none !important; }
+}

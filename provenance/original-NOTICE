@@ -1,0 +1,37 @@
+texstage, with texquiz
+Copyright 2026 Stefan Decker
+
+Licensed under the Apache License, Version 2.0 (the file LICENSE). The licence covers the
+texstage package of this repository and nothing else in it:
+
+  src/texstage/                     the Python package and its web pages
+  latex/texstage.sty                the LaTeX core
+  latex/texquiz.sty                 the LaTeX package of the quiz
+  latex/texquiz-theme-dbis.sty      its theme for the DBIS slide style
+  scripts/texstage-*.py             the scripts a lecture uses (scripts/texquiz-*.py: their
+                                    names until 2026-10-10)
+  tests/                            the tests
+  examples/demo/                    the demo deck
+  deploy/                           the server's container
+  docs/ (except docs/pilot/)        the documentation
+  README-texstage.md, pyproject.toml, LICENSE, NOTICE
+
+Its source files say so in their first lines (SPDX-License-Identifier: Apache-2.0). The DBIS
+lecture tooling in this repository - latex/dbis-slides.sty, the other scripts in scripts/,
+tools/, skills/, docs/pilot/ and README.md - is not covered by this licence.
+
+Third-party software included (src/texstage/web/vendor/, each with its licence file there):
+
+  PDF.js            Copyright Mozilla Foundation and contributors      Apache License 2.0
+  perfect-freehand  Copyright Steve Ruiz                                MIT License
+  pdf-lib           Copyright Andrew Dillon                             MIT License
+                    (bundles pako - MIT and zlib -, @pdf-lib/standard-fonts and @pdf-lib/upng - MIT -,
+                    and tslib - 0BSD)
+  KaTeX             Copyright Khan Academy and other contributors       MIT License
+  Oxigraph          Copyright 2018 Oxigraph developers                 MIT License or Apache License 2.0
+  sql.js            Copyright 2017 sql.js authors                       MIT License
+                    (compiles SQLite, which is in the public domain, to WebAssembly)
+
+Installed with the package, not included in it: pypdfium2 and PDFium (Apache-2.0 and
+BSD-3-Clause), Pillow (MIT-CMU), python-pptx (MIT), lxml (BSD-3-Clause), Starlette
+(BSD-3-Clause), uvicorn (BSD-3-Clause), segno (BSD-3-Clause).

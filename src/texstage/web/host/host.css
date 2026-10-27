@@ -1,0 +1,78 @@
+/* SPDX-FileCopyrightText: 2026 Stefan Decker
+   SPDX-License-Identifier: Apache-2.0 */
+/* The host console: a desktop page for the lecturer - the slide host and the game. */
+:root {
+  --brand: #46178f;
+  --ink: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #e3e0ea;
+  --bg: #f6f5f9;
+  --card: #fff;
+  --ok: #26890c;
+  --no: #e21b3c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 15px/1.4 system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); display: flex; flex-direction: column; }
+button { font: inherit; cursor: pointer; }
+.top { display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: var(--brand); color: #fff; min-height: 52px; flex-wrap: wrap; }
+.brand { font-weight: 800; letter-spacing: .5px; }
+.deck { font-weight: 600; opacity: .9; }
+.pin { font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
+.join { opacity: .85; font-size: 13px; }
+.spacer { flex: 1; }
+.status { width: 10px; height: 10px; border-radius: 50%; background: #aaa; }
+.status.open { background: #5ce06a; }
+.status.closed { background: #ff6b6b; }
+.actions { display: flex; gap: 8px; }
+.top button, .btn { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.12); color: #fff; border-radius: 8px; padding: 6px 12px; }
+.top button:hover { background: rgba(255,255,255,.25); }
+main { flex: 1; min-height: 0; }
+
+.page { max-width: 760px; margin: 40px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+.page h1 { margin: 0; font-size: 26px; }
+.page p { margin: 0; color: var(--muted); }
+.field { display: flex; gap: 8px; }
+.field input { flex: 1; font: inherit; padding: 10px 12px; border: 1px solid #cfc8e0; border-radius: 8px; }
+.primary { background: var(--brand); color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 700; }
+.secondary { background: #fff; color: var(--brand); border: 1px solid #cfc8e0; border-radius: 8px; padding: 8px 14px; font-weight: 600; }
+.error { color: var(--no); }
+.decks { display: flex; flex-direction: column; gap: 10px; }
+.deckcard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 16px; }
+.deckcard .info { flex: 1; min-width: 0; }
+.deckcard .name { font-weight: 700; font-size: 17px; }
+.deckcard .meta { color: var(--muted); font-size: 13px; }
+.uploadbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.uploadbar .uploaded { color: var(--muted); font-size: 13px; }
+.page.dropping { outline: 2px dashed var(--brand); outline-offset: 10px; border-radius: 12px; }   /* a .bundle.zip dragged over the list */
+
+.game { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 12px; padding: 12px; }
+.stagecol { display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; }
+.stagewrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.stagewrap .tq-stage { max-width: 100%; max-height: 100%; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,.15); border-radius: 4px; }
+.nav { display: flex; align-items: center; gap: 8px; justify-content: center; }
+.nav button { background: #fff; border: 1px solid #cfc8e0; border-radius: 8px; min-width: 44px; height: 36px; }
+.nav .where { min-width: 220px; text-align: center; color: var(--muted); }
+.side { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: auto; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.panel h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.players { display: flex; flex-direction: column; max-height: 46vh; overflow: auto; }
+.player { display: flex; align-items: center; gap: 8px; padding: 4px 2px; border-bottom: 1px solid #f0eef5; }
+.player .rank { width: 26px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.player .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player .pts { font-variant-numeric: tabular-nums; font-weight: 600; }
+.player .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+.player .dot.on { background: var(--ok); }
+.player button { border: none; background: none; color: var(--muted); padding: 0 4px; }
+.quizzes { display: flex; flex-direction: column; gap: 4px; }
+.quiz { display: flex; gap: 8px; align-items: center; text-align: left; border: 1px solid transparent; background: none; border-radius: 8px; padding: 6px; width: 100%; }
+.quiz:hover { border-color: var(--line); background: #faf9fc; }
+.quiz .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag { font-size: 12px; border-radius: 99px; padding: 1px 8px; background: #eee; color: #555; white-space: nowrap; }
+.tag.open, .tag.get-ready { background: #fff1c2; color: #7a5a00; }
+.tag.closed { background: #e6e0f5; color: var(--brand); }
+.tag.revealed { background: #dff3da; color: var(--ok); }
+.empty { color: var(--muted); font-size: 13px; }
+.stagewrap:fullscreen { background: #000; }
+.stagewrap:fullscreen .tq-stage { width: min(100vw, 177.78vh); max-height: none; box-shadow: none; border-radius: 0; }
+@media (max-width: 900px) { .game { grid-template-columns: 1fr; } }

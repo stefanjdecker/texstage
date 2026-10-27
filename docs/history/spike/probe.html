@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>texquiz probe</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; font: 20px "Segoe UI", sans-serif; }
+  #half { position: absolute; top: 0; right: 0; width: 50%; height: 100%;
+          background-repeat: no-repeat; background-size: 200% 100%; background-position: right top; }
+  #box { position: absolute; right: 12px; bottom: 12px; background: rgba(255, 200, 0, .85);
+         padding: 8px 12px; border-radius: 6px; white-space: pre; }
+</style>
+</head>
+<body>
+<div id="half"></div>
+<div id="box">probe loading…</div>
+<script>
+// Spike S1: report every lifecycle signal of a content add-in instance to /log.
+const iid = Math.random().toString(36).slice(2, 8);
+const t0 = performance.now();
+const box = document.getElementById('box');
+let props = {};
+
+function log(ev, data) {
+  const body = JSON.stringify({ iid, ev, t: Date.now(), dt: Math.round(performance.now() - t0), slide: props.slide, data });
+  try { fetch('/log', { method: 'POST', body, headers: { 'content-type': 'application/json' }, keepalive: true }); } catch (e) {}
+}
+function show(extra) {
+  box.textContent = `probe ${iid}  slide=${props.slide ?? '?'}\n${extra ?? ''}`;
+}
+
+log('script-start', { href: location.href, ua: navigator.userAgent, vis: document.visibilityState,
+                      size: [innerWidth, innerHeight], dpr: devicePixelRatio });
+document.addEventListener('visibilitychange', () => log('visibility', document.visibilityState));
+addEventListener('pagehide', () => log('pagehide'));
+addEventListener('beforeunload', () => log('beforeunload'));
+addEventListener('focus', () => log('focus'));
+addEventListener('blur', () => log('blur'));
+addEventListener('resize', () => log('resize', [innerWidth, innerHeight, devicePixelRatio, screen.width, screen.height]));
+
+try {
+  const n = Number(localStorage.getItem('probe-count') || 0);
+  localStorage.setItem('probe-count', String(n + 1));
+  log('localStorage', { before: n, origin: location.origin });
+} catch (e) { log('localStorage-error', String(e)); }
+
+Office.onReady(info => {
+  const doc = Office.context.document;
+  const req = Office.context.requirements;
+  log('onReady', { host: info.host, platform: info.platform,
+                   pptApi13: req.isSetSupported('PowerPointApi', '1.3'),
+                   pptApi15: req.isSetSupported('PowerPointApi', '1.5'),
+                   settings: req.isSetSupported('Settings', '1.1') });
+  for (const k of ['slide', 'quiz', 'phase', 'json']) props[k] = doc.settings.get(k);
+  document.getElementById('half').style.backgroundImage = `url(slide${props.slide}.png)`;
+  log('settings', props);
+  show();
+
+  doc.getActiveViewAsync(r => log('activeView', r.status === 'succeeded' ? r.value : r.error.message));
+  doc.addHandlerAsync(Office.EventType.ActiveViewChanged, e => log('ActiveViewChanged', e.activeView),
+                      r => log('addHandler-ActiveViewChanged', r.status));
+  doc.addHandlerAsync(Office.EventType.DocumentSelectionChanged, () => { log('DocumentSelectionChanged'); poll(true); },
+                      r => log('addHandler-DocumentSelectionChanged', r.status + (r.error ? ' ' + r.error.message : '')));
+
+  let last = '';
+  function poll(force) {
+    doc.getSelectedDataAsync(Office.CoercionType.SlideRange, r => {
+      const v = r.status === 'succeeded' ? JSON.stringify(r.value) : 'ERR ' + (r.error && r.error.message);
+      if (v !== last || force) { last = v; log('slideRange', v); show(v); }
+    });
+  }
+  poll();
+  setInterval(poll, 500);
+});
+setInterval(() => log('heartbeat', document.visibilityState), 5000);
+</script>
+</body>
+</html>

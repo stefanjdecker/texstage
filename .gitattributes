@@ -1,0 +1,10 @@
+# LF line endings in the working tree on every platform, as in the lectures (the scripts
+# also run on macOS: ppt2pdf.scpt, shell scripts)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.pptx binary
+*.scpt binary
+*.wasm binary

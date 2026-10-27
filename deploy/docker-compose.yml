@@ -1,0 +1,43 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+# The hosted texstage server: texstage behind Caddy (HTTPS). docs/design.md, section 8.
+#
+#   cd deploy
+#   echo TEXSTAGE_DOMAIN=quiz.example.org > .env
+#   docker compose up -d --build
+#   docker compose exec texstage texstage lecturer add NAME --data /data     # a presenter key per lecturer
+#
+# texstage itself is not published on a port: only Caddy reaches it, so it may trust the
+# X-Forwarded-* headers of every peer (--forwarded-allow-ips '*') - that gives it the
+# students' addresses (wrong PINs are counted per address) and the https:// origin.
+services:
+  texstage:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["texstage", "serve", "/data/bundles", "--data", "/data", "--host", "0.0.0.0", "--port", "8470",
+              "--public-url", "https://${TEXSTAGE_DOMAIN:?set TEXSTAGE_DOMAIN in deploy/.env}",
+              "--forwarded-allow-ips", "*"]
+    volumes:
+      - texstage-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    depends_on: [texstage]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      TEXSTAGE_DOMAIN: ${TEXSTAGE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  texstage-data:
+  caddy-data:
+  caddy-config:

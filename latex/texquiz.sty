@@ -1,0 +1,1587 @@
+% SPDX-FileCopyrightText: 2026 Stefan Decker
+% SPDX-License-Identifier: Apache-2.0
+%% texquiz.sty -- Kahoot-style live quizzes authored in Beamer decks: the quiz of
+%% texstage, built on its core, texstage.sty (the mode, the records, the log marks, the
+%% extra pages - docs/content-types-design.md, section 4.3).
+%%
+%% Three output modes, selected by defining \texquizmode before \documentclass
+%% (e.g. pdflatex "\def\texquizmode{present}\input{deck}"):
+%%   handout   (default) one placeholder page per quiz and per answer frame
+%%             (\begin{frame}[answer]), no question, no answers
+%%   solutions one page per quiz: question, correct answers marked, explanation;
+%%             answer frames as written.  Default when Beamer shows notes, so
+%%             the lecturer's notes PDF keeps the answers.
+%%   present   reading page (the question, no answers yet), question page,
+%%             reveal page, leaderboard frame; writes \jobname.tqz
+%%             (metadata, page records, rectangles) and ships phone images as
+%%             extra pages after the last slide.  Used by `texquiz build` only.
+%% The look is set by \texquizprompt, \texquizchoice, ... (see "theme hooks");
+%% texquiz-theme-dbis.sty is the look of the DBIS lectures.
+%% See docs/design.md, section 3, and docs/authoring.md.
+\NeedsTeXFormat{LaTeX2e}[2023-06-01]
+\ProvidesExplPackage{texquiz}{2026-10-01}{0.1.0}{Live quizzes for Beamer decks}
+\RequirePackage{tikz}
+\RequirePackage{pdftexcmds}
+\IfFileExists{qrcode.sty}{\RequirePackage{qrcode}}{}
+% the core, texstage.sty: from this folder, or by name if loaded through TEXINPUTS
+\tl_set:Ne \l_tmpa_tl { \CurrentFilePath }
+\tl_if_empty:NTF \l_tmpa_tl
+  { \RequirePackage { texstage } }
+  { \exp_args:Ne \RequirePackage { \l_tmpa_tl / texstage } }
+
+% ---------------------------------------------------------------- messages
+\msg_new:nnn { texquiz } { quiz } { Quiz~'#1':~#2 }
+\msg_new:nnn { texquiz } { general } { #1 }
+\cs_generate_variant:Nn \msg_error:nnnn { nnV }
+\cs_generate_variant:Nn \msg_error:nnn { nnV }
+\cs_generate_variant:Nn \regex_match:nnF { nV }
+\cs_generate_variant:Nn \regex_match:nnT { nV }
+\cs_generate_variant:Nn \str_case:nnF { Vn }
+\cs_generate_variant:Nn \str_case:nn { Vn }
+\cs_generate_variant:Nn \str_mdfive_hash:n { e }
+% Message arguments are not expanded by l3msg: expand variables (key names,
+% ids, counts) in the text before raising the error.
+\cs_new_protected:Npn \__tq_error:n #1
+  { \use:e { \msg_error:nnnn { texquiz } { quiz } { \g__tq_id_tl } {#1} } }
+\cs_new_protected:Npn \__tq_general_error:n #1
+  { \use:e { \msg_error:nnn { texquiz } { general } {#1} } }
+
+% ---------------------------------------------------------------- the core
+% The mode, the records, the log marks, the extra pages and the shrink correction are
+% texstage.sty's; the quiz calls them by these names.
+\prg_new_eq_conditional:NNn \__tq_if_mode:n \texstage_if_mode:n { T , F , TF }
+\cs_new_eq:NN \__tq_hex:n \texstage_hex:n
+\cs_new_eq:NN \__tq_hex:V \texstage_hex:V
+\cs_new_eq:NN \__tq_hex:e \texstage_hex:e
+\cs_new_eq:NN \__tq_emit:n \texstage_emit:n
+\cs_new_eq:NN \__tq_page_record:nnn \texstage_page_record:nnn
+\cs_new_protected:Npn \__tq_rect:nnnn #1#2#3#4 % phase, key, width, height (of the quiz in hand)
+  { \texstage_rect:nnnnn { \g__tq_id_tl } {#1} {#2} {#3} {#4} }
+\cs_new_eq:NN \__tq_vmark:nnn \texstage_vmark:nnn
+\cs_new_eq:NN \__tq_check_mark:nn \texstage_check_mark:nn
+\cs_new_eq:NN \__tq_vfill: \texstage_vfill:
+\cs_new_eq:NN \__tq_vbox_set:Nnn \texstage_vbox_set:Nnn
+
+% ---------------------------------------------------------------- state
+\tl_new:N \g__tq_id_tl
+\tl_new:N \g__tq_type_tl
+\tl_new:N \g__tq_title_tl
+\tl_new:N \g__tq_prompt_tl
+\tl_new:N \g__tq_explain_tl
+\bool_new:N \g__tq_explain_bool
+\int_new:N \g__tq_time_int
+\tl_new:N \g__tq_points_tl
+\tl_new:N \g__tq_leaderboard_tl
+\tl_new:N \g__tq_shuffle_tl
+\int_new:N \g__tq_cols_int
+\tl_new:N \g__tq_select_tl
+\tl_new:N \g__tq_answer_tl
+\tl_new:N \g__tq_tolerance_tl
+\tl_new:N \g__tq_min_tl
+\tl_new:N \g__tq_max_tl
+\tl_new:N \g__tq_step_tl
+\tl_new:N \g__tq_unit_tl
+\tl_new:N \g__tq_display_tl
+\int_new:N \g__tq_maxchars_int
+\bool_new:N \g__tq_partial_bool
+\seq_new:N \g__tq_choice_seq        % choice contents, authored order
+\seq_new:N \g__tq_choice_id_seq
+\seq_new:N \g__tq_correct_seq       % 1 / 0 per choice
+\int_new:N \g__tq_correct_int
+\seq_new:N \g__tq_accept_seq
+\seq_new:N \g__tq_accept_hex_seq    % scoring text, converted by hyperref to Unicode
+\tl_new:N \l__tq_accept_pdf_tl
+\tl_new:N \l__tq_accept_bytes_tl
+\str_new:N \l__tq_accept_str
+\fp_new:N \l__tq_numeric_step_fp
+\seq_new:N \g__tq_step_seq          % ordering items, in the correct order
+\seq_new:N \g__tq_order_seq         % display position -> authored index
+\seq_new:N \g__tq_shape_seq         % display position -> shape number
+\seq_new:N \g__tq_all_ids_seq
+\tl_new:N \l__tq_choice_id_tl
+\tl_new:N \l__tq_tmp_tl
+\seq_new:N \l__tq_tmp_seq
+\box_new:N \l__tq_tmp_box
+\box_new:N \l__tq_prompt_box
+\int_new:N \l__tq_n_int
+\int_new:N \l__tq_row_int
+\dim_new:N \l__tq_wd_dim
+\dim_new:N \l__tq_ht_dim
+\dim_new:N \l__tq_colwd_dim
+\dim_new:N \l__tq_contentwd_dim
+\dim_new:N \l__tq_rowht_dim
+
+% ---------------------------------------------------------------- setup
+\int_new:N \g__tq_default_time_int
+\int_gset:Nn \g__tq_default_time_int { 20 }
+\tl_new:N \g__tq_default_points_tl
+\tl_gset:Nn \g__tq_default_points_tl { standard }
+\bool_new:N \g__tq_default_leaderboard_bool
+\bool_gset_true:N \g__tq_default_leaderboard_bool
+\bool_new:N \g__tq_default_shuffle_bool
+% reveal = slide: the quiz frame has a second slide that marks the correct
+% answers; none: one slide only, the answer comes later on a frame with the
+% option answer=<quiz id> (the course's predict-then-see pattern)
+\tl_new:N \g__tq_default_reveal_tl
+\tl_gset:Nn \g__tq_default_reveal_tl { slide }
+\tl_new:N \g__tq_reveal_tl
+\bool_new:N \g__tq_title_given_bool
+\tl_new:N \g__tq_default_title_tl
+\tl_gset:Nn \g__tq_default_title_tl { Quiz }
+\tl_new:N \g__tq_join_title_tl
+\tl_gset:Nn \g__tq_join_title_tl { Join~the~quiz }
+\tl_new:N \g__tq_join_url_tl
+\tl_new:N \g__tq_join_text_tl
+\tl_gset:Nn \g__tq_join_text_tl
+  { During~the~lecture,~join~with~your~phone~using~the~PIN~shown~on~this~slide. }
+\tl_new:N \g__tq_leaderboard_title_tl
+\tl_gset:Nn \g__tq_leaderboard_title_tl { Leaderboard }
+\tl_new:N \g__tq_podium_title_tl
+\tl_gset:Nn \g__tq_podium_title_tl { Final~standings }
+\tl_new:N \g__tq_handout_heading_tl
+\tl_gset:Nn \g__tq_handout_heading_tl { Live~quiz }
+\tl_new:N \g__tq_handout_text_tl
+\tl_gset:Nn \g__tq_handout_text_tl { This~question~is~asked~live~in~the~lecture. }
+\tl_new:N \g__tq_results_text_tl
+\tl_gset:Nn \g__tq_results_text_tl { The~results~are~shown~live~in~the~lecture. }
+\tl_new:N \g__tq_true_tl
+\tl_gset:Nn \g__tq_true_tl { True }
+\tl_new:N \g__tq_false_tl
+\tl_gset:Nn \g__tq_false_tl { False }
+\tl_new:N \g__tq_number_hint_tl
+\tl_gset:Nn \g__tq_number_hint_tl { Enter~a~number~on~your~phone. }
+\tl_new:N \g__tq_multiple_hint_tl
+\tl_gset:Nn \g__tq_multiple_hint_tl { Several~answers~can~be~correct. }
+\tl_new:N \g__tq_poll_hint_tl                       % a poll with several answers: none is right
+\tl_gset:Nn \g__tq_poll_hint_tl { Tick~all~that~apply. }
+\tl_new:N \g__tq_text_hint_tl
+\tl_gset:Nn \g__tq_text_hint_tl { Type~your~answer~on~your~phone. }
+\tl_new:N \g__tq_order_hint_tl
+\tl_gset:Nn \g__tq_order_hint_tl { Put~the~items~in~the~right~order~on~your~phone. }
+\tl_new:N \g__tq_sketch_hint_tl
+\tl_gset:Nn \g__tq_sketch_hint_tl { Draw~your~answer~on~your~phone. }
+\tl_new:N \g__tq_answer_label_tl
+\tl_gset:Nn \g__tq_answer_label_tl { Answer: }
+\tl_new:N \g__tq_accepted_label_tl
+\tl_gset:Nn \g__tq_accepted_label_tl { Accepted~answers: }
+\tl_new:N \g__tq_answer_title_tl
+\tl_gset:Nn \g__tq_answer_title_tl { Answer }
+\tl_new:N \g__tq_answer_heading_tl
+\tl_gset:Nn \g__tq_answer_heading_tl { Answer }
+\tl_new:N \g__tq_answer_text_tl
+\tl_gset:Nn \g__tq_answer_text_tl { The~answer~is~shown~in~the~lecture. }
+% for the LaTeX2e part (answer frames)
+\cs_new:Npn \texquiz@answertitle { \g__tq_answer_title_tl }
+\cs_new:Npn \texquiz@answerheading { \g__tq_answer_heading_tl }
+\cs_new:Npn \texquiz@answertext { \g__tq_answer_text_tl }
+\cs_new:Npn \texquiz@ifhandout { \__tq_if_mode:nTF { handout } }
+\cs_new:Npn \texquiz@quiztitle { \g__tq_default_title_tl }
+\cs_new_protected:Npn \texquiz@pagerecord #1#2#3 { \__tq_page_record:nnn {#1} {#2} {#3} }
+\cs_new_protected:Npn \texquiz@checkmark #1#2 { \__tq_check_mark:nn {#1} {#2} }
+\cs_new:Npn \texquiz@handoutheading { \g__tq_handout_heading_tl }
+\cs_new:Npn \texquiz@handouttext { \g__tq_handout_text_tl }
+
+\cs_new_protected:Npn \__tq_set_time:Nn #1#2
+  {
+    \regex_match:nnTF { \A [0-9]{1,3} \Z } {#2}
+      {
+        \int_compare:nNnTF {#2} < { 5 } { \__tq_general_error:n { time~must~be~5--240~seconds. } }
+          {
+            \int_compare:nNnTF {#2} > { 240 }
+              { \__tq_general_error:n { time~must~be~5--240~seconds. } }
+              { \int_gset:Nn #1 {#2} }
+          }
+      }
+      { \__tq_general_error:n { time~must~be~an~integer~5--240. } }
+  }
+\cs_new_protected:Npn \__tq_check_points:n #1
+  {
+    \str_case:nnF {#1} { { standard } { } { double } { } { none } { } }
+      { \__tq_general_error:n { points~must~be~standard,~double~or~none. } }
+  }
+\keys_define:nn { texquiz / setup }
+  {
+    time .code:n = \__tq_set_time:Nn \g__tq_default_time_int {#1} ,
+    points .code:n =
+      \__tq_check_points:n {#1} \tl_gset:Nn \g__tq_default_points_tl {#1} ,
+    leaderboard .bool_gset:N = \g__tq_default_leaderboard_bool ,
+    shuffle .bool_gset:N = \g__tq_default_shuffle_bool ,
+    reveal .choices:nn = { slide , none }
+      { \tl_gset:Ne \g__tq_default_reveal_tl { \l_keys_choice_tl } } ,
+    title .tl_gset:N = \g__tq_default_title_tl ,
+    join-title .tl_gset:N = \g__tq_join_title_tl ,
+    join-url .tl_gset:N = \g__tq_join_url_tl ,
+    join-text .tl_gset:N = \g__tq_join_text_tl ,
+    leaderboard-title .tl_gset:N = \g__tq_leaderboard_title_tl ,
+    podium-title .tl_gset:N = \g__tq_podium_title_tl ,
+    handout-heading .tl_gset:N = \g__tq_handout_heading_tl ,
+    handout-text .tl_gset:N = \g__tq_handout_text_tl ,
+    results-text .tl_gset:N = \g__tq_results_text_tl ,
+    true-label .tl_gset:N = \g__tq_true_tl ,
+    false-label .tl_gset:N = \g__tq_false_tl ,
+    number-hint .tl_gset:N = \g__tq_number_hint_tl ,
+    text-hint .tl_gset:N = \g__tq_text_hint_tl ,
+    multiple-hint .tl_gset:N = \g__tq_multiple_hint_tl ,
+    poll-hint .tl_gset:N = \g__tq_poll_hint_tl ,
+    order-hint .tl_gset:N = \g__tq_order_hint_tl ,
+    sketch-hint .tl_gset:N = \g__tq_sketch_hint_tl ,
+    answer-label .tl_gset:N = \g__tq_answer_label_tl ,
+    accepted-label .tl_gset:N = \g__tq_accepted_label_tl ,
+    answer-title .tl_gset:N = \g__tq_answer_title_tl ,
+    answer-heading .tl_gset:N = \g__tq_answer_heading_tl ,
+    answer-text .tl_gset:N = \g__tq_answer_text_tl ,
+    unknown .code:n =
+      \__tq_general_error:n { Unknown~\iow_char:N\\quizsetup~key~'\l_keys_key_str'. }
+  }
+\NewDocumentCommand \quizsetup { m } { \keys_set:nn { texquiz / setup } {#1} }
+
+% ---------------------------------------------------------------- quiz keys
+\keys_define:nn { texquiz / quiz }
+  {
+    id .tl_gset:N = \g__tq_id_tl ,
+    type .tl_gset:N = \g__tq_type_tl ,
+    time .code:n = \__tq_set_time:Nn \g__tq_time_int {#1} ,
+    points .code:n = \__tq_check_points:n {#1} \tl_gset:Nn \g__tq_points_tl {#1} ,
+    leaderboard .choices:nn = { true , false }
+      { \tl_gset:Ne \g__tq_leaderboard_tl { \l_keys_choice_tl } } ,
+    leaderboard .default:n = true ,
+    shuffle .choices:nn = { true , false }
+      { \tl_gset:Ne \g__tq_shuffle_tl { \l_keys_choice_tl } } ,
+    shuffle .default:n = true ,
+    reveal .choices:nn = { slide , none }
+      { \tl_gset:Ne \g__tq_reveal_tl { \l_keys_choice_tl } } ,
+    title .code:n =
+      \tl_gset:Nn \g__tq_title_tl {#1} \bool_gset_true:N \g__tq_title_given_bool ,
+    cols .choices:nn = { 1 , 2 , 3 , 4 , 5 , 6 } { \int_gset:Nn \g__tq_cols_int {#1} } ,
+    select .choices:nn = { single , multiple }
+      { \tl_gset:Ne \g__tq_select_tl { \l_keys_choice_tl } } ,
+    answer .tl_gset:N = \g__tq_answer_tl ,
+    tolerance .tl_gset:N = \g__tq_tolerance_tl ,
+    min .tl_gset:N = \g__tq_min_tl ,
+    max .tl_gset:N = \g__tq_max_tl ,
+    step .tl_gset:N = \g__tq_step_tl ,
+    unit .tl_gset:N = \g__tq_unit_tl ,
+    display .choices:nn = { wordcloud , list }
+      { \tl_gset:Ne \g__tq_display_tl { \l_keys_choice_tl } } ,
+    max-chars .code:n =
+      \regex_match:nnTF { \A [0-9]{1,3} \Z } {#1}
+        { \int_gset:Nn \g__tq_maxchars_int {#1} }
+        { \__tq_error:n { max-chars~must~be~an~integer~1--200. } } ,
+    partial .bool_gset:N = \g__tq_partial_bool ,
+    partial .default:n = true ,
+    unknown .code:n = \__tq_error:n { unknown~key~'\l_keys_key_str'. }
+  }
+\keys_define:nn { texquiz / choice }
+  {
+    id .tl_set:N = \l__tq_choice_id_tl ,
+    unknown .code:n = \__tq_error:n { unknown~choice~key~'\l_keys_key_str'. }
+  }
+
+\cs_new_protected:Npn \__tq_reset:
+  {
+    \tl_gclear:N \g__tq_id_tl
+    \tl_gclear:N \g__tq_type_tl
+    \tl_gset_eq:NN \g__tq_title_tl \g__tq_default_title_tl
+    \bool_gset_false:N \g__tq_title_given_bool
+    \tl_gclear:N \g__tq_explain_tl
+    \bool_gset_false:N \g__tq_explain_bool
+    \int_gset_eq:NN \g__tq_time_int \g__tq_default_time_int
+    \tl_gclear:N \g__tq_points_tl
+    \tl_gclear:N \g__tq_leaderboard_tl
+    \tl_gclear:N \g__tq_shuffle_tl
+    \tl_gset_eq:NN \g__tq_reveal_tl \g__tq_default_reveal_tl
+    \int_gzero:N \g__tq_cols_int
+    \tl_gclear:N \g__tq_select_tl
+    \tl_gclear:N \g__tq_answer_tl
+    \tl_gset:Nn \g__tq_tolerance_tl { 0 }
+    \tl_gclear:N \g__tq_min_tl
+    \tl_gclear:N \g__tq_max_tl
+    \tl_gclear:N \g__tq_step_tl
+    \tl_gclear:N \g__tq_unit_tl
+    \tl_gclear:N \g__tq_display_tl
+    \int_gset:Nn \g__tq_maxchars_int { 80 }
+    \bool_gset_false:N \g__tq_partial_bool
+    \seq_gclear:N \g__tq_choice_seq
+    \seq_gclear:N \g__tq_choice_id_seq
+    \seq_gclear:N \g__tq_correct_seq
+    \seq_gclear:N \g__tq_accept_seq
+    \seq_gclear:N \g__tq_accept_hex_seq
+    \seq_gclear:N \g__tq_step_seq
+    \seq_gclear:N \g__tq_order_seq
+    \seq_gclear:N \g__tq_shape_seq
+  }
+
+% ---------------------------------------------------------------- body commands
+% While collecting (dry pass, outside any frame) \choice and friends record the
+% question; inside the generated frames they are no-ops, so the same body can be
+% executed again for its \note and \label.
+\NewDocumentCommand \__tq_collect_choice:w { s O{} +m }
+  {
+    \tl_clear:N \l__tq_choice_id_tl
+    \keys_set:nn { texquiz / choice } {#2}
+    \tl_if_blank:nT {#3} { \__tq_error:n { empty~\iow_char:N\\choice. } }
+    \seq_gput_right:Nn \g__tq_choice_seq {#3}
+    \tl_if_empty:NT \l__tq_choice_id_tl
+      { \tl_set:Ne \l__tq_choice_id_tl { \int_to_Alph:n { \seq_count:N \g__tq_choice_seq } } }
+    \regex_match:nVF { \A [A-Za-z0-9-]{1,32} \Z } \l__tq_choice_id_tl
+      { \__tq_error:n { invalid~choice~id~'\l__tq_choice_id_tl'. } }
+    \seq_if_in:NVT \g__tq_choice_id_seq \l__tq_choice_id_tl
+      { \__tq_error:n { duplicate~choice~id~'\l__tq_choice_id_tl'. } }
+    \seq_gput_right:NV \g__tq_choice_id_seq \l__tq_choice_id_tl
+    \IfBooleanTF {#1}
+      { \seq_gput_right:Nn \g__tq_correct_seq { 1 } }
+      { \seq_gput_right:Nn \g__tq_correct_seq { 0 } }
+  }
+\NewDocumentCommand \__tq_collect_explain:w { +m }
+  {
+    \bool_if:NT \g__tq_explain_bool { \__tq_error:n { more~than~one~\iow_char:N\\explain. } }
+    \bool_gset_true:N \g__tq_explain_bool
+    \tl_gset:Nn \g__tq_explain_tl {#1}
+  }
+\NewDocumentCommand \__tq_collect_accept:w { m }
+  {
+    \tl_if_blank:nT {#1} { \__tq_error:n { empty~\iow_char:N\\accept. } }
+    \seq_gput_right:Nn \g__tq_accept_seq {#1}
+    \__tq_accept_text:n {#1}
+  }
+% A phone sends the displayed text, not its LaTeX source. Hyperref's Unicode
+% PDF-string conversion handles accents, escaped punctuation, ties and text
+% formatting. Do not silently remove unsupported commands: the author can use
+% \texorpdfstring{display}{plain answer}, as for a PDF bookmark.
+\cs_new_protected:Npn \__tq_accept_text:n #1
+  {
+    \group_begin:
+      \hypersetup { pdfencoding=unicode }
+      \cs_set_protected:Npn \HyPsd@Warning ##1
+        {
+          \__tq_error:n
+            { accepted~text~cannot~be~converted~to~plain~text;~use~
+              \iow_char:N\\texorpdfstring~with~a~plain-text~second~argument. }
+        }
+      \pdfstringdef \l__tq_accept_pdf_tl {#1}
+      \EdefUnescapeString \l__tq_accept_bytes_tl { \l__tq_accept_pdf_tl }
+      \exp_args:NNV \str_set_convert:Nnnn \l__tq_accept_str \l__tq_accept_bytes_tl
+        { utf16 } { utf8 }
+      \tl_if_blank:VT \l__tq_accept_str
+        { \__tq_error:n { accepted~plain~text~must~not~be~empty. } }
+      \seq_gput_right:Ne \g__tq_accept_hex_seq { \__tq_hex:V \l__tq_accept_str }
+    \group_end:
+  }
+\NewDocumentCommand \__tq_collect_step:w { +m }
+  {
+    \tl_if_blank:nT {#1} { \__tq_error:n { empty~\iow_char:N\\step. } }
+    \seq_gput_right:Nn \g__tq_step_seq {#1}
+  }
+\NewDocumentCommand \__tq_gobble_choice:w { s O{} +m } { }
+\NewDocumentCommand \__tq_gobble_one:w { +m } { }
+\NewDocumentCommand \__tq_gobble_note:w { d<> o +m } { }
+\NewDocumentCommand \__tq_gobble_label:w { d<> m } { }
+
+\cs_new_protected:Npn \__tq_collect:n #1
+  {
+    \group_begin:
+      \cs_set_eq:NN \choice \__tq_collect_choice:w
+      \cs_set_eq:NN \explain \__tq_collect_explain:w
+      \cs_set_eq:NN \accept \__tq_collect_accept:w
+      \cs_set_eq:NN \step \__tq_collect_step:w
+      \cs_set_eq:NN \note \__tq_gobble_note:w
+      \cs_set_eq:NN \label \__tq_gobble_label:w
+      \vbox_set:Nn \l__tq_tmp_box {#1}
+      \dim_compare:nNnT
+        { \box_ht:N \l__tq_tmp_box + \box_dp:N \l__tq_tmp_box } > { 0pt }
+        {
+          \__tq_error:n
+            {
+              text~outside~\iow_char:N\\choice,~\iow_char:N\\explain,~
+              \iow_char:N\\accept,~\iow_char:N\\step,~\iow_char:N\\note~
+              or~\iow_char:N\\label~in~the~quiz~body.
+            }
+        }
+    \group_end:
+  }
+% Inside a generated frame: declarations are no-ops; \note/\label stay active
+% unless #1 is false (then they are swallowed, e.g. on the reveal frame).
+\cs_new_protected:Npn \__tq_frame_body:nn #1#2
+  {
+    \cs_set_eq:NN \choice \__tq_gobble_choice:w
+    \cs_set_eq:NN \explain \__tq_gobble_one:w
+    \cs_set_eq:NN \accept \__tq_gobble_one:w
+    \cs_set_eq:NN \step \__tq_gobble_one:w
+    \bool_if:nF {#1} { \cs_set_eq:NN \label \__tq_gobble_label:w }
+    #2
+  }
+
+% ---------------------------------------------------------------- validation
+\prg_new_conditional:Npnn \__tq_if_decimal:n #1 { T , F , TF }
+  {
+    \regex_match:nnTF { \A -? [0-9]+ (\. [0-9]+)? \Z } {#1}
+      { \prg_return_true: } { \prg_return_false: }
+  }
+\cs_generate_variant:Nn \__tq_if_decimal:nF { V }
+\cs_new_protected:Npn \__tq_need_count:Nnnn #1#2#3#4
+  {
+    \bool_lazy_or:nnT
+      { \int_compare_p:nNn { \seq_count:N #1 } < {#2} }
+      { \int_compare_p:nNn { \seq_count:N #1 } > {#3} }
+      { \__tq_error:n { needs~#2--#3~#4~(found~\seq_count:N #1). } }
+  }
+\cs_new_protected:Npn \__tq_forbid:Nn #1#2
+  { \seq_if_empty:NF #1 { \__tq_error:n { #2~not~allowed~for~type~'\g__tq_type_tl'. } } }
+\cs_new_protected:Npn \__tq_forbid_tl:Nn #1#2
+  { \tl_if_empty:NF #1 { \__tq_error:n { key~'#2'~not~allowed~for~type~'\g__tq_type_tl'. } } }
+
+\cs_new_protected:Npn \__tq_infer_type:
+  {
+    \int_gzero:N \g__tq_correct_int
+    \seq_map_inline:Nn \g__tq_correct_seq { \int_gadd:Nn \g__tq_correct_int {##1} }
+    \tl_if_empty:NT \g__tq_type_tl
+      {
+        \seq_if_empty:NTF \g__tq_step_seq
+          {
+            \seq_if_empty:NTF \g__tq_accept_seq
+              {
+                \seq_if_empty:NTF \g__tq_choice_seq
+                  {
+                    \str_case:VnF \g__tq_answer_tl
+                      {
+                        { true } { \tl_gset:Nn \g__tq_type_tl { truefalse } }
+                        { false } { \tl_gset:Nn \g__tq_type_tl { truefalse } }
+                      }
+                      {
+                        \__tq_if_decimal:VF \g__tq_answer_tl
+                          { \__tq_error:n { cannot~infer~the~question~type;~set~type=... } }
+                        \tl_gset:Nn \g__tq_type_tl { numeric }
+                      }
+                  }
+                  {
+                    \int_case:nnF { \g__tq_correct_int }
+                      {
+                        { 0 }
+                          {
+                            \__tq_error:n
+                              { mark~a~correct~choice~with~\iow_char:N\\choice*~or~set~type=poll. }
+                          }
+                        { 1 } { \tl_gset:Nn \g__tq_type_tl { single } }
+                      }
+                      { \tl_gset:Nn \g__tq_type_tl { multiple } }
+                  }
+              }
+              { \tl_gset:Nn \g__tq_type_tl { text } }
+          }
+          { \tl_gset:Nn \g__tq_type_tl { order } }
+      }
+  }
+
+\cs_new_protected:Npn \__tq_validate:
+  {
+    \str_case:VnF \g__tq_type_tl
+      {
+        { single }
+          {
+            \__tq_need_count:Nnnn \g__tq_choice_seq { 2 } { 6 } { choices }
+            \int_compare:nNnF { \g__tq_correct_int } = { 1 }
+              { \__tq_error:n { type~single~needs~exactly~one~\iow_char:N\\choice*. } }
+            \__tq_no_extras:
+          }
+        { multiple }
+          {
+            \__tq_need_count:Nnnn \g__tq_choice_seq { 2 } { 6 } { choices }
+            \int_compare:nNnT { \g__tq_correct_int } < { 1 }
+              { \__tq_error:n { type~multiple~needs~at~least~one~\iow_char:N\\choice*. } }
+            \__tq_no_extras:
+          }
+        { poll }
+          {
+            \__tq_need_count:Nnnn \g__tq_choice_seq { 2 } { 6 } { choices }
+            \int_compare:nNnF { \g__tq_correct_int } = { 0 }
+              { \__tq_error:n { a~poll~has~no~correct~choices~(use~\iow_char:N\\choice). } }
+            \__tq_no_extras:
+            \__tq_force_unscored:
+            \tl_if_empty:NT \g__tq_select_tl { \tl_gset:Nn \g__tq_select_tl { single } }
+          }
+        { truefalse }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+            \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+            \str_case:VnF \g__tq_answer_tl
+              {
+                { true }
+                  {
+                    \__tq_add_choice:nnn { true } { 1 } { \g__tq_true_tl }
+                    \__tq_add_choice:nnn { false } { 0 } { \g__tq_false_tl }
+                  }
+                { false }
+                  {
+                    \__tq_add_choice:nnn { true } { 0 } { \g__tq_true_tl }
+                    \__tq_add_choice:nnn { false } { 1 } { \g__tq_false_tl }
+                  }
+              }
+              { \__tq_error:n { type~truefalse~needs~answer=true~or~answer=false. } }
+            \int_gset:Nn \g__tq_correct_int { 1 }
+          }
+        { numeric }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+            \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+            \tl_if_empty:NTF \g__tq_answer_tl
+              { \__tq_force_unscored: }
+              { \__tq_check_decimal:Nn \g__tq_answer_tl { answer } }
+            \__tq_check_decimal:Nn \g__tq_tolerance_tl { tolerance }
+            \tl_if_empty:NF \g__tq_min_tl { \__tq_check_decimal:Nn \g__tq_min_tl { min } }
+            \tl_if_empty:NF \g__tq_max_tl { \__tq_check_decimal:Nn \g__tq_max_tl { max } }
+            \tl_if_empty:NF \g__tq_step_tl { \__tq_check_decimal:Nn \g__tq_step_tl { step } }
+            \__tq_check_numeric_range:
+          }
+        { text }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+            \seq_if_empty:NT \g__tq_accept_seq
+              { \__tq_error:n { type~text~needs~at~least~one~\iow_char:N\\accept. } }
+          }
+        { open }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+            \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+            \__tq_force_unscored:
+            \tl_if_empty:NT \g__tq_display_tl { \tl_gset:Nn \g__tq_display_tl { wordcloud } }
+          }
+        { sketch }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+            \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+            \__tq_forbid_tl:Nn \g__tq_answer_tl { answer }
+            \__tq_force_unscored:
+          }
+        { order }
+          {
+            \__tq_forbid:Nn \g__tq_choice_seq { \iow_char:N\\choice }
+            \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+            \__tq_need_count:Nnnn \g__tq_step_seq { 2 } { 6 } { steps }
+          }
+      }
+      { \__tq_error:n { unknown~type~'\g__tq_type_tl'. } }
+    \str_if_eq:VnF \g__tq_type_tl { poll } { \__tq_forbid_tl:Nn \g__tq_select_tl { select } }
+    \str_if_eq:VnF \g__tq_type_tl { open } { \__tq_forbid_tl:Nn \g__tq_display_tl { display } }
+    \tl_if_empty:NT \g__tq_points_tl
+      { \tl_gset_eq:NN \g__tq_points_tl \g__tq_default_points_tl }
+    \tl_if_empty:NT \g__tq_leaderboard_tl
+      {
+        \bool_lazy_and:nnTF
+          { \g__tq_default_leaderboard_bool }
+          { ! \str_if_eq_p:Vn \g__tq_points_tl { none } }
+          { \tl_gset:Nn \g__tq_leaderboard_tl { true } }
+          { \tl_gset:Nn \g__tq_leaderboard_tl { false } }
+      }
+    \tl_if_empty:NT \g__tq_shuffle_tl
+      {
+        \bool_if:NTF \g__tq_default_shuffle_bool
+          { \tl_gset:Nn \g__tq_shuffle_tl { true } }
+          { \tl_gset:Nn \g__tq_shuffle_tl { false } }
+      }
+    % cols = 0 means automatic, decided by \__tq_auto_cols: in the first frame
+  }
+\cs_new_protected:Npn \__tq_no_extras:
+  {
+    \__tq_forbid:Nn \g__tq_accept_seq { \iow_char:N\\accept }
+    \__tq_forbid:Nn \g__tq_step_seq { \iow_char:N\\step }
+    \__tq_forbid_tl:Nn \g__tq_answer_tl { answer }
+  }
+\cs_new_protected:Npn \__tq_force_unscored:
+  {
+    \tl_if_empty:NF \g__tq_points_tl
+      {
+        \str_if_eq:VnF \g__tq_points_tl { none }
+          { \__tq_error:n { type~'\g__tq_type_tl'~(or~a~numeric~question~without~answer)~is~not~scored. } }
+      }
+    \tl_gset:Nn \g__tq_points_tl { none }
+  }
+\cs_new_protected:Npn \__tq_check_decimal:Nn #1#2
+  { \__tq_if_decimal:VF #1 { \__tq_error:n { #2~must~be~a~decimal~number. } } }
+\cs_new_protected:Npn \__tq_check_numeric_range:
+  {
+    \fp_compare:nNnT { \g__tq_tolerance_tl } < { 0 }
+      { \__tq_error:n { tolerance~must~not~be~negative. } }
+    \tl_if_empty:NF \g__tq_step_tl
+      {
+        \fp_compare:nNnF { \g__tq_step_tl } > { 0 }
+          { \__tq_error:n { step~must~be~positive. } }
+      }
+    \tl_if_empty:NF \g__tq_min_tl
+      {
+        \tl_if_empty:NF \g__tq_max_tl
+          {
+            \fp_compare:nNnT { \g__tq_min_tl } > { \g__tq_max_tl }
+              { \__tq_error:n { min~must~not~exceed~max. } }
+          }
+      }
+    % An unscored estimate has no answer. A scored numeric question must allow
+    % at least one value in its answer +/- tolerance interval within the bounds.
+    \tl_if_empty:NF \g__tq_answer_tl
+      {
+        \tl_if_empty:NF \g__tq_min_tl
+          {
+            \fp_compare:nNnT { \g__tq_answer_tl + \g__tq_tolerance_tl } < { \g__tq_min_tl }
+              { \__tq_error:n { no~correct~answer~lies~within~the~numeric~bounds. } }
+          }
+        \tl_if_empty:NF \g__tq_max_tl
+          {
+            \fp_compare:nNnT { \g__tq_answer_tl - \g__tq_tolerance_tl } > { \g__tq_max_tl }
+              { \__tq_error:n { no~correct~answer~lies~within~the~numeric~bounds. } }
+          }
+        % With both bounds the phone uses a slider. Its selectable values start
+        % at min, in increments of step (default 1), not at multiples of step.
+        \tl_if_empty:NF \g__tq_min_tl
+          {
+            \tl_if_empty:NF \g__tq_max_tl
+              {
+                \fp_set:Nn \l__tq_numeric_step_fp { 1 }
+                \tl_if_empty:NF \g__tq_step_tl
+                  { \fp_set:Nn \l__tq_numeric_step_fp { \g__tq_step_tl } }
+                \fp_compare:nNnT
+                  {
+                    \g__tq_min_tl + \l__tq_numeric_step_fp *
+                    ceil( ( max( \g__tq_min_tl, \g__tq_answer_tl - \g__tq_tolerance_tl )
+                            - \g__tq_min_tl ) / \l__tq_numeric_step_fp )
+                  }
+                  > { min( \g__tq_max_tl, \g__tq_answer_tl + \g__tq_tolerance_tl ) }
+                  { \__tq_error:n { no~correct~answer~is~selectable~with~these~slider~bounds~and~step. } }
+              }
+          }
+      }
+  }
+\cs_new_protected:Npn \__tq_add_choice:nnn #1#2#3
+  {
+    \seq_gput_right:Ne \g__tq_choice_seq { \exp_not:V #3 }
+    \seq_gput_right:Nn \g__tq_choice_id_seq {#1}
+    \seq_gput_right:Nn \g__tq_correct_seq {#2}
+  }
+
+% Display order.  Shuffling is deterministic: authored items are sorted by the
+% MD5 of "<quiz id>/<index>", so every build of a quiz shows the same order.
+\cs_new_protected:Npn \__tq_permutation:nN #1#2
+  {
+    \seq_clear:N \l__tq_tmp_seq
+    \int_step_inline:nn {#1}
+      { \seq_put_right:Ne \l__tq_tmp_seq { \str_mdfive_hash:e { \g__tq_id_tl / ##1 } / ##1 } }
+    \seq_sort:Nn \l__tq_tmp_seq
+      { \str_compare:eNeTF {##1} > {##2} { \sort_return_swapped: } { \sort_return_same: } }
+    \seq_gclear:N #2
+    \seq_map_inline:Nn \l__tq_tmp_seq { \seq_gput_right:Ne #2 { \__tq_after_slash:w ##1 \q_stop } }
+  }
+\cs_new:Npn \__tq_after_slash:w #1 / #2 \q_stop {#2}
+\cs_new_protected:Npn \__tq_compute_order:
+  {
+    \str_if_eq:VnTF \g__tq_type_tl { order }
+      { \int_set:Nn \l__tq_n_int { \seq_count:N \g__tq_step_seq } }
+      { \int_set:Nn \l__tq_n_int { \seq_count:N \g__tq_choice_seq } }
+    \bool_lazy_or:nnTF
+      { \str_if_eq_p:Vn \g__tq_type_tl { order } }
+      { \str_if_eq_p:Vn \g__tq_shuffle_tl { true } }
+      {
+        \__tq_permutation:nN { \l__tq_n_int } \g__tq_order_seq
+        % an ordering question must never be shown in its solved order
+        \str_if_eq:VnT \g__tq_type_tl { order }
+          {
+            \str_if_eq:eeT
+              { \seq_use:Nn \g__tq_order_seq { , } }
+              { \int_step_function:nN { \l__tq_n_int } \__tq_comma_item:n }
+              {
+                \seq_gpop_left:NN \g__tq_order_seq \l__tq_tmp_tl
+                \seq_gput_right:NV \g__tq_order_seq \l__tq_tmp_tl
+              }
+          }
+      }
+      {
+        \seq_gclear:N \g__tq_order_seq
+        \int_step_inline:nn { \l__tq_n_int } { \seq_gput_right:Nn \g__tq_order_seq {##1} }
+      }
+    \seq_gclear:N \g__tq_shape_seq
+    \str_if_eq:VnTF \g__tq_type_tl { truefalse }
+      { \seq_gput_right:Nn \g__tq_shape_seq { 2 } \seq_gput_right:Nn \g__tq_shape_seq { 1 } }
+      { \int_step_inline:nn { \l__tq_n_int } { \seq_gput_right:Nn \g__tq_shape_seq {##1} } }
+    \prop_gclear:N \g__tq_item_shape_prop
+    \int_step_inline:nn { \l__tq_n_int }
+      {
+        \prop_gput:Nee \g__tq_item_shape_prop
+          { \seq_item:Nn \g__tq_order_seq {##1} } { \seq_item:Nn \g__tq_shape_seq {##1} }
+      }
+  }
+\prop_new:N \g__tq_item_shape_prop
+\cs_new:Npn \__tq_comma_item:n #1 { \int_compare:nNnF {#1} = { 1 } { , } #1 }
+
+% ---------------------------------------------------------------- export (present)
+% The quiz's records (Q P C S L A E N O; build/tqz.py), on the first slide of its frame.
+\cs_new_protected:Npn \__tq_export:
+  {
+    \__tq_emit:n
+      {
+        Q | \g__tq_id_tl | \g__tq_type_tl | \int_use:N \g__tq_time_int
+          | \g__tq_points_tl | \g__tq_leaderboard_tl | \g__tq_shuffle_tl
+          | \g__tq_select_tl | \bool_if:NTF \g__tq_partial_bool { true } { false }
+          | \int_use:N \g__tq_cols_int
+          | \__tq_hex:V \g__tq_title_tl
+          | \__tq_hex:e { \CurrentFilePath / \CurrentFile }
+          | \int_use:N \tex_inputlineno:D
+          | \g__tq_reveal_tl
+      }
+    \__tq_emit:n { P | \g__tq_id_tl | \__tq_hex:V \g__tq_prompt_tl }
+    \int_zero:N \l__tq_n_int
+    \seq_map_inline:Nn \g__tq_choice_seq
+      {
+        \int_incr:N \l__tq_n_int
+        \__tq_emit:n
+          {
+            C | \g__tq_id_tl | \int_use:N \l__tq_n_int
+              | \seq_item:Nn \g__tq_choice_id_seq { \l__tq_n_int }
+              | \seq_item:Nn \g__tq_correct_seq { \l__tq_n_int }
+              | \__tq_hex:n {##1}
+          }
+      }
+    \int_zero:N \l__tq_n_int
+    \seq_map_inline:Nn \g__tq_step_seq
+      {
+        \int_incr:N \l__tq_n_int
+        \__tq_emit:n { S | \g__tq_id_tl | \int_use:N \l__tq_n_int | \__tq_hex:n {##1} }
+      }
+    \__tq_emit:n
+      {
+        L | \g__tq_id_tl | \seq_use:Nn \g__tq_order_seq { , }
+          | \seq_use:Nn \g__tq_shape_seq { , }
+      }
+    \seq_map_inline:Nn \g__tq_accept_hex_seq
+      { \__tq_emit:n { A | \g__tq_id_tl | ##1 } }
+    \bool_if:NT \g__tq_explain_bool
+      { \__tq_emit:n { E | \g__tq_id_tl | \__tq_hex:V \g__tq_explain_tl } }
+    \str_if_eq:VnT \g__tq_type_tl { numeric }
+      {
+        \__tq_emit:n
+          {
+            N | \g__tq_id_tl | \g__tq_answer_tl | \g__tq_tolerance_tl
+              | \g__tq_min_tl | \g__tq_max_tl | \g__tq_step_tl
+              | \__tq_hex:V \g__tq_unit_tl
+          }
+      }
+    \str_if_eq:VnT \g__tq_type_tl { open }
+      { \__tq_emit:n { O | \g__tq_id_tl | \g__tq_display_tl | \int_use:N \g__tq_maxchars_int } }
+  }
+
+% ---------------------------------------------------------------- phone assets
+% Typeset while the question frame is processed (same fonts and macros as the
+% slide), kept in global boxes, shipped after the last slide as pages of
+% exactly the asset's size with a transparent background.
+\dim_const:Nn \c__tq_phone_prompt_dim { 7cm }
+\dim_const:Nn \c__tq_phone_choice_dim { 5.4cm }
+\cs_new_protected:Npn \__tq_asset:nnn #1#2#3 % key, width, content
+  {
+    \texstage_asset_box:nn {#2} {#3}
+    % an unbreakable line sticks out of the box: widen the page, never clip
+    \__tq_measure:nn {#2} { \normalfont \normalsize #3 }
+    \texstage_asset_add:nnn { \g__tq_id_tl } {#1} { \dim_use:N \l__tq_natural_dim }
+  }
+\cs_new_protected:Npn \__tq_make_assets:
+  {
+    \__tq_asset:nnn { prompt } { \c__tq_phone_prompt_dim } { \g__tq_prompt_tl }
+    \int_zero:N \l__tq_n_int
+    \seq_map_inline:Nn \g__tq_choice_seq
+      {
+        \int_incr:N \l__tq_n_int
+        \__tq_asset:nnn
+          { choice- \seq_item:Nn \g__tq_choice_id_seq { \l__tq_n_int } }
+          { \c__tq_phone_choice_dim } {##1}
+      }
+    \int_zero:N \l__tq_n_int
+    \seq_map_inline:Nn \g__tq_step_seq
+      {
+        \int_incr:N \l__tq_n_int
+        \__tq_asset:nnn { step- \int_use:N \l__tq_n_int } { \c__tq_phone_choice_dim } {##1}
+      }
+  }
+% ---------------------------------------------------------------- layout
+% Beamer ends [t] frames with \vfill; filll-order glue wins over it, so our
+% fills really push the answer grid / live area down to the bottom (\__tq_vfill:,
+% texstage.sty's).
+\dim_const:Nn \c__tq_timer_dim { 1.6cm }
+\dim_const:Nn \c__tq_gap_dim { 0.22cm }
+
+% #1 = read | question | reveal | solution, #2 = frame | inline
+%   frame:  question (and a reserved timer square) at the top, answers at the
+%           bottom of the slide, explanation on reveal/solution pages
+%   inline: question and answers where the quiz stands in the author's frame;
+%           no timer square (the add-in puts the timer in the corner); the
+%           explanation below the answers on reveal/solution pages - except with
+%           reveal=none, where the course explains on its answer frame
+%   read:   the question page with the answers' room left empty (present mode,
+%           the page before the question page: the class reads the question,
+%           the lecturer's click shows the answers and starts the round)
+\prg_new_conditional:Npnn \__tq_if_asking:n #1 { p , T , F , TF } % read or question
+  {
+    \bool_lazy_or:nnTF { \str_if_eq_p:nn {#1} { question } } { \str_if_eq_p:nn {#1} { read } }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+\cs_new_protected:Npn \__tq_layout:nn #1#2
+  {
+    \str_if_eq:nnTF {#2} { inline }
+      { \__tq_layout_inline:n {#1} }
+      { \__tq_layout:n {#1} }
+  }
+\cs_new_protected:Npn \__tq_layout_inline:n #1
+  {
+    \tex_par:D
+    \__tq_vbox_set:Nnn \l__tq_prompt_box { \linewidth } { \texquizprompt { \g__tq_prompt_tl } }
+    \nointerlineskip
+    \hbox:n
+      {
+        \__tq_rect:nnnn {#1} { prompt }
+          { \box_wd:N \l__tq_prompt_box } { \box_ht:N \l__tq_prompt_box }
+        \box_use:N \l__tq_prompt_box
+      }
+    \__tq_if_asking:nTF {#1} { \__tq_hint: } { \__tq_answer_statement: }
+    \str_case:VnF \g__tq_type_tl
+      { { numeric } { } { text } { } { open } { } { sketch } { } }
+      {
+        \tex_par:D \smallskip
+        \__tq_answers:n {#1}
+      }
+    \bool_lazy_and:nnT
+      { ! \__tq_if_asking_p:n {#1} }
+      { ! \str_if_eq_p:Vn \g__tq_reveal_tl { none } }
+      { \__tq_explanation:n {#1} }
+    \tex_par:D
+  }
+\cs_new_protected:Npn \__tq_layout:n #1
+  {
+    \str_if_eq:nnTF {#1} { solution }
+      { \dim_set:Nn \l__tq_wd_dim { \linewidth } }
+      { \dim_set:Nn \l__tq_wd_dim { \linewidth - \c__tq_timer_dim - \c__tq_gap_dim } }
+    \__tq_vbox_set:Nnn \l__tq_prompt_box { \l__tq_wd_dim } { \texquizprompt { \g__tq_prompt_tl } }
+    \dim_set:Nn \l__tq_ht_dim { \box_ht:N \l__tq_prompt_box }
+    \str_if_eq:nnF {#1} { solution }
+      { \dim_set:Nn \l__tq_ht_dim { \dim_max:nn { \l__tq_ht_dim } { \c__tq_timer_dim } } }
+    \tex_par:D \nointerlineskip
+    \hbox_to_wd:nn { \linewidth }
+      {
+        \vbox_to_ht:nn { \l__tq_ht_dim }
+          {
+            \hbox:n
+              {
+                \__tq_rect:nnnn {#1} { prompt }
+                  { \box_wd:N \l__tq_prompt_box } { \box_ht:N \l__tq_prompt_box }
+                \box_use:N \l__tq_prompt_box
+              }
+            \tex_vss:D
+          }
+        \tex_hfil:D
+        \str_if_eq:nnF {#1} { solution }
+          {
+            \vbox_to_ht:nn { \l__tq_ht_dim }
+              {
+                \hbox:n
+                  {
+                    \__tq_rect:nnnn {#1} { timer } { \c__tq_timer_dim } { \c__tq_timer_dim }
+                    \hbox_to_wd:nn { \c__tq_timer_dim }
+                      { \tex_vrule:D width 0pt height \c__tq_timer_dim depth 0pt \tex_hfil:D }
+                  }
+                \tex_vss:D
+              }
+          }
+      }
+    \__tq_if_asking:nTF {#1}
+      { \__tq_hint: }
+      { \__tq_answer_statement: \__tq_explanation:n {#1} }
+    \tex_par:D
+    \str_case:VnF \g__tq_type_tl
+      {
+        { numeric } { \__tq_live_area:n {#1} }
+        { text } { \__tq_live_area:n {#1} }
+        { open } { \__tq_live_area:n {#1} }
+        { sketch } { \__tq_live_area:n {#1} }
+      }
+      {
+        \__tq_vfill:
+        \__tq_answers:n {#1}
+      }
+  }
+% The answer grid - on the reading page its room, empty: the grid is set in a
+% box that is never shipped (so it records no rectangles) and an empty box of
+% its size takes its place.  The prompt stays where the question page has it,
+% and so does a shrunk frame's factor: the click only makes the answers appear.
+\box_new:N \l__tq_grid_box
+\cs_new_protected:Npn \__tq_answers:n #1
+  {
+    \str_if_eq:nnTF {#1} { read }
+      {
+        \vbox_set:Nn \l__tq_grid_box { \__tq_grid:n { question } }
+        \hbox_set:Nn \l__tq_tmp_box { }
+        \box_set_ht:Nn \l__tq_tmp_box { \box_ht:N \l__tq_grid_box }
+        \box_set_dp:Nn \l__tq_tmp_box { \box_dp:N \l__tq_grid_box }
+        \box_set_wd:Nn \l__tq_tmp_box { \box_wd:N \l__tq_grid_box }
+        \tex_par:D \nointerlineskip
+        \box_use_drop:N \l__tq_tmp_box
+      }
+      { \__tq_grid:n {#1} }
+  }
+\cs_new_protected:Npn \__tq_hint:
+  {
+    \str_case:Vn \g__tq_type_tl
+      {
+        { numeric } { \__tq_hint_line:n { \g__tq_number_hint_tl \__tq_range: } }
+        { text } { \__tq_hint_line:n { \g__tq_text_hint_tl } }
+        { open } { \__tq_hint_line:n { \g__tq_text_hint_tl } }
+        { sketch } { \__tq_hint_line:n { \g__tq_sketch_hint_tl } }
+        { order } { \__tq_hint_line:n { \g__tq_order_hint_tl } }
+        { multiple } { \__tq_hint_line:n { \g__tq_multiple_hint_tl } }
+        { poll }
+          {
+            \str_if_eq:VnT \g__tq_select_tl { multiple }
+              { \__tq_hint_line:n { \g__tq_poll_hint_tl } }
+          }
+      }
+  }
+\cs_new_protected:Npn \__tq_range:
+  {
+    \bool_lazy_and:nnT
+      { ! \tl_if_empty_p:N \g__tq_min_tl } { ! \tl_if_empty_p:N \g__tq_max_tl }
+      { ~ (\g__tq_min_tl \,--\, \g__tq_max_tl \tl_if_empty:NF \g__tq_unit_tl { ~ \g__tq_unit_tl }) }
+  }
+\cs_new_protected:Npn \__tq_hint_line:n #1
+  { \tex_par:D \smallskip \texquizhint {#1} \tex_par:D }
+\cs_new_protected:Npn \__tq_answer_statement:
+  {
+    \str_case:Vn \g__tq_type_tl
+      {
+        { numeric }
+          {
+            \tl_if_empty:NF \g__tq_answer_tl
+              {
+                \__tq_hint_line:n
+                  {
+                    \g__tq_answer_label_tl \c_space_tl
+                    \textbf { \g__tq_answer_tl \tl_if_empty:NF \g__tq_unit_tl { ~ \g__tq_unit_tl } }
+                    \str_if_eq:VnF \g__tq_tolerance_tl { 0 }
+                      { ~ ($\pm$\, \g__tq_tolerance_tl) }
+                  }
+              }
+          }
+        { text }
+          {
+            \__tq_hint_line:n
+              {
+                \g__tq_accepted_label_tl \c_space_tl
+                \textbf { \seq_use:Nn \g__tq_accept_seq { ,~ } }
+              }
+          }
+      }
+  }
+\cs_new_protected:Npn \__tq_explanation:n #1
+  {
+    \bool_if:NT \g__tq_explain_bool
+      {
+        \tex_par:D \smallskip \nointerlineskip
+        \__tq_vbox_set:Nnn \l__tq_tmp_box { \linewidth }
+          { \texquizexplanation { \g__tq_explain_tl } }
+        \hbox:n
+          {
+            \__tq_rect:nnnn {#1} { explain }
+              { \box_wd:N \l__tq_tmp_box } { \box_ht:N \l__tq_tmp_box }
+            \box_use:N \l__tq_tmp_box
+          }
+      }
+  }
+\cs_new_protected:Npn \__tq_live_area:n #1
+  {
+    \str_if_eq:nnF {#1} { solution }
+      {
+        \tex_par:D \medskip
+        \__tq_vmark:nnn { \g__tq_id_tl } {#1} { live-top }
+        \__tq_vfill:
+        \__tq_vmark:nnn { \g__tq_id_tl } {#1} { live-bottom }
+      }
+  }
+
+% Answer grid.
+\cs_new_protected:Npn \__tq_item:n #1 % authored index -> content
+  {
+    \str_if_eq:VnTF \g__tq_type_tl { order }
+      { \seq_item:Nn \g__tq_step_seq {#1} }
+      { \seq_item:Nn \g__tq_choice_seq {#1} }
+  }
+\cs_new:Npn \__tq_state:nn #1#2 % phase, authored index
+  {
+    \str_if_eq:nnTF {#1} { question } { plain }
+      {
+        \str_case:VnF \g__tq_type_tl
+          { { poll } { plain } { order } { plain } }
+          {
+            \int_compare:nNnTF { \seq_item:Nn \g__tq_correct_seq {#2} } = { 1 }
+              { correct } { wrong }
+          }
+      }
+  }
+\seq_new:N \l__tq_display_seq
+\cs_new_protected:Npn \__tq_set_widths:n #1 % number of columns
+  {
+    \dim_set:Nn \l__tq_colwd_dim { ( \linewidth - \c__tq_gap_dim * ( #1 - 1 ) ) / ( #1 ) }
+    \dim_set:Nn \l__tq_contentwd_dim { \l__tq_colwd_dim - \texquizchoiceoverhead }
+  }
+
+% Measuring typeset text: \__tq_measure:nn {width} {content} breaks the content
+% into lines of the given width and sets \l__tq_natural_dim to the natural
+% width of its widest line (more than the width if a line cannot be broken,
+% e.g. a long IRI) and \l__tq_lines_int to the number of lines.
+\box_new:N \l__tq_measure_box
+\box_new:N \l__tq_line_box
+\dim_new:N \l__tq_natural_dim
+\dim_new:N \g__tq_natural_dim
+\int_new:N \l__tq_lines_int
+\int_new:N \g__tq_lines_int
+\cs_new_protected:Npn \__tq_measure:nn #1#2
+  {
+    \vbox_set:Nn \l__tq_measure_box
+      {
+        \hsize = #1 \linewidth = \hsize \parindent = 0pt \raggedright
+        \hfuzz = \c_max_dim \hbadness = 10000 \texquizchoicefont
+        #2 \par
+        \dim_gzero:N \g__tq_natural_dim
+        \int_gzero:N \g__tq_lines_int
+        \__tq_measure_lines:
+      }
+    \dim_set_eq:NN \l__tq_natural_dim \g__tq_natural_dim
+    \int_set_eq:NN \l__tq_lines_int \g__tq_lines_int
+  }
+% Take the lines off the end of the current vertical list one by one.
+\cs_new_protected:Npn \__tq_measure_lines:
+  {
+    \tex_unskip:D \tex_unpenalty:D \tex_unkern:D \tex_unskip:D
+    \box_set_to_last:N \l__tq_line_box
+    \box_if_empty:NF \l__tq_line_box
+      {
+        \hbox_set:Nn \l__tq_line_box { \hbox_unpack:N \l__tq_line_box }
+        \dim_gset:Nn \g__tq_natural_dim
+          { \dim_max:nn { \g__tq_natural_dim } { \box_wd:N \l__tq_line_box } }
+        \int_gincr:N \g__tq_lines_int
+        \__tq_measure_lines:
+      }
+  }
+% Columns, widest first: all answers in one row (up to \texquizmaxcols; the
+% Kahoot look allows 2, the DBIS look 6) if every answer fits its cell on one
+% line; else two columns if every answer fits on two lines; else one answer
+% per row - except five or six answers, which never get one column (they
+% would not fit the slide).
+\int_new:N \l__tq_try_int
+\bool_new:N \l__tq_fits_bool
+\cs_new_protected:Npn \__tq_fits:nn #1#2 % columns, maximum lines -> \l__tq_fits_bool
+  {
+    \__tq_set_widths:n {#1}
+    \bool_set_true:N \l__tq_fits_bool
+    \seq_map_inline:Nn \l__tq_display_seq
+      {
+        \__tq_measure:nn { \l__tq_contentwd_dim } { \__tq_item:n {##1} }
+        \bool_lazy_or:nnT
+          { \dim_compare_p:nNn { \l__tq_natural_dim } > { \l__tq_contentwd_dim + 0.1pt } }
+          { \int_compare_p:nNn { \l__tq_lines_int } > {#2} }
+          { \bool_set_false:N \l__tq_fits_bool \seq_map_break: }
+      }
+  }
+\cs_new_protected:Npn \__tq_auto_cols:
+  {
+    \int_set:Nn \l__tq_try_int { \int_min:nn { \l__tq_n_int } { \texquizmaxcols } }
+    \int_compare:nNnTF { \l__tq_try_int } > { 2 }
+      { \__tq_fits:nn { \l__tq_try_int } { 1 } }
+      { \bool_set_false:N \l__tq_fits_bool }
+    \bool_if:NTF \l__tq_fits_bool
+      { \int_gset:Nn \g__tq_cols_int { \l__tq_try_int } }
+      {
+        \__tq_fits:nn { 2 } { 2 }
+        \bool_lazy_or:nnTF
+          { \l__tq_fits_bool }
+          { \int_compare_p:nNn { \l__tq_n_int } > { 4 } }
+          { \int_gset:Nn \g__tq_cols_int { 2 } }
+          { \int_gset:Nn \g__tq_cols_int { 1 } }
+      }
+  }
+\cs_new_protected:Npn \__tq_grid:n #1
+  {
+    % order questions are revealed in their correct order
+    \bool_lazy_and:nnTF
+      { \str_if_eq_p:Vn \g__tq_type_tl { order } }
+      { ! \str_if_eq_p:nn {#1} { question } }
+      {
+        \seq_clear:N \l__tq_display_seq
+        \int_step_inline:nn { \seq_count:N \g__tq_step_seq }
+          { \seq_put_right:Nn \l__tq_display_seq {##1} }
+      }
+      { \seq_set_eq:NN \l__tq_display_seq \g__tq_order_seq }
+    \int_set:Nn \l__tq_n_int { \seq_count:N \l__tq_display_seq }
+    \int_compare:nNnT { \g__tq_cols_int } = { 0 } { \__tq_auto_cols: }
+    \__tq_set_widths:n { \g__tq_cols_int }
+    \int_step_inline:nnnn { 1 } { \g__tq_cols_int } { \l__tq_n_int }
+      {
+        \__tq_grid_row:nnn {#1} {##1}
+          { \int_min:nn { ##1 + \g__tq_cols_int - 1 } { \l__tq_n_int } }
+        \int_compare:nNnF { ##1 + \g__tq_cols_int } > { \l__tq_n_int }
+          { \tex_vskip:D \c__tq_gap_dim }
+      }
+  }
+% A row of answer boxes: each box is first typeset at its natural height, then
+% the whole row again at the tallest height.  Every box is drawn by the theme's
+% \texquizchoice with the same arguments for correct and wrong answers; only
+% the reveal/solution state differs.
+\cs_new_protected:Npn \__tq_grid_row:nnn #1#2#3 % phase, first and last display position
+  {
+    \dim_zero:N \l__tq_rowht_dim
+    \int_step_inline:nnn {#2} {#3}
+      {
+        \hbox_set:Nn \l__tq_tmp_box { \__tq_cell:nnn {#1} {##1} { } }
+        \dim_set:Nn \l__tq_rowht_dim
+          {
+            \dim_max:nn { \l__tq_rowht_dim }
+              { \box_ht:N \l__tq_tmp_box + \box_dp:N \l__tq_tmp_box }
+          }
+      }
+    \tex_par:D \nointerlineskip
+    \hbox_to_wd:nn { \linewidth }
+      {
+        \int_step_inline:nnn {#2} {#3}
+          {
+            \int_compare:nNnF {##1} = {#2} { \tex_hskip:D \c__tq_gap_dim }
+            \__tq_rect:nnnn {#1}
+              { \__tq_cell_key:n { \seq_item:Nn \l__tq_display_seq {##1} } }
+              { \l__tq_colwd_dim } { \l__tq_rowht_dim }
+            \vbox:n
+              {
+                \hbox:n { \__tq_cell:nnn {#1} {##1} { \dim_use:N \l__tq_rowht_dim } }
+                \tex_kern:D 0pt
+              }
+          }
+        \tex_hfil:D
+      }
+  }
+% \texquizchoice{label}{shape}{width}{height, empty = natural}{state}{content}
+\cs_new_protected:Npn \__tq_cell:nnn #1#2#3 % phase, display position, height
+  {
+    \use:e
+      {
+        \exp_not:N \texquizchoice
+          { \__tq_cell_label:nn {#1} {#2} }
+          % the shape belongs to the item: a revealed ordering keeps it
+          { \prop_item:Ne \g__tq_item_shape_prop { \seq_item:Nn \l__tq_display_seq {#2} } }
+          { \dim_use:N \l__tq_colwd_dim }
+          {#3}
+          { \__tq_state:nn {#1} { \seq_item:Nn \l__tq_display_seq {#2} } }
+          { \__tq_item_e:n { \seq_item:Nn \l__tq_display_seq {#2} } }
+      }
+  }
+\prg_new_conditional:Npnn \__tq_if_revealed_order:n #1 { T , F , TF }
+  {
+    \bool_lazy_and:nnTF
+      { \str_if_eq_p:Vn \g__tq_type_tl { order } }
+      { ! \str_if_eq_p:nn {#1} { question } }
+      { \prg_return_true: } { \prg_return_false: }
+  }
+\cs_new:Npn \__tq_cell_label:nn #1#2 % A, B, C ... by position; the rank once an order is revealed
+  { \__tq_if_revealed_order:nTF {#1} {#2} { \int_to_Alph:n {#2} } }
+\cs_new:Npn \__tq_item_e:n #1 % authored index -> content, unexpanded
+  {
+    \str_if_eq:VnTF \g__tq_type_tl { order }
+      { \seq_item:Nn \g__tq_step_seq {#1} }
+      { \seq_item:Nn \g__tq_choice_seq {#1} }
+  }
+\cs_new:Npn \__tq_cell_key:n #1 % authored index -> rectangle key
+  {
+    \str_if_eq:VnTF \g__tq_type_tl { order }
+      { step- #1 }
+      { choice- \seq_item:Nn \g__tq_choice_id_seq {#1} }
+  }
+
+% ---------------------------------------------------------------- frames
+\cs_new_protected:Npn \__tq_check_outside_frame:n #1
+  {
+    \legacy_if:nT { beamer@inframe }
+      { \__tq_general_error:n { #1~must~not~be~used~inside~a~frame~(it~creates~frames). } }
+  }
+% A quiz is one frame in every mode (so frame numbers agree between the handout
+% and the projector); in present mode that frame has three slides - reading
+% (the question alone), question and reveal; two with reveal=none.  The
+% lecturer's click from the reading slide to the question slide starts the
+% round.  Leaderboards are not frames: the builder adds them.
+%
+%  * Between frames, `quiz` makes its own frame (built-in layout).
+%  * Inside a frame with the option `quiz` (\begin{frame}[quiz]), it typesets
+%    the question and the answer boxes in place, below the author's material
+%    (figures, tables, listings - also in fragile frames).  In the handout the
+%    whole frame is replaced by the placeholder (see "quiz and answer frames").
+\cs_new_protected:Npn \__tq_quiz:nnn #1#2#3
+  {
+    \legacy_if:nTF { beamer@inframe }
+      { \__tq_inline_quiz:nnn {#1} {#2} {#3} }
+      { \__tq_frame_quiz:nnn {#1} {#2} {#3} }
+  }
+\cs_new_protected:Npn \__tq_declare:nnn #1#2#3
+  {
+    \__tq_reset:
+    \keys_set:nn { texquiz / quiz } {#1}
+    \regex_match:nVF { \A [a-z0-9] [a-z0-9-]{0,62} \Z } \g__tq_id_tl
+      { \__tq_error:n { id~is~required~(lower-case~letters,~digits,~hyphens). } }
+    % a frame body is typeset once per slide: register the id on the first one
+    \int_compare:nNnT { \beamer@slideinframe } < { 2 }
+      {
+        \seq_if_in:NVT \g__tq_all_ids_seq \g__tq_id_tl
+          { \__tq_error:n { duplicate~quiz~id. } }
+        \seq_gput_right:NV \g__tq_all_ids_seq \g__tq_id_tl
+      }
+    \tl_if_blank:nT {#2} { \__tq_error:n { the~question~text~is~empty. } }
+    \tl_gset:Nn \g__tq_prompt_tl {#2}
+    \__tq_collect:n {#3}
+    \__tq_infer_type:
+    \__tq_validate:
+    \__tq_compute_order:
+  }
+\cs_new_protected:Npn \__tq_frame_quiz:nnn #1#2#3
+  {
+    \__tq_declare:nnn {#1} {#2} {#3}
+    \frame[t]
+      {
+        % the handout shows a neutral title: a quiz title may name the topic
+        \__tq_if_mode:nTF { handout }
+          { \frametitle { \g__tq_default_title_tl } }
+          { \frametitle { \g__tq_title_tl } }
+        \__tq_frame_body:nn { \c_true_bool } {#3}
+        \__tq_render:n { frame }
+      }
+  }
+\cs_new_protected:Npn \__tq_inline_quiz:nnn #1#2#3
+  {
+    \legacy_if:nF { texquiz@quizframe }
+      {
+        \__tq_general_error:n
+          {
+            a~quiz~inside~a~frame~needs~the~frame~option~'quiz',~e.g.~
+            \iow_char:N\\begin \iow_char:N\{ frame \iow_char:N\} [t,quiz]
+          }
+      }
+    \__tq_declare:nnn {#1} {#2} {#3}
+    % the quiz's title (for the host console and results) is the frame's
+    \bool_if:NF \g__tq_title_given_bool
+      {
+        \cs_if_exist:NT \beamer@frametitle
+          { \tl_gset_eq:NN \g__tq_title_tl \beamer@frametitle }
+      }
+    \__tq_frame_body:nn { \c_true_bool } {#3}
+    \__tq_render:n { inline }
+  }
+% #1 = frame | inline
+\cs_new_protected:Npn \__tq_render:n #1
+  {
+    \__tq_check_mark:nn { quiz } { \g__tq_id_tl }
+    \str_case:Vn \g_texstage_mode_str
+      {
+        { handout }
+          {
+            % an inline quiz in the handout only runs inside the box that the
+            % `quiz` frame option throws away
+            \str_if_eq:nnT {#1} { frame }
+              { \texquiz@placeholder { \g__tq_handout_heading_tl } { \g__tq_handout_text_tl } }
+          }
+        { solutions } { \__tq_layout:nn { solution } {#1} }
+        { present }
+          {
+            % slides: reading (the question, its answers not yet shown), question
+            % (showing it starts the round) and, unless reveal=none, the reveal
+            \str_if_eq:VnTF \g__tq_reveal_tl { none }
+              { \only<2>{} }
+              { \only<3>{} }
+            \int_case:nnF { \beamer@slideinframe }
+              {
+                { 1 }
+                  {
+                    \__tq_export:
+                    \__tq_page_record:nnn { quiz } { \g__tq_id_tl } { read }
+                    \__tq_layout:nn { read } {#1}
+                    \__tq_make_assets:
+                  }
+                { 2 }
+                  {
+                    \__tq_page_record:nnn { quiz } { \g__tq_id_tl } { question }
+                    \__tq_layout:nn { question } {#1}
+                  }
+              }
+              {
+                \__tq_page_record:nnn { quiz } { \g__tq_id_tl } { reveal }
+                \__tq_layout:nn { reveal } {#1}
+              }
+          }
+      }
+  }
+\NewDocumentEnvironment { quiz } { O{} m +b } { \__tq_quiz:nnn {#1} {#2} {#3} } { }
+
+% Frames whose content is drawn live by the add-in.
+\cs_new_protected:Npn \__tq_live_frame:nnn #1#2#3 % kind/phase, id, title
+  {
+    \frame[t]
+      {
+        \frametitle {#3}
+        \__tq_page_record:nnn {#1} {#2} {#1}
+        \__tq_vmark:nnn {#2} {#1} { live-top }
+        \__tq_vfill:
+        \__tq_vmark:nnn {#2} {#1} { live-bottom }
+        \__tq_frame_note:
+      }
+  }
+% The join, leaderboard and podium frames take [title=..., note={...}]: note is the
+% frame's speaker note (paragraphs allowed), shown wherever Beamer shows notes and in
+% the live deck's PowerPoint notes - these frames have no body to write \note into.
+\tl_new:N \l__tq_frame_note_tl
+\keys_define:nn { texquiz / frame }
+  {
+    title .tl_set:N = \l__tq_tmp_tl ,
+    note .tl_set:N = \l__tq_frame_note_tl ,
+    unknown .code:n = \__tq_general_error:n { unknown~key~'\l_keys_key_str'. }
+  }
+\cs_new_protected:Npn \__tq_frame_note:
+  { \tl_if_empty:NF \l__tq_frame_note_tl { \exp_args:NV \note \l__tq_frame_note_tl } }
+\NewDocumentCommand \quizjoinframe { +O{} }
+  {
+    \__tq_check_outside_frame:n { \iow_char:N\\quizjoinframe }
+    \group_begin:
+      \tl_set_eq:NN \l__tq_tmp_tl \g__tq_join_title_tl
+      \keys_set:nn { texquiz / frame } {#1}
+      \__tq_if_mode:nTF { present }
+        { \__tq_live_frame:nnn { join } { } { \l__tq_tmp_tl } }
+        {
+          \frame[t]
+            {
+              \frametitle { \l__tq_tmp_tl }
+              \exp_args:NVV \texquiz@join \g__tq_join_text_tl \g__tq_join_url_tl
+              \__tq_frame_note:
+            }
+        }
+    \group_end:
+  }
+\cs_new_protected:Npn \__tq_results_frame:nnn #1#2#3 % kind, default title, options
+  {
+    \group_begin:
+      \tl_set_eq:NN \l__tq_tmp_tl #2
+      \keys_set:nn { texquiz / frame } {#3}
+      \__tq_if_mode:nTF { present }
+        { \__tq_live_frame:nnn {#1} { } { \l__tq_tmp_tl } }
+        {
+          \frame[t]
+            {
+              \frametitle { \l__tq_tmp_tl }
+              \texquiz@placeholder { \l__tq_tmp_tl } { \g__tq_results_text_tl }
+              \__tq_frame_note:
+            }
+        }
+    \group_end:
+  }
+\NewDocumentCommand \quizleaderboardframe { +O{} }
+  {
+    \__tq_check_outside_frame:n { \iow_char:N\\quizleaderboardframe }
+    \__tq_results_frame:nnn { leaderboard } \g__tq_leaderboard_title_tl {#1}
+  }
+\NewDocumentCommand \quizpodiumframe { +O{} }
+  {
+    \__tq_check_outside_frame:n { \iow_char:N\\quizpodiumframe }
+    \__tq_results_frame:nnn { podium } \g__tq_podium_title_tl {#1}
+  }
+\ExplSyntaxOff
+
+% ---------------------------------------------------------------- drawing
+\def\texquiz@vfill{\vskip 0pt plus 1filll\relax}
+
+% \texquiznotes, set by the build, is texstage.sty's.
+% Kahoot-style answer identities: colour + shape (same order on the phones).
+\definecolor{texquiz-1}{HTML}{E21B3C}% red triangle
+\definecolor{texquiz-2}{HTML}{1368CE}% blue diamond
+\definecolor{texquiz-3}{HTML}{D89E00}% yellow circle
+\definecolor{texquiz-4}{HTML}{26890C}% green square
+\definecolor{texquiz-5}{HTML}{864CBF}% purple star
+\definecolor{texquiz-6}{HTML}{0AA3A3}% teal hexagon
+\colorlet{texquiz-correct}{texquiz-4!80!black}
+\colorlet{texquiz-panel}{black!5}
+\colorlet{texquiz-hint}{black!60}
+
+% \texquiz@shape{n}{r}: filled shape n of radius r centred at the origin.
+\def\texquiz@shape#1#2{%
+  \ifcase#1\relax
+  \or \fill (90:#2) -- (210:#2) -- (330:#2) -- cycle;
+  \or \fill (90:#2) -- (180:#2) -- (270:#2) -- (0:#2) -- cycle;
+  \or \fill (0,0) circle ({0.8*#2});
+  \or \fill ({-0.72*#2},{-0.72*#2}) rectangle ({0.72*#2},{0.72*#2});
+  \or \fill (90:#2) -- (126:{0.42*#2}) -- (162:#2) -- (198:{0.42*#2}) -- (234:#2)
+        -- (270:{0.42*#2}) -- (306:#2) -- (342:{0.42*#2}) -- (18:#2) -- (54:{0.42*#2}) -- cycle;
+  \or \fill (0:#2) -- (60:#2) -- (120:#2) -- (180:#2) -- (240:#2) -- (300:#2) -- cycle;
+  \fi}
+
+% \texquizbadge{n}: shape n in its colour, inline (e.g. next to an answer letter).
+\newcommand\texquizbadge[1]{%
+  \tikz[baseline=-0.6ex]{%
+    \fill[texquiz-#1, rounded corners=1pt] (-0.8ex,-0.8ex) rectangle (0.8ex,0.8ex);
+    \begin{scope}[fill=white]\texquiz@shape{#1}{0.58ex}\end{scope}}}
+
+% ---------------------------------------------------------------- theme hooks
+% Redefine these (e.g. in texquiz-theme-dbis.sty) to change the look.  The
+% geometry the live overlays need is recorded around them, so a theme only
+% draws.
+%
+% \texquizprompt{text}          the question, in a box of the prompt's width
+% \texquizchoice{label}{shape}{width}{height}{state}{content}
+%     one answer box of exactly #3 x #4 (#4 empty: natural height), reference
+%     point at its lower-left corner; label = A, B, ... (the rank in a revealed
+%     ordering); shape = 1..6 (\texquizbadge); state = plain|correct|wrong.
+%     Correct and wrong answers must look the same in state plain.
+% \texquizchoicefont, \texquizchoiceoverhead, \texquizmaxcols
+%     the answers' font, the width a box needs besides its text, and the most
+%     answers in one row (used to choose the number of columns)
+% \texquizexplanation{text}     the explanation on reveal/solution pages
+% \texquizhint{text}            "Enter a number on your phone." etc.
+\newcommand\texquizprompt[1]{{\large #1\par}}
+\newcommand\texquizchoicefont{\normalsize}
+\newcommand\texquizmaxcols{2}
+% stripe 0.75cm + padding 2 x 0.13cm + 1.3cm kept free for the live counts
+\newcommand\texquizchoiceoverhead{2.31cm}
+\newsavebox\texquiz@cellbox
+\newcommand\texquizchoice[6]{%
+  \sbox\texquiz@cellbox{%
+    \parbox{\dimexpr#3-\texquizchoiceoverhead\relax}{\raggedright\texquizchoicefont
+      \texquiz@rank{#1}#6}}%
+  \ifx\relax#4\relax
+    \dimen@=\dimexpr\ht\texquiz@cellbox+\dp\texquiz@cellbox+0.26cm\relax
+    \ifdim\dimen@<0.9cm \dimen@=0.9cm \fi
+    \edef\texquiz@h{\the\dimen@}%
+  \else
+    \edef\texquiz@h{#4}%
+  \fi
+  \texquiz@kahootbox{#2}{#3}{\texquiz@h}{#5}{\usebox\texquiz@cellbox}}
+% the shapes carry no letters: in a revealed ordering show the rank ("2.")
+\newcommand\texquiz@rank[1]{\in@{#1}{123456}\ifin@\textbf{#1.}~\fi}
+\newcommand\texquizexplanation[1]{%
+  {\setlength\fboxsep{5pt}%
+   \colorbox{texquiz-panel}{\parbox{\dimexpr\linewidth-2\fboxsep\relax}{\raggedright\small #1}}}}
+\newcommand\texquizhint[1]{{\color{texquiz-hint}\small #1\par}}
+
+% \texquiz@kahootbox{shape}{width}{height}{plain|correct|wrong}{content}
+\newcommand\texquiz@kahootbox[5]{%
+  \begin{tikzpicture}[baseline=0pt]
+    \useasboundingbox (0,0) rectangle (#2,#3);
+    \fill[texquiz-#1!9, rounded corners=3pt] (0,0) rectangle (#2,#3);
+    \fill[texquiz-#1, rounded corners=3pt] (0,0) rectangle (0.75cm,#3);
+    \fill[texquiz-#1] (0.6cm,0) rectangle (0.75cm,#3);
+    \draw[texquiz-#1, line width=0.6pt, rounded corners=3pt] (0,0) rectangle (#2,#3);
+    \begin{scope}[shift={(0.375cm,{0.5*#3})}, fill=white]
+      \texquiz@shape{#1}{0.22cm}
+    \end{scope}
+    \node[anchor=west, inner sep=0pt] at (0.88cm,{0.5*#3}) {#5};
+    \texquiz@state{#4}{#2}{#3}%
+  \end{tikzpicture}}
+\def\texquiz@state#1#2#3{%
+  \ifnum\pdf@strcmp{#1}{correct}=0
+    \draw[texquiz-correct, line width=2.2pt, rounded corners=3pt] (0,0) rectangle (#2,#3);
+    \fill[texquiz-correct] (#2,#3) circle (0.22cm);
+    \draw[white, line width=1.6pt, line cap=round, line join=round]
+      ({#2-0.1cm},{#3}) -- ({#2-0.025cm},{#3-0.08cm}) -- ({#2+0.11cm},{#3+0.09cm});
+  \fi
+  \ifnum\pdf@strcmp{#1}{wrong}=0
+    \fill[white, fill opacity=0.62, rounded corners=3pt] (0,0) rectangle (#2,#3);
+  \fi}
+
+\newcommand\texquiz@placeholder[2]{%
+  \texquiz@vfill
+  \begin{center}
+    \begin{tikzpicture}
+      \foreach \i in {1,...,4} {
+        \fill[texquiz-\i, rounded corners=3pt] ({1.1*\i-0.45},-0.45) rectangle ({1.1*\i+0.45},0.45);
+        \begin{scope}[shift={({1.1*\i},0)}, fill=white]\texquiz@shape{\i}{0.25cm}\end{scope}
+      }
+    \end{tikzpicture}\par\medskip
+    {\Large\bfseries #1\par}\smallskip
+    #2\par
+  \end{center}
+  \texquiz@vfill}
+
+\newcommand\texquiz@join[2]{%
+  \texquiz@vfill
+  \begin{center}
+    #1\par
+    \ifx\relax#2\relax\else
+      \medskip
+      \@ifundefined{qrcode}{}{\qrcode[height=2.4cm]{#2}\par\smallskip}%
+      {\large\texttt{\detokenize{#2}}\par}%
+    \fi
+  \end{center}
+  \texquiz@vfill}
+
+% ---------------------------------------------------------------- quiz and answer frames
+% \begin{frame}[quiz]{Question: ...}    a frame of the author's that contains a
+%     quiz environment (with material around it).
+% \begin{frame}[answer]{Answer: ...}  an ordinary frame that gives away the
+%     answer to a question asked earlier.
+% In the handout both become a placeholder page with a neutral title (titles
+% like "The Answer Is C" would tell); in the other modes they are shown as
+% written.  Still one page per frame.
+%
+% Every frame body, a fragile one after its round trip through the .vrb file,
+% is typeset by \beamer@doseveralframes{<body>}.  For such a frame in the
+% handout that body is run in a box that is thrown away - with \label recorded
+% and set again on the placeholder, so references to the frame still resolve,
+% and quizzes still checked - and the placeholder is typeset instead.
+\newif\iftexquiz@quizframe
+\define@key{beamerframe}{quiz}[true]{%
+  \ifnum\pdf@strcmp{#1}{true}=0
+    \texquiz@quizframetrue
+    \texquiz@ifhandout{%
+      \def\texquiz@ph@title{\texquiz@quiztitle}%
+      \def\texquiz@ph@heading{\texquiz@handoutheading}%
+      \def\texquiz@ph@text{\texquiz@handouttext}%
+      \let\beamer@doseveralframes\texquiz@placeholder@frames}{}%
+  \fi}
+% answer=<quiz id> also tells the live deck that this frame reveals that quiz
+% (with reveal=none): the builder puts the add-in on it, which closes and
+% scores the question.
+\define@key{beamerframe}{answer}[true]{%
+  \ifnum\pdf@strcmp{#1}{false}=0 \else
+    \texquiz@ifhandout{%
+      \def\texquiz@ph@title{\texquiz@answertitle}%
+      \def\texquiz@ph@heading{\texquiz@answerheading}%
+      \def\texquiz@ph@text{\texquiz@answertext}%
+      \let\beamer@doseveralframes\texquiz@placeholder@frames}{%
+      \ifnum\pdf@strcmp{#1}{true}=0
+        \let\texquiz@answerid\@empty
+      \else
+        \def\texquiz@answerid{#1}%
+      \fi
+      \let\beamer@doseveralframes\texquiz@answerrecord@frames}%
+  \fi}
+% the record goes after the body, so Beamer still finds a {title} at its start
+\long\def\texquiz@answerrecord@frames#1{%
+  \global\let\beamer@doseveralframes\texquiz@orig@doseveralframes
+  \texquiz@orig@doseveralframes{#1\texquiz@answermark}}
+\def\texquiz@answermark{%
+  \texquiz@checkmark{answer}{\texquiz@answerid}%
+  \ifx\texquiz@answerid\@empty\else
+    \texquiz@pagerecord{answer}{\texquiz@answerid}{answer}%
+  \fi}
+\let\texquiz@orig@doseveralframes\beamer@doseveralframes
+\long\def\texquiz@placeholder@frames#1{%
+  \global\let\beamer@doseveralframes\texquiz@orig@doseveralframes
+  \texquiz@orig@doseveralframes{\texquiz@placeholder@body#1\texquiz@placeholder@end}}
+\long\def\texquiz@placeholder@body#1\texquiz@placeholder@end{%
+  \global\let\texquiz@ph@labels\@empty
+  \setbox\z@\vbox{%
+    \let\label\texquiz@ph@label
+    \let\frametitle\texquiz@ph@gobbletitle
+    \let\framesubtitle\texquiz@ph@gobbletitle
+    #1}%
+  \global\beamer@anotherslidefalse
+  \frametitle{\texquiz@ph@title}%
+  \texquiz@ph@labels
+  \texquiz@placeholder{\texquiz@ph@heading}{\texquiz@ph@text}}
+\NewDocumentCommand\texquiz@ph@label{d<> m}{\g@addto@macro\texquiz@ph@labels{\label{#2}}}
+\NewDocumentCommand\texquiz@ph@gobbletitle{d<> o m}{}
+
+\endinput

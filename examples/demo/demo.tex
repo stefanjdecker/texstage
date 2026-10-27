@@ -1,0 +1,73 @@
+% SPDX-FileCopyrightText: 2026 Stefan Decker
+% SPDX-License-Identifier: Apache-2.0
+\documentclass[aspectratio=169]{beamer}
+\usetheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\usepackage{texquiz}
+\quizsetup{time=20, join-url={https://quiz.example.org/play}}
+
+\begin{document}
+
+\begin{frame}{Knowledge Graphs}
+  An ordinary slide before the quiz.
+  \note{Welcome everyone.}
+\end{frame}
+
+\quizjoinframe[note={Phones out: scan the code, enter the PIN and a nickname.}]
+
+\begin{quiz}[id=rdf-triple]{Which components form an RDF triple?}
+  \choice{Entity, attribute, table}
+  \choice*{Subject, predicate, object}
+  \choice{Class, method, argument}
+  \choice{Document, link, keyword}
+  \explain{An RDF triple consists of a subject, a predicate, and an object.}
+  \note{Ask for an example after the reveal.}
+  \label{sl:demo:rdf-triple}
+\end{quiz}
+
+\begin{quiz}[id=iri-terms, time=30, points=double, shuffle]{Which of these can be the \emph{predicate} of a triple?}
+  \choice*{An IRI such as \texttt{foaf:knows}}
+  \choice{A literal such as \texttt{"42"\^{}\^{}xsd:int}}
+  \choice{A blank node \texttt{\_:b1}}
+  \choice*{\texttt{rdf:type}, written \texttt{a} in Turtle}
+  \explain{Predicates are always IRIs; literals and blank nodes are not allowed.}
+\end{quiz}
+
+\begin{quiz}[id=owl-dl, type=truefalse, answer=false]{OWL~2~Full reasoning is decidable.}
+  \explain{OWL~2~DL is decidable; OWL~2~Full is not.}
+\end{quiz}
+
+\begin{quiz}[id=favourite-format, type=poll, leaderboard=false]{Which RDF serialisation do you use most?}
+  \choice{Turtle}
+  \choice{JSON-LD}
+  \choice{RDF/XML}
+  \choice{N-Triples}
+\end{quiz}
+
+\begin{quiz}[id=triples-count, type=numeric, answer=6, tolerance=0, min=0, max=12, step=1]{How many triples does the graph $G = \{ (s_i, p, o_i) \mid 1 \le i \le 3 \} \cup \{ (o_i, q, s_i) \mid 1 \le i \le 3 \}$ contain?}
+  \explain{Two sets of three triples each; they are disjoint because $p \ne q$.}
+\end{quiz}
+
+\begin{quiz}[id=rdf-acronym, type=text]{What does the acronym RDF stand for?}
+  \accept{Resource Description Framework}
+  \accept{Resource Description Format}
+\end{quiz}
+
+\begin{quiz}[id=kg-associations, type=open, display=wordcloud]{One word: what comes to mind when you hear ``knowledge graph''?}
+\end{quiz}
+
+\begin{quiz}[id=sparql-order, type=order]{Put the evaluation steps of a SPARQL query in order.}
+  \step{Parse the query string}
+  \step{Translate to a SPARQL algebra expression}
+  \step{Evaluate the algebra over the dataset}
+  \step{Apply solution modifiers (\texttt{ORDER BY}, \texttt{LIMIT})}
+\end{quiz}
+
+\quizpodiumframe[note={Congratulate the top three.}]
+
+\begin{frame}{Summary}
+  An ordinary slide after the quiz.
+\end{frame}
+
+\end{document}

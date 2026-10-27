@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+# Caddy in front of texstage: HTTPS with an automatic Let's Encrypt certificate for the
+# domain (its DNS name must point at this machine, ports 80 and 443 open). WebSockets
+# (/ws) pass through as they are.
+{$TEXSTAGE_DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy texstage:8470
+}

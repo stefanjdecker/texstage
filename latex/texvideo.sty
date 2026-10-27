@@ -1,0 +1,204 @@
+% SPDX-FileCopyrightText: 2026 Stefan Decker
+% SPDX-License-Identifier: Apache-2.0
+%% texvideo.sty -- a video on a Beamer slide, played live by texstage (docs/content-types-design.md,
+%% section 7).  Built on the core, texstage.sty.
+%%
+%%   \video[poster=media/plan.jpg, width=0.8\textwidth, start=12, end=48]{media/plan.mp4}
+%%   \video[poster=media/talk.jpg, width=6cm]{https://www.youtube.com/watch?v=...}
+%%
+%% Every PDF shows the poster (required: a picture of the video's size) in the video's box; the
+%% handout and the solutions add a play mark and the file name, or the link (url=, or the video's
+%% own address) with a QR code.  In present mode the box and the video's record go to the .tqz:
+%%   video|id|src|poster|start|end|loop|muted|autoplay|link|tex file|line    (src, poster, link,
+%%   tex file hex-encoded; build/video.py)
+%% Keys: poster, width, height (as for \includegraphics), start, end (seconds), loop, muted,
+%% autoplay (starts when its slide comes up; by default the presenter starts it), url (an online
+%% copy, for the handout), id (default: from the file name).
+%% One id, one video: it may be on some of a frame's slides only (\only<2>, \pause) and come again
+%% (\againframe, or by itself in another frame) - the same video, which goes on where it was;
+%% the id for another file, poster or keys is an error, as the same video twice on one slide.
+\NeedsTeXFormat{LaTeX2e}[2023-06-01]
+\ProvidesExplPackage{texvideo}{2026-10-10}{0.1.0}{A video on a Beamer slide, played live (texstage)}
+\RequirePackage{graphicx}
+\RequirePackage{tikz}
+\IfFileExists{qrcode.sty}{\RequirePackage{qrcode}}{}
+% the core, texstage.sty: from this folder, or by name if loaded through TEXINPUTS
+\tl_set:Ne \l_tmpa_tl { \CurrentFilePath }
+\tl_if_empty:NTF \l_tmpa_tl
+  { \RequirePackage { texstage } }
+  { \exp_args:Ne \RequirePackage { \l_tmpa_tl / texstage } }
+
+\msg_new:nnn { texvideo } { general } { Video~'#1':~#2 }
+\tl_new:N \l__tv_id_tl
+\tl_new:N \l__tv_src_tl
+\tl_new:N \l__tv_poster_tl
+\tl_new:N \l__tv_start_tl
+\tl_new:N \l__tv_end_tl
+\tl_new:N \l__tv_link_tl
+\tl_new:N \l__tv_size_tl
+\bool_new:N \l__tv_loop_bool
+\bool_new:N \l__tv_muted_bool
+\bool_new:N \l__tv_autoplay_bool
+\bool_new:N \l__tv_online_bool
+\box_new:N \l__tv_box
+\tl_new:N \l__tv_video_tl
+\tl_new:N \l__tv_slide_tl
+\tl_new:N \l__tv_seen_tl
+\bool_new:N \l__tv_new_bool
+\prop_new:N \g__tv_videos_prop        % id -> its file, poster and keys
+\prop_new:N \g__tv_slides_prop        % id -> the slide it was last on: <its frame's first page>.<slide>
+\cs_new_protected:Npn \__tv_error:n #1
+  { \use:e { \msg_error:nnnn { texvideo } { general } { \l__tv_id_tl } {#1} } }
+\cs_generate_variant:Nn \msg_error:nnnn { nnV }
+
+\keys_define:nn { texvideo }
+  {
+    poster .tl_set:N = \l__tv_poster_tl ,
+    width .code:n = \tl_put_right:Nn \l__tv_size_tl { width = #1 , } ,
+    height .code:n = \tl_put_right:Nn \l__tv_size_tl { height = #1 , } ,
+    start .tl_set:N = \l__tv_start_tl ,
+    end .tl_set:N = \l__tv_end_tl ,
+    loop .bool_set:N = \l__tv_loop_bool ,
+    loop .default:n = true ,
+    muted .bool_set:N = \l__tv_muted_bool ,
+    muted .default:n = true ,
+    autoplay .bool_set:N = \l__tv_autoplay_bool ,
+    autoplay .default:n = true ,
+    url .tl_set:N = \l__tv_link_tl ,
+    id .tl_set:N = \l__tv_id_tl ,
+    unknown .code:n = \__tv_error:n { unknown~key~'\l_keys_key_str'. }
+  }
+
+% The id: given, else from the file name (its last part, without the extension), lower case.
+\cs_new_protected:Npn \__tv_default_id:n #1
+  {
+    \tl_set:Ne \l_tmpa_tl { \tl_to_str:n {#1} }
+    \regex_replace_once:nnN { \A .* [/=] } { } \l_tmpa_tl         % the last part of a path or URL
+    \regex_replace_once:nnN { \. [A-Za-z0-9]+ \Z } { } \l_tmpa_tl  % its extension
+    \tl_set:Ne \l__tv_id_tl { \str_lowercase:f { \l_tmpa_tl } }
+    \regex_replace_all:nnN { [^a-z0-9]+ } { - } \l__tv_id_tl
+    \regex_replace_all:nnN { \A - | - \Z } { } \l__tv_id_tl
+    \tl_if_empty:NT \l__tv_id_tl { \tl_set:Nn \l__tv_id_tl { video } }
+  }
+
+\NewDocumentCommand \video { O{} m }
+  {
+    \group_begin:
+      \tl_clear:N \l__tv_size_tl
+      \keys_set:nn { texvideo } {#1}
+      \tl_set:Nn \l__tv_src_tl {#2}
+      \tl_if_empty:NT \l__tv_id_tl { \__tv_default_id:n {#2} }
+      \str_if_in:nnTF {#2} { :// }
+        { \bool_set_true:N \l__tv_online_bool }
+        {
+          \file_if_exist:nF {#2}
+            { \__tv_error:n { the~file~'\tl_to_str:n {#2}'~is~not~there~(paths~are~the~deck's). } }
+        }
+      \tl_if_empty:NT \l__tv_poster_tl
+        { \__tv_error:n { poster~is~required:~a~picture~of~the~video's~size~(poster=<file>). } }
+      \__tv_check_id:
+      \hbox_set:Nn \l__tv_box
+        { \exp_args:NV \__tv_include:nn \l__tv_size_tl { \l__tv_poster_tl } }
+      \texstage_if_mode:nTF { present }
+        {
+          \texstage_page_record:nnn { video } { \l__tv_id_tl } { video }
+          \leavevmode
+          \texstage_rect:nnnnn { \l__tv_id_tl } { video } { box }
+            { \box_wd:N \l__tv_box } { \box_ht:N \l__tv_box + \box_dp:N \l__tv_box }
+          \box_use:N \l__tv_box
+          \bool_if:NT \l__tv_new_bool { \__tv_record: }
+        }
+        { \__tv_handout: }
+    \group_end:
+  }
+
+% A frame body is typeset once per slide: the video's record comes with the first slide that
+% shows it.
+\cs_new_protected:Npn \__tv_check_id:
+  {
+    \tl_set:Ne \l__tv_video_tl
+      {
+        \tl_to_str:N \l__tv_src_tl | \tl_to_str:N \l__tv_poster_tl | \l__tv_start_tl | \l__tv_end_tl
+        | \bool_if:NTF \l__tv_loop_bool { 1 } { 0 } \bool_if:NTF \l__tv_muted_bool { 1 } { 0 }
+          \bool_if:NTF \l__tv_autoplay_bool { 1 } { 0 } | \tl_to_str:N \l__tv_link_tl
+      }
+    \tl_set:Ne \l__tv_slide_tl { \beamer@framestartpage . \int_use:N \beamer@slideinframe }
+    \bool_set_true:N \l__tv_new_bool
+    \prop_get:NVNT \g__tv_videos_prop \l__tv_id_tl \l__tv_seen_tl
+      {
+        \bool_set_false:N \l__tv_new_bool
+        \tl_if_eq:NNF \l__tv_seen_tl \l__tv_video_tl
+          { \__tv_error:n { the~id~names~another~video~-~another~file,~poster~or~keys~(id=<another>). } }
+        \prop_get:NVN \g__tv_slides_prop \l__tv_id_tl \l__tv_seen_tl
+        \tl_if_eq:NNT \l__tv_seen_tl \l__tv_slide_tl
+          { \__tv_error:n { the~video~is~twice~on~this~slide~(id=<another>). } }
+      }
+    \prop_gput:NVV \g__tv_videos_prop \l__tv_id_tl \l__tv_video_tl
+    \prop_gput:NVV \g__tv_slides_prop \l__tv_id_tl \l__tv_slide_tl
+  }
+\cs_new_protected:Npn \__tv_include:nn #1#2 { \includegraphics [#1] {#2} }
+
+\cs_new_protected:Npn \__tv_record:
+  {
+    \texstage_emit:n
+      {
+        video | \l__tv_id_tl | \texstage_hex:V \l__tv_src_tl | \texstage_hex:V \l__tv_poster_tl
+          | \l__tv_start_tl | \l__tv_end_tl
+          | \bool_if:NTF \l__tv_loop_bool { true } { false }
+          | \bool_if:NTF \l__tv_muted_bool { true } { false }
+          | \bool_if:NTF \l__tv_autoplay_bool { true } { false }
+          | \texstage_hex:V \l__tv_link_tl
+          | \texstage_hex:e { \CurrentFilePath / \CurrentFile }
+          | \int_use:N \tex_inputlineno:D
+      }
+  }
+
+% The handout and the solutions: the poster with a play mark, and below it the file's name or
+% the link, with a QR code for an online one.
+\cs_new_protected:Npn \__tv_handout:
+  {
+    \tl_if_empty:NT \l__tv_link_tl
+      { \bool_if:NT \l__tv_online_bool { \tl_set_eq:NN \l__tv_link_tl \l__tv_src_tl } }
+    \leavevmode
+    \vbox:n
+      {
+        \hbox:n
+          {
+            \box_use:N \l__tv_box
+            \hbox_overlap_left:n
+              {
+                \hbox_to_wd:nn { \box_wd:N \l__tv_box }
+                  {
+                    \hfil
+                    \raisebox { \dim_eval:n { 0.5 \box_ht:N \l__tv_box - 0.5cm } }
+                      {
+                        \tikz
+                          {
+                            \fill [black, opacity = 0.55] (0, 0) circle (0.5cm);
+                            \fill [white] (-0.15cm, -0.25cm) -- (0.28cm, 0cm) -- (-0.15cm, 0.25cm) -- cycle;
+                          }
+                      }
+                    \hfil
+                  }
+              }
+          }
+        \nointerlineskip
+        \vspace { 0.15cm }
+        \hbox:n
+          {
+            \footnotesize
+            \tl_if_empty:NTF \l__tv_link_tl
+              { Video:~\texttt { \tl_to_str:N \l__tv_src_tl } }
+              {
+                \cs_if_exist:NT \qrcode
+                  { \exp_args:NV \__tv_qr:n \l__tv_link_tl \hspace { 0.2cm } }
+                Video:~\exp_args:NV \__tv_link:n \l__tv_link_tl
+              }
+          }
+      }
+  }
+\cs_new_protected:Npn \__tv_qr:n #1 { \qrcode [ height = 0.8cm ] {#1} }
+\cs_new_protected:Npn \__tv_link:n #1
+  { \cs_if_exist:NTF \href { \href {#1} { \texttt { \tl_to_str:n {#1} } } } { \texttt { \tl_to_str:n {#1} } } }
+
+\endinput

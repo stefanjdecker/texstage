@@ -1,0 +1,34 @@
+/* SPDX-FileCopyrightText: 2026 Stefan Decker
+   SPDX-License-Identifier: Apache-2.0 */
+/* The add-in: one live slide, filling the add-in object (= the whole PowerPoint slide). */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; }
+#stage.tq-stage { position: fixed; inset: 0; width: 100vw; height: 100vh; aspect-ratio: auto; }
+/* while the add-in prepares the live slides: their content (a reveal's answers) stays covered */
+#prepare {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2vh; background: rgb(30, 15, 60); color: #fff; font: 600 5vh/1.3 system-ui, "Segoe UI", sans-serif;
+  user-select: none;
+}
+#prepare[hidden] { display: none; }
+#prepare small { font-size: 3vh; font-weight: 400; color: #c7b3f5; }
+/* the file's first slide (phase prepare): what it is for, how far the preparing is, ready */
+#first {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2vh; padding: 0 6vw; background: rgb(30, 15, 60); color: #fff; text-align: center;
+  font: 400 3.6vh/1.35 system-ui, "Segoe UI", sans-serif; user-select: none;
+}
+#first small { font-size: 4.5vh; font-weight: 600; color: #c7b3f5; }
+#first .name { font-size: 8.5vh; font-weight: 700; margin-bottom: 4vh; }
+#first .what { font-size: 5.5vh; font-weight: 600; }
+#first .more { color: #c7b3f5; }
+#setup {
+  position: fixed; left: 2vh; bottom: 2vh; max-width: 70vw; padding: 1.2vh 2vh; border-radius: 1.2vh;
+  background: rgba(30, 15, 60, .9); color: #fff; font: 600 2.4vh/1.35 system-ui, "Segoe UI", sans-serif;
+  box-shadow: 0 .5vh 2vh rgba(0, 0, 0, .3); user-select: none;
+}
+#setup b { color: #c7b3f5; }
+#setup .ok { color: #7ee08a; }
+#setup .bad { color: #ff8b8b; }
+#setup form { display: flex; gap: 1vh; margin-top: 1vh; }
+#setup input { flex: 1; font: inherit; padding: .6vh 1vh; border-radius: .8vh; border: none; user-select: text; }
+#setup button { font: inherit; padding: .6vh 1.6vh; border-radius: .8vh; border: none; background: #46178f; color: #fff; cursor: pointer; }
