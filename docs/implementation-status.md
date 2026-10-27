@@ -54,4 +54,3 @@ Move command implementations into the package while leaving tested thin wrappers
 then extract the DBIS style into core, theme and subject modules without changing
 macro semantics. Add CI and a locked wheelhouse. Rehearse each course against its
 own original tools pin in disposable copies before proposing any real-course change.
-

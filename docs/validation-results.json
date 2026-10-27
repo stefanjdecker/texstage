@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-27",
+  "platform": "Windows; Python 3.14.4; local TeX Live and Node.js",
+  "texstage": {
+    "source_tests": {
+      "passed": 297,
+      "failed": 0,
+      "skipped": 0,
+      "execution": "291 in the main run and 6 Windows registry tests in a separate run; 2 subtests also passed"
+    },
+    "followup_packaging_api_tests": {
+      "passed": 13
+    },
+    "built_from": "694edbb7333a414ced4118e1cf7fbb64265ef6c6",
+    "wheel": {
+      "name": "texstage-0.2.1.dev0-py3-none-any.whl",
+      "sha256": "0ed3cc16579e03bd4379dff0aff747bac4a45c281b15da94932245681fa28aa6"
+    },
+    "sdist": {
+      "name": "texstage-0.2.1.dev0.tar.gz",
+      "sha256": "2a0538509c09c227ab1e299843267eeaf284dbc859fb97e02eca6caa76e9762d"
+    },
+    "wheel_boundaries": "passed",
+    "sdist_rebuild": "all wheel members byte-identical"
+  },
+  "lecture-tools": {
+    "source_tests": {
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0
+    },
+    "fresh_clone_asset_tests": {
+      "passed": 7
+    },
+    "built_from": "85cc3e18bc95ed3141758067c3cb634516facb4e",
+    "wheel": {
+      "name": "lecture_tools-0.1.0.dev0-py3-none-any.whl",
+      "sha256": "9e9b3e2d4ecfcb12ee6432af948910969e7ce90df3e136994a8623fc00e138e9"
+    },
+    "sdist": {
+      "name": "lecture_tools-0.1.0.dev0.tar.gz",
+      "sha256": "b9faa40676fb6ae8e2ff6d02a6d40075e243129069fb1197cc551cff25c96fdf"
+    },
+    "wheel_boundaries": "passed",
+    "sdist_rebuild": "all wheel members byte-identical"
+  },
+  "installed_artifacts": {
+    "base_package_without_texstage": "passed; root CLI, resource discovery, both skill directories, idempotence, missing-extra diagnostic",
+    "paired_packages": "passed; installed module paths, public API, version/hash lock, texstage console help, lecture-tools console help and legacy wrapper help",
+    "dependency_environment": "Fresh venv for base installation. The paired smoke check used existing dependency libraries read-only; neither package was imported from the original checkout."
+  },
+  "original_protection": {
+    "source_commit": "6388b6ba48d8c4f770c81cc66c992a3d5c9cde26",
+    "tracked_files_sha256_verified": 249,
+    "original_worktree_status": "clean (including non-ignored untracked files)",
+    "courses": [
+      {
+        "folder": "KnowlegeGraph-VL",
+        "course_commit": "d59dd9a5818c81cb3c75e14aa618a110bcc456b3",
+        "tools_commit": "6388b6ba48d8c4f770c81cc66c992a3d5c9cde26",
+        "tracked_status": "unchanged"
+      },
+      {
+        "folder": "PETs4DS",
+        "course_commit": "63ac5b7275873afaf1e2ff07c0aad9673bbb3bdb",
+        "tools_commit": "8f6d7007cb32ac6a0560b0a9df338b3de86f2aa9",
+        "tracked_status": "unchanged"
+      },
+      {
+        "folder": "dbis-vl",
+        "course_commit": "c248ea7b4dbc87825b7f31750b0317d9e9bc1bf1",
+        "tools_commit": "8f6d7007cb32ac6a0560b0a9df338b3de86f2aa9",
+        "tracked_status": "unchanged"
+      },
+      {
+        "folder": "dbis2027",
+        "course_commit": "156cb72f973ee73c0ed560753736500a096071bf",
+        "tools_commit": "97a33174f46c8c032c9d9c55d7c87aed6e6c2cfd",
+        "tracked_status": "unchanged"
+      }
+    ],
+    "scope": "No course builds, migrations, pin changes or environment installations were run in the original repositories. Ignored course files were not exhaustively inventoried."
+  },
+  "not_validated": [
+    "Real-course visual/output baseline comparisons",
+    "Linux/macOS",
+    "Docker image build",
+    "Interactive PowerPoint presentation",
+    "Fully locked dependency installation",
+    "Public release readiness"
+  ],
+  "non_failing_warnings": [
+    "Existing Starlette/httpx deprecation warning"
+  ]
+}
