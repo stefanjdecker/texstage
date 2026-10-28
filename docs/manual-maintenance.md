@@ -13,19 +13,18 @@ Markdown or TeX independently for repository updates.
 ## Build and check
 
 Use a fresh Python 3.12+ environment in the new texstage checkout. The renderer
-does not need a running texstage server. Generating the existing PDF, Markdown
-and TeX source needs no TeX installation. Compiling the exported TeX requires
-pdfLaTeX, latexmk and the packages listed in the LaTeX edition's build guide.
+does not need a running texstage server. Regeneration compiles the PDF from the
+exported LaTeX and requires pdfLaTeX, latexmk and the packages listed in the
+LaTeX edition's build guide. The offline --check command needs only Python.
 
 ```sh
-python -m pip install --require-hashes --only-binary=:all: -r requirements/docs.txt
 python maintenance/build_manual.py
 python maintenance/build_manual.py --check
 python maintenance/check_docs.py
 ```
 
-The documentation lock pins ReportLab and its transitive dependencies. It is
-separate from runtime dependencies; see [dependencies.md](dependencies.md).
+No third-party Python packages are needed for this build. The legacy docs
+extra and its lock remain for compatibility; see [dependencies.md](dependencies.md).
 To preview without replacing the committed outputs:
 
 ```sh
@@ -38,8 +37,8 @@ and build instructions are copied too, so the exported TeX project can compile.
 The manifest records hashes of the text, renderer, capture inventory and outputs.
 The offline --check path uses only the Python standard library. It checks the
 generated Markdown and TeX, manifest and screenshot hashes; it does not replace
-visual review. CI also renders the original PDF and compiles the LaTeX edition
-on Linux, retaining both as build artifacts.
+visual review. CI also rebuilds the article PDF on Linux and retains the
+preview output as a build artifact.
 
 Render every PDF page with Poppler and inspect text, screenshots, captions,
 tables and page boundaries before committing a refresh:
@@ -89,7 +88,7 @@ python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('docs/image
 ```
 
 Update the manual's version/date and provenance text as appropriate, regenerate,
-run the checks and review both rendered PDF editions. Changes to either renderer
+run the checks and review the rendered article PDF. Changes to either generator
 or the LaTeX style also require regeneration because the build manifest includes
 their source hashes.
 

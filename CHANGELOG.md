@@ -2,6 +2,11 @@
 
 ## Unreleased — 0.2.1.dev0 candidate
 
+- Converted the manuals and references to portrait LaTeX articles with serif
+  text, continuous sections, multipage tables and wrapped code.
+- Unified the downloadable manual PDF and native LaTeX build, preserving all
+  presenter and phone screenshots.
+
 - Added a source-reviewed LaTeX package/command reference to the shared manual,
   a standalone reference page, compiled authoring examples and CI coverage checks.
 

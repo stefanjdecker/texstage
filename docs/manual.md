@@ -487,7 +487,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/num
 | `cols` | 1-6 forces the choice columns. Unset uses measured fitting and the theme maximum (2 in the generic theme). |
 | `partial` | Boolean, false by default; bare key means true. Meaningful for multiple choice and ordering; it changes credit, not which answer is fully correct. |
 
-Time, points, leaderboard, shuffle, reveal and title have setup-level counterparts. Per-question values override them. Other question keys listed on the next page are not accepted by quizsetup.
+Time, points, leaderboard, shuffle, reveal and title have setup-level counterparts. Per-question values override them. Other question keys listed in the following section are not accepted by quizsetup.
 
 
 ## Quiz options: answer data
@@ -738,9 +738,9 @@ The activity label hooks are ordinary macros. Redefine them after loading texact
 \renewcommand{\texactivitylabel}{Live task -- use your phone}
 ```
 
-`docs/manual-latex/manual.sty` only controls this manual: landscape A4, typography, colors, tables and headers/footers. Its `\manualsection{title}` starts a new page/section; `\manualsubheading{title}` formats a small heading; `\manualcaption` selects caption text. The document supplies `\manualversion` and `\manualdate`.
+`docs/manual-latex/manual.sty` only controls this manual: portrait A4 article layout, typography, colors, tables and headers/footers. Its `\manualsection{title}` creates a numbered section without forcing a page break; `\manualsubheading{title}` formats a small heading; `\manualcaption` selects caption text. The document supplies `\manualversion` and `\manualdate`.
 
-This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, fancyhdr, fancyvrb, enumitem, titlesec, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.
+This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption, placeins, needspace, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.
 
 
 ## Core interfaces for package developers

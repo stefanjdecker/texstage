@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Export the manual's shared content as ordinary, independently compilable TeX."""
+"""Render the illustrated texstage manual as a conventional LaTeX article."""
 from __future__ import annotations
 
 import re
@@ -15,15 +15,28 @@ def literal(text):
     return "".join(replacements.get(char, char) for char in text)
 
 
+def breakable(text, code=False):
+    """Allow long identifiers and paths to wrap without adding printed characters."""
+    result=[]
+    letters=0
+    for index, char in enumerate(text):
+        result.append(literal(char))
+        letters = letters + 1 if char.isalnum() else 0
+        if index + 1 < len(text) and (char in "/_.-\\\\{}=" or (code and letters >= 10)):
+            result.append(r"\allowbreak{}")
+            letters=0
+    return "".join(result)
+
+
 def inline(text):
     tokens = re.compile(r"`([^`]+)`|\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)]+)\)")
     parts = []
     start = 0
     for token in tokens.finditer(text):
-        parts.append(literal(text[start:token.start()]))
+        parts.append(breakable(text[start:token.start()]))
         code, bold, label, url = token.groups()
         if code is not None:
-            parts.append(r"\texttt{" + literal(code) + "}")
+            parts.append(r"\texttt{" + breakable(code, code=True) + "}")
         elif bold is not None:
             parts.append(r"\textbf{" + inline(bold) + "}")
         else:
@@ -32,7 +45,7 @@ def inline(text):
                 url = "../" + url
             parts.append(r"\href{" + literal(url) + "}{" + inline(label) + "}")
         start = token.end()
-    parts.append(literal(text[start:]))
+    parts.append(breakable(text[start:]))
     return "".join(parts)
 
 
@@ -48,7 +61,13 @@ def blocks(items):
             result += [r"\item " + inline(text) for text in item["bullets"]]
             result += [r"\end{itemize}", ""]
         elif "code" in item:
-            result += [r"\begin{Verbatim}", item["code"], r"\end{Verbatim}", ""]
+            keep_together = len(item["code"].splitlines()) <= 30
+            if keep_together:
+                result += [r"\par\noindent\begin{minipage}{\linewidth}"]
+            result += [r"\begin{Verbatim}", item["code"], r"\end{Verbatim}"]
+            if keep_together:
+                result += [r"\end{minipage}\par\smallskip"]
+            result += [""]
         elif "table" in item:
             table = item["table"]
             widths = table.get("widths", [1 / len(table["headers"])] * len(table["headers"]))
@@ -57,104 +76,68 @@ def blocks(items):
                 + f"{width:.6f}" + r"\linewidth-2\tabcolsep\relax}"
                 for width in widths
             )
-            result += [r"{\small", r"\begin{tabular}{" + columns + "}", r"\rowcolor{manualPurple}"]
-            result += [" & ".join(r"\color{white}\bfseries " + inline(t) for t in table["headers"]) + r" \\"]
-            for index, row in enumerate(table["rows"]):
-                if index % 2 == 1:
-                    result += [r"\rowcolor{manualPale}"]
-                result += [" & ".join(inline(t) for t in row) + r" \\"]
-            result += [r"\end{tabular}}\par\medskip", ""]
+            result += [r"{\small", r"\begin{longtable}{" + columns + "}", r"\toprule"]
+            header = " & ".join(r"\textbf{" + inline(t) + "}" for t in table["headers"]) + r" \\"
+            result += [header, r"\midrule", r"\endfirsthead",
+                       r"\toprule", header, r"\midrule", r"\endhead",
+                       r"\midrule", r"\endfoot", r"\bottomrule", r"\endlastfoot"]
+            for row in table["rows"]:
+                result += [" & ".join(inline(t) for t in row) + r" \\ \addlinespace[3pt]"]
+            result += [r"\end{longtable}}", ""]
         else:
             raise ValueError(f"Unknown manual block: {item}")
     return result
 
-
-def picture(spec, size=r"width=\linewidth"):
-    # The project reuses the original screenshots beside it, with no raster conversion.
+def picture(spec, phone=False):
     assert re.fullmatch(r"images/manual/[a-zA-Z0-9._-]+", spec["file"]), spec["file"]
+    width=r"0.40\linewidth" if phone else r"\linewidth"
     return [
-        r"\includegraphics[" + size + "]{../" + spec["file"] + r"}\par",
-        r"{\manualcaption " + inline(spec["caption"]) + r"\par}",
+        r"\begin{figure}[!htbp]", r"\centering",
+        r"\includegraphics[width="+width+r",height=0.45\textheight,keepaspectratio]{../"+spec["file"]+"}",
+        r"\caption{"+inline(spec["caption"])+"}", r"\end{figure}",
     ]
+
+
+def gallery(images, title):
+    count=len(images)
+    fraction=0.96/count
+    lines=[r"\begin{figure}[!htbp]",r"\centering"]
+    for i,spec in enumerate(images):
+        assert re.fullmatch(r"images/manual/[a-zA-Z0-9._-]+",spec["file"]),spec["file"]
+        if i: lines += [r"\hfill"]
+        lines += [r"\begin{subfigure}[t]{"+f"{fraction:.3f}"+r"\linewidth}",
+                  r"\centering",
+                  r"\includegraphics[width=\linewidth,height=0.43\textheight,keepaspectratio]{../"+spec["file"]+"}",
+                  r"\caption{"+inline(spec["caption"])+"}",
+                  r"\end{subfigure}"]
+    lines += [r"\caption{"+inline(title)+"}",r"\end{figure}"]
+    return lines
 
 
 def latex(data):
-    lines = [
+    cover=data["pages"][0]
+    lines=[
         "% SPDX-License-Identifier: Apache-2.0",
-        "% Generated by maintenance/build_manual.py from docs/manual-content.json.",
-        "% Compile here with: latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex",
-        "% For project updates edit the shared JSON; this TeX export can also be compiled/edited independently.",
-        r"\documentclass[a4paper,landscape,10pt]{article}",
-        r"\usepackage{manual}",
-        r"\newcommand{\manualversion}{" + literal(data["version"]) + "}",
-        r"\newcommand{\manualdate}{" + literal(data["date"]) + "}",
-        r"\hypersetup{pdftitle={" + literal(data["title"]) + r"},pdfauthor={texstage project}}",
-        r"\begin{document}",
+        "% Generated from docs/manual-content.json by maintenance/build_manual.py.",
+        r"\documentclass[a4paper,11pt]{article}",r"\usepackage{manual}",
+        r"\newcommand{\manualversion}{"+literal(data["version"])+"}",
+        r"\newcommand{\manualdate}{"+literal(data["date"])+"}",
+        r"\hypersetup{pdftitle={"+literal(data["title"])+r"},pdfauthor={texstage project}}",
+        r"\title{"+inline(cover["title"])+r"\\[0.5em]\large "+inline(cover["subtitle"])+"}",
+        r"\author{texstage project}",r"\date{\manualdate\\Version \manualversion}",
+        r"\begin{document}",r"\maketitle",r"\begin{abstract}",
+        *blocks(cover["blocks"]),r"\end{abstract}",r"{\small\tableofcontents}",r"\clearpage",
+        *gallery(cover["images"],"Presenter and participant interfaces"),
     ]
-    for number, page in enumerate(data["pages"]):
-        lines += ["", "% " + page["title"]]
-        if page["layout"] == "cover":
-            lines += [
-                r"\pdfbookmark[0]{" + literal(page["title"]) + r"}{cover}",
-                r"{\fontsize{28}{34}\selectfont\bfseries " + inline(page["title"]) + r"\par}",
-                r"\vspace{2mm}",
-                r"{\Large\color{manualPurple} " + inline(page["subtitle"]) + r"\par}",
-                r"\vspace{3mm}",
-                *blocks(page["blocks"][:2]),
-                r"\medskip",
-                r"\begin{minipage}[t]{0.73\linewidth}",
-                *picture(page["images"][0]),
-                r"\end{minipage}\hfill%",
-                r"\begin{minipage}[t]{0.19\linewidth}",
-                *picture(page["images"][1], r"height=99mm"),
-                r"\end{minipage}\par\medskip",
-                r"{\small\color{manualMuted} " + inline(page["blocks"][2]["p"]) + r"\par}",
-                r"\clearpage",
-                r"{\setlength{\parskip}{0pt}\tableofcontents}",
-            ]
-            continue
-        lines += [r"\manualsection{" + inline(page["title"]) + "}"]
-        layout = page["layout"]
-        if layout == "text":
-            lines += blocks(page["blocks"])
-        elif layout == "columns":
-            lines += [
-                r"\begin{minipage}[t]{0.665\linewidth}\vspace{0pt}",
-                *picture(page["images"][0]),
-                r"\end{minipage}\hfill%",
-                r"\begin{minipage}[t]{0.305\linewidth}\vspace{0pt}",
-                *blocks(page["blocks"]),
-                r"\end{minipage}",
-            ]
-        elif layout == "figure":
-            lines += [
-                r"{\centering\begin{minipage}{190mm}",
-                *picture(page["images"][0]),
-                r"\end{minipage}\par}\medskip",
-                *blocks(page["blocks"]),
-            ]
-        elif layout == "gallery":
-            lines += [r"{\centering"]
-            for index, spec in enumerate(page["images"]):
-                if index:
-                    lines += [r"\hspace{5mm}%"]
-                lines += [
-                    r"\begin{minipage}[t]{65mm}\centering",
-                    *picture(spec, "height=108mm"),
-                    r"\end{minipage}%",
-                ]
-            lines += [r"\par}\medskip", *blocks(page["blocks"])]
-        elif layout == "mixed":
-            lines += [
-                r"\begin{minipage}[t]{49mm}\vspace{0pt}",
-                *picture(page["images"][0], "width=49mm"),
-                r"\end{minipage}\hfill%",
-                r"\begin{minipage}[t]{195mm}\vspace{0pt}",
-                *picture(page["images"][1]),
-                r"\end{minipage}\par\medskip",
-                *blocks(page["blocks"]),
-            ]
+    reference_started = False
+    for page in data["pages"][1:]:
+        if page.get("reference") and not reference_started:
+            lines += [r"\FloatBarrier"]
+            reference_started = True
+        lines += [r"\manualsection{"+inline(page["title"])+"}",*blocks(page["blocks"])]
+        if page["layout"]=="gallery":
+            lines += gallery(page["images"],page["title"])
         else:
-            raise ValueError(f"Unknown manual layout: {layout}")
-    lines += [r"\end{document}", ""]
-    return "\n".join(lines)
+            for index,spec in enumerate(page["images"]):
+                lines += picture(spec,phone=(page["layout"]=="mixed" and index==0))
+    return "\n".join(lines+[r"\end{document}",""])

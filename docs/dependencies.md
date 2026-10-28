@@ -10,7 +10,7 @@ No local paths, private indexes or credentials are embedded in the locks.
 | `runtime.txt` | Runtime dependency set |
 | `build.txt` | Build frontend, setuptools backend and the lock generator |
 | `dev.txt` | Runtime, build and test dependencies; constrained by both other locks |
-| `docs.txt` | texstage's PDF manual renderer and its dependencies; constrained by runtime pins |
+| `docs.txt` | Legacy documentation extras retained for compatibility; the LaTeX PDF build does not need them |
 | `*.in` | Generated direct inputs; edit pyproject.toml rather than these files |
 | `lock-manifest.json` | Hashes of dependency metadata, generator, inputs and lock outputs |
 

@@ -55,10 +55,7 @@ jobs:
       - name: Rebuild the illustrated manual
         if: runner.os == 'Linux' && matrix.python == '3.14'
         run: |
-          python -m pip install --require-hashes --only-binary=:all: -r requirements/docs.txt
           python maintenance/build_manual.py --output-dir .manual-build
-          cd .manual-build/manual-latex
-          latexmk -pdf -interaction=nonstopmode -halt-on-error -no-shell-escape main.tex
       - name: Install project
         run: python -m pip install --no-deps --no-build-isolation -e .
       - name: Compile authoring examples

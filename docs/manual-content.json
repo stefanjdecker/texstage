@@ -965,7 +965,7 @@
           }
         },
         {
-          "p": "Time, points, leaderboard, shuffle, reveal and title have setup-level counterparts. Per-question values override them. Other question keys listed on the next page are not accepted by quizsetup."
+          "p": "Time, points, leaderboard, shuffle, reveal and title have setup-level counterparts. Per-question values override them. Other question keys listed in the following section are not accepted by quizsetup."
         }
       ],
       "images": [],
@@ -1662,10 +1662,10 @@
           "code": "\\renewcommand{\\texactivitylabel}{Live task -- use your phone}"
         },
         {
-          "p": "`docs/manual-latex/manual.sty` only controls this manual: landscape A4, typography, colors, tables and headers/footers. Its `\\manualsection{title}` starts a new page/section; `\\manualsubheading{title}` formats a small heading; `\\manualcaption` selects caption text. The document supplies `\\manualversion` and `\\manualdate`."
+          "p": "`docs/manual-latex/manual.sty` only controls this manual: portrait A4 article layout, typography, colors, tables and headers/footers. Its `\\manualsection{title}` creates a numbered section without forcing a page break; `\\manualsubheading{title}` formats a small heading; `\\manualcaption` selects caption text. The document supplies `\\manualversion` and `\\manualdate`."
         },
         {
-          "p": "This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, fancyhdr, fancyvrb, enumitem, titlesec, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package."
+          "p": "This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption, placeins, needspace, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package."
         }
       ]
     },

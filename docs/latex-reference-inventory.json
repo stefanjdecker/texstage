@@ -5,15 +5,16 @@
     {
       "file": "docs/manual-latex/manual.sty",
       "scope": "documentation",
-      "sha256": "6300421a31d2d19b0010a5f326884845dd158a235a8f94aed7e57669897dea60",
+      "sha256": "89d2f61a0baf9e91669e07f6f656eb0db36d623413e026534110d746cd6d85da",
       "commands": [
         "arraystretch",
-        "familydefault",
-        "footrulewidth",
-        "headrulewidth",
+        "bottomfraction",
+        "floatpagefraction",
         "manualcaption",
         "manualsection",
-        "manualsubheading"
+        "manualsubheading",
+        "textfraction",
+        "topfraction"
       ],
       "internal_commands": [],
       "environments": [],
