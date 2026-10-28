@@ -126,7 +126,7 @@ def latex(data):
         r"\title{"+inline(cover["title"])+r"\\[0.5em]\large "+inline(cover["subtitle"])+"}",
         r"\author{texstage project}",r"\date{\manualdate\\Version \manualversion}",
         r"\begin{document}",r"\maketitle",r"\begin{abstract}",
-        *blocks(cover["blocks"]),r"\end{abstract}",r"{\small\tableofcontents}",r"\clearpage",
+        *blocks(cover["blocks"]),r"\end{abstract}",r"{\small\setlength{\parskip}{0pt}\tableofcontents}",r"\clearpage",
         *gallery(cover["images"],"Presenter and participant interfaces"),
     ]
     reference_started = False

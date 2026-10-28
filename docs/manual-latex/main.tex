@@ -3,7 +3,7 @@
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
 \newcommand{\manualversion}{0.2.1.dev0}
-\newcommand{\manualdate}{2026-10-27}
+\newcommand{\manualdate}{2026-10-28}
 \hypersetup{pdftitle={texstage user manual},pdfauthor={texstage project}}
 \title{texstage user manual\\[0.5em]\large Presenter and participant guide}
 \author{texstage project}
@@ -18,7 +18,7 @@ For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}sess
 Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 -\allowbreak{} unpublished development candidate.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
-{\small\tableofcontents}
+{\small\setlength{\parskip}{0pt}\tableofcontents}
 \clearpage
 \begin{figure}[!htbp]
 \centering
@@ -35,21 +35,125 @@ Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 -\allowbreak{} unpubli
 \end{subfigure}
 \caption{Presenter and participant interfaces}
 \end{figure}
-\manualsection{Start your first session}
-Use the new texstage checkout and a fresh Python 3.\allowbreak{}12+ environment.\allowbreak{} Deck builds need pdflatex and Beamer from TeX Live or MiKTeX.\allowbreak{} The source checkout contains the examples and dependency locks used below.\allowbreak{} The candidate is not assumed to be available on PyPI.\par
+\manualsection{What texstage does}
+texstage turns a LaTeX Beamer presentation into an interactive teaching session.\allowbreak{} You write ordinary slides and add quiz commands in a .\allowbreak{}tex file.\allowbreak{} texstage compiles that source, prepares the presentation files, and runs a server that connects your presenter browser, the audience display and participants' phones.\allowbreak{} You can also create a static PDF handout or a PDF with solutions.\par
 
-\manualsubheading{1  Create and activate an environment}
+For example, a lecturer writes a multiple-\allowbreak{}choice question, presents its reading step, opens answering, and then reveals the explanation.\allowbreak{} Students open a join link, enter the session PIN and answer in a browser.\allowbreak{} The presenter sees the accepted answers and controls what the audience sees.\par
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{Component} & \textbf{Your part in the session} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Component} & \textbf{Your part in the session} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Author & Edit a Beamer .\allowbreak{}tex file in a text or LaTeX editor.\allowbreak{} A quiz uses commands from texquiz.\allowbreak{}sty. \\ \addlinespace[3pt]
+Presenter computer & Runs the Python command and local server.\allowbreak{} Builds source using TeX.\allowbreak{} The private presenter shows notes, next steps and controls. \\ \addlinespace[3pt]
+Audience display & A separate projector browser window shows the shared slide.\allowbreak{} Use an extended desktop to keep notes and answers private. \\ \addlinespace[3pt]
+Participant & Uses a reachable /\allowbreak{}play address, session PIN and nickname in a browser.\allowbreak{} No Python, TeX, app or account installation is needed. \\ \addlinespace[3pt]
+\end{longtable}}
+
+The browser workflow is the starting path in this manual.\allowbreak{} PowerPoint integration, recording, hosted servers and tunnels are optional later topics.\allowbreak{} texstage can present Beamer material without DBIS styling.\allowbreak{} It does not create the teaching content for you, and a static PDF by itself does not run a live quiz.\par
+
+\manualsection{Choose your starting path}
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{I want to.\allowbreak{}.\allowbreak{}.} & \textbf{Start here} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{I want to.\allowbreak{}.\allowbreak{}.} & \textbf{Start here} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Join a lecture & Go directly to Join and wait on your phone, or the Participant quick reference.\allowbreak{} Obtain the address and PIN from your presenter.\allowbreak{} Skip installation. \\ \addlinespace[3pt]
+Author and present my own slides & Install Python, TeX and texstage below.\allowbreak{} Follow the supplied demonstration before editing your first quiz. \\ \addlinespace[3pt]
+Present a supplied bundle & Install Python and texstage.\allowbreak{} TeX is only needed to rebuild source.\allowbreak{} Start texstage serve with a private data directory, open /\allowbreak{}stage, and use Upload a deck for the supplied .\allowbreak{}bundle.\allowbreak{}zip. \\ \addlinespace[3pt]
+Organize a course as separate slide files & Use the separate lecture-\allowbreak{}tools project and its workflow manual.\allowbreak{} It assembles numbered slides and can call texstage for live output. \\ \addlinespace[3pt]
+Use DBIS notation or appearance & Use lecture-\allowbreak{}tools' reusable LaTeX modules.\allowbreak{} DBIS branding is an optional theme, not a texstage prerequisite. \\ \addlinespace[3pt]
+Edit a Jupyter notebook & Use the lecture-\allowbreak{}tools notebook manual.\allowbreak{} This path needs neither texstage nor TeX. \\ \addlinespace[3pt]
+\end{longtable}}
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{Term used here} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Term used here} & \textbf{Meaning} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+Deck /\allowbreak{} frame /\allowbreak{} overlay & A deck is a presentation.\allowbreak{} A Beamer frame is one logical slide; overlays reveal it in successive steps and can produce several PDF pages. \\ \addlinespace[3pt]
+Build /\allowbreak{} bundle & Building converts source into output.\allowbreak{} A bundle packages slides, quiz data and browser assets for the server; .\allowbreak{}bundle.\allowbreak{}zip is its portable upload. \\ \addlinespace[3pt]
+Server /\allowbreak{} port & The running program that coordinates the browsers; the port is its numbered network endpoint, such as 8765.\allowbreak{} Keep its terminal open during the session. \\ \addlinespace[3pt]
+PIN /\allowbreak{} presenter key & The PIN admits participants to the current session.\allowbreak{} A presenter key authorizes control of the server.\allowbreak{} Give participants the PIN, not the key. \\ \addlinespace[3pt]
+texstage /\allowbreak{} texquiz & texstage is the installed command and application.\allowbreak{} texquiz.\allowbreak{}sty is the LaTeX quiz package it ships.\allowbreak{} Some output folders retain the older name texquiz-\allowbreak{}out. \\ \addlinespace[3pt]
+\end{longtable}}
+
+\manualsection{Install Python and obtain the source}
+Use CPython 3.\allowbreak{}12, 3.\allowbreak{}13 or 3.\allowbreak{}14 for this candidate; these are the versions targeted by its checks.\allowbreak{} Install Python from \href{https://www.python.org/downloads/}{python.\allowbreak{}org} or your operating system package manager.\allowbreak{} Open a new terminal after installation.\allowbreak{} On Windows use PowerShell; on macOS or Linux use Terminal.\allowbreak{} Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.\par
+
+A source checkout is an unpacked copy of the project.\allowbreak{} Obtain the matching candidate source archive or checkout from the maintainer.\allowbreak{} On a published GitHub repository, Code > Download ZIP provides source; unpack it first.\allowbreak{} This edition does not assume a public repository URL or a PyPI release.\allowbreak{} Do not substitute a similarly named package from a search result.\allowbreak{} Open the terminal in the extracted project folder containing pyproject.\allowbreak{}toml, requirements, examples and docs.\allowbreak{} Use cd followed by the quoted folder path to change folders; pwd shows where you are.\par
+
+A virtual environment is a private directory of Python tools and dependencies for this installation.\allowbreak{} It avoids changing another course environment.\allowbreak{} Use a new .\allowbreak{}venv directory and keep your documents outside it.\allowbreak{} Choose the block for your operating system.\allowbreak{} Activation selects this environment for the current terminal window.\allowbreak{} See the \href{https://docs.python.org/3/library/venv.html}{Python environment documentation}.\par
+
+\manualsubheading{Windows PowerShell}
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
+python --version
 python -m venv .venv
-# Windows PowerShell
 .\.venv\Scripts\Activate.ps1
-# Linux or macOS
-# . .venv/bin/activate
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-\manualsubheading{2  Install the locked dependencies and this checkout}
+If python selects another version or is unavailable, but the Python launcher is installed, use py -\allowbreak{}3.\allowbreak{}14 instead of python for these first two commands.\allowbreak{} If activation is blocked by PowerShell policy, use the following session-\allowbreak{}only alternative; it puts the environment executables first in this terminal without changing system policy.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+$env:Path = (Resolve-Path .venv\Scripts).Path + ';' + $env:Path
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+\manualsubheading{macOS or Linux}
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+python3 --version
+python3 -m venv .venv
+. .venv/bin/activate
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+If your distribution reports that venv or ensurepip is missing, install its Python venv package for the selected Python version, then create the environment again.\allowbreak{} If python3 selects a different version, use an installed python3.\allowbreak{}14 (or python3.\allowbreak{}12/\allowbreak{}python3.\allowbreak{}13) for the version check and venv creation.\allowbreak{} After activation the remaining commands use python on every platform.\par
+
+\manualsubheading{Check the selected environment}
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+python -c "import sys; print(sys.executable)"
+python -m pip --version
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+The paths printed by both commands must point inside this project's .\allowbreak{}venv.\allowbreak{} Reopen and activate the same environment in each new terminal before running the tools.\allowbreak{} Installation downloads dependencies and needs network access; subsequent local examples use the files already installed.\par
+
+\manualsection{Install texstage and check the tools}
+Run these commands at the texstage source root in the environment just created.\par
+
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
@@ -58,17 +162,113 @@ python -m pip install --no-deps --no-build-isolation .
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-\manualsubheading{3  Preview and present the example}
+The first two commands install the tested dependency versions and packaging tools.\allowbreak{} The third installs this source copy.\allowbreak{} Keep the requirements files from the same candidate.\allowbreak{} If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage --help
+python -m pip check
+python -c "from importlib.metadata import version; print(version('texstage'))"
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 for this edition.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
+
+LaTeX source is text; a TeX distribution turns it into a PDF.\allowbreak{} Beamer is the LaTeX document class for slides.\allowbreak{} Install a current full \href{https://tug.org/texlive/}{TeX Live} distribution, \href{https://tug.org/mactex/}{MacTeX} on macOS, or \href{https://miktex.org/howto/install-miktex}{MiKTeX} on Windows.\allowbreak{} With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build.\allowbreak{} A LaTeX editor alone does not supply the compiler.\par
+
+For texstage, install Beamer and its dependencies, TikZ and the optional qrcode package for QR rendering.\allowbreak{} The command supplies texstage's own .\allowbreak{}sty files automatically; do not install them into your global TeX tree for this tutorial.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+pdflatex --version
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+Run these checks in the same terminal you will use for the tutorial.\allowbreak{} They must print version information.\allowbreak{} If a command is not found, finish the TeX installation, reopen the terminal and activate .\allowbreak{}venv again.\allowbreak{} Install any missing .\allowbreak{}sty dependency through your TeX package manager; pip installs Python dependencies, not TeX packages.\par
+
+If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{../installation.md}{installation.\allowbreak{}md} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
+
+\manualsection{Start your first session}
+Goal: see a compiled slide, open the presenter, submit a practice answer, and reveal its result.\allowbreak{} Stay in the texstage source root with .\allowbreak{}venv active.\allowbreak{} Use the supplied synthetic example so this rehearsal does not touch any existing course.\par
+
+\manualsubheading{1  Compile a static preview}
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
 texstage pdf --present examples/manual/demo.tex
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+The terminal prints the generated PDF path inside examples/\allowbreak{}manual/\allowbreak{}texquiz-\allowbreak{}out.\allowbreak{} Open that file in a PDF viewer.\allowbreak{} You should see the manual demonstration, including a join slide and question steps.\allowbreak{} This checks the TeX installation; opening the PDF does not start an interactive session.\par
+
+\manualsubheading{2  Start the presenter and server}
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
 texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Use an unused port for rehearsal (8765 in this example).\allowbreak{} The present command builds a missing or out-\allowbreak{}of-\allowbreak{}date deck, starts a local server if needed, and opens the browser presenter.\allowbreak{} Use its printed server address.\allowbreak{} If a server is already running on that port, present reuses it; choose another port to keep the demo separate.\allowbreak{} The manual uses long 240-\allowbreak{}second rounds for rehearsal.\par
+This builds the interactive outputs when needed, stores rehearsal session data in .\allowbreak{}manual-\allowbreak{}data, and opens the presenter at http:/\allowbreak{}/\allowbreak{}localhost:8765/\allowbreak{}stage.\allowbreak{} The first build takes longer than reopening an unchanged deck.\allowbreak{} Keep the terminal running.\allowbreak{} If the browser does not open automatically, open that address yourself.\allowbreak{} If you see the deck library, choose Present on the manual demonstration.\par
 
-For environment activation, missing TeX packages and wheel-\allowbreak{}only installation, see \href{../installation.md}{installation.\allowbreak{}md}.\allowbreak{} For an already configured environment, start at step 3.\allowbreak{} Keep existing course environments and tools pins unchanged during rehearsal.\par
+Use an unused port.\allowbreak{} If texstage is already serving on 8765, present reuses it, even if you supplied another data directory.\allowbreak{} Choose another unused port to keep rehearsals separate.\allowbreak{} -\allowbreak{}-\allowbreak{}no-\allowbreak{}tunnel disables remembered tunnel settings for the selected data directory; here that directory belongs only to the rehearsal.\par
+
+\manualsubheading{3  Rehearse as presenter and participant}
+\begin{itemize}
+\item Choose Projector and allow its pop-\allowbreak{}up.\allowbreak{} With one monitor, keep it beside the presenter; with two, move it to the audience display.
+\item Advance to the join slide.\allowbreak{} For a laptop-\allowbreak{}only rehearsal, open http:/\allowbreak{}/\allowbreak{}localhost:8765/\allowbreak{}play in another browser tab, enter the current PIN and a practice nickname.\allowbreak{} Confirm that the player count increases.
+\item Advance to a question's reading step, then advance again to open answering.\allowbreak{} The demonstration allows 240 seconds.\allowbreak{} Submit an answer in the participant tab and check that the presenter counts it.
+\item Wait for the round to close or use Stop the question, then advance to reveal the answer.\allowbreak{} Compare the participant feedback with the audience display.\allowbreak{} The following illustrated sections explain these controls in detail.
+\end{itemize}
+
+\manualsubheading{4  Stop and resume}
+Finish the practice session and save any exports you need.\allowbreak{} Press Ctrl+C in the terminal that started the server to stop it.\allowbreak{} Closing a browser tab alone does not stop the server.\allowbreak{} Run the same present command from the same source root to reopen the deck and reuse the rehearsal data.\allowbreak{} Navigation backwards does not reset answered questions; use Ask again or New game as described later.\par
+
+\manualsection{Move from one laptop to a real phone}
+First confirm the laptop-\allowbreak{}only rehearsal works.\allowbreak{} Then put the presenter computer and phone on a network that allows them to reach each other.\allowbreak{} The server prints a line beginning phones join at.\allowbreak{} Open that /\allowbreak{}play address on the phone and enter the current PIN.\allowbreak{} The phone does not need access to the .\allowbreak{}tex file or the Python installation.\par
+
+localhost and 127.\allowbreak{}0.\allowbreak{}0.\allowbreak{}1 mean the device you are using.\allowbreak{} They work for a participant tab on the presenter computer, but point to the phone itself when opened on a phone.\allowbreak{} The screenshot addresses are demonstration values; never copy them as the actual classroom address.\par
+
+Check the printed address ending in /\allowbreak{}api/\allowbreak{}status from the phone if joining fails.\allowbreak{} If that page cannot be reached, check the computer's firewall and whether Wi-\allowbreak{}Fi client isolation blocks device-\allowbreak{}to-\allowbreak{}device connections.\allowbreak{} If several network addresses are printed, select the one reachable from the phone.\allowbreak{} A VPN or campus Wi-\allowbreak{}Fi may require a different network or a hosted setup.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel --public-url http://192.168.1.23:8765
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{../installation.md}{installation.\allowbreak{}md}.\par
+
+\manualsection{Make the demonstration your own}
+After the first successful session, create a new folder named my-\allowbreak{}first-\allowbreak{}deck alongside the examples directory.\allowbreak{} Save the complete small quiz in Author a small quiz and choose the right export below as my-\allowbreak{}first-\allowbreak{}deck/\allowbreak{}deck.\allowbreak{}tex.\allowbreak{} Use a plain-\allowbreak{}text or LaTeX editor and save UTF-\allowbreak{}8 text with the .\allowbreak{}tex extension.\allowbreak{} Change the question title, choices and explanation; keep each quiz id unique within the deck.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage pdf --solutions my-first-deck/deck.tex
+texstage present my-first-deck/deck.tex --data .manual-data --port 8765 --no-tunnel
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+Check the printed solutions PDF before presenting.\allowbreak{} Re-\allowbreak{}run present after saving an edit; it rebuilds changed source.\allowbreak{} If the presentation is already open, reload or reopen the deck after the build.\allowbreak{} For a clean practice round choose New game.\allowbreak{} A .\allowbreak{}tex edit alone does not alter the page already displayed in a browser.\par
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{File or folder} & \textbf{Keep or share?} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{File or folder} & \textbf{Keep or share?} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+deck.\allowbreak{}tex and its images & Editable source: keep these under version control. \\ \addlinespace[3pt]
+texquiz-\allowbreak{}out & Generated output beside the source.\allowbreak{} Rebuild it from source; do not edit its generated slide or quiz data. \\ \addlinespace[3pt]
+Handout /\allowbreak{} solutions PDF & Choose the intended audience explicitly.\allowbreak{} Solutions disclose the answers.\allowbreak{} The default pdf command creates the handout. \\ \addlinespace[3pt]
+.\allowbreak{}bundle.\allowbreak{}zip & Upload to the intended server to present elsewhere.\allowbreak{} It includes quiz definitions and answers; it is not a student handout. \\ \addlinespace[3pt]
+.\allowbreak{}manual-\allowbreak{}data & Private rehearsal server state, including authorization material.\allowbreak{} Keep it out of public repositories and student downloads. \\ \addlinespace[3pt]
+\end{longtable}}
 
 \manualsection{Choose a deck}
 \manualsubheading{Open the library}
@@ -453,6 +653,8 @@ Screenshot sources and hashes are listed in \href{../images/manual/captures.json
 
 \FloatBarrier
 \manualsection{LaTeX reference: packages and loading}
+Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{../manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{../installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
+
 This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 candidate.\par
 
 {\small
