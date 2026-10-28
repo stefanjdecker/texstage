@@ -7,7 +7,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 files = list(ROOT.glob("*.md")) + list((ROOT / "docs").glob("*.md"))
 files += list((ROOT / "docs/manual-latex").glob("*.md"))
-files += list((ROOT / "examples").rglob("README.md"))
+files += list((ROOT / "examples").rglob("*.md"))
 errors = []
 for path in files:
     text = path.read_text(encoding="utf-8")

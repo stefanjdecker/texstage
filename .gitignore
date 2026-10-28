@@ -31,3 +31,5 @@ deploy/.env
 /docs/manual-latex/*.toc
 
 /.reference-build/
+/.showcase-build/
+/.showcase-data/

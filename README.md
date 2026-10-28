@@ -59,6 +59,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Installation and quick start](docs/installation.md) | Requirements, first deck, troubleshooting and deployment |
 | [Authoring](docs/authoring.md) | Quiz syntax, build modes and presenting |
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
+| [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, video and a recording script |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |

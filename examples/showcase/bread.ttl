@@ -1,0 +1,2 @@
+@prefix : <https://example.org/picnic/> .
+:Sam :brings :bread .

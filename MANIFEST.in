@@ -19,3 +19,5 @@ graft requirements
 graft maintenance
 
 graft examples/reference
+graft examples/showcase
+prune examples/showcase/texquiz-out
