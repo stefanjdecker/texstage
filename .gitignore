@@ -34,6 +34,8 @@ deploy/.env
 /.showcase-build/
 /.showcase-data/
 
+/_site/
+
 # Recording-production assets are maintained only in the private checkout.
 /docs/media/demo/
 /docs/demonstration.md

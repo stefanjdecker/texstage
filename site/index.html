@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>texstage – live quizzes in LaTeX Beamer slides</title>
+  <meta name="description" content="texstage puts live quizzes and class activities into LaTeX Beamer slides. Write them in the same .tex file, present in the browser, and students answer on their phones.">
+  <link rel="canonical" href="https://www.texstage.org/">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#4a1a8c">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="texstage – live quizzes in LaTeX Beamer slides">
+  <meta property="og:description" content="Write quizzes and class activities in the same .tex file as your lecture. Present in the browser; students answer on their phones.">
+  <meta property="og:url" content="https://www.texstage.org/">
+  <meta property="og:image" content="https://www.texstage.org/images/manual/07-presenter-question.jpg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap header-row">
+    <a class="brand" href="#top" aria-label="texstage, back to top">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M8 2 L14.5 13.5 H1.5 Z" fill="var(--red)"/>
+        <path d="M24 1.5 L30 8 L24 14.5 L18 8 Z" fill="var(--blue)"/>
+        <circle cx="8" cy="24" r="6" fill="var(--yellow)"/>
+        <rect x="18.5" y="18.5" width="11" height="11" rx="1" fill="var(--green)"/>
+      </svg>
+      <span>texstage</span>
+    </a>
+    <nav aria-label="Main">
+      <a class="nav-hide" href="#write">How it works</a>
+      <a class="nav-hide" href="#activities">Activities</a>
+      <a class="nav-hide" href="#demo">Demo</a>
+      <a class="nav-hide" href="#docs">Docs</a>
+      <a href="https://github.com/stefanjdecker/texstage">GitHub</a>
+      <a class="nav-cta" href="#start">Get started</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+<section class="hero" id="top">
+  <div class="wrap hero-grid">
+    <div class="hero-text">
+      <p class="eyebrow">Open source · Apache-2.0</p>
+      <h1>Live quizzes, written in your Beamer slides</h1>
+      <p class="lead">texstage puts questions and class activities into the same .tex file as your lecture. You present in the browser. Students answer on their phones, with no app and no account.</p>
+      <p class="actions">
+        <a class="button primary" href="#start">Get started</a>
+        <a class="button" href="#demo">Watch the 27-minute demo</a>
+      </p>
+      <p class="fine">Built at RWTH Aachen University for lectures on databases and knowledge graphs.</p>
+    </div>
+    <figure class="hero-shot">
+      <div class="screen">
+        <img src="images/manual/07-presenter-question.jpg" width="1280" height="720" alt="The texstage presenter window during a quiz: the question with four answers and a countdown, a preview of the reveal, and the lecturer's notes.">
+      </div>
+      <div class="phone">
+        <img src="images/manual/08-phone-single-choice.jpg" width="390" height="844" alt="A student's phone showing the same question with four coloured answer buttons.">
+      </div>
+      <figcaption class="visually-hidden">The presenter window and a student's phone at the same moment of a quiz.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="section" id="write">
+  <div class="wrap">
+    <h2>Write the quiz where it is shown</h2>
+    <p class="lead">A quiz is a few lines of LaTeX, next to the slides it belongs to. Your theme, speaker notes and labels keep working, and a quiz can also sit inside one of your own frames, beside a table or a listing.</p>
+    <div class="split">
+      <div class="split-code">
+<pre class="code" aria-label="LaTeX example"><code><span class="c">\documentclass</span>{beamer}
+<span class="c">\usepackage</span>{texquiz}
+<span class="c">\begin</span>{document}
+<span class="c">\quizjoinframe</span>                  <span class="k">% QR code and PIN</span>
+<span class="c">\begin</span>{quiz}[id=planet]{Which planet is known as the Red Planet?}
+  <span class="c">\choice</span>{Venus}
+  <span class="c">\choice*</span>{Mars}                 <span class="k">% * marks the correct answer</span>
+  <span class="c">\choice</span>{Jupiter}
+  <span class="c">\choice</span>{Neptune}
+  <span class="c">\explain</span>{Mars appears reddish because of iron oxide on its surface.}
+<span class="c">\end</span>{quiz}
+<span class="c">\quizpodiumframe</span>                <span class="k">% final standings</span>
+<span class="c">\end</span>{document}</code></pre>
+      </div>
+      <div class="outputs">
+        <p class="outputs-title">One source, three outputs</p>
+        <div class="output">
+          <h3>Handout PDF</h3>
+          <p>Before the lecture. Each quiz becomes a neutral placeholder, so nothing is given away.</p>
+        </div>
+        <div class="output">
+          <h3>Solutions PDF</h3>
+          <p>After the lecture. The questions with their correct answers and your explanations.</p>
+        </div>
+        <div class="output output-live">
+          <h3>Live deck</h3>
+          <p>In the lecture. A small server keeps your presenter window, the projector and the phones in step.</p>
+        </div>
+      </div>
+    </div>
+<pre class="code"><code>texstage pdf deck.tex              <span class="k"># handout</span>
+texstage pdf --solutions deck.tex  <span class="k"># solutions</span>
+texstage present deck.tex          <span class="k"># build, start the server, open the presenter</span></code></pre>
+    <p class="note">Before you present, <code>texstage build</code> checks every quiz frame as it really looks, and stops if content runs into the footline or a frame is shrunk too far.</p>
+  </div>
+</section>
+
+<section class="section alt" id="lecture">
+  <div class="wrap">
+    <h2>One question, three clicks</h2>
+    <p class="lead">Students scan the QR code on the join slide and enter the PIN and a nickname. You run every question with the clicker you already use for your slides.</p>
+    <figure class="wide-shot">
+      <div class="screen">
+        <img src="images/manual/03-presenter-join.jpg" width="1280" height="720" loading="lazy" alt="The join slide in the presenter window, with the join address, a QR code, the game PIN and the number of players.">
+      </div>
+      <figcaption>The join slide shows the address, a QR code, the PIN and how many students have joined.</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>
+        <div class="phone small"><img src="images/manual/06-phone-reading.jpg" width="390" height="844" loading="lazy" alt="A phone showing only the question text, with no answer buttons yet."></div>
+        <h3><span class="num">1</span> Read</h3>
+        <p>The question appears alone, on the projector and on the phones. There are no buttons yet, so the class reads first.</p>
+      </li>
+      <li>
+        <div class="phone small"><img src="images/manual/09-phone-answer-sent.jpg" width="390" height="844" loading="lazy" alt="A phone confirming that the answer was sent."></div>
+        <h3><span class="num">2</span> Answer</h3>
+        <p>The next click opens a timed round of 5 to 240 seconds. Pause it, add 10 seconds or stop it whenever you like.</p>
+      </li>
+      <li>
+        <div class="phone small"><img src="images/manual/11-phone-feedback.jpg" width="390" height="844" loading="lazy" alt="A phone showing that the answer was correct, with points and rank."></div>
+        <h3><span class="num">3</span> Reveal</h3>
+        <p>The slide marks the correct answer, shows how the class voted and adds your explanation. Each phone shows its own result.</p>
+      </li>
+    </ol>
+    <p class="note">Going back never resets a question. <strong>Ask again</strong> runs a practice round without points, and a podium slide ends the session with the final standings.</p>
+  </div>
+</section>
+
+<section class="section" id="types">
+  <div class="wrap">
+    <h2>Nine question types</h2>
+    <p class="lead">From a quick check to a drawing. Scored questions can feed a leaderboard; unscored ones collect opinions, estimates and ideas.</p>
+    <ul class="types">
+      <li><h3>Single choice</h3><p>2 to 6 answers, one correct.</p><span class="tag">Scored</span></li>
+      <li><h3>Multiple choice</h3><p>Select every correct answer, with optional partial credit.</p><span class="tag">Scored</span></li>
+      <li><h3>True or false</h3><p>One tap, labels of your choice.</p><span class="tag">Scored</span></li>
+      <li><h3>Numeric</h3><p>A number or a slider, with tolerance and unit.</p><span class="tag">Scored or estimate</span></li>
+      <li><h3>Short text</h3><p>A typed term, checked against the spellings you accept.</p><span class="tag">Scored</span></li>
+      <li><h3>Ordering</h3><p>Put shuffled steps in the right order.</p><span class="tag">Scored</span></li>
+      <li><h3>Poll</h3><p>One or several options, no right answer.</p><span class="tag quiet">Unscored</span></li>
+      <li><h3>Open text</h3><p>Free answers, shown as a word cloud or a list.</p><span class="tag quiet">Unscored</span></li>
+      <li><h3>Sketch</h3><p>Students draw; you pick drawings for the projector.</p><span class="tag quiet">Unscored</span></li>
+    </ul>
+    <div class="phones-row">
+      <figure><div class="phone small"><img src="images/manual/13-phone-multiple-choice.jpg" width="390" height="844" loading="lazy" alt="A multiple-choice question on a phone, with two answers ticked and a Submit button."></div><figcaption>Multiple choice</figcaption></figure>
+      <figure><div class="phone small"><img src="images/manual/16-phone-numeric.jpg" width="390" height="844" loading="lazy" alt="A numeric question on a phone, answered with a slider."></div><figcaption>Numeric, as a slider</figcaption></figure>
+      <figure><div class="phone small"><img src="images/manual/17-phone-ordering.jpg" width="390" height="844" loading="lazy" alt="An ordering question on a phone, with up and down buttons beside each item."></div><figcaption>Ordering</figcaption></figure>
+    </div>
+    <p class="note">Not everything has to be prepared. <strong>Poll</strong> asks a question on the spot: yes or no, A to F, a scale from 1 to 5, a word cloud, free text or a sketch. <strong>Q&amp;A</strong> collects anonymous questions with upvotes, and you choose which one goes on the projector.</p>
+  </div>
+</section>
+
+<section class="section alt" id="activities">
+  <div class="wrap">
+    <h2>Live activities: the class builds something together</h2>
+    <p class="lead">Instead of one answer each, students send many small contributions. texstage turns them into one picture on the slide, and you moderate it.</p>
+    <div class="cards two">
+      <div class="card">
+        <h3>Crowd graph</h3>
+        <p>Students send pairs or triples, such as “Alice knows Bob”. A graph grows on the projector. Merge spellings, hide terms, require a minimum number of students per edge, or review every contribution first.</p>
+      </div>
+      <div class="card">
+        <h3>Query clusters</h3>
+        <p>Students write SQL, SPARQL or Turtle against a small dataset you provide. Submissions are grouped by their result, so you see which mistakes are common, not just how many answers were wrong.</p>
+      </div>
+    </div>
+<pre class="code" aria-label="LaTeX example of an SQL activity"><code><span class="c">\begin</span>{frame}[fragile]{Query the people table}
+  <span class="c">\begin</span>{activity}[id=names, input=code, engine=sql, open=manual]
+    <span class="c">\prompt</span>{Return all names in alphabetical order.}
+    <span class="c">\seed</span>{CREATE TABLE people(name TEXT);
+          INSERT INTO people VALUES ('Bob'), ('Alice');}
+    <span class="c">\reference</span>{SELECT name FROM people ORDER BY name;}
+  <span class="c">\end</span>{activity}
+<span class="c">\end</span>{frame}</code></pre>
+    <p class="note">Phones never run code. Queries are evaluated in the presenter's browser, with SQLite (sql.js) and Oxigraph. Before the reveal, a student only learns whether the query runs, never its result. Live activities run in the browser presenter.</p>
+  </div>
+</section>
+
+<section class="section" id="presenter">
+  <div class="wrap">
+    <h2>A presenter made for teaching</h2>
+    <p class="lead">The presenter window is private: current and next step, your notes, a timer and the tools. The projector window shows the room only the slide.</p>
+    <figure class="wide-shot">
+      <div class="screen">
+        <img src="images/manual/10-presenter-reveal.jpg" width="1280" height="720" loading="lazy" alt="The presenter window after a reveal: the correct answer marked with the class's votes, the explanation, the next step, notes and the tool bar.">
+      </div>
+      <figcaption>After the reveal: the correct answer, how the class voted and the explanation, with your notes on the right.</figcaption>
+    </figure>
+    <ul class="features">
+      <li><h3>Notes and next step</h3><p>Your Beamer notes, as typeset or as resizable text, beside a preview of the next step.</p></li>
+      <li><h3>Ink and pointer</h3><p>Pen, highlighter, eraser, laser pointer and zoom, with mouse, touch or a Wacom pen.</p></li>
+      <li><h3>Whiteboard pages</h3><p>Insert a blank or squared page after any frame and write on it.</p></li>
+      <li><h3>Control the room</h3><p>Black, white or freeze the projector while you look ahead privately.</p></li>
+      <li><h3>iPad as presenter</h3><p>Pair a tablet by QR code and write with the Pencil while the laptop drives the projector.</p></li>
+      <li><h3>Recording</h3><p>Record what the hall sees, with your voice, straight into the server's archive.</p></li>
+      <li><h3>After the lecture</h3><p>One click gives the annotated PDF with your ink and whiteboard pages, and the results as CSV.</p></li>
+      <li><h3>PowerPoint, if you need it</h3><p>Export a live PowerPoint deck with an add-in, plus a static fallback without quizzes.</p></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section alt" id="demo">
+  <div class="wrap">
+    <h2>See a whole session in 27 minutes</h2>
+    <p class="lead">A narrated tour that plans a picnic with its audience. It shows all nine question types, five live activities, the presenter tools and the exports, from the lecturer's and the students' side.</p>
+    <!-- TODO: replace both TODO-demo-video-url links with the video's address; build_site.py fails until then -->
+    <div class="demo">
+      <a class="demo-shot" href="TODO-demo-video-url">
+        <div class="screen">
+          <img src="images/manual/02-presenter-workspace.jpg" width="1280" height="720" loading="lazy" alt="">
+        </div>
+        <span class="play" aria-hidden="true"></span>
+        <span class="visually-hidden">Watch the demonstration video</span>
+      </a>
+      <div>
+        <ol class="chapters" aria-label="Video chapters">
+          <li><span>00:00</span> What texstage is and why use it</li>
+          <li><span>01:15</span> One source, three views</li>
+          <li><span>02:57</span> Join and answer a first poll</li>
+          <li><span>05:03</span> Questions and useful feedback</li>
+          <li><span>10:28</span> Collect ideas and questions</li>
+          <li><span>15:00</span> Build and explore together</li>
+          <li><span>20:38</span> Explain things as they happen</li>
+          <li><span>22:26</span> A second presenter device</li>
+          <li><span>23:56</span> Recording and keeping results</li>
+          <li><span>26:13</span> From this example to your own talk</li>
+        </ol>
+        <p class="actions"><a class="button primary" href="TODO-demo-video-url">Watch the demo</a></p>
+      </div>
+    </div>
+    <p class="fine">Captions are part of the video. The participants are fictional, and the English narration is AI-generated from Stefan Decker's voice.</p>
+  </div>
+</section>
+
+<section class="section" id="start">
+  <div class="wrap">
+    <h2>Get started</h2>
+    <p class="lead">You need Python 3.12 to 3.14 and a TeX distribution with Beamer and TikZ, such as TeX Live, MacTeX or MiKTeX. texstage brings its own LaTeX packages. Students need only a browser.</p>
+    <div class="code-copy">
+      <button type="button" class="copy" data-copy="install">Copy</button>
+<pre class="code" id="install"><code>git clone https://github.com/stefanjdecker/texstage.git
+cd texstage
+python -m venv .venv
+. .venv/bin/activate            <span class="k"># Windows: .\.venv\Scripts\Activate.ps1</span>
+python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt
+python -m pip install --no-deps --no-build-isolation .
+texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel</code></pre>
+    </div>
+    <p>The presenter opens at <code>localhost:8765/stage</code>. Open <code>localhost:8765/play</code> in a second browser tab to answer as a student, then try a real phone with the address texstage prints after “phones join at”.</p>
+
+    <h3 class="sub">Where the server runs</h3>
+    <div class="cards three">
+      <div class="card">
+        <h4>Your laptop</h4>
+        <p>In the room's network. The simplest setup, and it works offline.</p>
+      </div>
+      <div class="card">
+        <h4>Your laptop, through a tunnel</h4>
+        <p>A Cloudflare tunnel lets phones join from any network, for example when the campus Wi-Fi keeps devices apart.</p>
+      </div>
+      <div class="card">
+        <h4>A hosted server</h4>
+        <p>Behind HTTPS, with the included Docker setup. Each lecturer has a key and sees only their own decks and results.</p>
+      </div>
+    </div>
+
+    <h3 class="sub" id="docs">Documentation</h3>
+    <ul class="docs">
+      <li><a href="https://github.com/stefanjdecker/texstage/blob/main/docs/manual.md">Illustrated manual</a> <span>Presenting, joining and answering, step by step, with screenshots. Also as a <a href="manual.pdf">PDF</a>.</span></li>
+      <li><a href="https://github.com/stefanjdecker/texstage/blob/main/docs/installation.md">Installation guide</a> <span>Requirements, a first deck, troubleshooting and hosting.</span></li>
+      <li><a href="https://github.com/stefanjdecker/texstage/blob/main/docs/authoring.md">Writing quizzes</a> <span>Question types, options, answer frames and build modes.</span></li>
+      <li><a href="https://github.com/stefanjdecker/texstage/blob/main/docs/latex-reference.md">LaTeX reference</a> <span>Every command and option of the four packages.</span></li>
+      <li><a href="https://github.com/stefanjdecker/texstage/tree/main/examples/showcase">Feature showcase</a> <span>The picnic-themed deck from the demo, ready to present yourself.</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section alt" id="status">
+  <div class="wrap measure">
+    <h2>Status</h2>
+    <p>texstage is a development candidate, version 0.2.1.dev0. It was built for lectures on knowledge graphs and databases at RWTH Aachen University, and so far it has been tested mainly on Windows with TeX Live. A few limits are worth knowing:</p>
+    <ul class="plain">
+      <li>One quiz per frame, and no overlays inside a quiz frame; texstage makes the reveal step itself.</li>
+      <li>Live decks are compiled with pdfLaTeX. LuaLaTeX is untested, and XeLaTeX is not supported.</li>
+      <li>Live activities run in the browser presenter; in PowerPoint they appear as a static box.</li>
+    </ul>
+    <p>Bug reports, questions and ideas for new activities are welcome on <a href="https://github.com/stefanjdecker/texstage/issues">GitHub</a>.</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-row">
+    <p>© 2026 Stefan Decker. texstage is licensed under the Apache License 2.0.</p>
+    <p><a href="https://github.com/stefanjdecker/texstage">GitHub</a> · <a href="manual.pdf">Manual (PDF)</a> · <a href="#top">Back to top</a></p>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).innerText);
+      button.textContent = 'Copied';
+    } catch {
+      button.textContent = 'Select to copy';
+    }
+    setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+  }));
+</script>
+</body>
+</html>
