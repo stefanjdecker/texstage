@@ -5,9 +5,14 @@ The main file is [showcase.tex](showcase.tex). It contains all slides, questions
 and spoken narration/action cues in Beamer presenter notes. Supporting files
 supply a real local video and tiny fictional datasets.
 
-This is material for recording a demonstration, not a prerecorded tutorial.
+Watch the [27:27 recorded demonstration](../../docs/demonstration.md), with
+presenter and phone-sized browser views, English narration, a transcript and
+captions. This folder contains the source and cues used to create it.
 Allow about 25-35 minutes for the full live tour, plus operational inserts.
-A 10-15 minute edited overview can select scenes; it will not show every feature.
+The edited video covers the main browser workflow; the coverage checklist
+identifies additional controls and environment-dependent demonstrations.
+
+The [production script](VIDEO-SCRIPT.md) accompanies the completed 27:27 video: a full introduction, ten chapters, deliberate phone interactions, real pairing with a second presenter browser, and a clearly labelled recording setup overview. The [transcript](../../docs/demonstration-transcript.md) and [demonstration guide](../../docs/demonstration.md) contain final timestamps.
 
 ## What is included?
 

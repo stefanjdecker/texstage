@@ -79,6 +79,11 @@ Keep course sources, existing server data and original repository checkouts out
 of this workflow. Do not commit the data directory, built live deck, recording
 or exported participant results. Review each capture for private content.
 
+The separately prepared, edited [public demonstration](demonstration.md) is an
+intentional documentation asset under docs/media/demo, accompanied by a
+timestamped transcript. Keep the MP4, transcript, SRT and guide in sync when
+replacing it. Its fictional session is separate from course and manual-capture data.
+
 Update captures.json with the source revision, capture date, viewport dimensions,
 descriptions and SHA-256 of each new image. The image paths are relative to docs.
 For an individual image, calculate its digest with:

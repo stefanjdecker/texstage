@@ -86,7 +86,8 @@ def render_pdf(target):
             else target.parent/".latex-build").resolve()
     output.mkdir(parents=True,exist_ok=True)
     subprocess.run(["latexmk","-pdf","-interaction=nonstopmode","-halt-on-error",
-                    "-no-shell-escape","-outdir="+str(output),"main.tex"],
+                    "-no-shell-escape",r"-usepretex=\def\manualdocroot{}",
+                    "-outdir="+str(output),"main.tex"],
                    cwd=project,check=True)
     log=(output/"main.log").read_text(encoding="utf-8",errors="replace")
     assert "Overfull" not in log,"Manual layout overflow; inspect the LaTeX log"

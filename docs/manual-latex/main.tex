@@ -1,5 +1,6 @@
 % SPDX-License-Identifier: Apache-2.0
 % Generated from docs/manual-content.json by maintenance/build_manual.py.
+\providecommand{\manualdocroot}{../}
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
 \newcommand{\manualversion}{0.2.1.dev0}
@@ -61,6 +62,11 @@ Participant & Uses a reachable /\allowbreak{}play address, session PIN and nickn
 \end{longtable}}
 
 The browser workflow is the starting path in this manual.\allowbreak{} PowerPoint integration, recording, hosted servers and tunnels are optional later topics.\allowbreak{} texstage can present Beamer material without DBIS styling.\allowbreak{} It does not create the teaching content for you, and a static PDF by itself does not run a live quiz.\par
+
+\manualsubheading{Watch a complete demonstration}
+\href{\manualdocroot media/demo/texstage-demonstration.mp4}{Watch or download the 27 minute 27 second demonstration (MP4)}, \href{\manualdocroot demonstration-transcript.md}{read its timestamped transcript}, or \href{\manualdocroot media/demo/texstage-demonstration.srt}{download the captions (SRT)}.\allowbreak{} The picnic-\allowbreak{}themed walkthrough shows presenter controls, the clean projector view, deliberate phone-\allowbreak{}sized browser interactions, quizzes, live activities, device coupling, recording setup, and exports.\allowbreak{} It uses English AI narration generated from Stefan's voice profile.\allowbreak{} All participants are fictional; the phone view is a browser viewport rather than a physical handset recording.\par
+
+The video has ten chapters and visible captions; the separate SRT is for reuse or editing.\allowbreak{} Device coupling is demonstrated with a second presenter browser, including approval and removal.\allowbreak{} The recording section is a setup overview: no recording take was completed in the capture browser.\allowbreak{} See the \href{\manualdocroot demonstration.md}{demonstration guide} for chapters and recording details, and the \href{\manualdocroot ../examples/showcase/README.md}{showcase source and production script} to reproduce or adapt it.\allowbreak{} Use a reachable join address for your own presentation.\par
 
 \manualsection{Choose your starting path}
 {\small
@@ -186,7 +192,7 @@ pdflatex --version
 
 Run these checks in the same terminal you will use for the tutorial.\allowbreak{} They must print version information.\allowbreak{} If a command is not found, finish the TeX installation, reopen the terminal and activate .\allowbreak{}venv again.\allowbreak{} Install any missing .\allowbreak{}sty dependency through your TeX package manager; pip installs Python dependencies, not TeX packages.\par
 
-If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{../installation.md}{installation.\allowbreak{}md} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
+If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{\manualdocroot installation.md}{installation.\allowbreak{}md} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
 
 \manualsection{Start your first session}
 Goal: see a compiled slide, open the presenter, submit a practice answer, and reveal its result.\allowbreak{} Stay in the texstage source root with .\allowbreak{}venv active.\allowbreak{} Use the supplied synthetic example so this rehearsal does not touch any existing course.\par
@@ -235,7 +241,7 @@ texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-t
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{../installation.md}{installation.\allowbreak{}md}.\par
+The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{\manualdocroot installation.md}{installation.\allowbreak{}md}.\par
 
 \manualsection{Make the demonstration your own}
 After the first successful session, create a new folder named my-\allowbreak{}first-\allowbreak{}deck alongside the examples directory.\allowbreak{} Save the complete small quiz in Author a small quiz and choose the right export below as my-\allowbreak{}first-\allowbreak{}deck/\allowbreak{}deck.\allowbreak{}tex.\allowbreak{} Use a plain-\allowbreak{}text or LaTeX editor and save UTF-\allowbreak{}8 text with the .\allowbreak{}tex extension.\allowbreak{} Change the question title, choices and explanation; keep each quiz id unique within the deck.\par
@@ -481,7 +487,7 @@ Record & Choose the microphone and start recording; in the browser chooser selec
 Sketches /\allowbreak{} Activities & These controls appear for matching content in the deck.\allowbreak{} Sketches lets you choose submitted drawings to display; Activities provides controls for authored live activities. \\ \addlinespace[3pt]
 \end{longtable}}
 
-Recording and device/\allowbreak{}screen integration depend on browser support and permissions.\allowbreak{} Microphone and screen recording were not part of the screenshot session.\allowbreak{} Rehearse them on the presenting computer before class.\allowbreak{} The \href{../authoring.md}{authoring guide} and \href{../installation.md}{installation guide} cover the wider workflows.\par
+Recording and device/\allowbreak{}screen integration depend on browser support and permissions.\allowbreak{} Microphone and screen recording were not part of the screenshot session.\allowbreak{} Rehearse them on the presenting computer before class.\allowbreak{} The \href{\manualdocroot authoring.md}{authoring guide} and \href{\manualdocroot installation.md}{installation guide} cover the wider workflows.\par
 
 \manualsection{Finish the session and export the material}
 A podium slide finishes the quiz session and shows final standings on phones.\allowbreak{} \textbf{After the lecture} opens the export tools; opening that panel alone does not end a quiz.\allowbreak{} \textbf{New game}, or returning to the join slide after a podium, starts a new session with a new PIN.\par
@@ -623,7 +629,7 @@ The screenshots show texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 
 
 All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface can use German according to browser language.\par
 
-The source deck is \href{../../examples/manual/demo.tex}{examples/\allowbreak{}manual/\allowbreak{}demo.\allowbreak{}tex}.\allowbreak{} It uses 240-\allowbreak{}second quiz rounds for capture and rehearsal.\allowbreak{} Replace the example local join address and choose a realistic round duration for teaching.\allowbreak{} Live session join information comes from the server's advertised address.\par
+The source deck is \href{\manualdocroot ../examples/manual/demo.tex}{examples/\allowbreak{}manual/\allowbreak{}demo.\allowbreak{}tex}.\allowbreak{} It uses 240-\allowbreak{}second quiz rounds for capture and rehearsal.\allowbreak{} Replace the example local join address and choose a realistic round duration for teaching.\allowbreak{} Live session join information comes from the server's advertised address.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.250000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.750000\linewidth-2\tabcolsep\relax}}
@@ -649,11 +655,11 @@ releasing.\allowbreak{}md & Publication prerequisites and candidate validation. 
 
 For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example.\allowbreak{} Remove presenter keys and participant data from logs or screenshots before sharing them.\par
 
-Screenshot sources and hashes are listed in \href{../images/manual/captures.json}{images/\allowbreak{}manual/\allowbreak{}captures.\allowbreak{}json}.\allowbreak{} The \href{../manual-maintenance.md}{manual maintenance guide} explains how to refresh the images and regenerate all reading formats.\par
+Screenshot sources and hashes are listed in \href{\manualdocroot images/manual/captures.json}{images/\allowbreak{}manual/\allowbreak{}captures.\allowbreak{}json}.\allowbreak{} The \href{\manualdocroot manual-maintenance.md}{manual maintenance guide} explains how to refresh the images and regenerate all reading formats.\par
 
 \FloatBarrier
 \manualsection{LaTeX reference: packages and loading}
-Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{../manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{../installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
+Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{\manualdocroot manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
 
 This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 candidate.\par
 
@@ -1178,7 +1184,7 @@ For ordinary course files, prefer seed=\allowbreak{}people.\allowbreak{}sql and 
 \texttt{Browser rehearsal} & Open one activity, submit synthetic input, inspect results and reveal behavior.\allowbreak{} Compilation alone is not a browser/\allowbreak{}Office interoperability test. \\ \addlinespace[3pt]
 \end{longtable}}
 
-Runnable examples and an isolated validation command are provided in \href{../../examples/reference/README.md}{examples/\allowbreak{}reference/\allowbreak{}README.\allowbreak{}md}.\allowbreak{} They use dedicated output/\allowbreak{}data directories and do not load existing courses.\par
+Runnable examples and an isolated validation command are provided in \href{\manualdocroot ../examples/reference/README.md}{examples/\allowbreak{}reference/\allowbreak{}README.\allowbreak{}md}.\allowbreak{} They use dedicated output/\allowbreak{}data directories and do not load existing courses.\par
 
 \manualsection{Activity labels and documentation helpers}
 The activity label hooks are ordinary macros.\allowbreak{} Redefine them after loading texactivity to localize static slide text; they do not change the phone UI language.\par
@@ -1297,6 +1303,6 @@ Names containing @, names beginning \_\allowbreak{}\_\allowbreak{}, parser tempo
 
 The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/\allowbreak{}code activity records.\allowbreak{} Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.\par
 
-The \href{../latex-reference-inventory.json}{reference inventory} and \href{../../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
+The \href{\manualdocroot latex-reference-inventory.json}{reference inventory} and \href{\manualdocroot ../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
 
 \end{document}

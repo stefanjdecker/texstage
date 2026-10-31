@@ -40,10 +40,10 @@ def inline(text):
         elif bold is not None:
             parts.append(r"\textbf{" + inline(bold) + "}")
         else:
-            # The generated project is one level below docs, where source links start.
+            target = literal(url)
             if not re.match(r"[a-zA-Z][\w+.-]*:", url):
-                url = "../" + url
-            parts.append(r"\href{" + literal(url) + "}{" + inline(label) + "}")
+                target = r"\manualdocroot " + target
+            parts.append(r"\href{" + target + "}{" + inline(label) + "}")
         start = token.end()
     parts.append(breakable(text[start:]))
     return "".join(parts)
@@ -119,6 +119,7 @@ def latex(data):
     lines=[
         "% SPDX-License-Identifier: Apache-2.0",
         "% Generated from docs/manual-content.json by maintenance/build_manual.py.",
+        r"\providecommand{\manualdocroot}{../}",
         r"\documentclass[a4paper,11pt]{article}",r"\usepackage{manual}",
         r"\newcommand{\manualversion}{"+literal(data["version"])+"}",
         r"\newcommand{\manualdate}{"+literal(data["date"])+"}",

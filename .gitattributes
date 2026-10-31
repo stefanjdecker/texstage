@@ -5,6 +5,7 @@
 *.jpg binary
 *.jpeg binary
 *.pdf binary
+*.mp4 binary
 *.pptx binary
 *.scpt binary
 *.wasm binary

@@ -23,6 +23,10 @@ This produces main.pdf beside the source. No texstage server, Python package,
 course repository or network service is needed. Open the project folder in a
 LaTeX editor and select main.tex as the main document, or use the command above.
 The output contains selectable text, bookmarks and the original screenshots.
+Document links use `\manualdocroot`, which defaults to `../` for this folder.
+The repository builder overrides it with an empty prefix for the published
+`docs/manual.pdf`, so links to the demonstration and companion guides resolve
+from the location of each PDF. Keep the repository layout when following local links.
 
 To build a copy elsewhere, copy this folder and ../images/manual while preserving
 their relative positions. References to companion documentation link to files
