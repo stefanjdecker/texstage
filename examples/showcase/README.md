@@ -1,18 +1,9 @@
 # A picnic, planned together
 
 A complete texstage feature tour built around a familiar task: planning a picnic.
-The main file is [showcase.tex](showcase.tex). It contains all slides, questions
-and spoken narration/action cues in Beamer presenter notes. Supporting files
-supply a real local video and tiny fictional datasets.
-
-Watch the [27:27 recorded demonstration](../../docs/demonstration.md), with
-presenter and phone-sized browser views, English narration, a transcript and
-captions. This folder contains the source and cues used to create it.
-Allow about 25-35 minutes for the full live tour, plus operational inserts.
-The edited video covers the main browser workflow; the coverage checklist
-identifies additional controls and environment-dependent demonstrations.
-
-The [production script](VIDEO-SCRIPT.md) accompanies the completed 27:27 video: a full introduction, ten chapters, deliberate phone interactions, real pairing with a second presenter browser, and a clearly labelled recording setup overview. The [transcript](../../docs/demonstration-transcript.md) and [demonstration guide](../../docs/demonstration.md) contain final timestamps.
+The main file is [showcase.tex](showcase.tex). It contains runnable slides,
+questions, activities and brief feature notes. Supporting files supply a
+short silent clip for local video playback and tiny fictional datasets.
 
 ## What is included?
 
@@ -20,11 +11,8 @@ The [production script](VIDEO-SCRIPT.md) accompanies the completed 27:27 video: 
 - Five activities: two- and three-field contributions, SQL, SPARQL and Turtle.
 - An original silent video, with a real poster, packaged for offline local playback.
 - Ordinary slides, overlays, math, links, notes, join, leaderboard and podium frames.
-- Recording cues for the presenter, projector, phones, Q&A, spontaneous polls,
-  sketch gallery, ink, whiteboards, devices, recording, exports and reuse.
 - A [feature checklist](COVERAGE.md) distinguishing executable source examples
-  from browser demonstrations and optional platform/deployment workflows.
-- A [recording script](RECORDING.md) with sample answers and expected results.
+  from browser controls and optional platform/deployment workflows.
 
 Everything is synthetic. No DBIS course files, branding, accounts or data are
 needed. The code activities use fixed examples; they do not consume the audience's
@@ -102,18 +90,6 @@ on TeX's search path. Select the mode before input:
 Plain compilation defaults to handout behavior. The portable source pack includes
 the styles beside the source for this purpose.
 
-## Make a video
-
-Use [RECORDING.md](RECORDING.md). Every scene's narration and actions are also in
-the source notes. Show actual phone interaction rather than presenting PDF pages
-as if they were live. Capture separate presenter and phone inserts for a tutorial;
-the built-in recorder records only the surface selected in the browser chooser.
-
-For the full feature tour use the browser presenter. PowerPoint needs its own
-supported setup and does not run live activities. Screen/microphone capture,
-tablet pens and a second physical display require rehearsal on the target device.
-Local media works without an external provider. The optional external LaTeX link
-requires internet access.
 
 ## Rebuild and verify this example
 

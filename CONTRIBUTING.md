@@ -29,3 +29,14 @@ material excluded by NOTICE.
 Report reproducible non-sensitive defects through the repository's Issues page
 once hosted. Include OS, Python/package version, TeX version, command, expected
 result and a minimal input. For sensitive reports, follow [SECURITY.md](SECURITY.md).
+
+## Public repository boundary
+
+This checkout contains the public source, examples and user documentation.
+Recording-production media, transcripts, captions and scripts are maintained
+separately. Do not merge or mirror a private repository into this history.
+Before pushing, run `python maintenance/check_public_content.py`. The same
+check runs in CI and reviews reachable history as well as tracked files.
+
+After cloning, enable the pre-push guard with
+`git config core.hooksPath .githooks`.

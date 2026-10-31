@@ -21,3 +21,8 @@ graft maintenance
 graft examples/reference
 graft examples/showcase
 prune examples/showcase/texquiz-out
+
+# Never include private recording-production assets in public archives.
+prune docs/media/demo
+exclude docs/demonstration.md docs/demonstration-transcript.md
+exclude examples/showcase/VIDEO-SCRIPT.md examples/showcase/RECORDING.md

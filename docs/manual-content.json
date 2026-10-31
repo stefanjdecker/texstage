@@ -73,15 +73,6 @@
         },
         {
           "p": "The browser workflow is the starting path in this manual. PowerPoint integration, recording, hosted servers and tunnels are optional later topics. texstage can present Beamer material without DBIS styling. It does not create the teaching content for you, and a static PDF by itself does not run a live quiz."
-        },
-        {
-          "heading": "Watch a complete demonstration"
-        },
-        {
-          "p": "[Watch or download the 27 minute 27 second demonstration (MP4)](media/demo/texstage-demonstration.mp4), [read its timestamped transcript](demonstration-transcript.md), or [download the captions (SRT)](media/demo/texstage-demonstration.srt). The picnic-themed walkthrough shows presenter controls, the clean projector view, deliberate phone-sized browser interactions, quizzes, live activities, device coupling, recording setup, and exports. It uses English AI narration generated from Stefan's voice profile. All participants are fictional; the phone view is a browser viewport rather than a physical handset recording."
-        },
-        {
-          "p": "The video has ten chapters and visible captions; the separate SRT is for reuse or editing. Device coupling is demonstrated with a second presenter browser, including approval and removal. The recording section is a setup overview: no recording take was completed in the capture browser. See the [demonstration guide](demonstration.md) for chapters and recording details, and the [showcase source and production script](../examples/showcase/README.md) to reproduce or adapt it. Use a reachable join address for your own presentation."
         }
       ]
     },

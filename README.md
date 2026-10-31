@@ -14,9 +14,6 @@ texstage connects a Beamer source file, a private presenter browser, an audience
 
 The [installation guide](docs/installation.md) begins with obtaining the candidate source and checking Python and TeX. PowerPoint, hosted servers and lecture-tools are optional paths.
 
-## Watch the demonstration
-
-[Watch or download the 27:27 video](docs/media/demo/texstage-demonstration.mp4), [read the transcript](docs/demonstration-transcript.md), or [download the captions (SRT)](docs/media/demo/texstage-demonstration.srt). The picnic-themed tour shows the presenter and projector views, deliberate phone-sized browser interactions, quizzes, live activities, device coupling, recording setup, and exports, with English AI narration in Stefan's voice. See the [demonstration guide](docs/demonstration.md) for chapters and recording details.
 
 ## Features
 
@@ -60,11 +57,10 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | Guide | Use it for |
 |---|---|
 | [Illustrated user manual](docs/manual.md) ([PDF](docs/manual.pdf), [LaTeX](docs/manual-latex/README.md)) | Presenter walkthrough, phone screenshots, Q&A, exports and quick references |
-| [Narrated demonstration](docs/demonstration.md) | 27:27 video, timestamped transcript, and captions |
 | [Installation and quick start](docs/installation.md) | Requirements, first deck, troubleshooting and deployment |
 | [Authoring](docs/authoring.md) | Quiz syntax, build modes and presenting |
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
-| [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, video and a recording script |
+| [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, local video playback and presenter notes |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |
