@@ -117,7 +117,7 @@ texstage present deck.tex          <span class="k"># build, start the server, op
       <div class="screen">
         <img src="images/manual/03-presenter-join.jpg" width="1280" height="720" loading="lazy" alt="The join slide in the presenter window, with the join address, a QR code, the game PIN and the number of players.">
       </div>
-      <figcaption>The join slide shows the address, a QR code, the PIN and how many students have joined.</figcaption>
+      <figcaption>The join slide shows the address, a QR code, the PIN and how many students have joined. This screenshot comes from a rehearsal on one computer, so its address, 127.0.0.1, works only there. In the lecture, the slide must show <a href="#join">an address the phones can reach</a>.</figcaption>
     </figure>
     <ol class="steps">
       <li>
@@ -259,7 +259,14 @@ python -m pip install --require-hashes --only-binary=:all: -r requirements/runti
 python -m pip install --no-deps --no-build-isolation .
 texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel</code></pre>
     </div>
-    <p>The presenter opens at <code>localhost:8765/stage</code>. Open <code>localhost:8765/play</code> in a second browser tab to answer as a student, then try a real phone with the address texstage prints after “phones join at”.</p>
+    <p>The presenter opens at <code>localhost:8765/stage</code>. For a first rehearsal, open <code>localhost:8765/play</code> in a second browser tab and answer as a student. That address works only on your own computer. A phone needs <a href="#join">the address texstage prints after “phones join at”</a>.</p>
+
+    <h3 class="sub" id="join">The address students join</h3>
+    <div class="measure">
+      <p>Students' phones connect to the texstage server, so the join slide and its QR code must show an address the phones can open. texstage fills it in when the server starts. By default it is the laptop's address in the room's network, such as <code>http://192.168.1.23:8765/play</code>. With a tunnel it is the tunnel's address, and on a hosted server that server's address.</p>
+      <p><code>localhost</code> and <code>127.0.0.1</code> always mean the device itself. They work in a second tab on your laptop, but on a phone they point to the phone. That is why the screenshots on this page, all taken on one computer, show an address no student could join.</p>
+      <p>Before the lecture, open the printed address ending in <code>/api/status</code> on a phone in the room. If it does not load, the laptop's firewall or the Wi-Fi is keeping the phone out. Campus networks often keep devices apart: then use a phone hotspot, a tunnel or a hosted server. If the laptop has several network addresses, texstage lists them; pass the one the phones reach with <code>--public-url</code>.</p>
+    </div>
 
     <h3 class="sub">Where the server runs</h3>
     <div class="cards three">

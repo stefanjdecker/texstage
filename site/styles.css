@@ -70,6 +70,7 @@ h4 { font-size: 1.1rem; }
 p { margin: 0 0 1rem; }
 
 code { font-family: var(--mono); font-size: 0.9em; background: var(--accent-soft); padding: 0.1em 0.35em; border-radius: 4px; }
+:not(pre) > code { white-space: nowrap; }
 
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
 .measure > p, .measure > ul { max-width: 46rem; }
