@@ -1,7 +1,13 @@
 # www.texstage.org
 
-The project homepage: one static page (`index.html`, `styles.css`, `favicon.svg`) with no
+The project homepage: a static page (`index.html`, `styles.css`, `favicon.svg`) with no
 build step and no external requests. Its screenshots and manual PDF are not copied here; `maintenance/build_site.py` takes them from `docs/` when it assembles the site.
+
+`legal.html` holds the Impressum (§ 18 (1) MStV: name and postal address of the private,
+non-commercial operator) and the privacy policy. The privacy policy describes what the site does
+and does not do: no cookies, analytics, forms or content from other servers, and hosting on
+GitHub Pages. Update it when that changes, for example when the page embeds a video or loads a
+web font.
 
 ## Preview
 
@@ -10,7 +16,8 @@ python maintenance/build_site.py
 python -m http.server 8000 --directory _site
 ```
 
-Then open http://localhost:8000. The script also checks every local link, image and anchor.
+Then open http://localhost:8000. The script also checks every local link, image and anchor,
+and it fails while a page still contains `TODO`, such as a placeholder in the Impressum.
 The demonstration video is not part of this repository: the page links to it on YouTube
 (https://youtu.be/hPgWYiSEhYU), and its chapter links use `?t=` offsets in seconds. When
 the video is recut, update the heading, the hero button and the chapter list together.

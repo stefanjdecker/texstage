@@ -2,7 +2,8 @@
 """Assemble the www.texstage.org homepage from site/ and the manual's media.
 
 Copies site/ and the screenshots and manual PDF it uses into one folder
-(default _site/) and checks that every local link, image and anchor in its pages resolves.
+(default _site/) and checks that every local link, image and anchor in its pages resolves
+and that no page still holds a TODO placeholder, such as the Impressum's address.
 The site shares these files with the manual instead of keeping copies of its own.
 GitHub Pages publishes the folder (.github/workflows/pages.yml).
 """
@@ -51,6 +52,11 @@ def broken_links(output):
     return errors
 
 
+def placeholders(output):
+    return [f"{page.relative_to(output)}: {line.strip()}" for page in output.rglob("*.html")
+            for line in page.read_text(encoding="utf-8").splitlines() if "TODO" in line]
+
+
 def is_site_build(output):
     """Missing, empty, or holding only what a build puts there (also when half deleted)."""
     names = {path.name for path in SITE.iterdir()} | {Path(target).parts[0] for target in MEDIA}
@@ -73,7 +79,9 @@ def main():
             shutil.copy2(source, output / target)
     errors = broken_links(output)
     assert not errors, "Broken links in the site:\n" + "\n".join(errors)
-    print(f"PASS: site assembled in {output}; all local links resolve")
+    todo = placeholders(output)
+    assert not todo, "Placeholders left in the site:\n" + "\n".join(todo)
+    print(f"PASS: site assembled in {output}; all local links resolve, no placeholders left")
 
 
 if __name__ == "__main__":
