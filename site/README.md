@@ -11,8 +11,9 @@ python -m http.server 8000 --directory _site
 ```
 
 Then open http://localhost:8000. The script also checks every local link, image and anchor.
-The demonstration video is not part of this repository: the page links to it, and the
-check fails while `index.html` still contains the `TODO-demo-video-url` placeholder.
+The demonstration video is not part of this repository: the page links to it on YouTube
+(https://youtu.be/hPgWYiSEhYU), and its chapter links use `?t=` offsets in seconds. When
+the video is recut, update the heading, the hero button and the chapter list together.
 
 ## Publishing on GitHub Pages
 

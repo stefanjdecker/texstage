@@ -206,6 +206,8 @@ nav .nav-cta:hover { color: var(--accent-ink); filter: brightness(1.1); }
 }
 .chapters { list-style: none; padding: 0; margin: 0 0 1.25rem; display: grid; gap: 4px; font-size: 0.95rem; }
 .chapters span { display: inline-block; width: 3.5em; color: var(--accent); font-family: var(--mono); font-size: 0.85rem; }
+.chapters a { color: inherit; text-decoration: none; }
+.chapters a:hover { text-decoration: underline; }
 
 .code-copy { position: relative; }
 .copy {
