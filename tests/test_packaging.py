@@ -15,13 +15,16 @@ SRC = ROOT / "src" / "texstage"
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 # the LaTeX packages the wheel carries (latex/dbis-slides.sty is the lectures', not texstage's)
 STYLES = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]
+# Moving the pre-existing course converter does not grant it an Apache license.
+# NOTICE preserves its original unresolved status until the rights holders decide.
+LEGACY_CONVERTER = SRC / "build" / "beamer.py"
 
 
 def own_sources():
     """The files the Apache-2.0 notice covers that carry a header (NOTICE)."""
     for p in sorted(SRC.rglob("*")):
         if p.is_file() and p.suffix in (".py", ".js", ".css", ".html") and "vendor" not in p.parts \
-                and "__pycache__" not in p.parts:
+                and "__pycache__" not in p.parts and p != LEGACY_CONVERTER:
             yield p
     yield from (ROOT / "latex" / n for n in STYLES)
     yield from sorted((ROOT / "scripts").glob("texstage-*.py"))
@@ -50,6 +53,11 @@ def test_licence_and_headers():
                if "SPDX-License-Identifier: Apache-2.0" not in p.read_text(encoding="utf-8")[:400]]
     assert not missing
     notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
+    assert LEGACY_CONVERTER.is_file()
+    assert LEGACY_CONVERTER.relative_to(ROOT).as_posix() in notice
+    assert "moving it does not relicense it" in notice
+    assert "original license was not" in notice
+    assert "see NOTICE" in LEGACY_CONVERTER.read_text(encoding="utf-8")[:400]
     for folder in (SRC / "web" / "vendor").iterdir():
         if folder.is_dir():
             assert list(folder.glob("LICENSE*")), folder.name               # each vendored library's licence
