@@ -6,13 +6,14 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .compiler import RERUN_PATTERN, compile_latex
+
 def latex_dir() -> Path:
     """Where texquiz.sty is: in an installed package texstage/latex/ (pyproject.toml maps the
-    repository's latex/ there), in a checkout of lecture-tools its latex/ folder."""
+    repository's latex/ there), or the Texstage checkout's latex/ folder."""
     packaged = Path(__file__).resolve().parents[1] / "latex"
     return packaged if (packaged / "texquiz.sty").is_file() else Path(__file__).resolve().parents[3] / "latex"
 
@@ -20,7 +21,7 @@ def latex_dir() -> Path:
 LATEX_DIR = latex_dir()
 MODES = ("handout", "solutions", "present")
 EXTRA_PASSES = 2                 # at most, after the passes asked for, while the log asks for one
-RERUN = re.compile(r"Rerun to get|Label\(s\) may have changed|^No file \S+\.(?:aux|nav)\.$", re.MULTILINE)
+RERUN = re.compile(RERUN_PATTERN, re.MULTILINE)
 
 
 class LatexError(RuntimeError):
@@ -56,24 +57,15 @@ def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = Fal
     jobname = jobname or f"{tex.stem}-{mode}"
     flags = (rf"\def\texquizmode{{{mode}}}" if explicit_mode else "") \
         + (r"\def\texquiznotes{stage}" if notes == "stage" else r"\def\texquiznotes{}" if notes else "")
-    cmd = ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "-file-line-error",
-           f"-output-directory={out_dir}", f"-jobname={jobname}", flags + rf"\input{{{tex.name}}}"]
-    env = dict(os.environ)
-    env["TEXINPUTS"] = str(LATEX_DIR) + os.pathsep + env.get("TEXINPUTS", "")
-    env.setdefault("max_print_line", "10000")   # unwrapped log lines
-    log = out_dir / f"{jobname}.log"
-
-    def run():
-        r = subprocess.run(cmd, cwd=tex.parent, env=env, capture_output=True,
-                           text=True, encoding="utf-8", errors="replace")
-        if r.returncode != 0:
-            raise LatexError(first_error(log) or r.stdout[-2000:])
-    for _ in range(passes):
-        run()
-    for _ in range(EXTRA_PASSES if passes > 1 else 0):     # a settled document was asked for
-        if not wants_rerun(log):
-            break
-        run()
+    result = compile_latex(
+        tex, output_dir=out_dir, jobname=jobname, preamble=flags,
+        passes=passes, extra_passes=EXTRA_PASSES if passes > 1 else 0,
+        file_line_error=True, texinputs=(LATEX_DIR,), output_encoding="utf-8",
+        env={"max_print_line": os.environ.get("max_print_line", "10000")},
+    )
+    log = result.log
+    if result.returncode:
+        raise LatexError(first_error(log) or result.stdout[-2000:])
     tqz = out_dir / f"{jobname}.tqz"
     return CompileResult(out_dir / f"{jobname}.pdf", log, tqz if mode == "present" else None,
                          count_overfull(log))

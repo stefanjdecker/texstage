@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import re
 import shutil
-import subprocess
 import tempfile
 from pathlib import Path
 
+from .compiler import compile_latex
 from .notes import NOTE_TEMPLATE, note_paragraphs
 from .pdf import Pdf
 from .powerpoint import PptxDeck
@@ -26,20 +26,14 @@ LATEX_AUX_EXTS = [
 # ---------- LaTeX helpers ----------
 
 def run_pdflatex(tex_file: Path, workdir: Path, jobname: str, passes: int = 2) -> Path:
-    cmd = [
-        "pdflatex",
-        "-interaction=nonstopmode",
-        "-halt-on-error",
-        f"-jobname={jobname}",
-        tex_file.name,
-    ]
-    for i in range(passes):
-        print(f"  pdflatex {jobname} (pass {i + 1}/{passes})")
-        r = subprocess.run(cmd, cwd=workdir, capture_output=True, text=True)
-        if r.returncode != 0:
-            tail = "\n".join(r.stdout.splitlines()[-60:])
-            raise RuntimeError(f"pdflatex failed for {jobname}:\n{tail}")
-    return workdir / f"{jobname}.pdf"
+    result = compile_latex(
+        workdir / tex_file.name, jobname=jobname, passes=passes,
+        on_pass=lambda index, total: print(f"  pdflatex {jobname} (pass {index}/{total})"),
+    )
+    if result.returncode:
+        tail = "\n".join(result.stdout.splitlines()[-60:])
+        raise RuntimeError(f"pdflatex failed for {jobname}:\n{tail}")
+    return result.pdf
 
 
 def inject_preamble(tex_source: str, injection: str) -> str:

@@ -476,7 +476,7 @@ def test_latex_runs_again_while_the_log_asks(tmp_path, monkeypatch):
     scanner may hold a file just written) typesets as a first one - frame totals 1, references ??,
     a new bundle ID: compile_deck runs again while the log asks for it, two passes more at most,
     and not after a single pass asked for."""
-    from texstage.build import latex
+    from texstage.build import latex, compiler
     logs, calls = [], []
 
     def pdflatex(cmd, **kw):
@@ -486,7 +486,7 @@ def test_latex_runs_again_while_the_log_asks(tmp_path, monkeypatch):
         (out / f"{job}.log").write_text(logs[min(len(calls), len(logs)) - 1], encoding="utf-8")
         return subprocess.CompletedProcess(cmd, 0, "", "")
     monkeypatch.setattr(latex.shutil, "which", lambda name: name)
-    monkeypatch.setattr(latex.subprocess, "run", pdflatex)
+    monkeypatch.setattr(compiler.subprocess, "run", pdflatex)
     tex = tmp_path / "deck.tex"
     tex.write_text("x", encoding="utf-8")
     first = "No file deck-present.aux.\nNo file deck-present.nav.\n"

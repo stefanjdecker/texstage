@@ -4,7 +4,7 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **unpublished 0.2.1.dev1 development candidate**. Installation
+This checkout is the **unpublished 0.2.1.dev2 development candidate**. Installation
 instructions use this source or its verified wheel, not an assumed PyPI release.
 See [release preparation](docs/releasing.md) for the remaining publication decisions.
 
@@ -63,6 +63,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
 | [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, local video playback and presenter notes |
 | [Plain PowerPoint conversion](docs/powerpoint.md) | Convert Beamer, preserve overlays and notes, or use the Python API |
+| [LaTeX compilation API](docs/compilation.md) | Shared pdflatex/latexmk runner for standalone documents and course tools |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |

@@ -10,13 +10,18 @@ from __future__ import annotations
 from contextlib import contextmanager
 from importlib import resources
 from pathlib import Path
-from typing import Iterator
+from collections.abc import Callable, Mapping
+from typing import TYPE_CHECKING, Iterator
+
+if TYPE_CHECKING:
+    from .build.compiler import LatexResult
 
 API_VERSION = 1
 LATEX_FILES = ("texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty")
 __all__ = [
     "API_VERSION", "LATEX_FILES", "run_cli", "needs_build", "slug",
     "Pdf", "NOTE_TEMPLATE", "note_paragraphs", "latex_resources", "convert_beamer_to_pptx",
+    "compile_latex", "LatexResult",
 ]
 
 
@@ -45,6 +50,28 @@ def convert_beamer_to_pptx(
     )
 
 
+def compile_latex(
+    tex: str | Path, *, engine: str = "pdflatex", output_dir: str | Path | None = None,
+    jobname: str | None = None, preamble: str = "", passes: int = 1, extra_passes: int = 0,
+    rerun_pattern: str | None = None, halt_on_error: bool = True, file_line_error: bool = False,
+    texinputs: tuple[str | Path, ...] = (), env: Mapping[str, str] | None = None,
+    log_encoding: str = "utf-8", output_encoding: str | None = None,
+    on_pass: Callable[[int, int], None] | None = None,
+) -> LatexResult:
+    """Generic pdflatex/latexmk compilation, added in 0.2.1.dev2 (API version 1).
+
+    Returns LatexResult even on engine failure; inspect returncode before using
+    outputs. See docs/compilation.md for options, paths and error handling.
+    """
+    from .build.compiler import compile_latex as implementation
+    return implementation(
+        tex, engine=engine, output_dir=output_dir, jobname=jobname, preamble=preamble,
+        passes=passes, extra_passes=extra_passes, rerun_pattern=rerun_pattern,
+        halt_on_error=halt_on_error, file_line_error=file_line_error, texinputs=texinputs,
+        env=env, log_encoding=log_encoding, output_encoding=output_encoding, on_pass=on_pass,
+    )
+
+
 def needs_build(folder: Path, out: Path, ignore: tuple[str, ...] = ()) -> str | None:
     """Return the existing builder's rebuild reason, or None."""
     from .cli import needs_build as implementation
@@ -64,6 +91,9 @@ def note_paragraphs(page, clip=None) -> str:
 
 
 def __getattr__(name: str):
+    if name == "LatexResult":
+        from .build.compiler import LatexResult
+        return LatexResult
     if name == "Pdf":
         from .build.pdf import Pdf
         return Pdf

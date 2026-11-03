@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev1 candidate
+## Unreleased — 0.2.1.dev2 candidate
+
+- Added the lazy `compile_latex` API and `LatexResult`, supporting pdflatex
+  and latexmk, source-relative includes, output/job names, bounded reruns
+  and captured diagnostics without selecting a theme or content mode.
+- Routed live-deck and plain PowerPoint compilation through the same runner.
+- Added compiler, chapter compatibility and installed-package checks.
+
+## Earlier 0.2.1.dev1 candidate
 
 - Moved plain Beamer-to-PowerPoint conversion from lecture-tools into
   Texstage, with `texstage pptx` and the lazy `convert_beamer_to_pptx` API.

@@ -37,4 +37,8 @@ with tempfile.TemporaryDirectory(prefix="texstage-wheel-") as tmp:
     converted = Presentation(plain.with_suffix(".pptx"))
     assert len(converted.slides) == 1
     assert converted.slides[0].notes_slide.notes_text_frame.text == "Installed converter."
-print("PASS: installed console, resources, synthetic live deck and plain PowerPoint conversion")
+    from texstage.api import compile_latex, LatexResult
+    result = compile_latex(plain, engine="latexmk", output_dir=scratch / "plain-pdf")
+    assert isinstance(result, LatexResult) and result.returncode == 0, result.stdout + result.stderr
+    assert result.pdf.is_file() and result.aux.is_file() and result.log_text
+print("PASS: installed console, resources, live deck, PowerPoint conversion and generic compilation API")

@@ -9,7 +9,7 @@ requirements/runtime.txt, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-0.2.1.dev1-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-0.2.1.dev2-py3-none-any.whl
 ```
 
 Replace the example path with the actual artifact. For development use the
