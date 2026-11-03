@@ -5,6 +5,7 @@ games and results; uploaded decks belong to the uploader, decks in served folder
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 
 import pytest
@@ -36,6 +37,29 @@ def test_the_list_of_lecturers(tmp_path):
     assert lecturers.who(ada) is None and lecturers.who(new) == "ada"    # the running server sees it
     assert other.remove("ada") and not other.remove("ada")
     assert lecturers.who(new) is None
+
+
+@pytest.mark.parametrize("change", ["renew", "remove"])
+def test_lecturer_changes_with_the_same_timestamp(tmp_path, change):
+    """A replacement file invalidates cached keys even within one clock tick."""
+    path = tmp_path / "lecturers.json"
+    lecturers = Lecturers(path)
+    old = lecturers.add("ada")
+    assert lecturers.who(old) == "ada"
+    stamp = path.stat()
+    other = Lecturers(path)
+    if change == "renew":
+        new = other.renew("ada")
+        assert path.stat().st_size == stamp.st_size
+    else:
+        assert other.remove("ada")
+    os.utime(path, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+    assert path.stat().st_mtime_ns == stamp.st_mtime_ns
+    assert lecturers.who(old) is None
+    if change == "renew":
+        assert lecturers.who(new) == "ada"
+    else:
+        assert lecturers.names() == []
 
 
 @pytest.fixture

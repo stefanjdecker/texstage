@@ -49,7 +49,9 @@ class Lecturers:
 
     def _read(self) -> dict[str, str]:
         try:
-            stamp = self.path.stat().st_mtime_ns
+            state = self.path.stat()
+            # Atomic replacements can share a timestamp, especially on Windows.
+            stamp = (state.st_mtime_ns, state.st_size, state.st_ino)
         except FileNotFoundError:
             self._file, self._stamp = {}, None
             return self._file

@@ -6,7 +6,7 @@ the registry: types.py).
     records   activity|id|input|engine|fields|suggest|tokens|limit|min|review|open|terms|seed
                       |reference|tex file|line
               activityref|id|query    activityseed|id|text      (texactivity.sty: texts hex-encoded,
-              a verbatim one's lines ending in "\\obeyedline "; a list: hex items, each with a comma)
+              a verbatim one's lines ending in CR or "\\obeyedline "; a list: hex items, each with a comma)
     box       a slide's live box: {type: activity, item, rects: {box}}
     entries   deck.json's items.activity - {id: {input, limit, fields, suggest?, min, review?, terms |
               engine, tokens, seed; open?, prompt?}}: the seed in the bundle as data/<hash>.ttl (.sql - the
@@ -73,8 +73,9 @@ def _words(field_: str) -> list[str]:
 
 
 def _verbatim(text: str) -> str:
-    """A verbatim text of the record (xparse's +v ends its lines with \\obeyedline)."""
-    return "\n".join(line.rstrip() for line in text.replace("\\obeyedline ", "\n").split("\n")).strip("\n")
+    """Normalize verbatim line breaks emitted by different LaTeX versions."""
+    text = text.replace("\\obeyedline ", "\n").replace("\r\n", "\n").replace("\r", "\n")
+    return "\n".join(line.rstrip() for line in text.split("\n")).strip("\n")
 
 
 def read(tqz: Tqz) -> dict[str, Activity]:

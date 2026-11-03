@@ -2,6 +2,11 @@
 
 ## Unreleased — 0.2.1.dev0 candidate
 
+- Normalize inline activity references and seeds to LF line endings across
+  LaTeX versions, preserving indentation, comments and literal escape sequences.
+- Reload lecturer keys after an atomic file replacement even when its timestamp
+  matches the cached file, including same-size key renewals.
+
 - Converted the manuals and references to portrait LaTeX articles with serif
   text, continuous sections, multipage tables and wrapped code.
 - Unified the downloadable manual PDF and native LaTeX build, preserving all
