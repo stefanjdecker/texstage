@@ -4,7 +4,7 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **unpublished 0.2.1.dev0 development candidate**. Installation
+This checkout is the **unpublished 0.2.1.dev1 development candidate**. Installation
 instructions use this source or its verified wheel, not an assumed PyPI release.
 See [release preparation](docs/releasing.md) for the remaining publication decisions.
 
@@ -21,6 +21,7 @@ The [installation guide](docs/installation.md) begins with obtaining the candida
 - One source produces a handout, solutions and a live deck.
 - The browser presenter provides notes, a projector view, ink, a timer and paired devices.
 - PowerPoint exports carry live add-in slides and a server bundle.
+- `texstage pptx talk.tex` converts plain Beamer to image slides with speaker notes.
 - The server can run locally or behind an HTTPS proxy using the deployment example.
 
 ```latex
@@ -61,6 +62,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Authoring](docs/authoring.md) | Quiz syntax, build modes and presenting |
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
 | [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, local video playback and presenter notes |
+| [Plain PowerPoint conversion](docs/powerpoint.md) | Convert Beamer, preserve overlays and notes, or use the Python API |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |

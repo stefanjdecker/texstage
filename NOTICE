@@ -1,7 +1,8 @@
 texstage, with texquiz
 Copyright 2026 Stefan Decker
 
-Apache License 2.0 covers src/texstage (excluding separately licensed vendor code),
+Apache License 2.0 covers src/texstage (excluding separately licensed vendor code
+and the pre-existing converter identified below),
 the four generic latex/*.sty packages, tests, examples/demo, deploy, documentation,
 and the newly written release infrastructure in maintenance/, .github/ and requirements/.
 The original source, sample data, documentation and generated media in examples/showcase
@@ -12,6 +13,12 @@ The developer utilities tools/simulate.py and tools/slideshow.ps1 were excluded
 from the original license scope. They are retained only in this local snapshot;
 resolve their licensing before publishing the repository. They are not packaged.
 See provenance/original-NOTICE for the original scope.
+
+src/texstage/build/beamer.py was moved from the general course converter
+src/lecture_tools/media/beamer_to_pptx.py at lecture-tools-next commit
+82b4c33a318abad75a9211c803c5508c367087bb. Its original license was not
+specified; moving it does not relicense it. Resolve its publication license
+with the rights holders before distributing this candidate.
 
 Third-party software included (src/texstage/web/vendor/, each with its licence file there):
 

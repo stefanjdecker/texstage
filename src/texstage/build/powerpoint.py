@@ -29,6 +29,7 @@ from urllib.parse import urlsplit
 from xml.sax.saxutils import quoteattr
 
 from lxml import etree
+from PIL import Image
 from pptx import Presentation
 from pptx.opc.constants import RELATIONSHIP_TYPE as RT
 from pptx.opc.package import Part
@@ -77,8 +78,8 @@ class PptxDeck:
     """Slides are added first (their IDs go into the bundle), add-ins afterwards (their
     properties name the bundle)."""
 
-    def __init__(self, slide_size_pt: tuple[float, float], server: str):
-        self.addin = addin_id(server)
+    def __init__(self, slide_size_pt: tuple[float, float], server: str | None = None):
+        self.addin = addin_id(server) if server is not None else None
         self.prs = Presentation()
         width_pt, height_pt = slide_size_pt
         self.prs.slide_height = SLIDE_HEIGHT
@@ -87,11 +88,23 @@ class PptxDeck:
         self.images = []                                 # image part per slide
         self.webextensions = 0
 
-    def add_slide(self, png: bytes, notes: str) -> int:
+    def add_slide(self, png: bytes, notes: str, *, fit: str = "stretch") -> int:
         """A picture slide; returns its slide ID (p:sldId/@id), which the add-ins compare
-        with the slide shown in the slideshow."""
+        with the slide shown in the slideshow. fit="contain" centers an image
+        without distortion; the default fills the canvas as existing live decks do."""
+        if fit not in {"stretch", "contain"}:
+            raise ValueError("fit must be 'stretch' or 'contain'")
+        width, height = self.prs.slide_width, self.prs.slide_height
+        left = top = 0
+        if fit == "contain":
+            with Image.open(BytesIO(png)) as image:
+                iw, ih = image.size
+            scale = min(width / iw, height / ih)
+            width, height = int(iw * scale), int(ih * scale)
+            left = int((self.prs.slide_width - width) / 2)
+            top = int((self.prs.slide_height - height) / 2)
         slide = self.prs.slides.add_slide(self.layout)
-        pic = slide.shapes.add_picture(BytesIO(png), 0, 0, self.prs.slide_width, self.prs.slide_height)
+        pic = slide.shapes.add_picture(BytesIO(png), left, top, width, height)
         pic.name = "slide"
         self.images.append(slide.part.related_part(pic._element.blip_rId))
         if notes:
@@ -101,6 +114,8 @@ class PptxDeck:
     def add_addin(self, index: int, props: dict, name: str):
         """The add-in object over the whole slide `index` (0-based); its snapshot (what
         PowerPoint shows until the add-in has loaded) is the slide picture."""
+        if self.addin is None:
+            raise ValueError("A server is required to add live content")
         slide = self.prs.slides[index]
         image = self.images[index]
         self.webextensions += 1

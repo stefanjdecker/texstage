@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Speaker notes from Beamer's "show notes on second screen" pages.
 
-Shared with scripts/beamer2pptx.py, which imports it from here. A page is a pdf.Page (its
+Shared by the live builder and the plain Beamer converter. A page is a pdf.Page (its
 words with their boxes, points from the top left); a clip is (x0, y0, x1, y1).
 """
 from __future__ import annotations

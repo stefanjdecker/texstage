@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Command line: texstage present | pdf | build | check | retarget | serve | lecturer | publish |
+"""Command line: texstage present | pdf | pptx | build | check | retarget | serve | lecturer | publish |
 addin; `texstage <deck>` without a command is `texstage present <deck>`. (Until 2026-10-10 the
 command was texquiz.)
 
@@ -33,6 +33,27 @@ def cmd_pdf(args: argparse.Namespace) -> int:
         return 1
     note = f", {result.overfull} overfull boxes" if result.overfull else ""
     print(f"{result.pdf}{note}")
+    return 0
+
+
+def cmd_pptx(args: argparse.Namespace) -> int:
+    from texstage.build.beamer import convert_beamer_to_pptx
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
+    try:
+        convert_beamer_to_pptx(
+            args.tex, args.output, target_height=args.target_height, dpi=args.dpi,
+            standard=args.standard, note_side=args.note_side,
+            legacy_two_pass_notes=args.legacy_two_pass_notes,
+            allow_note_mismatch=args.allow_note_mismatch, keep_artifacts=args.keep_artifacts,
+        )
+    except (OSError, ValueError) as error:
+        print(f"texstage pptx: {error}", file=sys.stderr)
+        return 2
+    except RuntimeError as error:
+        print(f"texstage pptx: {error}", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -448,7 +469,7 @@ def cmd_retarget(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = ("present", "pdf", "build", "check", "retarget", "serve", "lecturer", "publish", "addin")
+COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -474,6 +495,27 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("-o", "--output-dir", help="default: texquiz-out next to the source")
     p.add_argument("--passes", type=int, default=2)
     p.set_defaults(mode="handout", func=cmd_pdf)
+
+    p = sub.add_parser("pptx", help="convert Beamer to a static PowerPoint with speaker notes",
+                       description="Beamer .tex to .pptx with images and speaker notes.")
+    p.add_argument("tex", help="Path to the Beamer .tex file")
+    p.add_argument("-o", "--output", help="Output .pptx (default: <tex>.pptx)")
+    p.add_argument("--target-height", type=int, default=1080,
+                    help="Target pixel height per slide (default 1080, matches 1080p projector)")
+    p.add_argument("--dpi", type=int, default=None,
+                    help="Force fixed DPI instead of computing from --target-height")
+    p.add_argument("--standard", action="store_true", help="4:3 PPTX canvas instead of 16:9")
+    p.add_argument("--note-side", choices=["left", "right"], default="right",
+                    help="Side used for Beamer notes in default second-screen mode (default: right)")
+    p.add_argument("--legacy-two-pass-notes", action="store_true",
+                    help=("Use the old method: compile slides and notes as separate PDFs, "
+                          "then align them by page index. Not recommended for overlays."))
+    p.add_argument("--allow-note-mismatch", action="store_true",
+                    help=("Only with --legacy-two-pass-notes: pad/truncate notes if slide/note "
+                          "page counts differ. By default, mismatches are fatal."))
+    p.add_argument("--keep-artifacts", action="store_true",
+                    help="Keep generated .tex/.pdf/aux files in source dir (for debugging)")
+    p.set_defaults(func=cmd_pptx)
 
     b = sub.add_parser("build", help="the live deck: PowerPoint file and quiz bundle, "
                                      "and a layout check of the quiz and answer frames")

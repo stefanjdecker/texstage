@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev0 candidate
+## Unreleased — 0.2.1.dev1 candidate
+
+- Moved plain Beamer-to-PowerPoint conversion from lecture-tools into
+  Texstage, with `texstage pptx` and the lazy `convert_beamer_to_pptx` API.
+- Reused the live deck's slide writer while preserving fitted images, notes,
+  overlay order, output paths, resolution options and legacy two-pass mode.
+- Refuse to overwrite retained conversion artifacts; clean generated
+  artifacts on failure unless explicitly kept.
+
+## Earlier 0.2.1.dev0 candidate
 
 - Normalize inline activity references and seeds to LF line endings across
   LaTeX versions, preserving indentation, comments and literal escape sequences.

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texstage"
-version = "0.2.1.dev0"
+version = "0.2.1.dev1"
 description = "Beamer decks presented live, with quizzes authored in LaTeX (texquiz) - in the browser or in PowerPoint"
 readme = "README.md"
 requires-python = ">=3.12"

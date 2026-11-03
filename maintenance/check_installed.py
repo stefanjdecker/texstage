@@ -26,4 +26,15 @@ with tempfile.TemporaryDirectory(prefix="texstage-wheel-") as tmp:
     bundle, = (scratch / "texquiz-out").glob("*.bundle")
     assert json.loads((bundle / "deck.json").read_text())["deck"] == "demo"
     assert list((scratch / "texquiz-out").glob("*.pptx"))
-print("PASS: installed console, resources and synthetic live deck build")
+    plain = scratch / "plain.tex"
+    plain.write_text(r"\documentclass{beamer}\usepackage{pgfpages}\begin{document}\begin{frame}{Plain}Hello.\note{Installed converter.}\end{frame}\end{document}")
+    result = subprocess.run([str(console), "pptx", str(plain), "--target-height", "240"],
+                            cwd=scratch, env=env, capture_output=True, text=True, errors="replace")
+    assert result.returncode == 0, result.stdout + result.stderr
+    from pptx import Presentation
+    from texstage.api import convert_beamer_to_pptx
+    assert callable(convert_beamer_to_pptx)
+    converted = Presentation(plain.with_suffix(".pptx"))
+    assert len(converted.slides) == 1
+    assert converted.slides[0].notes_slide.notes_text_frame.text == "Installed converter."
+print("PASS: installed console, resources, synthetic live deck and plain PowerPoint conversion")

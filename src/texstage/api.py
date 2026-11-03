@@ -16,7 +16,7 @@ API_VERSION = 1
 LATEX_FILES = ("texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty")
 __all__ = [
     "API_VERSION", "LATEX_FILES", "run_cli", "needs_build", "slug",
-    "Pdf", "NOTE_TEMPLATE", "note_paragraphs", "latex_resources",
+    "Pdf", "NOTE_TEMPLATE", "note_paragraphs", "latex_resources", "convert_beamer_to_pptx",
 ]
 
 
@@ -24,6 +24,25 @@ def run_cli(argv: list[str] | None = None) -> int:
     """Run a standalone texstage command, preserving its return code."""
     from .cli import main
     return main(argv)
+
+
+def convert_beamer_to_pptx(
+    tex: str | Path, output: str | Path | None = None, *,
+    target_height: int = 1080, dpi: int | None = None, standard: bool = False,
+    note_side: str = "right", legacy_two_pass_notes: bool = False,
+    allow_note_mismatch: bool = False, keep_artifacts: bool = False,
+) -> Path:
+    """Convert a Beamer source to an image PPTX with notes; return its absolute path.
+
+    Added in 0.2.1.dev1, within API version 1. Defaults and options match the
+    legacy beamer2pptx command; see docs/powerpoint.md for the full contract.
+    """
+    from .build.beamer import convert_beamer_to_pptx as implementation
+    return implementation(
+        tex, output, target_height=target_height, dpi=dpi, standard=standard,
+        note_side=note_side, legacy_two_pass_notes=legacy_two_pass_notes,
+        allow_note_mismatch=allow_note_mismatch, keep_artifacts=keep_artifacts,
+    )
 
 
 def needs_build(folder: Path, out: Path, ignore: tuple[str, ...] = ()) -> str | None:
