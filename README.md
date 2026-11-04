@@ -4,9 +4,11 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **unpublished 0.2.1.dev3 development candidate**. Installation
-instructions use this source or its verified wheel, not an assumed PyPI release.
-See [release preparation](docs/releasing.md) for the remaining publication decisions.
+This checkout is the **0.2.1.dev3 development candidate**, available as public
+source on [GitHub](https://github.com/stefanjdecker/texstage). Installation uses
+this source or its verified wheel; a PyPI release is not assumed. The project
+homepage is [www.texstage.org](https://www.texstage.org). See
+[release preparation](docs/releasing.md) for the remaining packaged-release work.
 
 ## New to texstage?
 
@@ -22,6 +24,7 @@ The [installation guide](docs/installation.md) begins with obtaining the candida
 - The browser presenter provides notes, a projector view, ink, a timer and paired devices.
 - PowerPoint exports carry live add-in slides and a server bundle.
 - `texstage pptx talk.tex` converts plain Beamer to image slides with speaker notes.
+- SQL activities accept one read-only query; commands such as `DROP TABLE` are refused.
 - The server can run locally or behind an HTTPS proxy using the deployment example.
 
 ```latex
@@ -39,6 +42,13 @@ The [installation guide](docs/installation.md) begins with obtaining the candida
 ## Start here
 
 Python 3.12+ and a TeX distribution with Beamer are required for deck builds.
+Obtain the source first (or use **Code > Download ZIP** on GitHub):
+
+```sh
+git clone https://github.com/stefanjdecker/texstage.git
+cd texstage
+```
+
 Create and activate a fresh virtual environment as described in
 [installation](docs/installation.md), then from this repository:
 
@@ -63,6 +73,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
 | [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, local video playback and presenter notes |
 | [Plain PowerPoint conversion](docs/powerpoint.md) | Convert Beamer, preserve overlays and notes, or use the Python API |
+| [SQL activity rules](docs/manual.md#sql-activities-permitted-statements) | Accepted queries, refused writes and where submissions run |
 | [LaTeX compilation API](docs/compilation.md) | Shared pdflatex/latexmk runner for standalone documents and course tools |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
@@ -71,14 +82,17 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Architecture](docs/architecture/texstage-design.md) | Design context; some planned features may be unimplemented |
 
 DBIS course commands, themes and subject notation belong to the separate
-lecture-tools project. texstage has no dependency on that project.
+lecture-tools package, maintained in the lecture-tools-next repository.
+Texstage has no dependency on that project. Existing courses keep their own
+pinned toolchain and setup instructions.
 
 ## License and contributions
 
 The runtime, generic styles and other paths identified in [NOTICE](NOTICE) are
 covered by [Apache-2.0](LICENSE). Bundled third-party assets retain their own
-licenses. Some retained developer utilities remain outside that scope and must
-be resolved before repository publication. See [CONTRIBUTING.md](CONTRIBUTING.md),
+licenses. Some retained developer utilities remain outside that scope; see the
+explicit exceptions in NOTICE. Public source availability does not extend their
+license. See [CONTRIBUTING.md](CONTRIBUTING.md),
 [SECURITY.md](SECURITY.md) and [CHANGELOG.md](CHANGELOG.md).
 
 The [LaTeX reference](docs/latex-reference.md) covers all four packages, author commands, options, modes and developer hooks. It is also included in the illustrated manual and its LaTeX edition. See the [runnable authoring examples](examples/reference/README.md).

@@ -1,5 +1,10 @@
 # Integration API
 
+The companion Python package is `lecture-tools`, maintained in the separate
+`lecture-tools-next` repository. Existing courses select a tested pair with their
+own setup instructions and commit pins; publishing a Texstage documentation
+update does not upgrade those environments.
+
 Course tooling imports from `texstage.api`. API_VERSION remains 1. Imports are
 lazy, so loading the facade does not load the PDF renderer or server.
 

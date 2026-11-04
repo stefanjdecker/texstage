@@ -1,6 +1,6 @@
 # Installation
 
-Candidate source installation and first-run checks
+Public source installation and first-run checks
 
 ## Contents
 
@@ -38,6 +38,8 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 | Use DBIS notation or appearance | Use lecture-tools' reusable LaTeX modules. DBIS branding is an optional theme, not a texstage prerequisite. |
 | Edit a Jupyter notebook | Use the lecture-tools notebook manual. This path needs neither texstage nor TeX. |
 
+The companion Python package is named lecture-tools and is maintained in the separate lecture-tools-next repository. It owns slide splitting and assembly, course settings, notebook workflows and DBIS styles. Texstage owns generic LaTeX compilation, PowerPoint conversion and live presentation. In an existing course, follow that course's pinned setup instructions; installing Texstage does not reconnect or upgrade its tools. See the [integration guide](integration.md) for the package boundary and tested pair.
+
 | Term used here | Meaning |
 | --- | --- |
 | Deck / frame / overlay | A deck is a presentation. A Beamer frame is one logical slide; overlays reveal it in successive steps and can produce several PDF pages. |
@@ -51,7 +53,14 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 
 Use CPython 3.12, 3.13 or 3.14 for this candidate; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
 
-A source checkout is an unpacked copy of the project. Obtain the matching candidate source archive or checkout from the maintainer. On a published GitHub repository, Code > Download ZIP provides source; unpack it first. This edition does not assume a public repository URL or a PyPI release. Do not substitute a similarly named package from a search result. Open the terminal in the extracted project folder containing pyproject.toml, requirements, examples and docs. Use cd followed by the quoted folder path to change folders; pwd shows where you are.
+The public source is [stefanjdecker/texstage on GitHub](https://github.com/stefanjdecker/texstage). With Git installed, open a terminal in the parent folder where you want to keep the source, then run:
+
+```sh
+git clone https://github.com/stefanjdecker/texstage.git
+cd texstage
+```
+
+Without Git, open the repository link, choose Code > Download ZIP, unpack the archive, and open a terminal in its texstage-main folder. Both paths give a source folder containing pyproject.toml, requirements, examples and docs. Use cd followed by the quoted folder path to change folders; pwd shows where you are. The commands below install this source and its matching dependency locks. They do not assume a PyPI release. Keep the source archive or record git rev-parse HEAD so you can identify the exact revision used.
 
 A virtual environment is a private directory of Python tools and dependencies for this installation. It avoids changing another course environment. Use a new .venv directory and keep your documents outside it. Choose the block for your operating system. Activation selects this environment for the current terminal window. See the [Python environment documentation](https://docs.python.org/3/library/venv.html).
 
@@ -119,7 +128,7 @@ pdflatex --version
 
 Run these checks in the same terminal you will use for the tutorial. They must print version information. If a command is not found, finish the TeX installation, reopen the terminal and activate .venv again. Install any missing .sty dependency through your TeX package manager; pip installs Python dependencies, not TeX packages.
 
-If you only serve a supplied bundle, skip the TeX installation. The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree. See [installation.md](installation.md) for verified-wheel installation and optional PowerPoint setup.
+If you only serve a supplied bundle, skip the TeX installation. The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree. See [additional installation recipes](installation-advanced.md) for verified-wheel installation and optional PowerPoint setup.
 
 
 ## Start your first session
@@ -168,7 +177,7 @@ Check the printed address ending in /api/status from the phone if joining fails.
 texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel --public-url http://192.168.1.23:8765
 ```
 
-The address above is only an example: replace 192.168.1.23 with your presenter computer's reachable address. Stop your rehearsal server before restarting with changed settings. --public-url changes the address advertised to participants; it does not configure the network or open a firewall. For access beyond the local network, follow the hosting and security guides linked in [installation.md](installation.md).
+The address above is only an example: replace 192.168.1.23 with your presenter computer's reachable address. Stop your rehearsal server before restarting with changed settings. --public-url changes the address advertised to participants; it does not configure the network or open a firewall. For access beyond the local network, follow the hosting and security guides linked in [additional installation recipes](installation-advanced.md).
 
 ## Additional installation options
 

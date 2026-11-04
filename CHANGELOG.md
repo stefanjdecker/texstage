@@ -2,6 +2,10 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Update public-source installation, SQL activity restrictions, PowerPoint
+  command guidance and release status; correct screenshot provenance.
+- Regenerate the Markdown, LaTeX and PDF manuals from their shared source.
+
 - Preserve the deck language from Babel/Polyglossia in the bundle. German
   decks use German live labels in the presenter and projector views.
 - Retain compatibility with older language-free TQZ records and English

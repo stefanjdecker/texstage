@@ -20,6 +20,7 @@ Packages, commands, options and developer interfaces
 - [Activity environment and common options](#activity-environment-and-common-options)
 - [Tuple activities: options and example](#tuple-activities-options-and-example)
 - [Code activities: engines and data](#code-activities-engines-and-data)
+- [SQL activities: permitted statements](#sql-activities-permitted-statements)
 - [Code activity example and build checks](#code-activity-example-and-build-checks)
 - [Activity labels and documentation helpers](#activity-labels-and-documentation-helpers)
 - [Core interfaces for package developers](#core-interfaces-for-package-developers)
@@ -324,7 +325,7 @@ Handout, solutions and PowerPoint show the static activity prompt. Live interact
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `engine=sparql` | Queries a Turtle seed (.ttl). References contain SPARQL queries. |
-| `engine=sql` | Queries tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. |
+| `engine=sql` | Read-only queries over tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. See SQL activities: permitted statements below. |
 | `engine=turtle` | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
@@ -334,6 +335,24 @@ Handout, solutions and PowerPoint show the static activity prompt. Live interact
 The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.
 
 The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.
+
+
+## SQL activities: permitted statements
+
+An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, Texstage switches the in-memory SQLite database to read-only mode. Each submission is evaluated in a worker in the presenter's browser. The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.
+
+Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
+
+| Submission against the people example | Outcome |
+| --- | --- |
+| `SELECT name FROM people;` | Runs against the seed data. |
+| `WITH p AS (SELECT name FROM people) SELECT * FROM p;` | Runs as one read-only query. |
+| `DROP TABLE people;` | Refused; the table remains available for later queries. |
+| `SELECT name FROM people; DROP TABLE people;` | Refused; only one statement is allowed. |
+
+Result grouping compares returned values. Column names and row order do not affect the group; repeated rows and column positions do. If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.
+
+The current activity engine has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
 
 
 ## Code activity example and build checks

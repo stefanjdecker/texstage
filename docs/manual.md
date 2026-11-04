@@ -46,6 +46,7 @@
 - [Activity environment and common options](#activity-environment-and-common-options)
 - [Tuple activities: options and example](#tuple-activities-options-and-example)
 - [Code activities: engines and data](#code-activities-engines-and-data)
+- [SQL activities: permitted statements](#sql-activities-permitted-statements)
 - [Code activity example and build checks](#code-activity-example-and-build-checks)
 - [Activity labels and documentation helpers](#activity-labels-and-documentation-helpers)
 - [Core interfaces for package developers](#core-interfaces-for-package-developers)
@@ -56,7 +57,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev3 - unpublished development candidate. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev3 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -94,6 +95,8 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 | Use DBIS notation or appearance | Use lecture-tools' reusable LaTeX modules. DBIS branding is an optional theme, not a texstage prerequisite. |
 | Edit a Jupyter notebook | Use the lecture-tools notebook manual. This path needs neither texstage nor TeX. |
 
+The companion Python package is named lecture-tools and is maintained in the separate lecture-tools-next repository. It owns slide splitting and assembly, course settings, notebook workflows and DBIS styles. Texstage owns generic LaTeX compilation, PowerPoint conversion and live presentation. In an existing course, follow that course's pinned setup instructions; installing Texstage does not reconnect or upgrade its tools. See the [integration guide](integration.md) for the package boundary and tested pair.
+
 | Term used here | Meaning |
 | --- | --- |
 | Deck / frame / overlay | A deck is a presentation. A Beamer frame is one logical slide; overlays reveal it in successive steps and can produce several PDF pages. |
@@ -107,7 +110,14 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 
 Use CPython 3.12, 3.13 or 3.14 for this candidate; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
 
-A source checkout is an unpacked copy of the project. Obtain the matching candidate source archive or checkout from the maintainer. On a published GitHub repository, Code > Download ZIP provides source; unpack it first. This edition does not assume a public repository URL or a PyPI release. Do not substitute a similarly named package from a search result. Open the terminal in the extracted project folder containing pyproject.toml, requirements, examples and docs. Use cd followed by the quoted folder path to change folders; pwd shows where you are.
+The public source is [stefanjdecker/texstage on GitHub](https://github.com/stefanjdecker/texstage). With Git installed, open a terminal in the parent folder where you want to keep the source, then run:
+
+```
+git clone https://github.com/stefanjdecker/texstage.git
+cd texstage
+```
+
+Without Git, open the repository link, choose Code > Download ZIP, unpack the archive, and open a terminal in its texstage-main folder. Both paths give a source folder containing pyproject.toml, requirements, examples and docs. Use cd followed by the quoted folder path to change folders; pwd shows where you are. The commands below install this source and its matching dependency locks. They do not assume a PyPI release. Keep the source archive or record git rev-parse HEAD so you can identify the exact revision used.
 
 A virtual environment is a private directory of Python tools and dependencies for this installation. It avoids changing another course environment. Use a new .venv directory and keep your documents outside it. Choose the block for your operating system. Activation selects this environment for the current terminal window. See the [Python environment documentation](https://docs.python.org/3/library/venv.html).
 
@@ -175,7 +185,7 @@ pdflatex --version
 
 Run these checks in the same terminal you will use for the tutorial. They must print version information. If a command is not found, finish the TeX installation, reopen the terminal and activate .venv again. Install any missing .sty dependency through your TeX package manager; pip installs Python dependencies, not TeX packages.
 
-If you only serve a supplied bundle, skip the TeX installation. The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree. See [installation.md](installation.md) for verified-wheel installation and optional PowerPoint setup.
+If you only serve a supplied bundle, skip the TeX installation. The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree. See [additional installation recipes](installation-advanced.md) for verified-wheel installation and optional PowerPoint setup.
 
 
 ## Start your first session
@@ -224,7 +234,7 @@ Check the printed address ending in /api/status from the phone if joining fails.
 texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-tunnel --public-url http://192.168.1.23:8765
 ```
 
-The address above is only an example: replace 192.168.1.23 with your presenter computer's reachable address. Stop your rehearsal server before restarting with changed settings. --public-url changes the address advertised to participants; it does not configure the network or open a firewall. For access beyond the local network, follow the hosting and security guides linked in [installation.md](installation.md).
+The address above is only an example: replace 192.168.1.23 with your presenter computer's reachable address. Stop your rehearsal server before restarting with changed settings. --public-url changes the address advertised to participants; it does not configure the network or open a firewall. For access beyond the local network, follow the hosting and security guides linked in [additional installation recipes](installation-advanced.md).
 
 
 ## Make the demonstration your own
@@ -463,11 +473,14 @@ A quiz belongs in a Beamer document. Give each question a stable, unique ID. Mar
 | texstage pdf deck.tex | Handout with quiz placeholders; the default PDF mode. |
 | texstage pdf --solutions deck.tex | Questions with correct answers and explanations. |
 | texstage pdf --present deck.tex | A static PDF preview of the live presentation steps. |
+| texstage pptx deck.tex | Convert plain Beamer to static image slides with speaker notes. Overlays become separate slides; no live interaction is added. |
 | texstage build deck.tex | Build the live PowerPoint file, static PowerPoint fallback and server bundle. |
 | deck.bundle.zip | Upload this package to a texstage server. |
 | deck.pptx / deck-static.pptx | The live deck needs the server/add-in and may carry its presenter key. The static fallback has no live quiz. |
 
-Output normally goes to `texquiz-out` beside the source; use `--output-dir` to choose another location. For PowerPoint, install the add-in on the presenting PC, then use `texstage present deck.tex --powerpoint`. Rehearse with `texstage check deck.pptx` and start from its preparation slide. Keep the live PPTX out of student downloads.
+The `pdf` and `build` commands normally write to `texquiz-out` beside the source; use `--output-dir` to choose another directory. The plain `pptx` command writes `deck.pptx` beside `deck.tex`; use `-o` to select another file. It needs no server or add-in. For a live PowerPoint presentation, install the add-in on the presenting PC, then use `texstage present deck.tex --powerpoint`. Rehearse with `texstage check deck.pptx` and start from its preparation slide. Keep the live PPTX out of student downloads.
+
+See [plain PowerPoint conversion](powerpoint.md) for resolution, output and note options. For separate course slide files, lecture-tools assembles the document before calling Texstage. The [shared compilation guide](compilation.md) explains the compile_latex Python API used by course builders; it is not a separate texstage command.
 
 
 ## Troubleshoot before and during a session
@@ -526,7 +539,7 @@ This shortcut card is for the texstage browser presenter. PowerPoint uses its ow
 
 ## About the screenshots and further help
 
-The screenshots show texstage 0.2.1.dev3 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures.
+The screenshots were captured with texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. They are retained as illustrations in this 0.2.1.dev3 manual; the capture version is recorded separately from the manual version.
 
 All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface can use German according to browser language.
 
@@ -534,12 +547,14 @@ The source deck is [examples/manual/demo.tex](../examples/manual/demo.tex). It u
 
 | Companion guide | Contents |
 | --- | --- |
-| installation.md | Source/wheel installation, TeX requirements, hosting overview and common setup failures. |
-| authoring.md | Full quiz syntax, question options, presentation workflows and hosting details. |
-| integration.md | Supported Python integration API for companion course tools. |
-| dependencies.md | Locked environments and dependency updates. |
-| SECURITY.md | Private reporting and handling of keys, inputs and server data. |
-| releasing.md | Publication prerequisites and candidate validation. |
+| [installation.md](installation.md) | Source/wheel installation, TeX requirements, hosting overview and common setup failures. |
+| [authoring.md](authoring.md) | Full quiz syntax, question options, presentation workflows and hosting details. |
+| [powerpoint.md](powerpoint.md) | Plain Beamer conversion, overlays, speaker notes and output paths. |
+| [compilation.md](compilation.md) | Shared LaTeX compiler API and responsibilities of course tooling. |
+| [integration.md](integration.md) | Supported Python integration API for companion course tools. |
+| [dependencies.md](dependencies.md) | Locked environments and dependency updates. |
+| [SECURITY.md](../SECURITY.md) | Private reporting and handling of keys, inputs and server data. |
+| [releasing.md](releasing.md) | Public source status, candidate validation and remaining packaged-release decisions. |
 
 For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example. Remove presenter keys and participant data from logs or screenshots before sharing them.
 
@@ -843,7 +858,7 @@ Handout, solutions and PowerPoint show the static activity prompt. Live interact
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `engine=sparql` | Queries a Turtle seed (.ttl). References contain SPARQL queries. |
-| `engine=sql` | Queries tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. |
+| `engine=sql` | Read-only queries over tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. See SQL activities: permitted statements below. |
 | `engine=turtle` | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
@@ -853,6 +868,24 @@ Handout, solutions and PowerPoint show the static activity prompt. Live interact
 The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.
 
 The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.
+
+
+## SQL activities: permitted statements
+
+An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, Texstage switches the in-memory SQLite database to read-only mode. Each submission is evaluated in a worker in the presenter's browser. The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.
+
+Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
+
+| Submission against the people example | Outcome |
+| --- | --- |
+| `SELECT name FROM people;` | Runs against the seed data. |
+| `WITH p AS (SELECT name FROM people) SELECT * FROM p;` | Runs as one read-only query. |
+| `DROP TABLE people;` | Refused; the table remains available for later queries. |
+| `SELECT name FROM people; DROP TABLE people;` | Refused; only one statement is allowed. |
+
+Result grouping compares returned values. Column names and row order do not affect the group; repeated rows and column positions do. If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.
+
+The current activity engine has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
 
 
 ## Code activity example and build checks

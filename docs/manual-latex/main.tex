@@ -16,7 +16,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.\par
 
-Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 -\allowbreak{} unpublished development candidate.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
+Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 -\allowbreak{} development candidate available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
 {\small\setlength{\parskip}{0pt}\tableofcontents}
@@ -86,6 +86,8 @@ Use DBIS notation or appearance & Use lecture-\allowbreak{}tools' reusable LaTeX
 Edit a Jupyter notebook & Use the lecture-\allowbreak{}tools notebook manual.\allowbreak{} This path needs neither texstage nor TeX. \\ \addlinespace[3pt]
 \end{longtable}}
 
+The companion Python package is named lecture-\allowbreak{}tools and is maintained in the separate lecture-\allowbreak{}tools-\allowbreak{}next repository.\allowbreak{} It owns slide splitting and assembly, course settings, notebook workflows and DBIS styles.\allowbreak{} Texstage owns generic LaTeX compilation, PowerPoint conversion and live presentation.\allowbreak{} In an existing course, follow that course's pinned setup instructions; installing Texstage does not reconnect or upgrade its tools.\allowbreak{} See the \href{\manualdocroot integration.md}{integration guide} for the package boundary and tested pair.\par
+
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -110,7 +112,16 @@ texstage /\allowbreak{} texquiz & texstage is the installed command and applicat
 \manualsection{Install Python and obtain the source}
 Use CPython 3.\allowbreak{}12, 3.\allowbreak{}13 or 3.\allowbreak{}14 for this candidate; these are the versions targeted by its checks.\allowbreak{} Install Python from \href{https://www.python.org/downloads/}{python.\allowbreak{}org} or your operating system package manager.\allowbreak{} Open a new terminal after installation.\allowbreak{} On Windows use PowerShell; on macOS or Linux use Terminal.\allowbreak{} Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.\par
 
-A source checkout is an unpacked copy of the project.\allowbreak{} Obtain the matching candidate source archive or checkout from the maintainer.\allowbreak{} On a published GitHub repository, Code > Download ZIP provides source; unpack it first.\allowbreak{} This edition does not assume a public repository URL or a PyPI release.\allowbreak{} Do not substitute a similarly named package from a search result.\allowbreak{} Open the terminal in the extracted project folder containing pyproject.\allowbreak{}toml, requirements, examples and docs.\allowbreak{} Use cd followed by the quoted folder path to change folders; pwd shows where you are.\par
+The public source is \href{https://github.com/stefanjdecker/texstage}{stefanjdecker/\allowbreak{}texstage on GitHub}.\allowbreak{} With Git installed, open a terminal in the parent folder where you want to keep the source, then run:\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+git clone https://github.com/stefanjdecker/texstage.git
+cd texstage
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+Without Git, open the repository link, choose Code > Download ZIP, unpack the archive, and open a terminal in its texstage-\allowbreak{}main folder.\allowbreak{} Both paths give a source folder containing pyproject.\allowbreak{}toml, requirements, examples and docs.\allowbreak{} Use cd followed by the quoted folder path to change folders; pwd shows where you are.\allowbreak{} The commands below install this source and its matching dependency locks.\allowbreak{} They do not assume a PyPI release.\allowbreak{} Keep the source archive or record git rev-\allowbreak{}parse HEAD so you can identify the exact revision used.\par
 
 A virtual environment is a private directory of Python tools and dependencies for this installation.\allowbreak{} It avoids changing another course environment.\allowbreak{} Use a new .\allowbreak{}venv directory and keep your documents outside it.\allowbreak{} Choose the block for your operating system.\allowbreak{} Activation selects this environment for the current terminal window.\allowbreak{} See the \href{https://docs.python.org/3/library/venv.html}{Python environment documentation}.\par
 
@@ -187,7 +198,7 @@ pdflatex --version
 
 Run these checks in the same terminal you will use for the tutorial.\allowbreak{} They must print version information.\allowbreak{} If a command is not found, finish the TeX installation, reopen the terminal and activate .\allowbreak{}venv again.\allowbreak{} Install any missing .\allowbreak{}sty dependency through your TeX package manager; pip installs Python dependencies, not TeX packages.\par
 
-If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{\manualdocroot installation.md}{installation.\allowbreak{}md} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
+If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{\manualdocroot installation-advanced.md}{additional installation recipes} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
 
 \manualsection{Start your first session}
 Goal: see a compiled slide, open the presenter, submit a practice answer, and reveal its result.\allowbreak{} Stay in the texstage source root with .\allowbreak{}venv active.\allowbreak{} Use the supplied synthetic example so this rehearsal does not touch any existing course.\par
@@ -236,7 +247,7 @@ texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-t
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{\manualdocroot installation.md}{installation.\allowbreak{}md}.\par
+The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{\manualdocroot installation-advanced.md}{additional installation recipes}.\par
 
 \manualsection{Make the demonstration your own}
 After the first successful session, create a new folder named my-\allowbreak{}first-\allowbreak{}deck alongside the examples directory.\allowbreak{} Save the complete small quiz in Author a small quiz and choose the right export below as my-\allowbreak{}first-\allowbreak{}deck/\allowbreak{}deck.\allowbreak{}tex.\allowbreak{} Use a plain-\allowbreak{}text or LaTeX editor and save UTF-\allowbreak{}8 text with the .\allowbreak{}tex extension.\allowbreak{} Change the question title, choices and explanation; keep each quiz id unique within the deck.\par
@@ -535,12 +546,15 @@ A quiz belongs in a Beamer document.\allowbreak{} Give each question a stable, u
 texstage pdf deck.\allowbreak{}tex & Handout with quiz placeholders; the default PDF mode. \\ \addlinespace[3pt]
 texstage pdf -\allowbreak{}-\allowbreak{}solutions deck.\allowbreak{}tex & Questions with correct answers and explanations. \\ \addlinespace[3pt]
 texstage pdf -\allowbreak{}-\allowbreak{}present deck.\allowbreak{}tex & A static PDF preview of the live presentation steps. \\ \addlinespace[3pt]
+texstage pptx deck.\allowbreak{}tex & Convert plain Beamer to static image slides with speaker notes.\allowbreak{} Overlays become separate slides; no live interaction is added. \\ \addlinespace[3pt]
 texstage build deck.\allowbreak{}tex & Build the live PowerPoint file, static PowerPoint fallback and server bundle. \\ \addlinespace[3pt]
 deck.\allowbreak{}bundle.\allowbreak{}zip & Upload this package to a texstage server. \\ \addlinespace[3pt]
 deck.\allowbreak{}pptx /\allowbreak{} deck-\allowbreak{}static.\allowbreak{}pptx & The live deck needs the server/\allowbreak{}add-\allowbreak{}in and may carry its presenter key.\allowbreak{} The static fallback has no live quiz. \\ \addlinespace[3pt]
 \end{longtable}}
 
-Output normally goes to \texttt{texquiz-\allowbreak{}out} beside the source; use \texttt{-\allowbreak{}-\allowbreak{}output-\allowbreak{}dir} to choose another location.\allowbreak{} For PowerPoint, install the add-\allowbreak{}in on the presenting PC, then use \texttt{texstage present deck.\allowbreak{}tex -\allowbreak{}-\allowbreak{}powerpoint}.\allowbreak{} Rehearse with \texttt{texstage check deck.\allowbreak{}pptx} and start from its preparation slide.\allowbreak{} Keep the live PPTX out of student downloads.\par
+The \texttt{pdf} and \texttt{build} commands normally write to \texttt{texquiz-\allowbreak{}out} beside the source; use \texttt{-\allowbreak{}-\allowbreak{}output-\allowbreak{}dir} to choose another directory.\allowbreak{} The plain \texttt{pptx} command writes \texttt{deck.\allowbreak{}pptx} beside \texttt{deck.\allowbreak{}tex}; use \texttt{-\allowbreak{}o} to select another file.\allowbreak{} It needs no server or add-\allowbreak{}in.\allowbreak{} For a live PowerPoint presentation, install the add-\allowbreak{}in on the presenting PC, then use \texttt{texstage present deck.\allowbreak{}tex -\allowbreak{}-\allowbreak{}powerpoint}.\allowbreak{} Rehearse with \texttt{texstage check deck.\allowbreak{}pptx} and start from its preparation slide.\allowbreak{} Keep the live PPTX out of student downloads.\par
+
+See \href{\manualdocroot powerpoint.md}{plain PowerPoint conversion} for resolution, output and note options.\allowbreak{} For separate course slide files, lecture-\allowbreak{}tools assembles the document before calling Texstage.\allowbreak{} The \href{\manualdocroot compilation.md}{shared compilation guide} explains the compile\_\allowbreak{}latex Python API used by course builders; it is not a separate texstage command.\par
 
 \manualsection{Troubleshoot before and during a session}
 {\small
@@ -620,7 +634,7 @@ Whiteboard /\allowbreak{} Grid & N /\allowbreak{} Shift+N & Undo /\allowbreak{} 
 This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\par
 
 \manualsection{About the screenshots and further help}
-The screenshots show texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\par
+The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} They are retained as illustrations in this 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 manual; the capture version is recorded separately from the manual version.\par
 
 All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface can use German according to browser language.\par
 
@@ -640,12 +654,14 @@ The source deck is \href{\manualdocroot ../examples/manual/demo.tex}{examples/\a
 \endfoot
 \bottomrule
 \endlastfoot
-installation.\allowbreak{}md & Source/\allowbreak{}wheel installation, TeX requirements, hosting overview and common setup failures. \\ \addlinespace[3pt]
-authoring.\allowbreak{}md & Full quiz syntax, question options, presentation workflows and hosting details. \\ \addlinespace[3pt]
-integration.\allowbreak{}md & Supported Python integration API for companion course tools. \\ \addlinespace[3pt]
-dependencies.\allowbreak{}md & Locked environments and dependency updates. \\ \addlinespace[3pt]
-SECURITY.\allowbreak{}md & Private reporting and handling of keys, inputs and server data. \\ \addlinespace[3pt]
-releasing.\allowbreak{}md & Publication prerequisites and candidate validation. \\ \addlinespace[3pt]
+\href{\manualdocroot installation.md}{installation.\allowbreak{}md} & Source/\allowbreak{}wheel installation, TeX requirements, hosting overview and common setup failures. \\ \addlinespace[3pt]
+\href{\manualdocroot authoring.md}{authoring.\allowbreak{}md} & Full quiz syntax, question options, presentation workflows and hosting details. \\ \addlinespace[3pt]
+\href{\manualdocroot powerpoint.md}{powerpoint.\allowbreak{}md} & Plain Beamer conversion, overlays, speaker notes and output paths. \\ \addlinespace[3pt]
+\href{\manualdocroot compilation.md}{compilation.\allowbreak{}md} & Shared LaTeX compiler API and responsibilities of course tooling. \\ \addlinespace[3pt]
+\href{\manualdocroot integration.md}{integration.\allowbreak{}md} & Supported Python integration API for companion course tools. \\ \addlinespace[3pt]
+\href{\manualdocroot dependencies.md}{dependencies.\allowbreak{}md} & Locked environments and dependency updates. \\ \addlinespace[3pt]
+\href{\manualdocroot ../SECURITY.md}{SECURITY.\allowbreak{}md} & Private reporting and handling of keys, inputs and server data. \\ \addlinespace[3pt]
+\href{\manualdocroot releasing.md}{releasing.\allowbreak{}md} & Public source status, candidate validation and remaining packaged-\allowbreak{}release decisions. \\ \addlinespace[3pt]
 \end{longtable}}
 
 For a reproducible problem, record the package version, operating system, browser, TeX version and exact command, and reduce it to a synthetic example.\allowbreak{} Remove presenter keys and participant data from logs or screenshots before sharing them.\par
@@ -1131,7 +1147,7 @@ Handout, solutions and PowerPoint show the static activity prompt.\allowbreak{} 
 \bottomrule
 \endlastfoot
 \texttt{engine=\allowbreak{}sparql} & Queries a Turtle seed (.\allowbreak{}ttl).\allowbreak{} References contain SPARQL queries. \\ \addlinespace[3pt]
-\texttt{engine=\allowbreak{}sql} & Queries tables initialized by SQL statements (.\allowbreak{}sql), using the bundled SQLite browser engine.\allowbreak{} References contain SQL queries. \\ \addlinespace[3pt]
+\texttt{engine=\allowbreak{}sql} & Read-\allowbreak{}only queries over tables initialized by SQL statements (.\allowbreak{}sql), using the bundled SQLite browser engine.\allowbreak{} References contain SQL queries.\allowbreak{} See SQL activities: permitted statements below. \\ \addlinespace[3pt]
 \texttt{engine=\allowbreak{}turtle} & Participants write Turtle.\allowbreak{} A .\allowbreak{}ttl seed supplies base/\allowbreak{}prefix declarations; seed triples are not copied into the participant graph.\allowbreak{} References contain Turtle graphs. \\ \addlinespace[3pt]
 \texttt{seed} & Required for code input, as a file or inline seed.\allowbreak{} UTF-\allowbreak{}8 text; a BOM is accepted for files.\allowbreak{} Maximum encoded seed size is 2 MiB. \\ \addlinespace[3pt]
 \texttt{reference} & Optional reference file.\allowbreak{} Its text is appended to any inline references.\allowbreak{} Each reference is 1-\allowbreak{}2000 characters.\allowbreak{} References are private bundle answer data, not public phone seed data. \\ \addlinespace[3pt]
@@ -1142,6 +1158,35 @@ Handout, solutions and PowerPoint show the static activity prompt.\allowbreak{} 
 The seed is distributed with the activity and is visible to participants; it must contain synthetic/\allowbreak{}public teaching data.\allowbreak{} A code activity can omit references for an exploratory task.\allowbreak{} Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.\par
 
 The builder validates data sizes and engine-\allowbreak{}specific seed extensions.\allowbreak{} A plain PDF compile cannot establish that SQL/\allowbreak{}SPARQL/\allowbreak{}Turtle semantics or results match the teaching objective.\par
+
+\manualsection{SQL activities: permitted statements}
+An SQL activity is a read-\allowbreak{}only query exercise.\allowbreak{} The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data.\allowbreak{} After loading that seed, Texstage switches the in-\allowbreak{}memory SQLite database to read-\allowbreak{}only mode.\allowbreak{} Each submission is evaluated in a worker in the presenter's browser.\allowbreak{} The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.\par
+
+Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH .\allowbreak{}.\allowbreak{}.\allowbreak{} SELECT.\allowbreak{} It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE.\allowbreak{} PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission.\allowbreak{} The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.\par
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{Submission against the people example} & \textbf{Outcome} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Submission against the people example} & \textbf{Outcome} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+\texttt{SELECT name FROM people;} & Runs against the seed data. \\ \addlinespace[3pt]
+\texttt{WITH p AS (SELECT name FROM people) SELECT * FROM p;} & Runs as one read-\allowbreak{}only query. \\ \addlinespace[3pt]
+\texttt{DROP TABLE people;} & Refused; the table remains available for later queries. \\ \addlinespace[3pt]
+\texttt{SELECT name FROM people; DROP TABLE people;} & Refused; only one statement is allowed. \\ \addlinespace[3pt]
+\end{longtable}}
+
+Result grouping compares returned values.\allowbreak{} Column names and row order do not affect the group; repeated rows and column positions do.\allowbreak{} If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.\par
+
+The current activity engine has no writable exercise mode.\allowbreak{} To teach table creation or updates, use a separately isolated notebook or database lab.\allowbreak{} The instructor's seed initialization is distinct from the student submissions above.\par
 
 \manualsection{Code activity example and build checks}
 \par\noindent\begin{minipage}{\linewidth}

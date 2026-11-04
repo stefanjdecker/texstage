@@ -87,6 +87,12 @@ For an individual image, calculate its digest with:
 python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('docs/images/manual/02-presenter-workspace.jpg').read_bytes()).hexdigest())"
 ```
 
+Keep capture provenance separate from the manual edition: a manual version bump
+does not change the version or date when an unchanged screenshot was captured.
+Use the version in captures.json in the provenance paragraph. Preserve private
+demonstration links only in the private repository's manual-content.json; never
+copy that whole file or its generated manual into the public checkout.
+
 Update the manual's version/date and provenance text as appropriate, regenerate,
 run the checks and review the rendered article PDF. Changes to either generator
 or the LaTeX style also require regeneration because the build manifest includes

@@ -1,34 +1,59 @@
 # Preparing and releasing a candidate
 
-The workflows build and test candidates; they do not publish to GitHub Releases,
-PyPI or a container registry. The current development version and
-`Private :: Do Not Upload` classifier remain deliberate. That classifier does
-not prevent someone from publishing the Git repository.
+## Public source and package status
 
-## Publication decisions still required
+The source is public at [stefanjdecker/texstage](https://github.com/stefanjdecker/texstage),
+with project information at [www.texstage.org](https://www.texstage.org).
+The `main` branch includes the PowerPoint conversion, shared compilation and
+German-language compatibility changes. The current version remains the
+0.2.1.dev3 development candidate; source publication is distinct from declaring
+a supported package release. Follow [installation.md](installation.md) to install
+the checkout with its matching dependency locks.
 
-1. Select the GitHub owner, repository names and maintainers. Set the project
-   URLs and a monitored private reporting route in SECURITY.md.
-2. Resolve the scope in NOTICE with the rights holders. Lecture-tools code,
-   styles, skills and utilities excluded by the original notice need an explicit
-   disposition. In texstage, `tools/simulate.py` and `tools/slideshow.ps1` remain
-   outside that scope even though they are excluded from distributions. Do not
-   infer a blanket license from LICENSE or LICENSE.texstage.
-3. Decide whether to publish attributed snapshot history or filtered history.
-   Review every ref intended for publication, including historical utilities,
-   private paths, credentials, course content and redistribution rights. Existing
-   provenance records are attribution evidence, not permission to publish.
-4. Select release numbers, check repository/package-name availability, and decide
-   whether the release is GitHub-only or also goes to PyPI. Update the package and
-   runtime versions together, refresh locks and coordinate the companion pin.
-5. Confirm the supported browser/Office/OS matrix with actual runs. Enable the
-   paired integration job for lecture-tools and require its successful result.
+The package CI workflows build and test candidates. They do not upload releases
+to GitHub Releases, PyPI or a container registry. The `Private :: Do Not Upload`
+classifier remains set for this development candidate. Separately, the public
+repository's Pages workflow publishes the homepage and manual PDF on relevant
+pushes to `main`.
+
+The public and private repositories have separate histories. Keep private
+demonstration recordings, scripts, transcripts and captions in the private
+repository. Apply shared changes to each checkout separately; never merge the
+private history into the public repository. In the public checkout, before a
+public push, run:
+
+```sh
+python maintenance/check_public_content.py --rev HEAD
+```
+
+The public pre-push hook also checks each proposed tip and its ancestry. This
+check covers the known private recording paths and narration; it is not a
+general audit of all sensitive content.
+
+## Remaining packaged-release work
+
+1. Confirm maintainers, project metadata and a monitored private reporting route
+   in SECURITY.md. Identify which versions will receive support.
+2. Resolve the scope in NOTICE with the rights holders. In Texstage,
+   `tools/simulate.py` and `tools/slideshow.ps1` remain outside that scope even
+   though they are excluded from distributions. Public availability is not a
+   blanket license for excluded utilities or companion course material.
+3. Review every proposed release ref and artifact for attribution, redistribution
+   rights, private data and credentials. Preserve the filtered public history.
+4. Choose release numbers and whether packages will be distributed through
+   GitHub Releases, PyPI or both. Check package-name availability before using a
+   package index. Update package and runtime versions together, refresh locks
+   and coordinate the companion pin.
+5. Confirm the browser/Office/OS matrix with actual runs and record successful
+   package and paired-integration CI results. A skipped integration job is not
+   release evidence.
 
 ## GitHub setup
 
-CI uses `push`, `pull_request` and manual triggers, read-only contents permissions,
-immutable action commit pins, and no deployment credentials. Dependabot proposes
-action updates monthly. Dependency upgrades are explicit lock refreshes so the
+Package CI uses `push`, `pull_request` and manual triggers, read-only contents
+permissions, immutable action commit pins, and no package-publishing credentials.
+The separate Pages deployment job requests Pages and OIDC permissions.
+Dependabot proposes action updates monthly. Dependency upgrades are explicit lock refreshes so the
 three lock profiles stay consistent.
 
 Lecture-tools has an independent base workflow and a separate paired workflow.
@@ -41,7 +66,7 @@ If both variables are absent, the summary explicitly reports that integration
 has **not run**. One missing or malformed value fails configuration. An unconfigured
 or skipped integration check is not release evidence.
 
-After hosting, run the workflows and set appropriate required checks on the
+Run the workflows on the hosting service and set appropriate required checks on the
 default branch, including the paired `integration` job. Do not treat a local
 Windows run as proof of a successful Linux or hosted Actions run.
 
@@ -81,4 +106,5 @@ Keep previous wheels and locks available. Roll back a deployment by restoring
 the prior environment and backed-up data, not by changing the meaning of an
 existing tag. Rehearse course adoption separately in disposable copies and
 record each course's original tools commit, environment and output baseline.
-The refactoring has not changed any existing course's pin or environment.
+Course adoption is a separate, validated migration. Documentation updates do not
+require changing any existing course's pin, installed tools or generated files.

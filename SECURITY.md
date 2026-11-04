@@ -1,9 +1,10 @@
 # Security and sensitive reports
 
-This is an unpublished development candidate. No supported release or response
-time commitment has been established. Before publication, the maintainer must
-enable GitHub private vulnerability reporting or publish a monitored private
-contact here, and identify supported versions in this document.
+The public source is a development candidate. No supported release or response
+time commitment has been established. Before declaring a supported release,
+the maintainer must confirm a monitored private reporting route and identify
+supported versions in this document. This page does not confirm that private
+reporting is enabled.
 
 When private reporting is enabled, use the repository's **Security → Report a
 vulnerability** action. Do not put exploit details, presenter credentials,

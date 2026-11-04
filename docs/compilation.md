@@ -1,6 +1,8 @@
 # Shared LaTeX compilation
 
-Texstage 0.2.1.dev2 adds `compile_latex` to API version 1. It runs a LaTeX engine
+`compile_latex` was added in 0.2.1.dev2 and remains part of API version 1 in
+the current 0.2.1.dev3 candidate. It is a Python API, not a separate CLI command.
+It runs a LaTeX engine
 and returns output locations and diagnostics. Texstage's live-deck and plain
 PowerPoint builders use it, and lecture-tools uses it for chapter compilation.
 
