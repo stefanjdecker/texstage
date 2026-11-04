@@ -648,6 +648,11 @@ engine's library (8.6) - and takes the seed's prologue and a graph's terms from 
   9", "syntax error · 5" -, at most eight and "others"; after the reveal the reference's carry a
   tick. A shown cluster (`activity.show`) puts its example query and its result as a card over
   the box.
+- **The box's words** follow the deck's language (deck.json's `language`, since 2026-10-24;
+  `WORDS` in activity.js, which `Stage` passes it): a German deck's box says "11 Zeilen",
+  "5 Personen · 2 warten", "Warten auf die ersten Anfragen …", "Keine Tripel."; an English
+  deck's, and one built before, as above. The phones keep their own language, the panel its
+  English.
 - **The panel** in the presenter window, a drawer as the Q&A panel: *Open*, *Close*, *Reveal*;
   the counts; the evaluator ("Oxigraph ready - 3 waiting"). Crowd: the terms by students - pick
   two and *Merge*, *Unmerge*, *Hide*, *Approve* (with `review`), the minimum. Clusters: the

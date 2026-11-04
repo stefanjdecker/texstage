@@ -122,6 +122,18 @@ def test_frame_numbers_match_between_handout_and_present(built):
         assert slides[-1].text().split()[-3:] == ["12", "/", "12"]
 
 
+def test_the_decks_language_is_babels(tqz, tmp_path):
+    """The D record names the deck's language, which texstage's windows speak: babel's main one -
+    the last of its options, also when babel comes after texstage.sty -, and English without
+    babel (the demo; the format's \\languagename)."""
+    assert tqz.language == "english"
+    tex = tmp_path / "german.tex"
+    tex.write_text("\\documentclass[aspectratio=169]{beamer}\n\\usepackage{texquiz}\n"
+                   "\\usepackage[english,ngerman]{babel}\n\\begin{document}\n"
+                   "\\begin{frame}{Eine Folie}Text.\\end{frame}\n\\end{document}\n", encoding="utf-8")
+    assert Tqz.read(compile_deck(tex, "present", tmp_path / "out", passes=1).tqz).language == "ngerman"
+
+
 def test_metadata(tqz):
     q = tqz.questions["rdf-triple"]
     assert (q.type, q.time, q.points, q.leaderboard) == ("single", 20, "standard", True)
@@ -737,7 +749,7 @@ def test_the_core_loads_without_the_quiz(tmp_path):
 """, encoding="utf-8")
     r = compile_deck(tex, "present", tmp_path / "out", passes=1)
     t = Tqz.read(r.tqz)
-    assert t.paper[0] > t.paper[1] > 0 and not t.questions and not t.assets
+    assert t.paper[0] > t.paper[1] > 0 and not t.questions and not t.assets and t.language == "english"
     (page,) = t.pages.values()
     assert (page.kind, page.quiz, page.phase) == ("video", "clip", "show") and set(page.rects) == {"box"}
     assert abs(page.rects["box"].w - 4 / 2.54 * 72) < 0.5

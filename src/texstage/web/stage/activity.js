@@ -11,8 +11,8 @@
 // the queries (or Turtle texts), a bar each, the reference's ticked (in the presenter window at
 // once, everywhere after the reveal), a shown cluster as a card with its query and its result
 // (codeWords: what a query is called, engine by engine). Both windows draw
-// what the class sees; the box lies under the ink, so the lecturer writes on it. What the phones
-// sent is set as text, never as HTML.
+// what the class sees, in the deck's language (WORDS); the box lies under the ink, so the lecturer
+// writes on it. What the phones sent is set as text, never as HTML.
 //
 // The graph's positions are fractions of the box. The presenter window with the lease (the
 // agent's: activity.work, renewed every 5 s) lays the graph out - a force layout that keeps the
@@ -399,40 +399,73 @@ export function layoutGraph(nodes, edges, prev = new Map(), aspect = 1.6) {
   return sim.places();
 }
 
-// what the windows call a code activity's contributions and results: queries - Turtle texts and
-// their graphs for engine=turtle
-export function codeWords(item) {
-  return item?.engine === "turtle"
-    ? { one: "text", many: "texts", waiting: "Waiting for the first graphs …", none: "No graphs.", reference: "the reference's graph" }
-    : { one: "query", many: "queries", waiting: "Waiting for the first queries …", none: "No queries.", reference: "the reference's result" };
+// The box's words in the deck's language (deck.json's "language", which Stage gives the box): German
+// for a German deck, English for any other - the presenter window's panel keeps English, as all
+// its controls. A code activity's contributions are queries - Turtle texts and their graphs for
+// engine=turtle (code).
+const WORDS = {
+  en: {
+    code: {
+      query: { one: "query", many: "queries", waiting: "Waiting for the first queries …", none: "No queries.", reference: "the reference's result" },
+      turtle: { one: "text", many: "texts", waiting: "Waiting for the first graphs …", none: "No graphs.", reference: "the reference's graph" },
+    },
+    status: { syntax: "syntax error", error: "error", timeout: "ran too long", refused: "not run" },
+    yes: "yes", no: "no", result: "a result", graph: ["subject", "predicate", "object"],
+    rows: (n) => `${n} ${n === 1 ? "row" : "rows"}`, triples: (n) => `${n} ${n === 1 ? "triple" : "triples"}`,
+    students: (n) => `${n} ${n === 1 ? "student" : "students"}`, waiting: (n) => `${n} waiting`,
+    more: (n) => `and ${n} more`, others: "others", noTriplesYet: "Waiting for the first triples …", noTriples: "No triples.",
+  },
+  de: {
+    code: {
+      query: { one: "Anfrage", many: "Anfragen", waiting: "Warten auf die ersten Anfragen …", none: "Keine Anfragen.", reference: "das Ergebnis der Referenz" },
+      turtle: { one: "Text", many: "Texte", waiting: "Warten auf die ersten Graphen …", none: "Keine Graphen.", reference: "der Graph der Referenz" },
+    },
+    status: { syntax: "Syntaxfehler", error: "Fehler", timeout: "lief zu lange", refused: "nicht ausgeführt" },
+    yes: "ja", no: "nein", result: "ein Ergebnis", graph: ["Subjekt", "Prädikat", "Objekt"],
+    rows: (n) => `${n} ${n === 1 ? "Zeile" : "Zeilen"}`, triples: (n) => `${n} Tripel`,
+    students: (n) => `${n} ${n === 1 ? "Person" : "Personen"}`, waiting: (n) => `${n} ${n === 1 ? "wartet" : "warten"}`,
+    more: (n) => `und ${n} weitere`, others: "andere", noTriplesYet: "Warten auf die ersten Tripel …", noTriples: "Keine Tripel.",
+  },
+};
+export function boxWords(language) {
+  const tag = String(language || "").toLowerCase().split("-")[0];
+  return Object.prototype.hasOwnProperty.call(WORDS, tag) ? WORDS[tag] : WORDS.en;
+}
+
+// what the windows call a code activity's contributions and results, in the deck's language
+export function codeWords(item, language) {
+  return boxWords(language).code[item?.engine === "turtle" ? "turtle" : "query"];
 }
 
 // a result's short name: "11 rows", "yes", "7 triples" - or what went wrong
-const STATUS = { syntax: "syntax error", error: "error", timeout: "ran too long", refused: "not run" };
-export function resultLabel(c) {
-  if (c.status !== "ok") return STATUS[c.status] || c.status;
+export function resultLabel(c, language) {
+  const w = boxWords(language);
+  if (c.status !== "ok") return w.status[c.status] || c.status;
   const s = c.summary || {};
-  if (s.kind === "ask") return s.boolean ? "yes" : "no";
-  if (typeof s.count === "number") return `${s.count} ${s.kind === "graph" ? (s.count === 1 ? "triple" : "triples") : (s.count === 1 ? "row" : "rows")}`;
-  return "a result";
+  if (s.kind === "ask") return s.boolean ? w.yes : w.no;
+  if (typeof s.count === "number") return s.kind === "graph" ? w.triples(s.count) : w.rows(s.count);
+  return w.result;
 }
 
-export function resultTable(s, rows = 8) {
+export function resultTable(s, rows = 8, language) {
   // a result's first rows as a table (text only)
   if (!s) return "";
-  if (s.kind === "ask") return `<div class="tq-answer">${s.boolean ? "yes" : "no"}</div>`;
-  const cols = s.columns || (s.kind === "graph" ? ["subject", "predicate", "object"] : []);
+  const w = boxWords(language);
+  if (s.kind === "ask") return `<div class="tq-answer">${s.boolean ? w.yes : w.no}</div>`;
+  const cols = s.columns || (s.kind === "graph" ? w.graph : []);
   const body = (s.rows || []).slice(0, rows).map((r) => `<tr>${r.map((v) => `<td>${esc(v)}</td>`).join("")}</tr>`).join("");
   const more = (s.count ?? 0) - Math.min(rows, (s.rows || []).length);
   return `<table class="tq-result"><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead>
-    <tbody>${body}</tbody></table>${more > 0 ? `<div class="tq-more">and ${more} more</div>` : ""}`;
+    <tbody>${body}</tbody></table>${more > 0 ? `<div class="tq-more">${w.more(more)}</div>` : ""}`;
 }
 
 export class ActivityBox {
-  constructor({ id, item, layer, host = {} }) {
+  constructor({ id, item, layer, host = {}, language = "" }) {
     this.id = id;
     this.item = item;
     this.host = host;
+    this.language = language;      // the deck's: the box's words (WORDS)
+    this.words = boxWords(language);
     this.el = Object.assign(document.createElement("div"), { className: "tq-activity" });
     layer.append(this.el);
     this.want = "";                // the version and layout the state names
@@ -541,8 +574,8 @@ export class ActivityBox {
       <defs><marker id="tq-arrow-${esc(this.id)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="16" markerHeight="16"
         markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="tq-arrowhead"/></marker></defs>
       <g class="tq-edges"></g><g class="tq-elabels"></g><g class="tq-nodes"></g></svg>
-      ${p.nodes.length ? "" : `<div class="tq-empty">${p.phase === "open" ? "Waiting for the first triples …" : "No triples."}</div>`}
-      ${p.more ? `<div class="tq-more">and ${p.more} more</div>` : ""}`;
+      ${p.nodes.length ? "" : `<div class="tq-empty">${p.phase === "open" ? this.words.noTriplesYet : this.words.noTriples}</div>`}
+      ${p.more ? `<div class="tq-more">${this.words.more(p.more)}</div>` : ""}`;
     const edgesG = this.el.querySelector(".tq-edges");
     const labelsG = this.el.querySelector(".tq-elabels");         // (over every edge, so that none crosses one)
     const nodesG = this.el.querySelector(".tq-nodes");
@@ -675,19 +708,19 @@ export class ActivityBox {
 
   // ------------------------------------------------------------------ the clusters
   drawClusters(p) {
-    const words = codeWords(this.item);
+    const w = this.words, words = codeWords(this.item, this.language);
     const most = Math.max(1, ...p.clusters.map((c) => c.n));
     const rows = p.clusters.map((c) => `<div class="tq-cluster${c.reference ? " tq-ref" : ""}${c.status !== "ok" ? " tq-bad" : ""}">
-        <span class="tq-clabel">${esc(resultLabel(c))}${c.reference ? " ✓" : ""}</span>
+        <span class="tq-clabel">${esc(resultLabel(c, this.language))}${c.reference ? " ✓" : ""}</span>
         <span class="tq-cbar"><i style="width:${((100 * c.n) / most).toFixed(1)}%"></i></span>
         <span class="tq-cn">${c.n}</span></div>`).join("");
-    const shown = p.shown ? `<div class="tq-shown"><div class="tq-shownhead">${esc(resultLabel(p.shown))}
-        · ${p.shown.n} ${p.shown.n === 1 ? "student" : "students"}${p.shown.reference ? ` · ${words.reference} ✓` : ""}</div>
-        <pre>${esc(p.shown.example)}</pre>${p.shown.status === "ok" ? resultTable(p.shown.summary) : ""}</div>` : "";
-    const head = `${p.students} ${p.students === 1 ? "student" : "students"}${p.waiting ? ` · ${p.waiting} waiting` : ""}`;
+    const shown = p.shown ? `<div class="tq-shown"><div class="tq-shownhead">${esc(resultLabel(p.shown, this.language))}
+        · ${w.students(p.shown.n)}${p.shown.reference ? ` · ${words.reference} ✓` : ""}</div>
+        <pre>${esc(p.shown.example)}</pre>${p.shown.status === "ok" ? resultTable(p.shown.summary, 8, this.language) : ""}</div>` : "";
+    const head = `${w.students(p.students)}${p.waiting ? ` · ${w.waiting(p.waiting)}` : ""}`;
     this.el.innerHTML = `<div class="tq-clusters"><div class="tq-chead">${head}</div>
       ${rows || `<div class="tq-empty">${p.phase === "open" ? words.waiting : words.none}</div>`}
-      ${p.others ? `<div class="tq-more">others · ${p.others}</div>` : ""}</div>${shown}`;
+      ${p.others ? `<div class="tq-more">${w.others} · ${p.others}</div>` : ""}</div>${shown}`;
     this.nodes = new Map();
     this.shape = null;
   }

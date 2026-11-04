@@ -15,6 +15,8 @@ from lxml import etree
 from pptx import Presentation
 
 from texstage import DEFAULT_SERVER
+from texstage.build.bundle import language_tag
+from texstage.build.tqz import Tqz
 from texstage.build.pdf import Pdf
 from texstage.build.builder import BuildError, BuildOptions, build
 from texstage.build.powerpoint import NS_WE, addin_id, origin, retarget
@@ -776,3 +778,28 @@ def test_a_video_and_a_quiz_on_one_slide_are_refused(tmp_path):
                    encoding="utf-8")
     with pytest.raises(BuildError, match="a quiz and a video on one slide"):
         build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
+
+
+def test_the_decks_language_as_deck_json_names_it(tmp_path):
+    """deck.json's "language" is a BCP 47 tag: babel's and polyglossia's names of the languages the
+    live views speak (German, English), and the tags babel takes, with their regions; none for any
+    other language - the views speak English then -, and none from the .tqz of an older
+    texstage.sty, whose D record names no language."""
+    for name in ("ngerman", "german", "austrian", "naustrian", "nswissgerman", "ngermanb", "de", "de-AT", "German-Austria"):
+        assert language_tag(name) == "de", name
+    for name in ("english", "british", "american", "USenglish", "newzealand", "en", "en-US", "english-unitedstates"):
+        assert language_tag(name) == "en", name
+    for name in ("", "french", "fr", "nil", "dutch", "dumylang"):
+        assert language_tag(name) is None, name
+    for d, language in (("D|texstage-0.2.0|29959168|16852320|ngerman", "ngerman"), ("D|texstage-0.2.0|29959168|16852320|", ""),
+                        ("D|texstage-0.2.0|29959168|16852320", "")):
+        (tmp_path / "deck.tqz").write_text(d + "\n", encoding="utf-8")
+        t = Tqz.read(tmp_path / "deck.tqz")
+        assert t.language == language and t.paper[0] > t.paper[1] > 0
+
+
+def test_the_bundle_names_the_decks_language(demo):
+    """deck.json's "language" (since 2026-10-24): the deck's, which the live views speak - the
+    demo's is English, as the format names it for a deck without babel."""
+    _, deck, _ = demo
+    assert deck["language"] == "en"

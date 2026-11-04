@@ -70,7 +70,7 @@ both before calling a local result a full suite.
 python maintenance/check_distributions.py --out dist/candidate
 python -m venv .wheel-venv
 .wheel-venv/bin/python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev2-py3-none-any.whl
+.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev3-py3-none-any.whl
 .wheel-venv/bin/python maintenance/check_installed.py
 ```
 

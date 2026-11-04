@@ -701,7 +701,9 @@ pages: reconnects by itself, resends a pending command with its id, keeps the se
   round shows nothing live. Mouse buttons on the
   stage (shown while the mouse moves over it, as in Kahoot visible to the room): pause/continue,
   +10 s and skip while a question runs, ✓ reveal once it is closed, ↻ ask again (practice, and
-  the questions after it start anew) once revealed.
+  the questions after it start anew) once revealed. Texts in English or German, the buttons' too:
+  the deck's language (deck.json's `language`, babel's main language; since 2026-10-24 - English
+  before).
 - **Phone** (`/play`): PIN (from the QR code's link) and nickname → "You're in" → while the
   reading slide is up the question picture and "Read the question – the answers come next" → get-ready →
   the answer screen per type: shape buttons with the LaTeX pictures (two columns only if every

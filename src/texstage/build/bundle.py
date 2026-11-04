@@ -7,7 +7,9 @@
                      "items", per type its items as the phones may see them (the quiz's: no
                      correctness, no explanations, no keys); "slides": PowerPoint slide ID,
                      picture and live boxes ({type, phase?, item?, rects?}) of every slide,
-                     for the host views only (reveal slides show the answers, by nature)
+                     for the host views only (reveal slides show the answers, by nature);
+                     "language" (since 2026-10-24), the deck's as a BCP 47 tag - de, en
+                     (language_tag) -, the language the live views on the slides speak
       keys.json      "items", per type what only the host gets (the quiz's correct answers,
                      accepted texts, numeric answers, explanations, LaTeX sources)
       slides/        slide pictures, phone/  the quiz's phone images (PNG, named by content hash)
@@ -52,6 +54,26 @@ def public_rects(rects: dict[str, Rect], ids: dict[str, str], paper: tuple[float
         out["cells"] = dict(sorted(cells.items()))
     out |= {key: frac(r) for key, r in sorted(rects.items()) if key not in ids}
     return out
+
+
+# babel's (and polyglossia's) names of the languages the live views speak (web/shared/live.js,
+# web/stage/activity.js) - English too, the one they speak for any other
+LANGUAGES = {
+    "de": ("german", "ngerman", "germanb", "ngermanb", "austrian", "naustrian", "swissgerman", "nswissgerman"),
+    "en": ("english", "american", "usenglish", "british", "ukenglish", "canadian", "australian", "newzealand"),
+}
+
+
+def language_tag(name: str) -> str | None:
+    """deck.json's "language": the BCP 47 tag of the deck's language, which the .tqz names as babel
+    does (\\languagename: ngerman -> de, english -> en; a name babel takes as a tag, de-AT -> de, or
+    with its region, german-austria -> de). None for one the live views do not speak - they speak
+    English then, as for a deck built before 2026-10-24."""
+    name = name.strip().lower()
+    for tag, names in LANGUAGES.items():
+        if name == tag or name.startswith(f"{tag}-") or name.split("-")[0] in names:
+            return tag
+    return None
 
 
 def bundle_id(deck: dict, keys: dict) -> str:

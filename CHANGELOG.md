@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev2 candidate
+## Unreleased — 0.2.1.dev3 candidate
+
+- Preserve the deck language from Babel/Polyglossia in the bundle. German
+  decks use German live labels in the presenter and projector views.
+- Retain compatibility with older language-free TQZ records and English
+  fallback for unsupported languages. Ported from lecture-tools 97a3317.
+
+## Earlier 0.2.1.dev2 candidate
 
 - Added the lazy `compile_latex` API and `LatexResult`, supporting pdflatex
   and latexmk, source-relative includes, output/job names, bounded reruns

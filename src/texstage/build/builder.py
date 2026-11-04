@@ -238,8 +238,9 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     if activity_keys:
         secret[activity.NAME] = activity_keys
     used = sorted({b["type"] for s in slides for b in s.live} | set(items))
-    deck = {"format": bnd.FORMAT, "deck": deck_id, "name": name, "types": used,
-            "image": {"width": size[0], "height": size[1]},
+    language = bnd.language_tag(tqz.language)           # what the live views speak (English without it)
+    deck = {"format": bnd.FORMAT, "deck": deck_id, "name": name, **({"language": language} if language else {}),
+            "types": used, "image": {"width": size[0], "height": size[1]},
             "slides": [], "items": items}
     keys = {"format": bnd.FORMAT, "deck": deck_id, "items": secret}
     for s, sid in zip(slides, ids):

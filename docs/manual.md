@@ -51,11 +51,12 @@
 - [Core interfaces for package developers](#core-interfaces-for-package-developers)
 - [Core asset and layout helpers](#core-asset-and-layout-helpers)
 - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
+- [Deck language and live labels](#deck-language-and-live-labels)
 A practical guide to presenting Beamer decks, running live quizzes and participating from a phone.
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev0 - unpublished development candidate. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev3 - unpublished development candidate. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -162,7 +163,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev0 for this edition. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev3 for this edition. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -525,7 +526,7 @@ This shortcut card is for the texstage browser presenter. PowerPoint uses its ow
 
 ## About the screenshots and further help
 
-The screenshots show texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures.
+The screenshots show texstage 0.2.1.dev3 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures.
 
 All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface can use German according to browser language.
 
@@ -549,7 +550,7 @@ Screenshot sources and hashes are listed in [images/manual/captures.json](images
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev0 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev3 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -950,3 +951,16 @@ Names containing @, names beginning __, parser temporaries and global state vari
 The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/code activity records. Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.
 
 The [reference inventory](latex-reference-inventory.json) and [example build instructions](../examples/reference/README.md) accompany this chapter. Existing courses and pinned styles do not need to change to read or build these isolated examples.
+
+
+## Deck language and live labels
+
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone uses its browser language independently of the deck. Rebuild an existing bundle to capture its deck language.
+
+```
+\documentclass{beamer}
+\usepackage[ngerman]{babel}
+\usepackage{texquiz}
+```
+
+In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported.

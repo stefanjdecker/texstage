@@ -25,12 +25,13 @@ Packages, commands, options and developer interfaces
 - [Core interfaces for package developers](#core-interfaces-for-package-developers)
 - [Core asset and layout helpers](#core-asset-and-layout-helpers)
 - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
+- [Deck language and live labels](#deck-language-and-live-labels)
 
 ## LaTeX reference: packages and loading
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev0 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev3 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -431,3 +432,16 @@ Names containing @, names beginning __, parser temporaries and global state vari
 The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/code activity records. Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.
 
 The [reference inventory](latex-reference-inventory.json) and [example build instructions](../examples/reference/README.md) accompany this chapter. Existing courses and pinned styles do not need to change to read or build these isolated examples.
+
+
+## Deck language and live labels
+
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone uses its browser language independently of the deck. Rebuild an existing bundle to capture its deck language.
+
+```
+\documentclass{beamer}
+\usepackage[ngerman]{babel}
+\usepackage{texquiz}
+```
+
+In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported.

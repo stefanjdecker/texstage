@@ -8,7 +8,8 @@
 %%    \texquizmode, its name in texquiz (the build defines that one) - handout,
 %%    solutions or present; without one, solutions if Beamer shows notes, else handout.
 %%  * In present mode \jobname.tqz, the records the build reads (src/texstage/build/tqz.py):
-%%    D (the paper), G (an item of a type on this page), R and V (rectangles and marks),
+%%    D (the paper, and the deck's language: babel's main one, \languagename, which texstage's
+%%    windows speak), G (an item of a type on this page), R and V (rectangles and marks),
 %%    K and Z (a shrunk frame), X (extra pages after the last slide - the quiz's phone
 %%    pictures).  A type's own records are its business.
 %%  * Log marks for the build's checks: texquiz-check: page <n>, note, <kind> <id>.
@@ -184,6 +185,9 @@
   }
 \cs_new_eq:NN \texstage@stagenotes \texstage_stage_notes:
 
+% The deck's language is babel's main language - or polyglossia's -, the one \languagename names
+% when the document begins (english without either: the format's); the build makes it deck.json's
+% "language" (ngerman: de), and the presenter and projector windows speak it.
 \texstage_if_mode:nT { present }
   {
     \AtBeginDocument
@@ -194,6 +198,7 @@
             D | texstage-0.2.0
               | \dim_to_decimal_in_sp:n { \paperwidth }
               | \dim_to_decimal_in_sp:n { \paperheight }
+              | \cs_if_exist_use:N \languagename
           }
       }
     \AddToHook { enddocument / afterlastpage }

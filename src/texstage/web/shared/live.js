@@ -25,6 +25,10 @@
 // with a renderer each, given as `types` - {video: VideoBox} (stage/video.js) - with `host`, what
 // the window gives them (its role, send, the media files' addresses): see showTypes below.
 //
+// The live views speak the deck's language (deck.json's "language", the build's from babel's:
+// LANGUAGES below) - German for a German deck, else English -, and so do the types' boxes, which
+// get it; `labels`, a window's own texts, go over them.
+//
 // Nothing here knows the right answer before the server reveals it: the host view has no
 // keys until then.
 
@@ -44,7 +48,9 @@ export class Stage {
     host = {} } = {}) {
     this.el = el;
     this.send = send;
+    this.given = labels;
     this.labels = { ...LABELS, ...labels };
+    this.language = "";                    // the deck's (show), which this.labels speak
     this.surface = surface;
     this.fetchSketches = sketches;
     this.sketchCache = new Map();          // "quiz/player" -> {n, strokes}
@@ -93,6 +99,11 @@ export class Stage {
     this.deck = deck;
     this.state = state;
     if (clock) this.clock = clock;
+    const language = deck?.language || "";
+    if (language !== this.language) {      // (the add-in shows its slide before its deck has come)
+      this.language = language;
+      this.labels = { ...liveLabels(language), ...this.given };
+    }
     if (this.surface) {
       this.surface.show(slide);
     } else {
@@ -408,7 +419,8 @@ export class Stage {
   // slides show the same item (the steps of a frame: a video plays on), moved if its box moves,
   // removed when it goes - the swap of the live layer's HTML above never touches them. Its
   // elements lie in .tq-types, under the ink; its buttons in .tq-typectl, over the pen's input.
-  //   new types[type]({id, item, layer, controls, host, clock}): item is deck.json's
+  //   new types[type]({id, item, layer, controls, host, clock, language}): item is deck.json's,
+  //   language the deck's (its texts')
   //   .place(rects)  .update(state)  .tick()  .key(key) -> taken?  .destroy()
   showTypes() {
     if (!this.typeLayer) return;
@@ -423,7 +435,7 @@ export class Stage {
       let r = this.mounted.get(key);
       if (!r) {
         r = new this.types[b.type]({ id: b.item, item, layer: this.typeLayer, controls: this.typeControls,
-          host: this.host, clock: () => this.clock() });
+          host: this.host, clock: () => this.clock(), language: this.language });
         this.mounted.set(key, r);
       }
       r.place(b.rects || {});
@@ -546,3 +558,24 @@ export const LABELS = {
   reveal: "Show the answer",
   audience: "Question from the audience", sketchHint: "Draw your answer on your phone.",
 };
+
+// The live views' texts in the languages they speak besides English, by BCP 47 tag (deck.json's
+// "language"); a German deck's as its slides and phones say it (texquiz-theme-dbis.sty, play.js)
+export const LANGUAGES = {
+  de: {
+    joinAt: "Mitmachen unter", pin: "Spiel-PIN", player: "Person", players: "Personen", answer: "Antwort", answers: "Antworten",
+    correct: "richtig", timesUp: "Die Zeit ist um!", allAnswered: "Alle Antworten sind da!", getReady: "Bereit?",
+    results: "Ergebnisse", leaderboard: "Bestenliste", noScores: "Noch keine Punkte", noAnswers: "Keine Antworten",
+    rightOrder: "in der richtigen Reihenfolge", inPlace: "richtig platziert", pause: "Pause", continue: "Weiter",
+    extend: "10 Sekunden mehr", skip: "Die Frage beenden",
+    again: "Noch einmal fragen (Übung) - und die Fragen danach beginnen von vorn",
+    reveal: "Die Antwort zeigen",
+    audience: "Frage aus dem Publikum", sketchHint: "Zeichnen Sie Ihre Antwort auf dem Handy.",
+  },
+};
+
+// the texts for a deck's language: its own, English for any other - and for a deck built before
+// 2026-10-24, which names none
+export function liveLabels(language) {
+  return { ...LABELS, ...LANGUAGES[String(language || "").toLowerCase().split("-")[0]] };
+}

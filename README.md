@@ -4,7 +4,7 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **unpublished 0.2.1.dev2 development candidate**. Installation
+This checkout is the **unpublished 0.2.1.dev3 development candidate**. Installation
 instructions use this source or its verified wheel, not an assumed PyPI release.
 See [release preparation](docs/releasing.md) for the remaining publication decisions.
 

@@ -258,7 +258,7 @@ The core keeps a registry of the types and calls each one at these points:
 ### 5.3 The bundle, format 2
 
 ```json
-{"format": 2, "deck": "kg-06-sparql", "name": "06-SPARQL", "types": ["quiz", "video"],
+{"format": 2, "deck": "kg-06-sparql", "name": "06-SPARQL", "language": "en", "types": ["quiz", "video"],
  "image": {"width": 1920, "height": 1080},
  "slides": [{"id": 263, "image": "slides/3f0c....png", "frame": 7, "step": 1, "page": 9,
              "live": [{"type": "quiz", "item": "welche", "phase": "question", "rects": {}}]},
@@ -272,6 +272,13 @@ The core keeps a registry of the types and calls each one at these points:
 - `types` names every type the deck uses. A server that lacks one refuses the deck when it finds
   it or when it is uploaded ("this deck needs video - update texstage"), instead of failing at the
   slide in the lecture.
+- `language` (since 2026-10-24) is the deck's, a BCP 47 tag: babel's main language as the present
+  compile records it (`\languagename` in the `D` record - `ngerman` gives `de`; build/bundle.py,
+  `language_tag`). The live views on the slides speak it - the quiz's (`web/shared/live.js`,
+  `LANGUAGES`) and the types' boxes, which `Stage` gives it (`web/stage/activity.js`, `WORDS`):
+  German for a German deck, else English, also without the key (a deck built before). The phones
+  keep their own language (`navigator.language`); the presenter window's bars and panels stay
+  English.
 - `keys.json` becomes `{"format": 2, "deck": ..., "items": {"quiz": {...}}}`.
 - Format 1 stays readable: the server reads a format-1 slide's `phase`, `quiz`, `rects` as one
   `live` box of type quiz, and `quizzes` as `items.quiz` - every PPTX and bundle built so far

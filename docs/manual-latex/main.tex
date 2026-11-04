@@ -3,8 +3,8 @@
 \providecommand{\manualdocroot}{../}
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
-\newcommand{\manualversion}{0.2.1.dev0}
-\newcommand{\manualdate}{2026-10-28}
+\newcommand{\manualversion}{0.2.1.dev3}
+\newcommand{\manualdate}{November 2026}
 \hypersetup{pdftitle={texstage user manual},pdfauthor={texstage project}}
 \title{texstage user manual\\[0.5em]\large Presenter and participant guide}
 \author{texstage project}
@@ -16,7 +16,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.\par
 
-Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 -\allowbreak{} unpublished development candidate.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
+Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 -\allowbreak{} unpublished development candidate.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
 {\small\setlength{\parskip}{0pt}\tableofcontents}
@@ -173,7 +173,7 @@ python -c "from importlib.metadata import version; print(version('texstage'))"
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 for this edition.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
+Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 for this edition.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
 
 LaTeX source is text; a TeX distribution turns it into a PDF.\allowbreak{} Beamer is the LaTeX document class for slides.\allowbreak{} Install a current full \href{https://tug.org/texlive/}{TeX Live} distribution, \href{https://tug.org/mactex/}{MacTeX} on macOS, or \href{https://miktex.org/howto/install-miktex}{MiKTeX} on Windows.\allowbreak{} With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build.\allowbreak{} A LaTeX editor alone does not supply the compiler.\par
 
@@ -620,7 +620,7 @@ Whiteboard /\allowbreak{} Grid & N /\allowbreak{} Shift+N & Undo /\allowbreak{} 
 This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\par
 
 \manualsection{About the screenshots and further help}
-The screenshots show texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\par
+The screenshots show texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\par
 
 All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface can use German according to browser language.\par
 
@@ -656,7 +656,7 @@ Screenshot sources and hashes are listed in \href{\manualdocroot images/manual/c
 \manualsection{LaTeX reference: packages and loading}
 Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{\manualdocroot manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
 
-This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 candidate.\par
+This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 candidate.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
@@ -1299,5 +1299,18 @@ Names containing @, names beginning \_\allowbreak{}\_\allowbreak{}, parser tempo
 The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/\allowbreak{}code activity records.\allowbreak{} Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.\par
 
 The \href{\manualdocroot latex-reference-inventory.json}{reference inventory} and \href{\manualdocroot ../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
+
+\manualsection{Deck language and live labels}
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck.\allowbreak{} German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English.\allowbreak{} The phone uses its browser language independently of the deck.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+\documentclass{beamer}
+\usepackage[ngerman]{babel}
+\usepackage{texquiz}
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+In a DBIS course, keep the language in the course dbis-\allowbreak{}style.\allowbreak{}sty setting.\allowbreak{} lecture-\allowbreak{}tools supplies the German activity heading and reference label.\allowbreak{} Private presenter activity controls remain English.\allowbreak{} Older bundles and TQZ records without a language field remain supported.\par
 
 \end{document}

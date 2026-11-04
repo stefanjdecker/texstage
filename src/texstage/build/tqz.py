@@ -8,7 +8,9 @@ Positions come from \\pdfsavepos in scaled points, measured from the lower-left
 corner of the (physical) PDF page; they are converted to PDF points here.
 
 The core's (texstage.sty):
-  D|version|paperwidth|paperheight
+  D|version|paperwidth|paperheight|language
+                                          (the deck's language: babel's main one, \\languagename
+                                           - ngerman, english; none before 2026-10-24)
   G|kind|id|phase|page                    (an item on a page; several per page. The kind names
                                            the content type - the quiz's: quiz/answer/join/
                                            podium/leaderboard; build/types.py)
@@ -146,10 +148,11 @@ class Tqz:
     pages: dict[int, Page]
     assets: list[Asset]
     records: dict[str, list[list[str]]] = field(default_factory=dict)   # a type's own, by its name
+    language: str = ""          # the deck's, as babel names it (ngerman); '' from an older texstage.sty
 
     @classmethod
     def read(cls, path: Path) -> "Tqz":
-        version, paper = "", (0.0, 0.0)
+        version, paper, language = "", (0.0, 0.0), ""
         questions: dict[str, Question] = {}
         pages: dict[int, Page] = {}
         marks: dict[tuple[int, str, str], dict[str, tuple[float, float, float]]] = {}
@@ -166,6 +169,7 @@ class Tqz:
                 records.setdefault(kind, []).append(f[1:])          # video|..., cell|...
             elif kind == "D":
                 version, paper = f[1], (_bp(f[2]), _bp(f[3]))
+                language = f[4] if len(f) > 4 else ""
             elif kind == "Q":
                 questions[f[1]] = Question(
                     id=f[1], type=f[2], time=int(f[3]), points=f[4], leaderboard=f[5] == "true",
@@ -217,7 +221,7 @@ class Tqz:
                 for item in pages[page].items:
                     item.rects = {k: Rect(cx + s * (r.x - cx), cy + s * (r.y - cy), s * r.w, s * r.h)
                                   for k, r in item.rects.items()}
-        return cls(version, paper, questions, pages, assets, records)
+        return cls(version, paper, questions, pages, assets, records, language)
 
 
 def _item(pages: dict[int, Page], page: int, id: str, raw: str, path: Path) -> Item:
