@@ -41,3 +41,14 @@ are unchanged; lecture-tools keeps a wheel-verified snapshot for offline LaTeX.
 Lecture-tools delegates frame/deck engine execution through `compile_latex`.
 It retains source assembly, course settings, reference/layout checks and locked-PDF
 recovery policy. See the [compilation contract](compilation.md).
+
+## Proposed plugin API
+
+SQL, SPARQL and Turtle currently use built-in registries; external plugin
+installation and discovery are not yet implemented. The [plugin system design](architecture/plugin-system-design.md)
+proposes an API for activity engines and custom slide types, including presenter,
+projector and participant views. It includes a central GitHub collection for
+plugin sources, discovery and installation, plus explicit enablement, locks,
+build hooks, session state and compatibility. This is a draft, separate from
+the supported `texstage.api` facade above; its commands and interfaces are not yet
+available in the development candidate.

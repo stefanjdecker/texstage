@@ -76,6 +76,7 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [SQL activity rules](docs/manual.md#sql-activities-permitted-statements) | Accepted queries, refused writes and where submissions run |
 | [LaTeX compilation API](docs/compilation.md) | Shared pdflatex/latexmk runner for standalone documents and course tools |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
+| [Plugin system design](docs/architecture/plugin-system-design.md) | Draft API 1 proposal for activity engines, custom slide types and a central GitHub collection |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |
 | [Releasing](docs/releasing.md) | Candidate verification and publication prerequisites |
