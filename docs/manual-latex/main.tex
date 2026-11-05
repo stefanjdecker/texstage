@@ -1358,4 +1358,53 @@ Texstage records the active Babel or Polyglossia language when LaTeX builds a de
 
 In a DBIS course, keep the language in the course dbis-\allowbreak{}style.\allowbreak{}sty setting.\allowbreak{} lecture-\allowbreak{}tools supplies the German activity heading and reference label.\allowbreak{} Private presenter activity controls remain English.\allowbreak{} Older bundles and TQZ records without a language field remain supported.\par
 
+\manualsection{Experimental plugin authoring}
+The experimental plugin implementation adds texstagepluginbox as a generic bridge for external slide types.\allowbreak{} Install and explicitly enable trusted plugin wheels in an isolated environment.\allowbreak{} Plugin code is never included in an uploaded deck.\allowbreak{} The implementation and remaining release gates are described in docs/\allowbreak{}plugins.\allowbreak{}md; API 1 is not yet stable.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+\usepackage{texstage}
+\begin{texstagepluginbox}[
+  type=org.example.coordinates.plane,id=walk,
+  public=plane-public.json,private=plane-private.json
+]{0.9\linewidth}{4cm}
+  Static diagram or explanation for PDF and PowerPoint.
+\end{texstagepluginbox}
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{Key or argument} & \textbf{Meaning} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Key or argument} & \textbf{Meaning} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+type & Qualified content-\allowbreak{}type ID from an enabled plugin manifest. \\ \addlinespace[3pt]
+id & A unique item ID: a letter followed by letters, digits, underscore or hyphen. \\ \addlinespace[3pt]
+public & UTF-\allowbreak{}8 JSON file relative to the deck directory; public item data. \\ \addlinespace[3pt]
+private & Optional JSON file for reference answers and presenter-\allowbreak{}only data. \\ \addlinespace[3pt]
+public-\allowbreak{}json /\allowbreak{} private-\allowbreak{}json & Inline JSON alternatives for plugin convenience styles; do not combine a file and inline value for the same field. \\ \addlinespace[3pt]
+Width /\allowbreak{} height & The two mandatory dimensions reserve the live overlay rectangle.\allowbreak{} The body supplies the static fallback. \\ \addlinespace[3pt]
+\end{longtable}}
+
+The enabled package prepares and validates the item data.\allowbreak{} Its declared evaluation engines must also be installed and enabled.\allowbreak{} External-\allowbreak{}plugin bundles use format 3 with exact provider payload pins; built-\allowbreak{}in-\allowbreak{}only bundles remain format 2.\allowbreak{} The server checks those pins before accepting the bundle.\allowbreak{} Handout and solutions PDFs retain the LaTeX body; plugin styles may provide a solutions-\allowbreak{}specific diagram.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage build plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json
+texstage pdf plane.tex --solutions --data ./plugin-profile
+texstage serve ./texquiz-out --data ./plugin-profile
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+The host supplies approved plugin style directories only for this compilation and verifies the recorder output.\allowbreak{} A stale local style that TeX actually loads instead of the approved package fails the build.\allowbreak{} Existing course snapshots and the lecture-\allowbreak{}tools installation remain untouched.\allowbreak{} Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter.\par
+
 \end{document}

@@ -1,9 +1,10 @@
 # Texstage plugin system design
 
-**Status:** Draft for review, 5 November 2026. **Scope:** activity engines and custom
+**Status:** Experimental implementation in progress, 5 November 2026. **Scope:** activity engines and custom
 slide types, including presenter, projector and participant controls, in the first
-plugin API release. All new commands, interfaces and file formats below are
-proposed; Texstage 0.2.1.dev3 does not implement them.
+plugin API release. This remains the target contract, not a stable API promise.
+See the [implementation guide and remaining release gates](../plugins.md) for
+the subset implemented on this branch, commands that can be tried, and test evidence.
 
 Texstage should let an independently distributed package add a query engine or a
 new kind of interactive slide without editing Texstage's source. A plugin can

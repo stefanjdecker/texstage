@@ -53,6 +53,7 @@
 - [Core asset and layout helpers](#core-asset-and-layout-helpers)
 - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
 - [Deck language and live labels](#deck-language-and-live-labels)
+- [Experimental plugin authoring](#experimental-plugin-authoring)
 A practical guide to presenting Beamer decks, running live quizzes and participating from a phone.
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
@@ -997,3 +998,37 @@ Texstage records the active Babel or Polyglossia language when LaTeX builds a de
 ```
 
 In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported.
+
+
+## Experimental plugin authoring
+
+The experimental plugin implementation adds texstagepluginbox as a generic bridge for external slide types. Install and explicitly enable trusted plugin wheels in an isolated environment. Plugin code is never included in an uploaded deck. The implementation and remaining release gates are described in docs/plugins.md; API 1 is not yet stable.
+
+```
+\usepackage{texstage}
+\begin{texstagepluginbox}[
+  type=org.example.coordinates.plane,id=walk,
+  public=plane-public.json,private=plane-private.json
+]{0.9\linewidth}{4cm}
+  Static diagram or explanation for PDF and PowerPoint.
+\end{texstagepluginbox}
+```
+
+| Key or argument | Meaning |
+| --- | --- |
+| type | Qualified content-type ID from an enabled plugin manifest. |
+| id | A unique item ID: a letter followed by letters, digits, underscore or hyphen. |
+| public | UTF-8 JSON file relative to the deck directory; public item data. |
+| private | Optional JSON file for reference answers and presenter-only data. |
+| public-json / private-json | Inline JSON alternatives for plugin convenience styles; do not combine a file and inline value for the same field. |
+| Width / height | The two mandatory dimensions reserve the live overlay rectangle. The body supplies the static fallback. |
+
+The enabled package prepares and validates the item data. Its declared evaluation engines must also be installed and enabled. External-plugin bundles use format 3 with exact provider payload pins; built-in-only bundles remain format 2. The server checks those pins before accepting the bundle. Handout and solutions PDFs retain the LaTeX body; plugin styles may provide a solutions-specific diagram.
+
+```
+texstage build plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json
+texstage pdf plane.tex --solutions --data ./plugin-profile
+texstage serve ./texquiz-out --data ./plugin-profile
+```
+
+The host supplies approved plugin style directories only for this compilation and verifies the recorder output. A stale local style that TeX actually loads instead of the approved package fails the build. Existing course snapshots and the lecture-tools installation remain untouched. Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter.

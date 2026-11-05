@@ -38,7 +38,7 @@ class CompileResult:
 
 def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = False,
                  jobname: str | None = None, passes: int = 2,
-                 explicit_mode: bool = True) -> CompileResult:
+                 explicit_mode: bool = True, plugins=None) -> CompileResult:
     """Run pdflatex `passes` times next to the source (so relative paths keep
     working) and write all output to `out_dir`.  Returns the PDF and, in present
     mode, the .tqz metadata file.  notes=True: every page holds the slide and its
@@ -60,12 +60,16 @@ def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = Fal
     result = compile_latex(
         tex, output_dir=out_dir, jobname=jobname, preamble=flags,
         passes=passes, extra_passes=EXTRA_PASSES if passes > 1 else 0,
-        file_line_error=True, texinputs=(LATEX_DIR,), output_encoding="utf-8",
+        file_line_error=True, texinputs=(LATEX_DIR, *(plugins.latex_dirs if plugins else ())), output_encoding="utf-8",
+        recorder=bool(plugins and plugins.providers),
         env={"max_print_line": os.environ.get("max_print_line", "10000")},
     )
     log = result.log
     if result.returncode:
         raise LatexError(first_error(log) or result.stdout[-2000:])
+    if plugins and plugins.providers:
+        from .plugins import verify_styles
+        verify_styles(plugins, out_dir / f"{jobname}.fls", tex.parent)
     tqz = out_dir / f"{jobname}.tqz"
     return CompileResult(out_dir / f"{jobname}.pdf", log, tqz if mode == "present" else None,
                          count_overfull(log))

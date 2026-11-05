@@ -164,7 +164,7 @@
     {
       "file": "latex/texstage.sty",
       "scope": "runtime",
-      "sha256": "198368b4fb50f98ee105510eca17e2701d79362b7e1f459a46866425e723c66f",
+      "sha256": "48ee9195be4642a9497bbb8587b27963b8750b19a7dc3172f531e92e8078cd0e",
       "commands": [
         "texquizmode",
         "texquiznotes",
@@ -194,9 +194,18 @@
       "internal_commands": [
         "texstage@tmp"
       ],
-      "environments": [],
+      "environments": [
+        "texstagepluginbox"
+      ],
       "styles": [],
-      "keys": [],
+      "keys": [
+        "id",
+        "private",
+        "private-json",
+        "public",
+        "public-json",
+        "type"
+      ],
       "listings_languages": []
     },
     {

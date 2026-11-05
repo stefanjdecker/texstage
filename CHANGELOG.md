@@ -2,6 +2,17 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Add an experimental plugin host: metadata discovery, explicit enablement and
+  locks, portable wheels, generic LaTeX boxes and format-3 bundle preflight.
+- Connect external slide types to isolated hooks, durable command receipts and
+  evaluation jobs, presenter/projector/phone views and browser engine workers.
+- Add catalog refresh/search/inspection and verified wheel installation, with
+  independent examples in the separate texstage-plugins collection.
+- Document the prototype and remaining API 1 release gates; retain legacy
+  formats and built-in activity behavior. Extend the authoring reference.
+- Fix presenter startup with an already saved key by initializing module helpers
+  before opening the remembered deck.
+
 - Update public-source installation, SQL activity restrictions, PowerPoint
   command guidance and release status; correct screenshot provenance.
 - Regenerate the Markdown, LaTeX and PDF manuals from their shared source.

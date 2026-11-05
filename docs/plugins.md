@@ -1,0 +1,216 @@
+# Experimental plugins
+
+This branch implements an experimental plugin host and two independently packaged
+examples in the separate `texstage-plugins` repository. It is a prototype of the
+[API 1 design](architecture/plugin-system-design.md), not a stable API 1 release.
+Existing decks, SQL, SPARQL, Turtle, quizzes and videos need no plugin setup.
+
+A plugin is an installed Python distribution with a declarative manifest. It may
+provide a browser activity engine, a complete interactive slide type, or both.
+It may include zero or more LaTeX packages. An ordinary `.sty` theme is not itself
+a plugin. Decks contain data and exact provider requirements, never plugin code.
+
+## Try the example
+
+Use a fresh virtual environment and a disposable data directory. Install this
+branch's Texstage wheel and its locked development dependencies first; an older
+package with the same development version does not contain this experimental API.
+The commands below use the virtual environment's `python` and `texstage` commands.
+
+```sh
+python -m pip install --require-hashes --only-binary=:all: -r requirements/dev.txt
+python -m build --no-isolation
+python -m pip install --no-deps dist/texstage-0.2.1.dev3-py3-none-any.whl
+```
+
+In the separate collection checkout, build its two packages with
+`python maintenance/build_wheels.py`. Install the two wheels printed by that
+command with `python -m pip install --no-deps <distance-wheel> <coordinates-wheel>`.
+These are ordinary, independently versioned packages. Neither is enabled by installation.
+
+```sh
+texstage plugins --data ./plugin-profile list
+texstage plugins --data ./plugin-profile inspect org.example.distance
+texstage plugins --data ./plugin-profile inspect org.example.coordinates
+```
+
+Review the package code, license, manifest and resources. For each package, copy
+the exact `version` and `payload` printed by `inspect` into an explicit enable command:
+
+```sh
+texstage plugins --data ./plugin-profile enable org.example.distance --version 0.1.0 --payload <distance-payload>
+texstage plugins --data ./plugin-profile enable org.example.coordinates --version 0.1.0 --payload <coordinates-payload>
+texstage plugins --data ./plugin-profile lock --output ./plugins.lock.json
+texstage build examples/plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json
+texstage plugins --data ./plugin-profile check examples/texquiz-out/plane.bundle
+texstage serve examples/texquiz-out --data ./plugin-profile --present
+```
+
+The `--data` argument to `plugins` precedes its subcommand. Relative paths resolve
+from the current directory. `build`, `pdf` and `present` use a plugin profile only
+when `--data` is explicit. `serve` reads its selected data directory. Restart a
+server after changing enablement; the running catalog and asset bytes are immutable.
+
+Open the coordinate slide, join from a phone, choose a point and press **Send
+point**. The browser presenter leases the evaluation job and runs the separately
+installed distance engine in a worker. Reveal and reset controls appear in the
+presenter toolbar. The projector receives its own filtered view. A point at
+`(0,5)` has the same distance as `(3,4)`, but is correctly treated as a different point.
+
+The LaTeX package draws a static diagram for PDF and PowerPoint. External live
+views currently run in the browser presenter; native PowerPoint uses the fallback.
+
+## Author a slide
+
+The collection's `examples/plane.tex` uses `texstage-coordinates-plane.sty`. A
+plugin may instead use the generic core environment:
+
+```tex
+\usepackage{texstage}
+\begin{texstagepluginbox}[
+  type=org.example.coordinates.plane,id=walk,
+  public=plane-public.json,private=plane-private.json
+]{0.9\linewidth}{4cm}
+  A static diagram or explanation.
+\end{texstagepluginbox}
+```
+
+The JSON files are relative to the deck, bounded to 2 MiB and confined to its
+directory. A convenience style may supply `public-json` and `private-json`
+instead. Use either a file or inline JSON for each field. The final two arguments
+reserve the overlay rectangle. The body is the static fallback. Full details are
+also in the [LaTeX reference](latex-reference.md#experimental-plugin-authoring).
+
+External bundles use format 3. Requirements identify the package ID, version,
+portable payload digest and selected capabilities, including engines used by a
+different plugin's type. Missing, disabled or changed providers fail preflight.
+Built-in-only builds continue writing format 2, and formats 1 and 2 remain readable.
+
+## Develop a package
+
+Use `texstage.plugins.sdk` as the PEP 517 backend, delegate package selection to
+setuptools, and include `texstage-plugin.json` in `MANIFEST.in`. The backend adds
+the manifest, complete resource hashes and sizes to the wheel's `.dist-info`, then
+updates `RECORD`. The source manifest omits `resources`; the installed manifest
+must satisfy [manifest-v1.json](../src/texstage/plugins/schemas/manifest-v1.json).
+
+API 1 requires a portable `py3-none-any` wheel. Own one independent Python package;
+do not overwrite Texstage or share files with another distribution. Native plugin
+binaries, symlinks, undeclared resources, path traversal, duplicate IDs, reserved
+names and conflicting styles are rejected. Native dependencies belong in the
+environment's separate platform dependency lock. Installed payload identity is
+portable; the runtime fingerprint also includes Python, platform and distribution
+RECORDs, and is intentionally stricter for session resumption.
+
+Declare exactly one `texstage.plugins.v1` entry point named after the plugin ID.
+Listing, inspection, catalog refresh, locking and bundle preflight only read
+metadata. The factory runs only inside an enabled provider's dedicated process.
+Engine-only providers do not need their factory for browser evaluation.
+
+The factory returns `PluginV1(build_hooks=..., state_hooks=...)` from
+`texstage.plugin_api.v1`. A build hook receives public/private JSON and returns
+`PreparedItem`. An asset maps a logical name to `{source, visibility}`; the host
+copies approved data/image files under content hashes. Evaluation bindings map
+manifest names to `seed`, `options` and optional private `references`; the manifest
+fixes the engine identity. Reference arrays are limited to 32 inputs of 2,000
+characters each.
+
+State hooks implement `initial_state(item, ctx)`, `transition(state, event, ctx)`
+and `view(state, audience, ctx)`. Context contains JSON item data, authenticated
+actor/role, epoch, revision and a host timestamp. Never retain state in module
+globals or perform I/O in a reducer. Return `Transition(state, effects)` or
+`{"refusal": "bounded-error-code"}` for a terminal domain refusal. Effects are
+only `Evaluate(binding, correlation_id, text)` and
+`CancelEvaluation(correlation_id)`. The coordinate example demonstrates the full
+contract, including ignoring completion of an older submission.
+
+Each renderer exports synchronous `mount(ctx)` returning `update`, `destroy` and,
+for overlays, `place`. Presenter overlay, presenter controls, projector overlay
+and participant input each get an independent mount. `ctx.container` belongs to
+that instance; `ctx.signal` aborts listeners on teardown. Overlay rectangles use
+CSS pixels relative to the host container. `update` receives a complete filtered
+`{epoch, revision, data}` view. `ctx.dispatch(operation, payload)` owns retry IDs;
+the projector cannot dispatch. Use text nodes for untrusted text. Renderer
+exceptions leave the static slide usable. `resolveAsset(name)` only returns URLs
+for verified browser resources or explicitly public bundle data; undeclared names
+are rejected.
+
+An engine exports `start(context)`, `load(library, seed, options)`,
+`evaluate(state, text, context)` and `dispose(state)`. The host supplies declared
+asset bytes, creates fresh state for every reference and submission, and terminates
+workers after a 30-second startup or 2-second individual evaluation budget.
+Output is bounded, validated and namespaced by provider, engine, canonical format
+and binding. Evaluation workers cannot fetch the network or spawn workers. This is
+not a sandbox for hostile plugin code: Python hooks and browser renderers remain
+operator-trusted code.
+
+## Recovery and operation
+
+State, request receipts and logical jobs commit together in `plugins.sqlite3`.
+Authentication and schema checks apply on every request. An identical retry
+returns its stored receipt, including after a server restart; changing an envelope
+while reusing its request ID fails. Exact-revision presenter operations and
+latest-revision participant submissions are separate policies. Both check epochs.
+
+Reset increments the epoch once, preserves whether the item is active, and
+invalidates old jobs. Evaluation results must match their job, lease generation,
+owner and epoch. Terminal results are delivered durably to the reducer, once per
+logical completion. No presenter evaluator means queued work, not successful
+feedback. Leases allow bounded retries, with up to two jobs per poll and a
+120-second lease covering startup plus reference replay. Python hooks have a
+10-second startup and 250-ms operation budget (2 seconds for build preparation);
+three failures quarantine a provider until restart.
+
+The presenter-authorized `GET /api/archive/<session>/plugins.json` exports plugin
+state and jobs. It includes private data and is separate from the student PDF.
+Full integration with the existing archive ZIP and recording timelines remains
+part of the release gate. Keep the original environment for rollback: resuming
+plugin sessions with a different runtime fingerprint is refused.
+
+## Collection and installation
+
+The separate `texstage-plugins` checkout contains sources, tests, an initially empty
+catalog and release preparation workflows. No GitHub collection or release has
+been published by this implementation. After a reviewed release is published,
+an operator can cache its index from an immutable GitHub commit:
+
+```sh
+texstage plugins --data ./plugin-profile catalog update --url https://raw.githubusercontent.com/OWNER/texstage-plugins/FULL_COMMIT_SHA/catalog/index.json
+texstage plugins --data ./plugin-profile search coordinate
+texstage plugins --data ./plugin-profile info org.example.coordinates
+texstage plugins --data ./plugin-profile install org.example.coordinates==0.1.0 --write-requirements ./plugin-wheel.txt
+```
+
+`--file` accepts a local index instead of `--url`. Installation verifies the
+catalog pin, whole wheel, manifest inventory and existing dependency versions,
+then invokes pip with hashes, wheels only and no dependency changes. It refuses
+in-place package upgrades and overwrites; prepare another environment first.
+The requirements output points to the verified cached wheel. `--offline` requires
+that cache. Installation never enables a provider. Withdrawn releases cannot be
+installed, and catalog refresh cannot rewrite or remove old releases. Neither a
+running lecture nor an existing lock needs GitHub access.
+
+## Implementation status and release gate
+
+Implemented: manifest/SDK contracts, metadata discovery, explicit profiles and
+locks, format-3 builds and preflight, killable Python hooks, durable receipts and
+jobs, four browser surfaces, isolated browser evaluation, the independent example
+packages, and catalog commands. Automated checks cover legacy behavior, hashing,
+authorization, privacy, duplicate requests, crash recovery, reset and lease races.
+
+Still required before a stable API 1 release:
+
+- Complete the two-way Windows/Linux build-and-serve matrix. Local evidence covers
+  Windows authoring and browser interaction, plus Linux serving of that same bundle
+  using identical provider wheels; local Ubuntu has no TeX installation.
+- Complete Safari/Firefox, ordinary LAN HTTP, renderer failure/cleanup,
+  accessibility and concurrent-load conformance cases.
+- Consolidate the legacy built-in registries behind catalog adapters after that
+  prototype gate, preserving SQL read-only behavior and course facade imports.
+  External engines currently bind through custom slide types; selecting them
+  directly in the built-in `texcodeactivity` environment is part of that stage.
+- Add the public conformance command, archive ZIP integration and remaining SDK
+  packaging/rollback stress cases, then publish reviewed collection releases.
+
+Existing courses and lecture-tools remain on their current packages and style
+snapshots. Adopting plugins into a course is a separate change.

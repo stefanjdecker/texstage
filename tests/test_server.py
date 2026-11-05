@@ -829,7 +829,7 @@ def test_bundles_of_format_2_and_1(tmp_path):
     with pytest.raises(BundleError, match="needs cell, which this server does not know"):
         load_bundle(tmp_path / "cell")
     write(tmp_path / "three", deck | {"format": 3}, keys | {"format": 3})
-    with pytest.raises(BundleError, match="bundle format 3, this server reads 1 and 2"):
+    with pytest.raises(BundleError, match="external bundles require an explicit plugin lock"):
         load_bundle(tmp_path / "three")
     lost = {"id": 258, "image": "slides/2222222222222222.png", "live": [{"type": "video", "item": "gone", "rects": {}}]}
     write(tmp_path / "lost", deck | {"types": ["quiz", "video"], "slides": [*deck["slides"], lost]}, keys)

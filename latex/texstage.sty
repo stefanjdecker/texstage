@@ -111,6 +111,43 @@
       }
   }
 
+% Experimental plugin bridge. Only JSON data references enter TQZ, never code.
+\tl_new:N \l__texstage_plugin_type_tl
+\tl_new:N \l__texstage_plugin_id_tl
+\tl_new:N \l__texstage_plugin_public_tl
+\tl_new:N \l__texstage_plugin_private_tl
+\tl_new:N \l__texstage_plugin_public_json_tl
+\tl_new:N \l__texstage_plugin_private_json_tl
+\keys_define:nn { texstage/plugin }
+  {
+    type .tl_set:N = \l__texstage_plugin_type_tl,
+    id .tl_set:N = \l__texstage_plugin_id_tl,
+    public .tl_set:N = \l__texstage_plugin_public_tl,
+    private .tl_set:N = \l__texstage_plugin_private_tl,
+    public-json .tl_set:N = \l__texstage_plugin_public_json_tl,
+    private-json .tl_set:N = \l__texstage_plugin_private_json_tl
+  }
+\NewDocumentEnvironment { texstagepluginbox } { O{} m m +b }
+  {
+    \group_begin:
+    \keys_set:nn { texstage/plugin }
+      { type=,id=,public=,private=,public-json=,private-json=,#1 }
+    \tl_if_empty:NT \l__texstage_plugin_id_tl { \texstage_error:n { Plugin~box~needs~id. } }
+    \tl_if_empty:NT \l__texstage_plugin_type_tl { \texstage_error:n { Plugin~box~needs~type. } }
+    \texstage_emit:n
+      { plugin | \l__texstage_plugin_id_tl | \texstage_hex:e {\l__texstage_plugin_type_tl}
+        | \texstage_hex:e {\l__texstage_plugin_public_tl} | \texstage_hex:e {\l__texstage_plugin_private_tl}
+        | \texstage_hex:e {\l__texstage_plugin_public_json_tl} | \texstage_hex:e {\l__texstage_plugin_private_json_tl} }
+    \texstage_page_record:nnn { plugin } { \l__texstage_plugin_id_tl } { live }
+    \leavevmode
+    \hbox:n
+      {
+        \texstage_rect:nnnnn { \l__texstage_plugin_id_tl } { live } { box } {#2} {#3}
+        \begin{minipage}[b][#3][c]{#2} #4 \end{minipage}
+      }
+    \group_end:
+  } { }
+
 % Shrunk frames: Beamer typesets the frame body first and then scales the finished
 % box (\beamer@shrinkframebox: pgftext[left,top] under pgftransformscale) - a PDF
 % transformation that \pdfsavepos does not see, so every position recorded inside a

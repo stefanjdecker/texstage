@@ -2247,6 +2247,63 @@
           "p": "In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported."
         }
       ]
+    },
+    {
+      "title": "Experimental plugin authoring",
+      "reference": true,
+      "layout": "text",
+      "images": [],
+      "blocks": [
+        {
+          "p": "The experimental plugin implementation adds texstagepluginbox as a generic bridge for external slide types. Install and explicitly enable trusted plugin wheels in an isolated environment. Plugin code is never included in an uploaded deck. The implementation and remaining release gates are described in docs/plugins.md; API 1 is not yet stable."
+        },
+        {
+          "code": "\\usepackage{texstage}\n\\begin{texstagepluginbox}[\n  type=org.example.coordinates.plane,id=walk,\n  public=plane-public.json,private=plane-private.json\n]{0.9\\linewidth}{4cm}\n  Static diagram or explanation for PDF and PowerPoint.\n\\end{texstagepluginbox}"
+        },
+        {
+          "table": {
+            "headers": [
+              "Key or argument",
+              "Meaning"
+            ],
+            "rows": [
+              [
+                "type",
+                "Qualified content-type ID from an enabled plugin manifest."
+              ],
+              [
+                "id",
+                "A unique item ID: a letter followed by letters, digits, underscore or hyphen."
+              ],
+              [
+                "public",
+                "UTF-8 JSON file relative to the deck directory; public item data."
+              ],
+              [
+                "private",
+                "Optional JSON file for reference answers and presenter-only data."
+              ],
+              [
+                "public-json / private-json",
+                "Inline JSON alternatives for plugin convenience styles; do not combine a file and inline value for the same field."
+              ],
+              [
+                "Width / height",
+                "The two mandatory dimensions reserve the live overlay rectangle. The body supplies the static fallback."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "The enabled package prepares and validates the item data. Its declared evaluation engines must also be installed and enabled. External-plugin bundles use format 3 with exact provider payload pins; built-in-only bundles remain format 2. The server checks those pins before accepting the bundle. Handout and solutions PDFs retain the LaTeX body; plugin styles may provide a solutions-specific diagram."
+        },
+        {
+          "code": "texstage build plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json\ntexstage pdf plane.tex --solutions --data ./plugin-profile\ntexstage serve ./texquiz-out --data ./plugin-profile"
+        },
+        {
+          "p": "The host supplies approved plugin style directories only for this compilation and verifies the recorder output. A stale local style that TeX actually loads instead of the approved package fails the build. Existing course snapshots and the lecture-tools installation remain untouched. Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter."
+        }
+      ]
     }
   ]
 }

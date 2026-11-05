@@ -14,6 +14,7 @@
 // states only while the tab is open (qa.watch).
 
 import { ActivityScreen } from "/static/play/activity.js";
+import { PluginScreen } from "/static/shared/plugins.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
 import { PENS, SketchPad, sketchSVG } from "/static/shared/sketch.js";
@@ -73,7 +74,7 @@ const redraw = () => { screenKey = ""; listed = ""; if (state) render(); };   //
 // part of the state is there (state[name], with its item's id) gets the screen while no quiz round
 // is open - the round comes first. Its screen owns its elements, so what is being typed survives
 // the pushes:  new PHONE_TYPES[name]({root, client, T, state})  .update(state)  .destroy()
-const PHONE_TYPES = { activity: ActivityScreen };
+const PHONE_TYPES = { activity: ActivityScreen, plugins: PluginScreen };
 let typeScreen = null;
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } })();
@@ -239,7 +240,8 @@ function render() {
   if (tab === "qa") questions();
   const r = state.round;
   const asking = r && (r.phase === "get-ready" || r.phase === "open");
-  const typed = state.session.finished || asking ? undefined : Object.keys(PHONE_TYPES).find((name) => state[name]);
+  const typed = state.session.finished || asking ? undefined : Object.keys(PHONE_TYPES).find((name) =>
+    name === "plugins" ? state.plugins?.items.some(d => d.modules["participant-input"]) : state[name]);
   if (typed) {
     const k = `type:${typed}:${state[typed].id ?? ""}`;
     if (k !== screenKey || !typeScreen) {

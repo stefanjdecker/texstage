@@ -118,6 +118,9 @@ from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
 from texstage.server.game import Engine, GameError, Settings, clean_nickname, token_hash
 from texstage.server.store import Store
+from texstage.plugins import PluginError
+from texstage.plugins.policy import catalog_for
+from texstage.server.plugins import PluginHost
 
 log = logging.getLogger("texstage.server")
 HOST_PUSH_S = 0.2           # live counts to the hosts: at most 5 updates a second
@@ -137,6 +140,7 @@ ARCHIVE_MAX = 300 * 1024 * 1024                      # an annotated PDF (texstag
 DOWNLOAD_MS = 600_000                                 # a recording's download address stays valid
 MEDIA_MS = 12 * 3_600_000                             # a video's address (a ticket): a lecture day
 BUNDLE_ENTRY = re.compile(r"^(deck\.json|keys\.json|(slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(mp4|m4v|webm|mov|jpg|png)"
+                          r"|plugin-data/[0-9a-f]{64}\.(json|txt|csv|sql|ttl|png|jpg)"
                           r"|stage/[0-9a-f]{16}\.pdf" + "".join(f"|{p}" for p in stage_types.FILES) + r")$")
 ZIP_JUNK = re.compile(r"(^|/)(__MACOSX/|\.DS_Store$|Thumbs\.db$|desktop\.ini$)", re.IGNORECASE)   # zipped by hand
 ZIP_ERRORS = (zipfile.BadZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)  # broken, Deflate64, encrypted
@@ -164,6 +168,8 @@ class Static(StaticFiles):
         response.headers["Cache-Control"] = "no-cache"
         if str(args[0] if args else kwargs.get("full_path", "")).endswith(EVALUATOR):
             response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
+        if str(args[0] if args else kwargs.get("full_path", "")).endswith("plugin-evaluator-worker.js"):
+            response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'none'"
         return response
 
 
@@ -380,6 +386,7 @@ def _int(msg: dict, key: str, default=None) -> int | None:
 class Server:
     def __init__(self, config: ServerConfig):
         self.config = config
+        self.plugin_catalog = catalog_for(config.data_dir)
         self.published = config.data_dir / "bundles"         # texstage publish puts bundles here
         self.published.mkdir(parents=True, exist_ok=True)
         self.incoming = config.data_dir / "incoming"         # uploads being unpacked (not scanned)
@@ -390,7 +397,7 @@ class Server:
             if not any(r.resolve() == own.resolve() for r in roots):
                 roots.append(own)
         self.bundles = BundleStore(roots, published=self.published,     # <lecturer>/<deck>.bundle
-                                   more=lambda: build_folders(config.data_dir))   # this machine's builds
+                                   more=lambda: build_folders(config.data_dir), catalog=self.plugin_catalog)
         self.lecturers = Lecturers(config.data_dir / "lecturers.json", {config.owner: config.presenter_key})
         self.devices = Devices(config.data_dir / "devices.json")
         self.library = Library(config.data_dir / "library.json")     # the deck page: folders, names
@@ -411,6 +418,7 @@ class Server:
         self.wake = asyncio.Event()
         self.tasks: list[asyncio.Task] = []
         self.instance = secrets.token_hex(8)       # in /api/status: does an address lead to this server?
+        self.plugins = PluginHost(self, self.plugin_catalog)
 
     # ------------------------------------------------------------ pushing
     def _attach(self, conn: Conn, sid: str):
@@ -437,12 +445,14 @@ class Server:
                         host_view = self.engine.host_view(sid, now)
                         host_view["session"]["join"] = f"{self.config.public_url}/play?pin={host_view['session']['pin']}"
                         host_view["session"]["qr"] = f"/join/{host_view['session']['pin']}.svg"
-                    c.push({"t": "state", "now": now, "role": c.role, **host_view})
+                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **self.plugins.safe_view(c)})
                 elif (c.role == "player" and players
                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
                       and (not asking or c.qa)):
                     view = self.engine.player_view(c.player, now, questions=c.qa)
-                    c.push({"t": "state", "now": now, "role": "player", **view})
+                    c.push({"t": "state", "now": now, "role": "player", **view, **self.plugins.safe_view(c)})
+            except PluginError as err:
+                c.push({"t": "plugin.error", "message": str(err)})
             except GameError as err:
                 c.bye(err.code, str(err))
                 self.conns[sid].discard(c)
@@ -515,6 +525,7 @@ class Server:
         for t in self.tasks:
             t.cancel()
         self.store.close()
+        self.plugins.close()
 
     # ------------------------------------------------------------ publishing
     def unpack_bundle(self, packed: Path, bid: str, lecturer: str) -> Path:
@@ -542,7 +553,7 @@ class Server:
             except ZIP_ERRORS as err:
                 raise BundleError(f"not a zip file: {err}") from None
             try:
-                b = load_bundle(work)
+                b = load_bundle(work, catalog=self.plugin_catalog)
             except BundleError as err:                   # without the server's own folder in it
                 raise BundleError(str(err).removeprefix(f"{work}: ")) from None
             if b.id != bid:
@@ -616,6 +627,9 @@ class Server:
                 self._enter(conn, self.engine.player_by_token(_str(msg, "token")), mid, None)
             elif conn.role is None:
                 raise GameError("hello-first", "say hello, join or resume first")
+            elif isinstance(t, str) and t.startswith("plugin."):
+                reply = self.plugins.handle(conn, msg)
+                conn.send({"t": "ok", "re": mid, **reply})
             else:
                 key = (conn.role, conn.player or conn.session)
                 cache = self.replies[key]
@@ -646,6 +660,8 @@ class Server:
                     while len(cache) > REPLY_CACHE:
                         cache.popitem(last=False)
                 conn.send(reply)
+        except PluginError as err:
+            conn.send({"t": "error", "re": mid, "error": "plugin", "message": str(err)})
         except GameError as err:
             conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except Exception as err:                         # a bug: report it, keep the connection
@@ -1394,6 +1410,20 @@ def create_app(config: ServerConfig) -> Starlette:
         return Response(text, media_type="text/csv; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
+    async def plugin_archive(request: Request):
+        s, refused = own_game(request)
+        if refused: return refused
+        return JSONResponse(server.plugins.runtime.archive(s.id) if server.plugins.runtime else {"format": 1, "items": []},
+                            headers={"Cache-Control": "no-store"})
+
+    async def plugin_asset(request: Request):
+        try:
+            raw, mime = server.plugins.asset(request.path_params["payload"], request.path_params["name"])
+        except PluginError:
+            return PlainTextResponse("not found", status_code=404)
+        return Response(raw, media_type=mime, headers={"Cache-Control": "public, max-age=31536000, immutable",
+                                                       "X-Content-Type-Options": "nosniff"})
+
     async def archive_pdf(request: Request):
         """PUT /api/archive/<game>/annotated.pdf: the annotated PDF the presenter window made
         (texstage, M4) into the lecture archive, with the game's results as they are now."""
@@ -1563,6 +1593,8 @@ def create_app(config: ServerConfig) -> Starlette:
     app = Starlette(routes=[
         Route("/", home),
         Route("/api/status", status),
+        Route("/plugins/{payload}/{name:path}", plugin_asset),
+        Route("/api/archive/{session}/plugins.json", plugin_archive),
         Route("/play", page("play")),
         Route("/host", page("host")),
         Route("/stage", page("stage")),
