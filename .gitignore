@@ -47,3 +47,5 @@ deploy/.env
 /texstage-media/
 /texstage-archive*/
 *.bundle
+
+/node_modules/

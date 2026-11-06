@@ -148,6 +148,22 @@ workers after a 30-second startup or 2-second individual evaluation budget.
 Output is bounded, validated and namespaced by provider, engine, canonical format,
 binding, contract revision and result-schema digest. Revision-2 engines can declare
 typed JSON facts; revision-1 engines retain summary-only results.
+For Firefox and WebKit compatibility, an engine's manifest `module` must point
+to a self-contained ES module with no static dependency imports. Keep modular
+development sources and bundle the engine entry at maintenance time; the
+collection's `npm run build:workers` demonstrates this. A one-file engine needs
+no bundler. Ship the generated module inside the wheel and keep its content
+covered by the normal provider resource hashes. Runtime asset bytes still come
+from the host's declared-asset loader.
+
+The worker imports the bundled contract and engine after initialization. Its
+HTTP policy remains
+`default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'none'`.
+Do not add `unsafe-eval`, `blob:`, network origins or child-worker permission to
+make imports work. Changes to engine bytes produce new provider payloads; rebuild
+and explicitly approve the new pins in disposable profiles before migration.
+Existing enabled pins are never silently updated.
+
 Evaluation workers cannot fetch the network or spawn workers. This is
 not a sandbox for hostile plugin code: Python hooks and browser renderers remain
 operator-trusted code.

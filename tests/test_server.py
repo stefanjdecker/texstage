@@ -31,6 +31,17 @@ def world(tmp_path):
         yield client, fb
 
 
+def test_plugin_worker_keeps_connection_and_nested_worker_restrictions(world):
+    client, _ = world
+    response = client.get("/static/stage/plugin-evaluator-worker.js")
+    assert response.status_code == 200
+    assert response.headers["content-security-policy"] == (
+        "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
+        "connect-src 'none'; worker-src 'none'"
+    )
+    assert response.headers["cache-control"] == "no-cache"
+
+
 def recv(ws, t: str | None = None, until=None, limit: int = 60) -> dict:
     """The next message of type t (and matching `until`); states may be coalesced, so wait
     for the one that shows what the test expects."""

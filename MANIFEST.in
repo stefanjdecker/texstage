@@ -1,4 +1,4 @@
-include LICENSE NOTICE README.md
+include LICENSE NOTICE README.md package.json package-lock.json
 graft docs
 prune docs/history
 exclude docs/manual-latex/*.aux docs/manual-latex/*.fdb_latexmk docs/manual-latex/*.fls

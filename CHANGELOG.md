@@ -2,6 +2,11 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Fix Firefox/WebKit plugin-worker startup using dynamic loading of self-contained
+  ES modules, preserving the worker Content Security Policy and result validation.
+  Add a reproducible contract bundle and CI freshness check. Matching transaction
+  and relational-engine bundles and active security probes live in the plugin collection.
+
 - Prepare explicitly declared plugin activities before LaTeX, sharing one source
   between live data, handouts, solutions and static PowerPoint. Add bounded
   authoring hooks, source/asset identity checks and direct-pdfLaTeX exports.
