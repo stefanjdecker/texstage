@@ -32,10 +32,10 @@ git config remote.gitlab.tagOpt --no-tags
 ```
 
 `origin` fetches and pushes GitHub; `gitlab` pushes the same code to GitLab.
-Fetch GitLab only after its corresponding branch has been converted to the
-clean code history. The restricted fetch list prevents accidentally importing
-legacy private branches during the transition. Never fetch the media or legacy
-private repository into the code checkout.
+The GitLab code project uses the same clean history as GitHub. The restricted
+fetch list keeps routine updates focused on the main and current feature
+branches. Never fetch the media or legacy private repository into the code
+checkout.
 
 ## Publish reviewed code to both hosts
 
@@ -80,7 +80,16 @@ its directory rename. It retains the previous private history and working files
 for recovery, and its push hook blocks publication. Do not develop there or use
 its former media workflow. Use `texstage-media` for all new recording work.
 
-Both original histories and working-file snapshots were saved before the move.
-The active code history is the previously cleaned public history. Converting
-GitLab's old branches requires a separate one-time migration with exact old-tip
-checks; the ordinary synchronization helper deliberately refuses that rewrite.
+Both original histories and working-file snapshots were saved before the
+consolidation. The active code history is the previously cleaned public history.
+The original private GitLab project was renamed to
+`rwth-dbis/infrastructure/texstage-legacy-20261106` and archived. A new code
+project at the original `rwth-dbis/infrastructure/texstage` address received the
+public commits. This preserved the old project's data and branch protections.
+
+Older private clones must point to the dated legacy project for historical
+inspection, or be replaced with a fresh code clone. Do not pull the replacement
+code project's branches into an old private clone or push from that clone to
+the new code project. The local legacy checkout's remote was retargeted and
+its push hook disabled publication. Existing pinned GitHub course commits and
+compatibility branches retain their identifiers.
