@@ -178,7 +178,8 @@ typed results in a real worker as well as the installed revision-1 example.
 
 Preparation before TeX now lets one exercise source generate live data, handout
 and worked solution; see [the authoring contract](plugin-authoring.md).
-Structured command errors,
-editable-view lifecycle, fair scheduling and measured classroom load remain
-later prerequisites for the transaction activity. A published compatible host
+Structured command errors and mount reconciliation are implemented, along with
+atomic cancellation/replacement at queue capacity; see the
+[renderer contract](plugins.md). Fair scheduling and measured classroom load
+remain later prerequisites for the transaction activity. A published compatible host
 commit must be pinned in collection CI before claiming hosted conformance.

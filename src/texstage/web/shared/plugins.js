@@ -3,10 +3,17 @@
 // Experimental API 1 host: isolated mounts and role-filtered full views.
 const approved = (url) => /^\/plugins\/[a-f0-9]{64}\/[a-zA-Z0-9_./-]+\.mjs$/.test(url) && !url.includes("..");
 const requestID = () => [...crypto.getRandomValues(new Uint8Array(16))].map(x => x.toString(16).padStart(2, "0")).join("");
+// Live view revisions do not change a mount's identity. Resource/public changes do.
+const stable = value => JSON.stringify(value, (_key, v) => v && typeof v === "object" && !Array.isArray(v)
+  ? Object.fromEntries(Object.keys(v).sort().map(k => [k, v[k]])) : v);
+const identity = (d, surface, role, language) => stable([d.type, d.item, d.modules[surface],
+  d.public, d.assets || {}, role, language || "en"]);
+const commandError = (code, receipt) => Object.assign(new Error(code), { code, ...(receipt ? { receipt } : {}) });
 
 class Surface {
   constructor({ parent, descriptor, surface, role, send, clock, language }) {
     Object.assign(this, { descriptor, surface, role, send });
+    this.identity = identity(descriptor, surface, role, language);
     this.controller = new AbortController();
     this.root = document.createElement("div");
     this.root.className = `texstage-plugin ${surface}`;
@@ -34,12 +41,12 @@ class Surface {
     })().catch(() => this.fail());
   }
   dispatch(operation, payload) {
-    if (this.role === "projector" || this.controller.signal.aborted || !this.state) return Promise.reject(new Error("Read-only view"));
+    if (this.role === "projector" || this.controller.signal.aborted || !this.state) return Promise.reject(commandError("read-only"));
     const command = { type: this.descriptor.type, item: this.descriptor.item, operation, payload,
       epoch: this.state.epoch, expected_revision: this.state.revision, request_id: requestID() };
     // Client.send retains this exact envelope across reconnects and lost ACKs.
     return this.send({ t: "plugin.command", command }).then(r => {
-      if (!r.receipt?.accepted) throw new Error(r.receipt?.error || "Command refused");
+      if (!r.receipt?.accepted) throw commandError(r.receipt?.error || "plugin", r.receipt);
       return r.receipt;
     });
   }
@@ -63,6 +70,7 @@ class Surface {
     } catch { this.fail(); }
   }
   fail() {
+    if (this.controller.signal.aborted) return;
     this.destroy(false);
     if (this.role === "presenter") {
       this.root.textContent = "Plugin view unavailable. The static slide is still usable.";
@@ -86,7 +94,12 @@ export class PluginBox {
   }
   update(state) {
     const d = state.plugins?.items.find(d => d.type === this.type && d.item === this.id);
-    if (!d) return;
+    if (!d) { this.destroy(); return; }
+    for (const [surface, view] of this.surfaces) {
+      if (!d.modules[surface] || view.identity !== identity(d, surface, this.host.role, this.language)) {
+        view.destroy(); this.surfaces.delete(surface);
+      }
+    }
     for (const surface of Object.keys(d.modules)) {
       let view = this.surfaces.get(surface);
       if (!view) {
@@ -111,6 +124,10 @@ export class PluginScreen {
     for (const d of state.plugins?.items || []) {
       if (!d.modules["participant-input"]) continue;
       const key = `${d.type}:${d.item}`; keep.add(key);
+      const existing = this.views.get(key);
+      if (existing && existing.identity !== identity(d, "participant-input", "participant", state.language)) {
+        existing.destroy(); this.views.delete(key);
+      }
       if (!this.views.has(key)) this.views.set(key, new Surface({ parent: this.root, descriptor: d,
         surface: "participant-input", role: "participant", send: msg => this.client.send(msg), language: state.language }));
       this.views.get(key).update(d.views["participant-input"]);

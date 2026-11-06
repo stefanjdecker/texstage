@@ -141,6 +141,19 @@ exceptions leave the static slide usable. `resolveAsset(name)` only returns URLs
 for verified browser resources or explicitly public bundle data; undeclared names
 are rejected.
 
+The host preserves mounts during ordinary view updates and disposes them when
+an item/surface disappears or its module, public data, assets, role or language
+changes. Late module imports cannot resurrect a disposed surface. Keep unsaved
+drafts inside a mount and handle epoch/version conflicts explicitly.
+
+Command rejection exposes `error.code`; a domain refusal also includes
+`error.receipt` with the authoritative epoch/revision. Operational codes include
+`queue-full`, `session-capacity`, `worker-timeout`, `worker-unavailable`,
+`concurrent-update` and `environment-changed`. Generic contract failures retain
+`plugin`. Never translate an operational failure into an incorrect answer.
+Cancellation and replacement reserve queue space atomically without raising
+the session's pending-job ceiling.
+
 An engine exports `start(context)`, `load(library, seed, options)`,
 `evaluate(state, text, context)` and `dispose(state)`. The host supplies declared
 asset bytes, creates fresh state for every reference and submission, and terminates

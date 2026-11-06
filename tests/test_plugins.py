@@ -231,6 +231,31 @@ def test_crash_before_commit_rolls_back_state_receipt_and_jobs(tmp_path, provide
     r.close()
 
 
+def test_full_queue_allows_atomic_replacement_but_not_false_cancellations(tmp_path, provider, monkeypatch):
+    monkeypatch.setattr("texstage.plugins.runtime.MAX_PENDING", 1)
+    r = start(tmp_path, provider)
+    try:
+        r.command("session", "alice", "participant", command())
+        row = r._item("session", provider.id + ".plane", "item")
+        state = read_json(row["state"])
+        evaluate = {"kind": "evaluate", "binding": "value", "text": "4", "correlation_id": "replacement1"}
+        with pytest.raises(PluginError) as exc:
+            r._commit(row, {"state": state, "effects": [evaluate,
+                {"kind": "cancel-evaluation", "correlation_id": "doesnotexist"}]})
+        assert exc.value.code == "queue-full"
+        assert r.db.execute("SELECT count(*) FROM jobs").fetchone()[0] == 1
+        cancel = {"kind": "cancel-evaluation", "correlation_id": "request0001"}
+        r._commit(row, {"state": state, "effects": [cancel, cancel, evaluate]})
+        assert [tuple(x) for x in r.db.execute("SELECT correlation,status FROM jobs ORDER BY rowid")] == [
+            ("request0001", "cancelled"), ("replacement1", "queued")]
+        # Reset must also release this item's slot without increasing the ceiling.
+        row = r._item("session", provider.id + ".plane", "item")
+        r._commit(row, {"state": state, "effects": [evaluate | {"correlation_id": "afterreset1"}]}, reset=True)
+        assert r.db.execute("SELECT count(*) FROM jobs WHERE status='queued'").fetchone()[0] == 1
+    finally:
+        r.close()
+
+
 @pytest.mark.parametrize("value", [
     {"seed": 1}, {"references": ["x"] * 33}, {"options": []},
     {"engine": "org.example.other"}, {"options": {"x": float("nan")}},

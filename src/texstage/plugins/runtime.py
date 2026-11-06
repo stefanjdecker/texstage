@@ -62,7 +62,7 @@ class Runtime:
         row = self.db.execute("SELECT * FROM items WHERE sid=? AND kind=? AND item=?", (sid, kind, item)).fetchone()
         if row is None: raise PluginError("plugin item is unavailable")
         if row["fingerprint"] != self.fingerprint:
-            raise PluginError("plugin runtime changed: resume this session in its original environment")
+            raise PluginError("plugin runtime changed: resume this session in its original environment", code="environment-changed")
         return row
 
     def _ctx(self, row, *, actor=None, role="system", now=None):
@@ -121,7 +121,7 @@ class Runtime:
             ed = digest(envelope)
             if receipt := self._receipt(sid, actor, envelope["request_id"], ed): return receipt
             if self.db.execute("SELECT count(*) FROM receipts WHERE sid=?", (sid,)).fetchone()[0] >= MAX_RECEIPTS:
-                raise PluginError("session receipt budget reached; create a new session")
+                raise PluginError("session receipt budget reached; create a new session", code="session-capacity")
             error = None
             if envelope["epoch"] != row["epoch"]: error = "stale-epoch"
             elif not reset and message["revision_policy"] == "exact" and envelope["expected_revision"] != row["revision"]:
@@ -179,18 +179,25 @@ class Runtime:
                 jobs.append((uuid.uuid4().hex, effect))
             elif effect.get("kind") != "cancel-evaluation" or set(effect) != {"kind", "correlation_id"}:
                 raise PluginError("unknown plugin effect")
-        pending = self.db.execute("SELECT count(*) FROM jobs WHERE sid=? AND status IN ('queued','leased')", (row["sid"],)).fetchone()[0]
-        if pending + len(jobs) > MAX_PENDING:
-            raise PluginError("evaluation queue is full; request can be retried")
         receipt = {"accepted": True, "epoch": epoch, "revision": revision,
                    "jobs": {e["correlation_id"]: jid for jid, e in jobs}}
         self.db.execute("BEGIN IMMEDIATE")
         try:
+            # Account atomically for the slots this transition actually frees.
+            # A full queue must still permit replacement of an actor's old job.
+            pending = self.db.execute("SELECT count(*) FROM jobs WHERE sid=? AND status IN ('queued','leased')",
+                                      (row["sid"],)).fetchone()[0]
+            cancellations = {e["correlation_id"] for e in transition["effects"] if e["kind"] == "cancel-evaluation"}
+            old_jobs = self.db.execute("""SELECT correlation FROM jobs WHERE sid=? AND kind=? AND item=?
+              AND epoch=? AND status IN ('queued','leased')""", (*identity, row["epoch"])).fetchall()
+            freed = len(old_jobs) if reset else sum(job["correlation"] in cancellations for job in old_jobs)
+            if pending - freed + len(jobs) > MAX_PENDING:
+                raise PluginError("evaluation queue is full; request can be retried", code="queue-full")
             changed = self.db.execute("""UPDATE items SET state=?,epoch=?,revision=?,active=?
               WHERE sid=? AND kind=? AND item=? AND epoch=? AND revision=?""",
               (canonical(transition["state"]).decode(), epoch, revision, row["active"] if active is None else int(active),
                *identity, row["epoch"], row["revision"])).rowcount
-            if changed != 1: raise PluginError("item changed concurrently; retry command")
+            if changed != 1: raise PluginError("item changed concurrently; retry command", code="concurrent-update")
             if reset:
                 self.db.execute("UPDATE jobs SET status=CASE WHEN status IN ('queued','leased') THEN 'cancelled' ELSE status END,delivered=1 WHERE sid=? AND kind=? AND item=? AND epoch=?",
                                 (*identity, row["epoch"]))

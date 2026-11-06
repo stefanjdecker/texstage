@@ -37,7 +37,7 @@ class Worker:
             result = self.responses.get(timeout=timeout)
         except queue.Empty:
             self.close()
-            raise PluginError(f"{self.provider.id}: hook timed out; worker terminated") from None
+            raise PluginError(f"{self.provider.id}: hook timed out; worker terminated", code="worker-timeout") from None
         if "error" in result:
             self.close()
             raise PluginError(f"{self.provider.id}: {result['error']}")
@@ -68,7 +68,7 @@ class Worker:
                 self.process.stdin.flush()
             except (BrokenPipeError, OSError):
                 self.close()
-                raise PluginError("plugin worker unavailable; request can be retried") from None
+                raise PluginError("plugin worker unavailable; request can be retried", code="worker-unavailable") from None
             return self._response(timeout)["result"]
 
     def close(self):
@@ -89,7 +89,7 @@ class Workers:
     def call(self, cid, method, *args):
         provider, spec = self.catalog.capability(cid)
         if self.failures.get(provider.id, 0) >= 3:
-            raise PluginError(f"{provider.id}: worker quarantined after repeated failures; restart the server after fixing the provider")
+            raise PluginError(f"{provider.id}: worker quarantined after repeated failures; restart the server after fixing the provider", code="worker-unavailable")
         worker = self.workers.setdefault(provider.id, Worker(provider))
         try:
             return worker.call(cid, method, args, timeout=2 if method in ("prepare", "prepare_source") else .25)

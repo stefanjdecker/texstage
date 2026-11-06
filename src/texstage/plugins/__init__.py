@@ -5,3 +5,7 @@
 
 class PluginError(ValueError):
     """A package, profile or plugin operation failed its contract."""
+
+    def __init__(self, message, *, code="plugin"):
+        super().__init__(message)
+        self.code = code

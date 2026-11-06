@@ -661,7 +661,7 @@ class Server:
                         cache.popitem(last=False)
                 conn.send(reply)
         except PluginError as err:
-            conn.send({"t": "error", "re": mid, "error": "plugin", "message": str(err)})
+                        conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except GameError as err:
             conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except Exception as err:                         # a bug: report it, keep the connection
