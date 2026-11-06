@@ -6,6 +6,7 @@ from pathlib import Path
 from texstage.plugins.assets import public_asset, MIME
 from texstage.plugins.manifest import read_json
 from texstage.plugins.runtime import Runtime
+from texstage.plugins.contracts import result_contract
 
 
 class PluginHost:
@@ -88,7 +89,8 @@ class PluginHost:
             for job in jobs:
                 p, engine = self.catalog.capability(job["binding"]["engine"], engine=True)
                 job["engine"] = engine | {"url": f"/plugins/{p.payload}/{engine['module']}",
-                                           "assets": {n: f"/plugins/{p.payload}/{n}" for n in engine.get("assets", [])}}
+                                           "assets": {n: f"/plugins/{p.payload}/{n}" for n in engine.get("assets", [])},
+                                           "result_contract": result_contract(p, engine)}
             return {"jobs": jobs}
         accepted = self.runtime.finish(conn.session, conn.key, message.get("result"))
         self.runtime.drain(conn.session)

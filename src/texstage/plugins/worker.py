@@ -92,7 +92,7 @@ class Workers:
             raise PluginError(f"{provider.id}: worker quarantined after repeated failures; restart the server after fixing the provider")
         worker = self.workers.setdefault(provider.id, Worker(provider))
         try:
-            return worker.call(cid, method, args, timeout=2 if method == "prepare" else .25)
+            return worker.call(cid, method, args, timeout=2 if method in ("prepare", "prepare_source") else .25)
         except PluginError:
             self.failures[provider.id] = self.failures.get(provider.id, 0) + 1
             raise
@@ -124,6 +124,8 @@ def main():
             with contextlib.redirect_stdout(sys.stderr):
                 if method == "prepare":
                     result = plugin.build_hooks[spec["build_hook"]](*request["args"])
+                elif method == "prepare_source":
+                    result = plugin.authoring_hooks[spec["authoring_hook"]](*request["args"])
                 elif method in ("initial_state", "transition", "view"):
                     hook = plugin.state_hooks[spec["state_hook"]]
                     result = getattr(hook, method)(*request["args"])

@@ -37,14 +37,51 @@ def box(tqz, item, definitions):
 def source_file(root, name):
     resource_path(name)
     path = root / name
-    if not path.resolve().is_relative_to(root.resolve()) or path.is_symlink():
+    if not path.resolve().is_relative_to(root.resolve()) or any(
+            (root / Path(*Path(name).parts[:n])).is_symlink()
+            or (root / Path(*Path(name).parts[:n])).is_junction()
+            for n in range(1, len(Path(name).parts) + 1)):
         raise PluginError("plugin data file escapes the deck directory")
-    if path.stat().st_size > 2 * 1024 * 1024: raise PluginError("plugin data exceeds 2 MiB")
-    return path.read_bytes()
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(2 * 1024 * 1024 + 1)
+        if len(raw) > 2 * 1024 * 1024: raise PluginError("plugin data exceeds 2 MiB")
+        return raw
+    except OSError as exc:
+        raise PluginError(f"cannot read plugin data file: {name}") from exc
 
 
-def prepare(tqz, root, catalog):
+def validate_prepared(prepared, spec):
+    expected = {"public", "private", "assets", "evaluations", "diagnostics"}
+    if not isinstance(prepared, dict) or set(prepared) != expected:
+        raise PluginError("build hook must return PreparedItem")
+    if not isinstance(prepared["public"], dict) or not isinstance(prepared["private"], dict):
+        raise PluginError("prepared public/private item data must be objects")
+    if len(canonical(prepared)) > 8 * 1024 * 1024:
+        raise PluginError("prepared item exceeds JSON budget")
+    if not isinstance(prepared["assets"], dict) or len(prepared["assets"]) > 128:
+        raise PluginError("prepared assets must be a bounded object")
+    for logical, asset in prepared["assets"].items():
+        if not isinstance(asset, dict) or set(asset) != {"source", "visibility"} \
+                or asset["visibility"] not in ("public", "private"):
+            raise PluginError("asset requires source and public/private visibility")
+        resource_path(asset["source"])
+        if Path(asset["source"]).suffix.lower() not in DATA_MIME:
+            raise PluginError("only core-approved data/image assets can enter a bundle")
+    diagnostics = prepared["diagnostics"]
+    if not isinstance(diagnostics, list) or len(diagnostics) > 64 or any(
+            not isinstance(d, str) or len(d) > 2000 for d in diagnostics):
+        raise PluginError("diagnostics must be bounded strings")
+    validate_bindings(prepared["evaluations"], spec.get("evaluations", {}))
+
+
+def prepare(tqz, root, catalog, authoring=None):
     definitions = records(tqz)
+    if authoring:
+        authoring.validate(catalog)
+        authoring.validate_tqz(tqz)
+    elif tqz.records.get("prepared"):
+        raise PluginError("prepared plugin records require --activities")
     built_in_ids = {i.id for page in tqz.pages.values() for i in page.items if i.kind != "plugin"}
     if set(definitions) & built_in_ids:
         raise PluginError("plugin item IDs must not collide with built-in items")
@@ -59,12 +96,14 @@ def prepare(tqz, root, catalog):
                 path, inline = record[key], record[key + "_json"]
                 if path and inline: raise PluginError(f"{item}: use a file or inline JSON for {key}")
                 value[key] = read_json(source_file(root, path) if path else inline or "{}", limit=2 * 1024 * 1024)
-            prepared = workers.call(cid, "prepare", value, {"item_id": item, "type": cid})
-            expected = {"public", "private", "assets", "evaluations", "diagnostics"}
-            if not isinstance(prepared, dict) or set(prepared) != expected:
-                raise PluginError("build hook must return PreparedItem")
-            if not isinstance(prepared["public"], dict) or not isinstance(prepared["private"], dict):
-                raise PluginError("prepared public/private item data must be objects")
+            if "authoring_hook" in spec:
+                if authoring is None or item not in authoring.items:
+                    raise PluginError(f"{item}: this type requires preparation with --activities")
+                # Isolate bindings: adding their engine IDs must not mutate the preparation.
+                prepared = read_json(canonical(authoring.items[item]["prepared"]), limit=8 * 1024 * 1024)
+            else:
+                prepared = workers.call(cid, "prepare", value, {"item_id": item, "type": cid})
+            validate_prepared(prepared, spec)
             assets_public, assets_private = {}, {}
             for logical, asset in prepared["assets"].items():
                 if not isinstance(asset, dict) or set(asset) != {"source", "visibility"} \

@@ -164,7 +164,7 @@
     {
       "file": "latex/texstage.sty",
       "scope": "runtime",
-      "sha256": "48ee9195be4642a9497bbb8587b27963b8750b19a7dc3172f531e92e8078cd0e",
+      "sha256": "277e84495de1b58a92d15d2612de8d78233cbeab4a3fb5e7f86029c6f497db5c",
       "commands": [
         "texquizmode",
         "texquiznotes",
@@ -189,7 +189,11 @@
         "texstage_vbox_set:Nnn",
         "texstage_vfill:",
         "texstage_vmark:nnn",
-        "texstagemode"
+        "texstagemode",
+        "texstageprepared",
+        "texstagepreparedassetdeclare",
+        "texstagepreparedcheck",
+        "texstageprepareddeclare"
       ],
       "internal_commands": [
         "texstage@tmp"

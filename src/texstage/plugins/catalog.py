@@ -13,6 +13,7 @@ from types import MappingProxyType
 
 from . import PluginError
 from .assets import MAX_PACKAGE, verified_file
+from .contracts import CONTRACT_VERSION, validate_portable_schema
 from .manifest import canonical, digest, load_manifest, read_json, validate_json, validate_schema
 
 GROUP = "texstage.plugins.v1"
@@ -92,6 +93,18 @@ def discover(*, distributions=None) -> tuple[Provider, ...]:
                 validate_schema(schema)
                 for example in schema.get("examples", []):
                     validate_json(schema, example, label="message schema example")
+        schema_paths = {
+            path for spec in manifest["capabilities"].get("content_types", {}).values()
+            for path in spec.get("view_schemas", {}).values()
+        }
+        schema_paths.update(spec["result_data_schema"]
+                            for spec in manifest["capabilities"].get("engines", {}).values()
+                            if "result_data_schema" in spec)
+        for path in schema_paths:
+            schema = read_json(resources[path])
+            validate_portable_schema(schema)
+            for example in schema.get("examples", []) if isinstance(schema, dict) else []:
+                validate_json(schema, example, label="portable schema example")
         result.append(Provider(pid, manifest["version"], dist.metadata["Name"], root, entry.value,
                                digest(manifest), canonical(manifest), MappingProxyType(resources)))
     return tuple(sorted(result, key=lambda p: p.id))
@@ -181,5 +194,6 @@ def environment_fingerprint(catalog: Catalog):
     for d in metadata.distributions():
         record = d.read_text("RECORD") or ""
         distributions.append((d.metadata["Name"], d.version, hashlib.sha256(record.encode()).hexdigest()))
-    return digest({"catalog": catalog.fingerprint, "python": platform.python_version(),
+    return digest({"catalog": catalog.fingerprint, "plugin_runtime_contract": CONTRACT_VERSION,
+                   "python": platform.python_version(),
                    "platform": platform.platform(), "distributions": sorted(distributions)})

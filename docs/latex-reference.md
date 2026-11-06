@@ -28,6 +28,7 @@ Packages, commands, options and developer interfaces
 - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
 - [Deck language and live labels](#deck-language-and-live-labels)
 - [Experimental plugin authoring](#experimental-plugin-authoring)
+- [Prepared plugin exercises](#prepared-plugin-exercises)
 
 ## LaTeX reference: packages and loading
 
@@ -499,3 +500,42 @@ texstage serve ./texquiz-out --data ./plugin-profile
 ```
 
 The host supplies approved plugin style directories only for this compilation and verifies the recorder output. A stale local style that TeX actually loads instead of the approved package fails the build. Existing course snapshots and the lecture-tools installation remain untouched. Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter.
+
+
+## Prepared plugin exercises
+
+An enabled revision-2 provider can declare authoring_hook instead of build_hook. With an explicit --activities JSON file, Texstage prepares the live data, exercise and worked solution before LaTeX. All build modes use that preparation. The transaction activity itself remains a separate implementation milestone; see docs/plugin-authoring.md for the full contract.
+
+```
+{"format":1,"language":"en","items":[
+  {"id":"counter","type":"org.example.counter.exercise",
+   "source":"counter.json"}
+]}
+```
+
+This schematic counter example requires a provider implementing the named type. Source paths are relative to the master deck directory. Install and enable that provider explicitly; the activity file cannot install code.
+
+```
+\usepackage{texstage}
+\begin{frame}{Predict the result}
+  \texstageprepared{counter}{.92\linewidth}{.55\textheight}
+\end{frame}
+```
+
+\texstageprepared{ID}{width}{height} reserves the live rectangle and inserts the prepared exercise in present/handout mode, or the worked solution in solutions mode. The ID must occur in the activity file. A provider style may wrap this command.
+
+\texstagepreparedasset{ID}{asset} expands to a host-materialized declared data/image asset. Private assets through this command are available only in solutions. Raw exercise sources and generated solution fragments are not copied to public bundle routes.
+
+```
+texstage build lesson.tex --activities lesson.activities.json --data ./profile
+texstage pdf lesson.tex --solutions --activities lesson.activities.json --data ./profile
+texstage prepare lesson.tex --activities lesson.activities.json --data ./profile
+```
+
+The prepare command prints handout, solutions and present entry points for direct pdfLaTeX. These local artifacts include explicit style paths and freshness checks. Regenerate them after changing an exercise, asset or provider. The local preparation directory contains the worked solution; distribute the intended PDF or bundle output.
+
+### Generated bridge commands
+
+\texstageprepareddeclare{ID}{type}{digest}{exercise}{solutions} registers the generated fragments. \texstagepreparedassetdeclare{ID}{asset}{path}{visibility} registers an asset. \texstagepreparedcheck{path}{MD5} refuses changed inputs during direct pdfLaTeX. These commands belong to generated registry files; ordinary deck authors use texstageprepared and texstagepreparedasset.
+
+Every mode verifies matching prepared records; live builds also verify geometry bindings. Python checks source, provider and artifact hashes. present --activities always rebuilds and stops on failure. Existing plugins that use the post-LaTeX build_hook retain their original workflow.

@@ -18,7 +18,7 @@ from texstage.plugins.policy import catalog_for, enable
 from texstage.plugins.runtime import Runtime
 
 
-def distribution(root, *, pid="org.example.fixture", namespace="fixture", modify=None):
+def distribution(root, *, pid="org.example.fixture", namespace="fixture", modify=None, extra_resources=None):
     """Installed distribution shape, with a factory that fails if accidentally imported."""
     root.mkdir(parents=True, exist_ok=True)
     resources = {
@@ -28,6 +28,7 @@ def distribution(root, *, pid="org.example.fixture", namespace="fixture", modify
         "fixture_plugin/message.json": canonical({"type": "object", "additionalProperties": False,
             "properties": {"value": {"type": "integer"}}, "required": ["value"]}),
     }
+    resources.update(extra_resources or {})
     manifest = {"manifest_version": 1, "plugin_api": 1, "id": pid, "version": "0.1.0",
                 "description": "Fixture", "license": "Apache-2.0", "latex_namespace": namespace,
                 "latex_exports": {"commands": [], "environments": [namespace + "plane"]},

@@ -2,6 +2,17 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Prepare explicitly declared plugin activities before LaTeX, sharing one source
+  between live data, handouts, solutions and static PowerPoint. Add bounded
+  authoring hooks, source/asset identity checks and direct-pdfLaTeX exports.
+
+- Add revision-2 plugin manifests with bounded typed engine results and explicit
+  surface-view schemas, retaining revision-1 providers. Validate complete results
+  in the worker, browser transport and server; pin schema identity in result keys.
+- Guard presenter reset by epoch while preserving durable retry receipts, and
+  add an SDK helper for actor-scoped evaluation correlations.
+- Add cross-language schema, result, concurrency and browser conformance checks.
+
 - Add an experimental plugin host: metadata discovery, explicit enablement and
   locks, portable wheels, generic LaTeX boxes and format-3 bundle preflight.
 - Connect external slide types to isolated hooks, durable command receipts and

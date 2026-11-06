@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-import { key, compare } from "/static/engines/common.js";
+import { makeOutcome, validateResult } from "./plugin-contracts.js";
 
 export class PluginEvaluator {
   constructor(client) { this.client = client; this.workers = new Set(); this.stopped = false; this.poll(); }
@@ -25,16 +25,12 @@ export class PluginEvaluator {
       const references = [];
       for (const text of job.binding.references || []) {
         const { result } = await exchange({ t: "eval", text }, 2000);
+        validateResult(result, job);
         if (result.status !== "ok") throw new Error("error");
         references.push(result);
       }
       const { result } = await exchange({ t: "eval", text: job.text }, 2000);
-      if (result.status !== "ok") return { status: result.status };
-      const summary = result.summary;
-      if (references[0]?.rows && result.rows) summary.diff = compare(result, references[0]);
-      const outcome = { status: "ok", key: key(result.canonical), namespace: job.namespace, summary };
-      if (references.length) outcome.matches = references.some(r => r.canonical === result.canonical);
-      return outcome;
+      return makeOutcome(result, references, job);
     } catch (e) { return { status: e.message === "timeout" ? "timeout" : "error" }; }
     finally { worker.terminate(); this.workers.delete(worker); }
   }

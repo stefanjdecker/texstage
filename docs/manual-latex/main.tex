@@ -1407,4 +1407,46 @@ texstage serve ./texquiz-out --data ./plugin-profile
 
 The host supplies approved plugin style directories only for this compilation and verifies the recorder output.\allowbreak{} A stale local style that TeX actually loads instead of the approved package fails the build.\allowbreak{} Existing course snapshots and the lecture-\allowbreak{}tools installation remain untouched.\allowbreak{} Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter.\par
 
+\manualsection{Prepared plugin exercises}
+An enabled revision-\allowbreak{}2 provider can declare authoring\_\allowbreak{}hook instead of build\_\allowbreak{}hook.\allowbreak{} With an explicit -\allowbreak{}-\allowbreak{}activities JSON file, Texstage prepares the live data, exercise and worked solution before LaTeX.\allowbreak{} All build modes use that preparation.\allowbreak{} The transaction activity itself remains a separate implementation milestone; see docs/\allowbreak{}plugin-\allowbreak{}authoring.\allowbreak{}md for the full contract.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+{"format":1,"language":"en","items":[
+  {"id":"counter","type":"org.example.counter.exercise",
+   "source":"counter.json"}
+]}
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+This schematic counter example requires a provider implementing the named type.\allowbreak{} Source paths are relative to the master deck directory.\allowbreak{} Install and enable that provider explicitly; the activity file cannot install code.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+\usepackage{texstage}
+\begin{frame}{Predict the result}
+  \texstageprepared{counter}{.92\linewidth}{.55\textheight}
+\end{frame}
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+\textbackslash{}\allowbreak{}texstageprepared\{\allowbreak{}ID\}\allowbreak{}\{\allowbreak{}width\}\allowbreak{}\{\allowbreak{}height\}\allowbreak{} reserves the live rectangle and inserts the prepared exercise in present/\allowbreak{}handout mode, or the worked solution in solutions mode.\allowbreak{} The ID must occur in the activity file.\allowbreak{} A provider style may wrap this command.\par
+
+\textbackslash{}\allowbreak{}texstagepreparedasset\{\allowbreak{}ID\}\allowbreak{}\{\allowbreak{}asset\}\allowbreak{} expands to a host-\allowbreak{}materialized declared data/\allowbreak{}image asset.\allowbreak{} Private assets through this command are available only in solutions.\allowbreak{} Raw exercise sources and generated solution fragments are not copied to public bundle routes.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage build lesson.tex --activities lesson.activities.json --data ./profile
+texstage pdf lesson.tex --solutions --activities lesson.activities.json --data ./profile
+texstage prepare lesson.tex --activities lesson.activities.json --data ./profile
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+The prepare command prints handout, solutions and present entry points for direct pdfLaTeX.\allowbreak{} These local artifacts include explicit style paths and freshness checks.\allowbreak{} Regenerate them after changing an exercise, asset or provider.\allowbreak{} The local preparation directory contains the worked solution; distribute the intended PDF or bundle output.\par
+
+\manualsubheading{Generated bridge commands}
+\textbackslash{}\allowbreak{}texstageprepareddeclare\{\allowbreak{}ID\}\allowbreak{}\{\allowbreak{}type\}\allowbreak{}\{\allowbreak{}digest\}\allowbreak{}\{\allowbreak{}exercise\}\allowbreak{}\{\allowbreak{}solutions\}\allowbreak{} registers the generated fragments.\allowbreak{} \textbackslash{}\allowbreak{}texstagepreparedassetdeclare\{\allowbreak{}ID\}\allowbreak{}\{\allowbreak{}asset\}\allowbreak{}\{\allowbreak{}path\}\allowbreak{}\{\allowbreak{}visibility\}\allowbreak{} registers an asset.\allowbreak{} \textbackslash{}\allowbreak{}texstagepreparedcheck\{\allowbreak{}path\}\allowbreak{}\{\allowbreak{}MD5\}\allowbreak{} refuses changed inputs during direct pdfLaTeX.\allowbreak{} These commands belong to generated registry files; ordinary deck authors use texstageprepared and texstagepreparedasset.\par
+
+Every mode verifies matching prepared records; live builds also verify geometry bindings.\allowbreak{} Python checks source, provider and artifact hashes.\allowbreak{} present -\allowbreak{}-\allowbreak{}activities always rebuilds and stops on failure.\allowbreak{} Existing plugins that use the post-\allowbreak{}LaTeX build\_\allowbreak{}hook retain their original workflow.\par
+
 \end{document}

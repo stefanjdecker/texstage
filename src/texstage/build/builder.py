@@ -59,6 +59,8 @@ class BuildOptions:
     plugin_data: Path | None = None  # explicit operator profile; no ambient plugin discovery
     plugins_lock: Path | None = None
     plugins: object = field(default=None, repr=False)  # immutable catalog, prepared by build
+    activities: Path | None = None  # explicit authoring sidecar, never inferred from TeX
+    preparation: object = field(default=None, init=False, repr=False)
 
 
 @dataclass
@@ -198,9 +200,13 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     name = deck_name(tex)
     deck_id = opts.deck_id or slug(name)
     work = out_dir / "build"
+    from .authoring import prepare_sources
+    opts.preparation = (prepare_sources(tex, opts.activities, opts.plugins, work)
+                        if opts.activities is not None else None)
     present, staged = compile_present(tex, work, opts)
     tqz = Tqz.read(present.tqz)
-    plugin_items, plugin_keys, plugin_files, requirements = plugin_build.prepare(tqz, tex.parent, opts.plugins)
+    plugin_items, plugin_keys, plugin_files, requirements = plugin_build.prepare(
+        tqz, tex.parent, opts.plugins, opts.preparation)
     with Pdf(present.pdf) as doc:
         total = len(doc)
     count = total - len(tqz.assets)
@@ -220,7 +226,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
             raise BuildError(f"{staged.pdf.name}: {err}") from None
     pictures = render_slides(present.pdf, count, tqz.paper, opts.height)
     phone, phone_files = quiz.files(tqz, render_pages(present.pdf, range(count + 1, total + 1)))
-    warnings: list[str] = []
+    warnings: list[str] = list(opts.preparation.diagnostics) if opts.preparation else []
     slides = plan_slides(tqz, pictures, warnings)
     for s in slides:
         if s.boxes(uses_addin=True) and s.boxes(uses_addin=False):
@@ -339,11 +345,13 @@ def compile_present(tex: Path, work: Path, opts: BuildOptions):
     """The present compile, and with --stage the stage compile alongside it: two pdflatex
     runs side by side, each with its own job name (stage.py)."""
     if not opts.stage:
-        return compile_deck(tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins), None
+        return compile_deck(tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins,
+                            preparation=opts.preparation), None
     with ThreadPoolExecutor(max_workers=2) as pool:
-        present = pool.submit(compile_deck, tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins)
+        present = pool.submit(compile_deck, tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins,
+                              preparation=opts.preparation)
         staged = pool.submit(compile_deck, tex, "present", work, notes="stage", jobname=f"{tex.stem}-stage",
-                             passes=opts.passes, plugins=opts.plugins)
+                             passes=opts.passes, plugins=opts.plugins, preparation=opts.preparation)
         return present.result(), staged.result()
 
 
@@ -355,8 +363,9 @@ def check(tex: Path, present, pictures, work: Path, opts: BuildOptions,
     where = locator(tex, present.log.with_suffix(".nav"))
     findings = check_log(present.log, "present", where, opts.max_shrink)
     log = present.log.read_text(encoding="latin-1", errors="replace")
-    if quiz.solutions(log):
-        solutions = compile_deck(tex, "solutions", work, passes=opts.passes, plugins=opts.plugins)
+    if quiz.solutions(log) or opts.preparation:
+        solutions = compile_deck(tex, "solutions", work, passes=opts.passes, plugins=opts.plugins,
+                                 preparation=opts.preparation)
         where_s = locator(tex, solutions.log.with_suffix(".nav"))
         findings += check_log(solutions.log, "solutions", where_s, opts.max_shrink)
     for p in pictures:

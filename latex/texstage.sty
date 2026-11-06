@@ -112,6 +112,56 @@
   }
 
 % Experimental plugin bridge. Only JSON data references enter TQZ, never code.
+% Prepared fragments and the matching live item come from an explicit authoring
+% prepass. This separate record stream is checked in ALL modes, including handouts.
+\iow_new:N \g__texstage_prepared_iow
+\AddToHook { begindocument }
+  { \iow_open:Nn \g__texstage_prepared_iow { \jobname.tpa } }
+\AddToHook { enddocument/afterlastpage }
+  { \iow_close:N \g__texstage_prepared_iow }
+\NewDocumentCommand \texstagepreparedcheck { m m }
+  {
+    \str_if_eq:eeF { \pdf@filemdfivesum{#1} } {#2}
+      { \texstage_error:n { Stale~prepared~input;~run~texstage~prepare~again. } }
+  }
+\NewDocumentCommand \texstageprepareddeclare { m m m m m }
+  {
+    \cs_if_exist:cT { texstage@prepared@#1@type }
+      { \texstage_error:n { Duplicate~prepared~item~#1. } }
+    \cs_gset:cpn { texstage@prepared@#1@type } {#2}
+    \cs_gset:cpn { texstage@prepared@#1@digest } {#3}
+    \cs_gset:cpn { texstage@prepared@#1@exercise } {#4}
+    \cs_gset:cpn { texstage@prepared@#1@solutions } {#5}
+  }
+\NewDocumentCommand \texstagepreparedassetdeclare { m m m m }
+  {
+    \cs_gset:cpn { texstage@prepared@#1@asset@#2 } {#3}
+    \cs_gset:cpn { texstage@prepared@#1@visibility@#2 } {#4}
+  }
+\NewExpandableDocumentCommand \texstagepreparedasset { m m }
+  {
+    \str_if_eq:eeTF { \use:c { texstage@prepared@#1@visibility@#2 } } { public }
+      { \use:c { texstage@prepared@#1@asset@#2 } }
+      {
+        \texstage_if_mode:nTF { solutions }
+          { \use:c { texstage@prepared@#1@asset@#2 } }
+          { \msg_expandable_error:nnn { texstage } { general } { Private~prepared~asset~outside~solutions. } }
+      }
+  }
+\NewDocumentCommand \texstageprepared { m m m }
+  {
+    \cs_if_exist:cF { texstage@prepared@#1@type }
+      { \texstage_error:n { Missing~prepared~item~#1;~build~with~--activities. } }
+    \iow_now:Ne \g__texstage_prepared_iow
+      { #1|\use:c{texstage@prepared@#1@type}|\use:c{texstage@prepared@#1@digest} }
+    \texstage_emit:n
+      { prepared|#1|\use:c{texstage@prepared@#1@type}|\use:c{texstage@prepared@#1@digest} }
+    \begin{texstagepluginbox}[id={#1},type={\use:c{texstage@prepared@#1@type}}]{#2}{#3}
+      \texstage_if_mode:nTF { solutions }
+        { \input{\use:c{texstage@prepared@#1@solutions}} }
+        { \input{\use:c{texstage@prepared@#1@exercise}} }
+    \end{texstagepluginbox}
+  }
 \tl_new:N \l__texstage_plugin_type_tl
 \tl_new:N \l__texstage_plugin_id_tl
 \tl_new:N \l__texstage_plugin_public_tl
@@ -398,4 +448,5 @@
       \exhyphenpenalty=10000\setlength{\parskip}{1.2em}\insertnote\par}%
   \fi}
 
+\@ifundefined{texstagepreparedfile}{}{\input{\texstagepreparedfile}}
 \endinput

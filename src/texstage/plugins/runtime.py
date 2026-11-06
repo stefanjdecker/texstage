@@ -18,6 +18,7 @@ import uuid
 
 from . import PluginError
 from .catalog import environment_fingerprint
+from .contracts import namespace, resource_schema, validate_outcome, json_data
 from .manifest import canonical, digest, read_json, validate_json
 from .worker import Workers
 
@@ -123,7 +124,7 @@ class Runtime:
                 raise PluginError("session receipt budget reached; create a new session")
             error = None
             if envelope["epoch"] != row["epoch"]: error = "stale-epoch"
-            elif (reset or message["revision_policy"] == "exact") and envelope["expected_revision"] != row["revision"]:
+            elif not reset and message["revision_policy"] == "exact" and envelope["expected_revision"] != row["revision"]:
                 error = "stale-revision"
             elif role == "participant" and not row["active"]: error = "item-closed"
             if error:
@@ -229,6 +230,12 @@ class Runtime:
             data = self.workers.call(kind, "view", read_json(row["state"]),
                                      {"role": role, "surface": surface, "actor": actor}, self._ctx(row, actor=actor, role=role))
             if len(canonical(data)) > 128 * 1024: raise PluginError("view exceeds output budget")
+            provider, spec = self.catalog.capability(kind)
+            if "view_schemas" in spec:
+                if surface not in spec["view_schemas"]:
+                    raise PluginError("view surface is not declared")
+                json_data(data)
+                validate_json(resource_schema(provider, spec["view_schemas"][surface]), data, label="surface view")
             return {"epoch": row["epoch"], "revision": row["revision"], "data": data}
 
     def lease(self, sid, owner, *, now=None, limit=2):
@@ -250,10 +257,9 @@ class Runtime:
                 if not updated: continue
                 binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
                 p, engine = self.catalog.capability(binding["engine"], engine=True)
-                namespace = digest({"provider": p.requirement(), "engine": binding["engine"],
-                                    "format": engine["canonical_format"], "binding": binding})
                 result.append({"id": job["id"], "generation": generation, "epoch": job["epoch"],
-                               "text": job["text"], "binding": binding, "namespace": namespace})
+                               "text": job["text"], "binding": binding,
+                               "namespace": namespace(p, binding["engine"], engine, binding)})
             return result
 
     def finish(self, sid, owner, result, *, now=None):
@@ -273,16 +279,9 @@ class Runtime:
             row = self._item(sid, job["kind"], job["item"])
             binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
             provider, engine = self.catalog.capability(binding["engine"], engine=True)
-            namespace = digest({"provider": provider.requirement(), "engine": binding["engine"],
-                                "format": engine["canonical_format"], "binding": binding})
-            if outcome["status"] == "ok":
-                if (set(outcome) - {"status", "key", "namespace", "summary", "matches"} or
-                    outcome.get("namespace") != namespace or not re.fullmatch(r"[a-f0-9]{16}", str(outcome.get("key", ""))) or
-                    not isinstance(outcome.get("summary"), dict) or outcome["summary"].get("kind") not in engine["summary_kinds"] or
-                    ("matches" in outcome and type(outcome["matches"]) is not bool)):
-                    raise PluginError("evaluation result does not match its engine contract")
-            elif set(outcome) != {"status"}:
-                raise PluginError("failed evaluations carry only a bounded status")
+            validate_outcome(outcome, provider, engine,
+                             namespace(provider, binding["engine"], engine, binding),
+                             references=bool(binding.get("references")))
             return bool(self.db.execute("""UPDATE jobs SET status=?,result=? WHERE id=? AND sid=? AND owner=?
                AND status='leased' AND generation=? AND epoch=? AND deadline>=?""",
                ("succeeded" if outcome["status"] == "ok" else "failed", canonical(outcome).decode(), result["id"],

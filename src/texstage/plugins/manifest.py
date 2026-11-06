@@ -113,7 +113,10 @@ def validate_bindings(bindings, declared, *, prepared=False):
 
 def load_manifest(raw: bytes | str) -> dict:
     value = read_json(raw)
-    schema = read_json((Path(__file__).parent / "schemas" / "manifest-v1.json").read_bytes())
+    version = value.get("manifest_version") if isinstance(value, dict) else None
+    if type(version) is not int or version not in (1, 2):
+        raise PluginError("unsupported plugin manifest version; this host supports revisions 1 and 2")
+    schema = read_json((Path(__file__).parent / "schemas" / f"manifest-v{version}.json").read_bytes())
     validate_json(schema, value, label="plugin manifest")
     pid = value["id"]
     if pid.startswith(("texstage.", "org.texstage.")):
@@ -148,6 +151,7 @@ def load_manifest(raw: bytes | str) -> dict:
             if family == "engines":
                 resource(spec["module"], ".mjs")
                 for asset in spec.get("assets", []): resource(asset)
+                if "result_data_schema" in spec: resource(spec["result_data_schema"], ".json")
             else:
                 for path in spec.get("latex_packages", []):
                     resource(path, ".sty")
@@ -156,6 +160,10 @@ def load_manifest(raw: bytes | str) -> dict:
                         raise PluginError(f"style filename must use the declared namespace: {name}")
                     styles.add(name)
                 for path in spec["views"].values(): resource(path, ".mjs")
+                if version == 2:
+                    if set(spec["view_schemas"]) != set(spec["views"]):
+                        raise PluginError("view_schemas must cover exactly the declared surfaces")
+                    for path in spec["view_schemas"].values(): resource(path, ".json")
                 for msg in spec.get("messages", {}).values(): resource(msg["schema"], ".json")
                 if any("participant" in m["from"] for m in spec.get("messages", {}).values()) \
                         and "participant-input" not in spec["views"]:

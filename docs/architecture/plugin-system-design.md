@@ -6,15 +6,27 @@ plugin API release. This remains the target contract, not a stable API promise.
 See the [implementation guide and remaining release gates](../plugins.md) for
 the subset implemented on this branch, commands that can be tried, and test evidence.
 
+**Design revision, 5 November 2026:** the
+[transaction-schedule review](transaction-plugin-review.md) extends the prototype
+gate with a phased classroom activity, typed engine facts, preparation before
+TeX, scoped editing semantics and measured class-size behavior. These revisions
+are implementation targets. The first follow-up implements typed results,
+revision-2 result/view schemas and epoch-guarded reset; see the
+[current contract](../plugin-contracts.md). The H2 follow-up implements
+[pre-TeX authoring](../plugin-authoring.md). Editable views and
+classroom-capacity changes remain pending.
+
 Texstage should let an independently distributed package add a query engine or a
 new kind of interactive slide without editing Texstage's source. A plugin can
 provide both. The operator installs and enables the package separately; a lecture
 selects its capabilities and carries the data needed to use them. Existing SQL,
 SPARQL, Turtle, quiz and video workflows continue to work without plugin setup.
 
-A central GitHub repository, provisionally named `texstage-plugins`, contains
-maintained plugin sources, examples and a catalog for finding and installing
-released plugins. Catalog-assisted installation is part of the first release.
+A central GitHub repository,
+[`stefanjdecker/texstage-plugins`](https://github.com/stefanjdecker/texstage-plugins),
+contains maintained plugin sources, examples and a catalog for finding and
+installing released plugins. Its experimental source branch is published; the
+release catalog is still empty. Catalog-assisted installation is part of the first release.
 It remains an explicit operation in the authoring or server environment, separate
 from uploading a deck and from enabling the installed code.
 
@@ -189,6 +201,14 @@ through the core job service. That is not a Python or JavaScript import of the
 other plugin, and both providers must appear in the bundle's resolved requirements.
 
 ### Manifest example
+
+The example below uses the implemented manifest revision 1. The transaction
+review led to revision 2 for optional pre-compilation authoring hooks and
+`result_data_schema` declarations, plus explicit per-surface `view_schemas`.
+Hosts continue reading revision 1; old hosts
+must reject unsupported revision-2 providers before executing hooks. These schema
+additions and host contracts are implemented locally; the transaction packages
+and their conformance gates remain open. Plugin API 1 remains experimental.
 
 This abbreviated example provides both extension kinds. The full schema also
 requires descriptions, resource inventory, schema resources and license notices;
@@ -586,20 +606,39 @@ must not change the meaning of the existing read-only `engine=sql` alias.
 ### Result contract
 
 `evaluate` returns `status` with one of `ok`, `syntax`, `error` or `refused`.
-Failures have bounded plain-text diagnostics. A successful result provides a
+Failure results carry only that bounded status. A successful result provides a
 canonical string and a summary of kind `select`, `ask`, `graph` or `text`.
 Optional canonical rows support the host's existing bag comparison. An engine
 without row comparison still supports equality grouping, and the UI states that
 row-level comparison is unavailable.
+
+Revision-2 manifests may additionally declare a package-local
+`result_data_schema`. Successful results may then include schema-validated
+`data`, delivered unchanged to the owning custom type. This is bounded JSON
+for facts such as a schedule trace and graph certificate, not a new rendering
+language. Without a schema declaration, the additional field is rejected.
+The complete delivered outcome remains within 12 KiB, with an 8-KiB sub-budget
+for typed data. Validate complete standard summaries as well as the typed data
+at the worker, transport and server boundaries.
+
+The current implementation uses the explicitly documented
+[portable JSON Schema profile](../plugin-contracts.md#supported-portable-schema-profile)
+for result facts and views. Unsupported keywords fail discovery instead of being
+ignored in the browser. Revision 2 supports result/view declarations and
+optional [pre-compilation authoring hooks](../plugin-authoring.md).
 
 The SDK defines the complete JSON schemas for those summaries and supplies
 canonicalization helpers. Plugin-specific HTML, executable expressions and DOM
 objects are not valid results. Richer interaction uses the content type API.
 The host validates and bounds outputs before storing or displaying them. It owns
 result keys and reference comparison; a plugin cannot mark a submission as a
-correct reference through a claimed key. New results are namespaced by the
-resolved engine fingerprint and canonical format. A format change invalidates
-comparison caches even when the package version remains similar.
+correct reference through a claimed key. Reference `matches` means canonical
+equality, not general pedagogical correctness. A custom type may accept several
+different solutions using declared domain criteria and validated engine facts;
+it does not have to encode all valid answers as equality references. New results
+are namespaced by the resolved engine fingerprint, canonical format and any
+declared result-data schema digest. A format change invalidates comparison caches
+even when the package version remains similar.
 
 ### Execution limits
 
@@ -608,6 +647,13 @@ the worker. Initial defaults are 30 seconds for library initialization and
 2 seconds for loading state, evaluating and disposing of a submission together.
 The operator can set bounded profiles for larger engines; a deck cannot raise
 its own limits.
+
+Bounded workers drain an available queue without a fixed delay between nonempty
+batches; an empty queue or transport failure uses polling backoff. Apply fair
+admission and scheduling across actors/items, with explicit queue and rate limits.
+Role-filtered pending/evaluator status is visible without treating unavailable
+evaluation as an incorrect answer. Validate throughput with the transaction
+classroom workload before freezing the defaults.
 Terminate the worker after a timeout, then reinitialize and evaluate references
 before accepting further results. Repeated failures disable that activity for
 the session with an explanation while ordinary slide navigation continues.
@@ -633,12 +679,31 @@ its input messages, validation schemas and `participant-input` renderer.
 | Session state | Initialization, event transition, evaluation effects and audience-view hooks | Authentication, durable receipts/jobs, sequencing, transactions, storage and transport |
 | Browser view | `mount`, `update`, `place`, `destroy`, with an explicit surface ID | Surface allocation, role context, navigation, lifecycle and error fallback |
 
-The Python factory returns an SDK `PluginV1` value with `build_hooks` and
+The Python factory returns an SDK `PluginV1` value with `build_hooks`, `authoring_hooks` and
 `state_hooks` mappings. Their keys match the manifest's hook names; no undeclared
 hook is accepted. State-hook objects implement the three methods below. The
 factory receives no application object and cannot register global callbacks
 through this API. Engine-only providers use their static browser descriptor and
 do not require a factory call.
+
+### Preparation before compilation
+
+The implemented authoring contract adds an optional `--activities` sidecar input,
+listing explicit type/item/source records under the authoring root. An enabled
+provider's optional authoring hook validates each source before TeX and returns
+prepared live data plus static exercise/solution fragments and declared assets.
+The host writes bounded artifacts only into its own fresh build directory and
+checks the source digest when the generic TQZ bridge binds geometry to an item.
+
+This allows one transaction specification to produce its live model, worksheet
+and worked solution. It avoids duplicating a computation in a style file or
+discovering Python hooks by parsing arbitrary LaTeX. Generated TeX is a trusted
+build input, never an executable asset in a deck upload. An explicit materialized
+preparation export supports direct pdfLaTeX with matching inputs and styles.
+The existing post-compilation build-hook path stays available for simple types.
+See TS-01 in the [review](transaction-plugin-review.md) for validation and privacy
+requirements. The H2 prepass and local direct-pdfLaTeX export are implemented;
+see [commands and limits](../plugin-authoring.md).
 
 ### Authoring and static outputs
 
@@ -742,8 +807,16 @@ expected revision and payload. An epoch identifies the current reset of an item;
 a revision orders committed changes within that epoch. The host derives actor,
 role and session from the authenticated connection. The manifest declares sender
 roles, payload schemas and a `revision_policy`: `exact` rejects a mismatched
-expected revision; `latest` applies an additive submission to the current state.
+expected revision; `latest` runs against current committed state and may apply
+additions or bounded replacements with plugin-defined semantic guards.
 Both policies enforce the current epoch and the activity's open/closed rules.
+
+The whole-item revision orders snapshots. It is not automatically an individual
+answer's edit version or the version of presenter controls. Types may keep an
+actor-local answer version, phase token and control version in their state,
+checking the relevant guard atomically in a latest-state transition. Unrelated
+participant submissions must not invalidate a presenter's phase/cursor intent.
+These are domain state fields, not transaction-specific core protocol fields.
 
 Authenticate and authorize every request, including retries. For an existing
 receipt with the same actor, item, epoch and request ID, return the original
@@ -799,7 +872,11 @@ Browser dispatch retains the same request ID and envelope until acknowledged.
 On reconnect it obtains a fresh audience-specific snapshot, including epoch and
 revision. Host activation/deactivation events do not implicitly clear state.
 Item reset is a core operation in the host's presenter controls and uses the same
-request/receipt protocol. It advances the epoch atomically, replaces state and
+request/receipt protocol. In the revised contract it is guarded by the current
+epoch, not the global item revision: it is an explicit intent to replace that
+whole epoch even while answers arrive. The envelope's expected_revision remains
+syntactically valid but is not a reset precondition. This behavior is now covered
+by runtime regression tests. Reset advances the epoch atomically, replaces state and
 invalidates outstanding jobs; old requests and results cannot populate the new
 epoch. Reset itself has a
 durable request receipt, so a retry of that reset returns its saved outcome.
@@ -810,6 +887,11 @@ change permissions, register tables or send arbitrary WebSocket messages.
 Existing sessions resume only with a matching runtime fingerprint and state
 schema; upgrades use a new session or a separately reviewed migration. Archives
 retain data and static representations independently of installed plugin code.
+Private archives and sanitized public summaries are distinct projections.
+The current screen/window recorder should capture the selected projector and its
+plugin overlays; verify that behavior separately from archive ZIP export.
+A separate event-replay system is deferred. If added, it consumes authorized
+snapshots rather than re-submitting commands or re-evaluating old answers.
 
 Python state hooks run in a dedicated spawned worker process per enabled plugin,
 with bounded JSON requests and responses. The server owns state and storage;
@@ -818,6 +900,15 @@ startup and 250 milliseconds for a state/view operation, with bounded operator
 overrides. Kill and replace a timed-out worker; reject its in-flight transition.
 Do not try to terminate a Python thread executing an arbitrary hook. Queue and
 payload limits prevent one plugin from accumulating unlimited work.
+
+Worker calls and audience projections must not block the ASGI event loop.
+Coalesce publications and permit a bounded `view_many(state, audiences, context)`
+hook, falling back to repeated `view` calls inside one worker invocation.
+The host chooses and maps audiences; it never shares personal views across
+actors. Cache only pure projections for the exact runtime/item/epoch/revision
+and audience. Views do not depend on a newly sampled wall clock: persist
+deadlines in state and let renderers use host time. Keep worker-frame, per-view
+and aggregate-batch limits, and benchmark compact state at classroom scale.
 
 Process separation provides failure containment, not an operating-system security
 sandbox: installed Python remains trusted code with the service user's OS
@@ -871,6 +962,11 @@ transition/receipt mechanism. Participant messages cannot impersonate internal
 events. The hook updates feedback only if the correlation is still relevant;
 superseded submissions must not overwrite newer feedback.
 
+For phased activities, relevance is determined by the epoch and the current
+accepted version of the originating actor's phase slot. Closing that phase does
+not discard a pending answer accepted before closure. A different current phase
+is not by itself evidence that the older phase's answer was superseded.
+
 Cancellation and completion race through the same durable job record: the first
 accepted terminal outcome wins. Cancellation can end the logical job even if the
 browser cannot stop immediately; subsequent output is discarded. Reset cancels
@@ -898,19 +994,34 @@ each `(item, surface)`, even when two surfaces use the same module. Each instanc
 receives its own container and explicit `context.surface` and `context.role`.
 The server's `audience` argument includes that surface and, for personal views,
 the authenticated actor. Projector views never inherit presenter data or controls.
+Revision-2 types declare a package-local schema for each surface in
+`view_schemas`; the host validates every projection before caching or transport,
+including batched projections. Schema validation complements role filtering and
+privacy tests; it does not sandbox trusted provider code.
 
-`mount(container, context)` synchronously returns a renderer with
+`mount(context)` synchronously returns a renderer with
 `update({epoch, revision, data})`, `place(rectangles)` and `destroy()`. The host
+supplies the container as `context.container`, matching the experimental SDK. It
 places overlay instances before their first update; rectangles are CSS-pixel
 coordinates relative to that overlay container after slide scaling. It calls
 `place` again on layout changes. Panel and phone layouts use their containers'
 normal responsive layout and do not receive slide rectangles. Updates are full
 audience-specific snapshots; the host suppresses stale revisions within an epoch.
 
+Ordinary updates preserve local unsubmitted edits and focus. A renderer tracks
+its acknowledged answer version separately from a draft, and shows a conflict
+when another device changes that answer. Mount identity includes session, bundle,
+provider payload, type, item, role and surface. Missing/revoked descriptors and
+changed identities destroy old mounts; a new epoch clears obsolete answers and
+drafts. A failed renderer cannot leave stale dynamic content or active controls
+behind. Full-reload draft storage is optional and never implies automatic submission.
+
 Context also supplies language, item ID, a clock, an approved resource resolver,
 an abort signal and `dispatch(operation, payload)`. Dispatch adds the current
 epoch/revision and a request ID, retries the unchanged request until acknowledged,
-and returns the durable receipt. It is disabled for projector surfaces; the
+and returns the durable receipt. The SDK preserves structured refusal codes and
+the receipt's epoch/revision, distinguishing terminal refusal from transient
+transport/service failure. It is disabled for projector surfaces; the
 server still enforces every message's declared roles. A stale exact-revision
 command needs a new deliberate operation after refresh, not an automatic rewrite
 of the old request. The participant context contains no presenter key or private
@@ -995,7 +1106,7 @@ The prototype is a release gate, not an engine-only first version.
 | Stage | Changes | Completion evidence |
 | --- | --- | --- |
 | 1 Contracts and fixture packages | Add `plugins/manifest.py`, `catalog.py`, `policy.py`, `lock.py`, `assets.py` and `plugin_api/v1` schema/value types; specify portable packages, style ownership, requests, jobs, audiences and surfaces; scaffold independent engine and custom-type wheels | Schemas validate all examples; disabled packages are never imported; package, capability and style collisions are rejected; fixture inventories and hashes agree on Windows/Linux |
-| 2 Complete prototype and recovery gate | Implement a minimal external-plugin path through `texstage.sty`, TQZ, format 3, state workers, durable receipts/action queue/jobs, evaluator routing and all four browser surfaces | Install an engine fixture and a separate coordinate-plane fixture bound to it; build on Windows and serve on Linux, then reverse; complete phone-to-engine-to-projector feedback, handout/solutions/PPTX fallbacks, lost acknowledgements, restart and reset races |
+| 2 Complete prototype and recovery gate | Complete the external path and the transaction-review prerequisites: typed facts, pre-TeX preparation, scoped edits/reset, editable views and bounded classroom operation | Retain independent coordinate/distance wheels; add independent transaction engine/activity wheels; verify two-way platform builds, multiple valid repairs, static outputs, privacy, closure/reconnect/reset races and measured load |
 | 3 Bundled-feature integration | Derive existing engine/type descriptors from the runtime catalog; adapt evaluator and browser hosts while retaining legacy facades and formats 1/2 | Existing SQL/SPARQL/Turtle, quiz and video behavior, aliases, reference outputs and read-only SQL rules pass regression checks; old course integration imports remain lazy and no-plugin builds retain their format |
 | 4 Contract hardening and SDK | Complete package validation, conformance runner, worker/renderer lifecycle, accessibility, browser matrix, resource limits, archives and developer/operator guides | Runtime and SDK acceptance cases pass; synthetic concurrent sessions meet measured budgets; startup, duplicate events, stale jobs, independent renderer mounts and rollback have reproducible checks |
 | 5 GitHub collection and release | Establish `texstage-plugins` with maintained sources, examples, catalog/index, contribution guide and release CI; add refresh/search/info/install commands over the tested package contracts | Catalog acceptance cases join the completed runtime/SDK checks; versioned wheels install independently; hashes, dependencies, withdrawals and offline operation are verified; the API 1 release passes the full suite and includes both extension kinds and the collection |
@@ -1003,7 +1114,9 @@ The prototype is a release gate, not an engine-only first version.
 Stage 2 must use installed wheels in separate environments, not source-path
 injection or an editable checkout. Its custom type uses the engine in the other
 fixture through the public job interface; this proves composition as well as the
-two APIs separately. Failures at this gate revise the contracts before stage 3.
+two APIs separately. The transaction activity adds a realistic use case; it does
+not replace the smaller fixture. Follow work packages H0–H4/P1–P3 in the
+[transaction review](transaction-plugin-review.md). Failures at this gate revise the contracts before stage 3.
 Keep prototype paths explicitly experimental until the full acceptance suite
 passes; do not advertise stable API 1 merely because the example works.
 
@@ -1078,6 +1191,15 @@ submodules, generated artifacts and environments.
     Test two submissions by one participant finishing out of order and ensure
     older feedback cannot replace the current attempt. A phone cannot forge an
     internal result event or select undeclared engines, seeds or references.
+
+13. **Phased transaction lesson:** validate the newly authored bounded schedules,
+    accept distinct valid repairs, reject equality-only correctness shortcuts,
+    and deliver schema-validated graph/trace facts. Test one-source static/live
+    preparation, scoped actor/control versions, late results from closed phases,
+    draft/focus preservation, revoked mounts and the measured classroom workload.
+    Pin the collection CI to a published compatible host commit and record the
+    actual wheel identities. Do not count an unavailable API or an unrun matrix
+    as a successful conformance case.
 
 These tests run against synthetic decks and disposable server data. Release
 evidence records the exact host/plugin artifacts and supported browser versions.

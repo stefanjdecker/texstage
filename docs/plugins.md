@@ -5,6 +5,12 @@ examples in the separate `texstage-plugins` repository. It is a prototype of the
 [API 1 design](architecture/plugin-system-design.md), not a stable API 1 release.
 Existing decks, SQL, SPARQL, Turtle, quizzes and videos need no plugin setup.
 
+The first transaction-plugin host milestone is implemented: revision-2 manifests,
+typed engine facts, surface schemas and epoch-guarded reset. See
+[engine results and view schemas](plugin-contracts.md) for the supported contract,
+limits and examples. [Preparation before LaTeX](plugin-authoring.md) now supplies
+one exercise source for live data and static editions.
+
 A plugin is an installed Python distribution with a declarative manifest. It may
 provide a browser activity engine, a complete interactive slide type, or both.
 It may include zero or more LaTeX packages. An ordinary `.sty` theme is not itself
@@ -139,8 +145,10 @@ An engine exports `start(context)`, `load(library, seed, options)`,
 `evaluate(state, text, context)` and `dispose(state)`. The host supplies declared
 asset bytes, creates fresh state for every reference and submission, and terminates
 workers after a 30-second startup or 2-second individual evaluation budget.
-Output is bounded, validated and namespaced by provider, engine, canonical format
-and binding. Evaluation workers cannot fetch the network or spawn workers. This is
+Output is bounded, validated and namespaced by provider, engine, canonical format,
+binding, contract revision and result-schema digest. Revision-2 engines can declare
+typed JSON facts; revision-1 engines retain summary-only results.
+Evaluation workers cannot fetch the network or spawn workers. This is
 not a sandbox for hostile plugin code: Python hooks and browser renderers remain
 operator-trusted code.
 
@@ -153,7 +161,9 @@ while reusing its request ID fails. Exact-revision presenter operations and
 latest-revision participant submissions are separate policies. Both check epochs.
 
 Reset increments the epoch once, preserves whether the item is active, and
-invalidates old jobs. Evaluation results must match their job, lease generation,
+invalidates old jobs. It is guarded by epoch, so unrelated submissions do not
+invalidate the presenter's reset. Other exact-policy operations retain their
+revision check. Evaluation results must match their job, lease generation,
 owner and epoch. Terminal results are delivered durably to the reducer, once per
 logical completion. No presenter evaluator means queued work, not successful
 feedback. Leases allow bounded retries, with up to two jobs per poll and a
@@ -169,13 +179,14 @@ plugin sessions with a different runtime fingerprint is refused.
 
 ## Collection and installation
 
-The separate `texstage-plugins` checkout contains sources, tests, an initially empty
-catalog and release preparation workflows. No GitHub collection or release has
-been published by this implementation. After a reviewed release is published,
+The separate [texstage-plugins collection](https://github.com/stefanjdecker/texstage-plugins)
+contains sources, tests, an initially empty catalog and release preparation
+workflows. Its experimental source branch is published; plugin wheel releases
+are not yet published. After a reviewed release is published,
 an operator can cache its index from an immutable GitHub commit:
 
 ```sh
-texstage plugins --data ./plugin-profile catalog update --url https://raw.githubusercontent.com/OWNER/texstage-plugins/FULL_COMMIT_SHA/catalog/index.json
+texstage plugins --data ./plugin-profile catalog update --url https://raw.githubusercontent.com/stefanjdecker/texstage-plugins/FULL_COMMIT_SHA/catalog/index.json
 texstage plugins --data ./plugin-profile search coordinate
 texstage plugins --data ./plugin-profile info org.example.coordinates
 texstage plugins --data ./plugin-profile install org.example.coordinates==0.1.0 --write-requirements ./plugin-wheel.txt
@@ -199,6 +210,14 @@ packages, and catalog commands. Automated checks cover legacy behavior, hashing,
 authorization, privacy, duplicate requests, crash recovery, reset and lease races.
 
 Still required before a stable API 1 release:
+
+- Implement the [transaction-schedule review's contract revisions](architecture/transaction-plugin-review.md):
+  the transaction-specific semantic edit guards,
+  editable views, fair evaluation and measured class-size operation.
+  Typed engine `data`, revision-2 result/view schemas, scoped-reducer contract
+  tests, revised reset behavior and preparation before TeX are implemented.
+  `authoring_hook`, `--activities` and direct-pdfLaTeX exports are available;
+  see [the authoring contract](plugin-authoring.md). The transaction activity is still planned.
 
 - Complete the two-way Windows/Linux build-and-serve matrix. Local evidence covers
   Windows authoring and browser interaction, plus Linux serving of that same bundle
