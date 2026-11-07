@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Filter a table}
+\small Choose the output columns and the condition.\par\vspace{3mm}
+\begin{activity}[id=sql-filter,input=code,engine=sql,seed=data/library.sql,
+reference=answers/sql-filter.sql,open=manual,limit=5,height=.61\textheight]
+\prompt{Use \texttt{books(book\_id,title,topic)}. Return one column, \texttt{title}, for books whose topic is the text \texttt{databases}.}
+\end{activity}
+\note{Expected: Database Basics and Practical SQL. Accept equivalent predicates and reversed row order. Returning all titles should form another result group.}
+\end{frame}

@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Write one RDF fact}
+\small Turtle expresses data; it is not a query.\par\vspace{3mm}
+\begin{activity}[id=turtle-one,input=code,engine=turtle,seed=data/library.ttl,
+reference=answers/turtle-one.ttl,open=manual,limit=5,height=.61\textheight]
+\prompt{Write exactly one triple: Ben borrows Graph Stories. Use \texttt{:ben}, predicate \texttt{:borrows}, object \texttt{:b102}, and a final dot. The prefix is supplied; do not copy the seed.}
+\end{activity}
+\note{Expected :ben :borrows :b102. Use the resource :b102, not a string containing its title. Full IRI spelling also works. The input is compared as its own graph, without the seed triples.}
+\end{frame}

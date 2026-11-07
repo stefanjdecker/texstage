@@ -1,0 +1,5 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{quiz}[id=duplicates,type=truefalse,answer=false,time=45]{Adding DISTINCT always leaves a SQL result unchanged.}
+\explain{False. Our loan join returns Ada and Ben twice. DISTINCT reduces five rows to three different names.}
+\note{Count multiplicity, not only the set of displayed names.}
+\end{quiz}

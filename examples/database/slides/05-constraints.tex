@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{quiz}[id=constraints,type=multiple,partial,time=60,cols=1]{Which two claims follow from our declared rules?}
+\choice*[id=member]{Every loan refers to an existing member.}
+\choice*[id=unique]{Two members cannot have the same member\_id.}
+\choice[id=borrower]{Every member must have at least one loan.}
+\choice[id=names]{Every member must have a different name.}
+\explain{Foreign keys connect loans to members; primary keys identify members. Borrowing is optional and names are not declared unique.}
+\note{Distinguish foreign keys from mandatory participation by every parent. Discuss the choices instead of interpreting partial credit as mastery.}
+\end{quiz}

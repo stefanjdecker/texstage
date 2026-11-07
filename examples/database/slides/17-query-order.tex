@@ -1,0 +1,7 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{quiz}[id=query-order,type=order,partial,time=90]{Put these clauses in their usual conceptual evaluation order.}
+\step{FROM / JOIN}\step{WHERE}\step{GROUP BY}
+\step{HAVING}\step{SELECT}\step{ORDER BY}
+\explain{Form rows, filter rows, group, filter groups, project, then sort. This is a reasoning model, not the physical query plan.}
+\note{An optimizer can choose a different physical strategy. DISTINCT, window functions and LIMIT are omitted from this exercise.}
+\end{quiz}

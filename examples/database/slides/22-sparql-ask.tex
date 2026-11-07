@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Ask a yes-or-no graph question}
+\small ASK returns a boolean for a pattern in this graph.\par\vspace{3mm}
+\begin{activity}[id=sparql-ask,input=code,engine=sparql,seed=data/library.ttl,
+reference=answers/sparql-ask.rq,open=manual,limit=5,height=.61\textheight]
+\prompt{Does the supplied graph contain a loan with \texttt{:member :dan} and \texttt{:status :open}? Write an ASK query. Prefix declarations are supplied.}
+\end{activity}
+\note{Expected false: no match in the supplied graph. This is not a claim that Dan can never borrow or that we know every real-world fact.}
+\end{frame}

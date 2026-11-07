@@ -1,0 +1,2 @@
+CONSTRUCT { ?member :borrows ?book . }
+WHERE { ?loan :member ?member ; :book ?book ; :status :open . }

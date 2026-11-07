@@ -1,0 +1,14 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{SQL: a small reminder}
+\begin{block}{A query returns a result table}
+\texttt{SELECT title FROM books;}\par\smallskip
+Choose columns with \texttt{SELECT}, rows with \texttt{WHERE}, and connect
+tables with \texttt{JOIN ... ON ...}.
+\end{block}\small
+\textbf{Schema}\par
+\texttt{members(member\_id, name)}\par
+\texttt{books(book\_id, title, topic)}\par
+\texttt{loans(loan\_id, member\_id, book\_id, returned\_on)}
+\vspace{3mm}\par The phone runs read-only SQLite queries. Every activity uses the same data.
+\note{Give learners about two minutes per code attempt. Open, collect, compare result groups, then reveal. SQL modifications are refused. A reference match on one dataset does not establish general query equivalence.}
+\end{frame}

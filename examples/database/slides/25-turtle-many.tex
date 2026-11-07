@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Use Turtle shorthand}
+\small Different Turtle spellings can describe the same graph.\par\vspace{3mm}
+\begin{activity}[id=turtle-many,input=code,engine=turtle,seed=data/library.ttl,
+reference=answers/turtle-many.ttl,open=manual,limit=5,height=.61\textheight]
+\prompt{State that Ada has borrowed both Database Basics and Practical SQL, counting historical loans. Use \texttt{:ada :hasBorrowed} with objects \texttt{:b101} and \texttt{:b103}. Write exactly two triples; comma shorthand is welcome.}
+\end{activity}
+\note{A comma object list and two separate statements agree. Duplicate identical triples do not add graph facts. hasBorrowed deliberately includes Ada's returned historical loan.}
+\end{frame}

@@ -1,0 +1,1 @@
+ASK { ?loan :member :dan ; :status :open . }

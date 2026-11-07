@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Build a graph from a query}
+\small CONSTRUCT returns triples derived from matching bindings.\par\vspace{3mm}
+\begin{activity}[id=sparql-construct,input=code,engine=sparql,seed=data/library.ttl,
+reference=answers/sparql-construct.rq,open=manual,limit=5,height=.61\textheight]
+\prompt{Construct \texttt{?member :borrows ?book} for every open loan. Match loans using \texttt{:member}, \texttt{:book} and \texttt{:status :open}. Return a graph, not a SELECT table.}
+\end{activity}
+\note{Expected :ada :borrows :b101; :ben :borrows :b102; :cara :borrows :b104. Reversing subject and object changes the graph. The result does not update the seed.}
+\end{frame}

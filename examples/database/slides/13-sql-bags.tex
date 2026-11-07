@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Preserve repeated rows}
+\small SQL results can contain repeated rows.\par\vspace{3mm}
+\begin{activity}[id=sql-bags,input=code,engine=sql,seed=data/library.sql,
+reference=answers/sql-bags.sql,open=manual,limit=5,height=.61\textheight]
+\prompt{Return \texttt{name} once for every loan, open or closed. Join \texttt{members(member\_id,name)} and \texttt{loans(member\_id)}. Keep repetitions: two loans contribute two rows.}
+\end{activity}
+\note{Expected five rows: Ada, Ada, Ben, Ben, Cara. DISTINCT changes the requested multiplicity. Row order is irrelevant to the result comparison.}
+\end{frame}

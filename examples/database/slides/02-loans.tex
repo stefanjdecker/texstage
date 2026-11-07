@@ -1,0 +1,13 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Which loans are still open?}
+\small\centering\begin{tabular}{rrrl}\toprule
+loan\_id & member\_id & book\_id & returned\_on\\\midrule
+201 & 1 & 101 & NULL\\202 & 2 & 102 & NULL\\
+203 & 1 & 103 & 2026-10-01\\204 & 3 & 104 & NULL\\
+205 & 2 & 101 & 2026-10-02\\\bottomrule\end{tabular}
+\par\vspace{4mm}\raggedright\normalsize
+In this model, \texttt{returned\_on IS NULL} means \textbf{still open}.\par
+\smallskip Every loan refers to exactly one existing member and book.
+A member or book can have zero or many loans over time.
+\note{Three loans are open. Loan 205 is a historical, returned loan of copy 101, preceding its current loan 201; checkout dates are omitted. NULL is not the string 'NULL', and equality to NULL is not the test.}
+\end{frame}

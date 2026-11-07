@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Find books with no open loan}
+\small Think about the absence of a matching row: NOT EXISTS can help.\par\vspace{3mm}
+\begin{activity}[id=sql-available,input=code,engine=sql,seed=data/library.sql,
+reference=answers/sql-available.sql,open=manual,limit=5,height=.61\textheight]
+\prompt{Return one column, \texttt{title}, for books with no open loan. Use \texttt{books(book\_id,title)} and \texttt{loans(book\_id,returned\_on)}. A returned historical loan does not make a book unavailable.}
+\end{activity}
+\note{Expected Practical SQL. Database Basics has a returned historical loan and an open loan; finding a non-NULL return date is insufficient. A LEFT JOIN anti-join also works.}
+\end{frame}

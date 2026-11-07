@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Count open loans, including zero}
+\small A LEFT JOIN preserves members with no matching open loan.\par\vspace{3mm}
+\begin{activity}[id=sql-count,input=code,engine=sql,seed=data/library.sql,
+reference=answers/sql-count.sql,open=manual,limit=5,height=.61\textheight]
+\prompt{Return \texttt{name, active\_loans} for every member, including zero counts. Use \texttt{members(member\_id,name)} and \texttt{loans(loan\_id,member\_id,returned\_on)}. Open means \texttt{returned\_on IS NULL}.}
+\end{activity}
+\note{Expected Ada 1, Ben 1, Cara 1, Dan 0. Count loan\_id, not COUNT(*). Put the open-loan condition in ON. Group by member\_id and name since names need not be unique.}
+\end{frame}

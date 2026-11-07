@@ -1,0 +1,14 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Why does Dan need special care?}
+\begin{columns}[T,onlytextwidth]
+\column{.46\textwidth}\textbf{The LEFT JOIN retains Dan}\par\smallskip
+\small\begin{tabular}{ll}\toprule name & loan\_id\\\midrule
+Dan & NULL\\\bottomrule\end{tabular}
+\column{.49\textwidth}
+\texttt{COUNT(*) = 1}\par\smallskip counts this placeholder row.\par\medskip
+\texttt{COUNT(loan\_id) = 0}\par\smallskip counts only non-NULL loan IDs.
+\end{columns}\vspace{5mm}
+Keep the open-loan condition in \texttt{ON} so members with only returned loans
+also remain in the result.
+\note{The NULL-extended row is an intermediate query result, not a real loan. A WHERE filter on returned\_on can drop a member who has only closed loans. The verification script adds such a member as a transfer probe.}
+\end{frame}

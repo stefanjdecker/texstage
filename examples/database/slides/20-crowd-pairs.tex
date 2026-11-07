@@ -1,0 +1,11 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Classify the books}
+\small A two-field graph needs no typed relation label.\par\vspace{3mm}
+\begin{activity}[id=crowd-pairs,input=tuple,fields={Book,Topic},
+suggest={Database Basics,Graph Stories,Practical SQL,Network Notes,databases,graphs,networks},
+open=auto,terms=exact,min=2,limit=4,height=.61\textheight]
+\prompt{Connect a book title to its topic from the table. The implicit relation
+is \emph{has topic}. An edge appears after two different participants support it.}
+\end{activity}
+\note{Expected four pairs. Repetition by one person is not support from two people. For a solo rehearsal lower Minimum to one. This activity collects a graph; it does not parse or validate RDF.}
+\end{frame}

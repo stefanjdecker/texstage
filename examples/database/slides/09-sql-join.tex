@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Connect members, loans and books}
+\small Two joins connect IDs to names and titles.\par\vspace{3mm}
+\begin{activity}[id=sql-join,input=code,engine=sql,seed=data/library.sql,
+reference=answers/sql-join.sql,open=manual,limit=5,height=.61\textheight]
+\prompt{Return \texttt{name, title}, in that order, for open loans. Join \texttt{members(member\_id,name)}, \texttt{loans(member\_id,book\_id,returned\_on)} and \texttt{books(book\_id,title)}. Open means \texttt{returned\_on IS NULL}.}
+\end{activity}
+\note{Expected: Ada / Database Basics; Ben / Graph Stories; Cara / Network Notes. Missing join conditions add combinations. Using = NULL produces no rows.}
+\end{frame}

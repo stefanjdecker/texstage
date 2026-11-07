@@ -1,0 +1,13 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{The library as a graph}
+\small
+\texttt{@prefix : <https://example.org/library/> .}\par\medskip
+\texttt{:l201 :member :ada ; :book :b101 ; :status :open .}\par\smallskip
+\texttt{:ada :name "Ada" .}\par
+\texttt{:b101 :title "Database Basics" .}
+\vspace{5mm}\par\normalsize
+A triple states \textbf{subject -- predicate -- object}.\par
+\smallskip\texttt{:ada} is an identifier; \texttt{"Ada"} is a string value.\par
+\smallskip\texttt{:b101} through \texttt{:b104} are the four book copies.
+\note{The engine supplies seed prefix declarations, so :ada can be used directly. The RDF snapshot uses explicit :status :open or :closed. Missing assertions are not automatically false statements.}
+\end{frame}

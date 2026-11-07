@@ -1,0 +1,57 @@
+% SPDX-License-Identifier: Apache-2.0
+% One logical frame or quiz per file in slides/. Compile this master.
+\documentclass[aspectratio=169,11pt]{beamer}
+\usepackage[english]{babel}
+\usepackage{texquiz}
+\usepackage{texactivity}
+\usepackage{booktabs}
+\definecolor{dbink}{HTML}{20364D}
+\definecolor{dbteal}{HTML}{087F8C}
+\setbeamercolor{normal text}{fg=dbink,bg=white}
+\setbeamercolor{structure}{fg=dbteal}
+\setbeamercolor{frametitle}{fg=dbink}
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+\setbeamersize{text margin left=9mm,text margin right=9mm}
+\setbeamertemplate{footline}{\hfill\scriptsize Database activity lab\quad
+  \insertframenumber\hspace{5mm}\vspace{3mm}}
+\quizsetup{time=60,points=none,leaderboard=false,shuffle=false,
+  join-title={Join the database lab},
+  join-text={Open the presenter-supplied address on your phone and enter the PIN.}}
+\title{A library, two data models}
+\subtitle{Texstage database activity examples}
+\author{Synthetic teaching examples}
+\date{}
+\begin{document}
+\input{slides/00-welcome.tex}
+\input{slides/01-model.tex}
+\input{slides/02-loans.tex}
+\input{slides/03-join.tex}
+\input{slides/04-primary-key.tex}
+\input{slides/05-constraints.tex}
+\input{slides/06-er-sketch.tex}
+\input{slides/07-sql-reminder.tex}
+\input{slides/08-sql-filter.tex}
+\input{slides/09-sql-join.tex}
+\input{slides/10-sql-count.tex}
+\input{slides/11-zero-debrief.tex}
+\input{slides/12-sql-available.tex}
+\input{slides/13-sql-bags.tex}
+\input{slides/14-duplicates.tex}
+\input{slides/15-active-total.tex}
+\input{slides/16-distinct.tex}
+\input{slides/17-query-order.tex}
+\input{slides/18-rdf-reminder.tex}
+\input{slides/19-crowd-facts.tex}
+\input{slides/20-crowd-pairs.tex}
+\input{slides/21-sparql-select.tex}
+\input{slides/22-sparql-ask.tex}
+\input{slides/23-sparql-construct.tex}
+\input{slides/24-turtle-one.tex}
+\input{slides/25-turtle-many.tex}
+\input{slides/26-word-cloud.tex}
+\input{slides/27-explain.tex}
+\input{slides/28-topic-poll.tex}
+\input{slides/29-transaction-preview.tex}
+\input{slides/30-takeaways.tex}
+\end{document}

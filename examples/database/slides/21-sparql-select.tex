@@ -1,0 +1,9 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Query graph bindings}
+\small SELECT returns a table of variable bindings.\par\vspace{3mm}
+\begin{activity}[id=sparql-select,input=code,engine=sparql,seed=data/library.ttl,
+reference=answers/sparql-select.rq,open=manual,limit=5,height=.61\textheight]
+\prompt{Return \texttt{?name ?title}, in that order, for open loans. Loans link \texttt{:member}, \texttt{:book} and \texttt{:status :open}; members have \texttt{:name}; books have \texttt{:title}.}
+\end{activity}
+\note{Expected the same three name/title pairs as the SQL join. Variable names and row order can differ. Reversing output columns changes the requested result.}
+\end{frame}

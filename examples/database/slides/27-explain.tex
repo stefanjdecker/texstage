@@ -1,0 +1,5 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{quiz}[id=explain-zero,type=open,display=list,max-chars=220,time=90]{Why can COUNT(*) give Dan one loan after a LEFT JOIN?}
+
+\note{Look for: the join retains Dan with a NULL-extended row; COUNT(*) counts that row while COUNT(loan\_id) ignores NULL. This list is ungraded. Ask for a repair, not only the word NULL.}
+\end{quiz}

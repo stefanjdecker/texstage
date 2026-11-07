@@ -1,0 +1,11 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Build a graph together}
+\small Use the open loans in our library snapshot.\par\vspace{3mm}
+\begin{activity}[id=crowd-facts,input=tuple,fields={Member,Relation,Book},
+suggest={Ada,Ben,Cara,borrows,Database Basics,Graph Stories,Network Notes},
+open=manual,review,terms=exact,min=1,limit=3,height=.61\textheight]
+\prompt{Contribute one open-loan fact as Member / borrows / Book.
+Use the displayed names and titles exactly. These are graph labels, not Turtle code.}
+\end{activity}
+\note{Expected: Ada borrows Database Basics, Ben borrows Graph Stories, Cara borrows Network Notes. Review is on: approve a response before it appears. Discuss spelling variants. This class graph does not modify later query seeds.}
+\end{frame}

@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Same synthetic snapshot as library.sql, with explicit open/closed status.
+@prefix : <https://example.org/library/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+:ada a :Member ; :name "Ada" .
+:ben a :Member ; :name "Ben" .
+:cara a :Member ; :name "Cara" .
+:dan a :Member ; :name "Dan" .
+:b101 a :Book ; :title "Database Basics" ; :topic "databases" .
+:b102 a :Book ; :title "Graph Stories" ; :topic "graphs" .
+:b103 a :Book ; :title "Practical SQL" ; :topic "databases" .
+:b104 a :Book ; :title "Network Notes" ; :topic "networks" .
+:l201 a :Loan ; :member :ada ; :book :b101 ; :status :open .
+:l202 a :Loan ; :member :ben ; :book :b102 ; :status :open .
+:l203 a :Loan ; :member :ada ; :book :b103 ; :status :closed ;
+      :returnedOn "2026-10-01"^^xsd:date .
+:l204 a :Loan ; :member :cara ; :book :b104 ; :status :open .
+:l205 a :Loan ; :member :ben ; :book :b101 ; :status :closed ;
+      :returnedOn "2026-10-02"^^xsd:date .

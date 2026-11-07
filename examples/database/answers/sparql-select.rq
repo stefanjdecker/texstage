@@ -1,0 +1,5 @@
+SELECT ?name ?title WHERE {
+  ?loan :member ?member ; :book ?book ; :status :open .
+  ?member :name ?name .
+  ?book :title ?title .
+}

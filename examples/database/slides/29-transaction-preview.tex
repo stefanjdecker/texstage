@@ -1,0 +1,17 @@
+% SPDX-License-Identifier: Apache-2.0
+\begin{frame}[t]{Next activity: transaction schedules}
+\begin{columns}[T,onlytextwidth]
+\column{.52\textwidth}
+\small\begin{tabular}{cll}\toprule Step & Transaction 1 & Transaction 2\\\midrule
+1 & read $x=100$ & \\2 & & read $x=100$\\
+3 & write $100+10$ & \\4 & & write $100+10$\\\bottomrule\end{tabular}
+\column{.44\textwidth}
+\textbf{Discuss:} what is the final value?\par\medskip
+Each transaction intends to add ten.
+\end{columns}\vspace{5mm}
+\begin{block}{Planned plugin}
+Predict the execution, inspect conflicts, repair the schedule.
+This preview is a discussion slide; the interactive plugin is not implemented.
+\end{block}
+\note{Final x is 110: both transactions use their own remembered value 100. Serial execution yields 120. Explain the lost update before a conflict graph. This is a static preview, not a working schedule editor.}
+\end{frame}
