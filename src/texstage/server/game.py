@@ -46,6 +46,7 @@ from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from texstage.server import qa
+from texstage.server.activity_points import ActivityPoints, reconcile
 from texstage.server import types as stage_types
 from texstage.server.bundles import Bundle, QuizDef, SlideInfo
 from texstage.server.ink import InkBook, Stroke, check_frame
@@ -155,6 +156,8 @@ class Session:
     rounds: dict[str, Round] = field(default_factory=dict)
     questions: dict[str, Asked] = field(default_factory=dict)  # from the audience (qa.py)
     quizdefs: dict[str, QuizDef] = field(default_factory=dict, repr=False)   # the polls' (not stored)
+
+    activity_points: dict[tuple[str, str], ActivityPoints] = field(default_factory=dict, repr=False)
 
     def latest(self, quiz: str) -> Round | None:
         rounds = [r for r in self.rounds.values() if r.quiz == quiz]
@@ -605,8 +608,15 @@ class Engine:
                     p.total_ms += a.answer_ms
                     self._save(a)
             self._rank(s)
+        if any(a.published for a in s.activity_points.values()):
+            for p in players:
+                p.score += sum(a.awards.get(p.id, {}).get("points", 0) for a in s.activity_points.values())
+            self._rank(s)
         for p in players:
             self._save(p)
+
+    def replace_activity_points(self, snapshot):
+        return reconcile(self, snapshot)
 
     def finish(self, sid: str, now: int):
         s = self.session(sid)
@@ -1331,6 +1341,9 @@ class Engine:
         header = ["rank", "nickname", "score", "correct", "answered"]
         for q in quizzes:
             header += [f"{q} answer", f"{q} correct", f"{q} points"]
+        activities = sorted((a for a in s.activity_points.values() if a.published), key=lambda a: (a.kind, a.item))
+        for a in activities:
+            header += [f"{a.item} activity credit", f"{a.item} activity points"]
         rounds = {q: next((r for r in sorted(s.rounds.values(), key=lambda r: r.attempt)
                            if r.quiz == q and not r.practice), None) for q in quizzes}
         rows = [header]
@@ -1350,6 +1363,15 @@ class Engine:
                 revealed = rounds[q].phase == "revealed"
                 cells += [text, "" if not revealed or a.correct is None else int(a.correct),
                           a.points + a.bonus if revealed else ""]
+            for activity in activities:
+                award = activity.awards.get(p.id)
+                if award is None:
+                    cells += ["", ""]
+                else:
+                    answered += 1
+                    credit = award["credit"]
+                    correct += credit == 1000
+                    cells += [credit / 1000 if credit is not None else "", award["points"] if credit is not None else ""]
             rows.append([p.rank or "", p.nickname, p.score, correct, answered] + cells)
         return rows
 

@@ -144,6 +144,7 @@ def load_bundle(path: Path, *, catalog=None) -> Bundle:
         from texstage.plugins import PluginError
         from texstage.plugins.catalog import Catalog
         from texstage.plugins.manifest import validate_bindings
+        from texstage.plugins.points import fixed_points
         catalog = catalog or Catalog()
         try:
             catalog.check(deck.get("plugins"))
@@ -163,6 +164,7 @@ def load_bundle(path: Path, *, catalog=None) -> Bundle:
                                 not isinstance(name, str) or not isinstance(rel, str)
                                 or not PLUGIN_DATA.fullmatch(rel) for name, rel in assets.items()):
                             raise PluginError("plugin data assets must use approved content-addressed paths")
+                    fixed_points(public_item, spec)
                     bindings = prepared["evaluations"]
                     validate_bindings(bindings, spec.get("evaluations", {}), prepared=True)
                     required = {cid for p in deck["plugins"] for cid in p["capabilities"]}

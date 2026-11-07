@@ -1,5 +1,11 @@
 # Engine results and view schemas
 
+Revision 4 adds optional [host-owned activity points](plugin-points.md).
+Earlier manifest revisions remain supported.
+
+Manifest revision 3 optionally adds [bounded actor records](plugin-actor-records.md)
+for larger classes. Revisions 1 and 2 retain their existing contracts.
+
 This branch implements the first transaction-plugin prerequisite: typed engine
 facts, revision-2 manifests, validated view projections and epoch-guarded reset.
 API 1 remains experimental. This is usable host code; the transaction activity and
@@ -8,7 +14,7 @@ classroom-capacity changes are separate milestones. The subsequent
 
 ## Manifest compatibility
 
-The host accepts manifest revisions 1 and 2. Revision 1 remains closed and cannot
+The host accepts manifest revisions 1, 2, 3 and 4. Revision 1 remains closed and cannot
 declare the new fields. Revision 2 adds an optional engine `result_data_schema`
 and requires each content type to declare `view_schemas` covering exactly the
 surfaces in `views`. All schema paths refer to inventoried, hashed package JSON
@@ -36,7 +42,8 @@ These are additions to the complete capability objects, not standalone manifests
 Each content type declares exactly one of the post-compilation `build_hook`
 and the pre-compilation `authoring_hook`. The latter uses an explicit
 `--activities` sidecar; see [preparing activities](plugin-authoring.md).
-Old hosts reject revision 2; they must not discard fields to accept it.
+Older hosts reject unsupported revisions; they must not discard fields to accept
+them. Revision 3 retains these fields and adds the opt-in actor-record contract.
 
 ## Engine facts and grading
 
@@ -201,3 +208,75 @@ through this cache. See `tests/test_plugin_schema_cache.py` and
 This generic optimization was prompted by Query-plan's 64-participant load
 probe. It does not establish a host-wide capacity guarantee or change evaluator
 leases, queue policy, worker CSP or provider authorization.
+
+## Bounded item records (host 0.2.1.dev4)
+
+A manifest-revision-2 content type can declare `state_records: true`. Its state
+hook then implements `record_keys(state, event, ctx)` before transition and view
+calls. Return a list of keys, or `{"keys": [...], "page": {"offset": 0, "limit": 16}}`.
+The host supplies the requested existing values in `ctx["records"]` and the
+ordered page keys in `ctx["record_page"]`. Page order is the database's key order.
+The scope is always the current session, content type, item and epoch.
+
+Use `PutRecord(key, value)` from `texstage.plugin_api.v1`, or its JSON effect
+`{"kind": "put-record", "key": key, "value": value}`, to upsert a record. State,
+record writes, jobs and the receipt commit in one revision-checked transaction.
+Reset removes the item's records and advances its epoch; private session archives
+include records. Replaying an accepted receipt does not execute the writes again.
+
+The limits are 1,024 records per item/epoch, 4,096 canonical JSON bytes per value,
+and 32 distinct reads per hook call including any page and explicit selection.
+A key has 1–256 characters and at most 512 canonical JSON bytes. Page offset is
+0–1,024 and limit is 1–32. Duplicate write keys, malformed requests and excess
+capacity are rejected. Existing effect, transition, command and view budgets
+remain unchanged; this API avoids sending an entire classroom's answers through
+every hook. It does not grant the provider direct database access.
+
+Enabled provider hooks are trusted code. They must request and project only the
+records appropriate to the authenticated audience; the host enforces item/epoch
+scope and output schemas, not the meaning of an arbitrary record key. Record
+contents are never automatically included in public views.
+
+## Actor-scoped participant updates
+
+A content type may opt into `participant_updates: "actor"` only when a
+participant command and its completion cannot change another participant's
+projection. The host then coalesces updates for affected authenticated actors;
+presenters/projectors still refresh. Presenter commands, reset and navigation
+remain full broadcasts. Multiple pending actor sets are unioned, and a full
+broadcast dominates them. Providers without this declaration retain the original
+broadcast behavior. Global participant counts therefore belong in presenter
+views for an opted-in activity, not in each phone's live projection.
+
+## Deterministic successful-result reuse
+
+A revision-2 engine may declare `result_cache: "by-input"` when its outcome is a
+deterministic function of its prepared binding and exact input. The host can
+reuse a previously accepted, validated successful outcome within the same
+session, content type, item and epoch. The cache identity includes the provider
+payload, engine/result schema, binding seed/options/references and exact input.
+No cached outcome crosses a reset, exercise or session boundary. Non-success,
+invalid, expired, cancelled, superseded-owner or stale-generation results do not
+prime the cache. The in-memory LRU retains at most 128 immutable JSON outcomes;
+each retains the existing 12 KiB result limit. A restart safely discards it.
+
+Each submission still has its own durable job, authenticated actor, correlation,
+answer version and guarded delivery transition. A known cache hit can be stored
+atomically with the new job and delivered before broadcasting its saved state,
+without an unnecessary intermediate pending projection. A cache hit is never a shortcut
+around provider semantic verification or audience privacy. At most 32 cached
+jobs are completed per work poll; the presenter polls promptly while queued work
+remains. Fresh executions still use fresh restricted workers, at most two per
+poll, with unchanged CSP, network restrictions, deadlines and retry limits.
+Engines with stateful, random, time-dependent or actor-dependent outcomes must
+not opt in. Existing engines remain uncached by default.
+
+The separate revision-3 [actor-record API](plugin-actor-records.md) remains
+available with its host-controlled authenticated-actor projection. The revision-2
+item-record opt-in described here uses provider-selected keys and a different
+context shape; a content type uses the contract declared by its manifest.
+
+See `test_plugin_records.py`, `test_plugin_result_cache.py`, the broadcast tests
+and the evaluator-poll tests for transaction, isolation and bounded-work checks.
+Use fresh sessions and an exactly pinned compatible host/provider environment;
+the development version alone is not a reproducible artifact identity.

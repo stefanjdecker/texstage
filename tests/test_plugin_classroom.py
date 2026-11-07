@@ -109,39 +109,44 @@ def test_presenter_controls_push_immediately_but_student_bursts_coalesce():
     calls = []
     host = object.__new__(PluginHost)
     receipt = {'accepted': True, 'epoch': 1, 'revision': 2}
-    host.runtime = SimpleNamespace(command=lambda *args: receipt)
+    host.runtime = SimpleNamespace(command=lambda *args: receipt, take_changes=lambda sid: None,
+                                   drain=lambda sid: calls.append(('drain',sid)))
+    host.sync_points = lambda sid: None  # durable projection tested separately
     host.server = SimpleNamespace(push=lambda sid: calls.append(('push', sid)),
-                                  plugins_changed=lambda sid: calls.append(('coalesce', sid)))
+                                  plugins_changed=lambda sid, only=None: calls.append(('coalesce', sid)))
     host.sync = lambda sid: (None, SimpleNamespace(items={'org.example.plane': {'one': {}}}), [])
     host.identity = lambda conn: (conn.role, 'actor')
     message = {'t': 'plugin.command', 'command': {'type': 'org.example.plane', 'item': 'one'}}
     for role in ('participant', 'presenter'):
         assert host.handle(SimpleNamespace(role=role, session='s'), message) == {'receipt': receipt}
-    assert calls == [('coalesce', 's'), ('push', 's')]
+    assert calls == [('drain', 's'), ('coalesce', 's'), ('drain', 's'), ('push', 's')]
 
 
 @pytest.mark.parametrize('cost,delay', [(0.01,0.2),(0.25,0.75),(2,1)])
 def test_broadcasts_reserve_loop_time_with_bounded_delay(monkeypatch, cost, delay):
+    import asyncio
     clock = [100.0]
     monkeypatch.setattr('texstage.server.app.time.monotonic', lambda: clock[0])
     server = object.__new__(Server)
     server.engine = SimpleNamespace(sessions={'s': object()})
     server.plugin_dirty, server.plugin_push_after = set(), {}
+    server.plugin_recipients = {}
+    server.dirty, server.conns = set(), {}
     pushes = []
-    def push(sid):
+    def push(sid, only=None):
         pushes.append(sid)
         clock[0] += cost
         server.plugin_dirty.discard(sid)
     server.push = push
     for _ in range(64): server.plugins_changed('s')
-    server.flush_plugins()
+    asyncio.run(server.flush_plugins())
     assert pushes == ['s']
     server.plugins_changed('s')
     clock[0] += delay - 0.001
-    server.flush_plugins()
+    asyncio.run(server.flush_plugins())
     assert pushes == ['s'] and server.plugin_dirty == {'s'}
     clock[0] += 0.002
-    server.flush_plugins()
+    asyncio.run(server.flush_plugins())
     assert pushes == ['s','s'] and not server.plugin_dirty
 
 
@@ -150,7 +155,9 @@ def test_ended_sessions_do_not_retain_broadcast_deadlines():
     server.engine = SimpleNamespace(sessions={'live': object()}, players={})
     server.plugin_dirty = {'live','ended'}
     server.plugin_push_after = {'live': 1, 'ended': 2}
+    server.plugin_recipients = {'live': {'alice'}, 'ended': {'bob'}}
     server.replies, server.conns = {}, {}
     server._sweep()
     assert server.plugin_dirty == {'live'}
     assert server.plugin_push_after == {'live': 1}
+    assert server.plugin_recipients == {'live': {'alice'}}

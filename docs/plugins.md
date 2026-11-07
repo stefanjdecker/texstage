@@ -1,5 +1,11 @@
 # Experimental plugins
 
+Optional [activity points](plugin-points.md) connect manifest-4 providers to
+the normal game total, leaderboard and CSV export.
+
+Manifest revision 3 optionally adds [bounded actor records](plugin-actor-records.md)
+for larger classes. Revisions 1 and 2 retain their existing contracts.
+
 This branch implements an experimental plugin host and two independently packaged
 examples in the separate `texstage-plugins` repository. It is a prototype of the
 [API 1 design](architecture/plugin-system-design.md), not a stable API 1 release.
@@ -26,7 +32,7 @@ The commands below use the virtual environment's `python` and `texstage` command
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/dev.txt
 python -m build --no-isolation
-python -m pip install --no-deps dist/texstage-0.2.1.dev3-py3-none-any.whl
+python -m pip install --no-deps dist/texstage-0.2.1.dev5-py3-none-any.whl
 ```
 
 In the separate collection checkout, build its two packages with
@@ -98,7 +104,9 @@ Use `texstage.plugins.sdk` as the PEP 517 backend, delegate package selection to
 setuptools, and include `texstage-plugin.json` in `MANIFEST.in`. The backend adds
 the manifest, complete resource hashes and sizes to the wheel's `.dist-info`, then
 updates `RECORD`. The source manifest omits `resources`; the installed manifest
-must satisfy [manifest-v1.json](../src/texstage/plugins/schemas/manifest-v1.json).
+must satisfy its declared manifest revision: [v1](../src/texstage/plugins/schemas/manifest-v1.json),
+[v2](../src/texstage/plugins/schemas/manifest-v2.json) or
+[v3](../src/texstage/plugins/schemas/manifest-v3.json).
 
 API 1 requires a portable `py3-none-any` wheel. Own one independent Python package;
 do not overwrite Texstage or share files with another distribution. Native plugin
@@ -274,7 +282,6 @@ the measured Windows/browser limits. A provider's storage ceiling does not
 guarantee response latency for that many participants. Physical phones, LAN
 conditions and deployments need their own checks.
 
-
 ## Implementation status and release gate
 
 Implemented: manifest/SDK contracts, metadata discovery, explicit profiles and
@@ -329,3 +336,33 @@ shortcuts remain available when focus returns to the slide background.
 
 In a narrow, short presenter window (including browser zoom), the workspace
 scrolls vertically so notes and plugin controls retain usable height.
+
+## Classroom scheduling and schema validation
+
+Student plugin commands and evaluator results use coalesced, role-filtered
+projections at a cost-aware rate: ordinarily every 200 ms, with at most one
+second deliberate delay after expensive broadcasts. Durable command receipts
+are still immediate. Presenter controls push their updated guarded
+view immediately so selecting and then sharing an answer uses current state.
+Membership, actor identity and projection rules are checked when sending.
+
+The evaluator keeps draining nonempty batches without a fixed pause between
+them; empty or failed polls retain the 750 ms backoff. The two-job lease limit,
+worker confinement, result validation and evaluation deadlines are unchanged.
+An observed presenter disconnect requeues only that connection's leased jobs,
+retaining retry counts and rejecting its old results. The 120-second lease
+expiry remains a fallback for an unobserved disconnect.
+
+Successful schema safety checks are cached by exact canonical schema content
+(128 entries, each at most 64 KiB of serialized schema). Every value is still
+validated with a fresh schema snapshot. Neither caller mutation nor an exposed
+validation error can corrupt later checks: validator objects are never retained.
+Oversized schemas are checked without retention. External/dynamic references remain
+forbidden. The serialized cache bound is not a total process-memory bound.
+
+Class size remains provider- and deployment-specific. ER registration 0.5.0
+supports 600 answering actors using bounded item records, actor-scoped updates
+and opt-in deterministic result reuse. See the [host contract](plugin-contracts.md)
+and the collection's `docs/design/er-600-validation.md` for exact artifacts and
+measurements. Test the intended teaching host and network before deployment;
+a synthetic loopback run does not measure classroom Wi-Fi or 600 rendered phones.

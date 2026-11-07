@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from texstage.plugins import PluginError
+from texstage.plugins.points import fixed_points
 from texstage.plugins.manifest import canonical, read_json, resource_path, validate_bindings
 from texstage.plugins.worker import Workers
 from .bundle import public_rects
@@ -72,6 +73,7 @@ def validate_prepared(prepared, spec):
     if not isinstance(diagnostics, list) or len(diagnostics) > 64 or any(
             not isinstance(d, str) or len(d) > 2000 for d in diagnostics):
         raise PluginError("diagnostics must be bounded strings")
+    fixed_points(prepared["public"], spec)
     validate_bindings(prepared["evaluations"], spec.get("evaluations", {}))
 
 

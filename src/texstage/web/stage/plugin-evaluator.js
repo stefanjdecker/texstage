@@ -76,8 +76,8 @@ export class PluginEvaluator {
     if (this.stopped) return;
     let busy = false;
     try {
-      const { jobs } = await this.client.send({ t: "plugin.work" });
-      busy = Boolean(jobs?.length);
+      const { jobs, more_work } = await this.client.send({ t: "plugin.work" });
+      busy = Boolean(jobs?.length || more_work);
       await Promise.all((jobs || []).map(async job => {
         const outcome = await this.evaluate(job);
         if (!this.stopped) await this.client.send({ t: "plugin.result", result: {

@@ -105,6 +105,10 @@ def discover(*, distributions=None) -> tuple[Provider, ...]:
             validate_portable_schema(schema)
             for example in schema.get("examples", []) if isinstance(schema, dict) else []:
                 validate_json(schema, example, label="portable schema example")
+        for spec in manifest["capabilities"].get("content_types", {}).values():
+            for key in ("value_schema", "summary_schema"):
+                if "actor_records" in spec:
+                    validate_portable_schema(read_json(resources[spec["actor_records"][key]]))
         result.append(Provider(pid, manifest["version"], dist.metadata["Name"], root, entry.value,
                                digest(manifest), canonical(manifest), MappingProxyType(resources)))
     return tuple(sorted(result, key=lambda p: p.id))
@@ -153,7 +157,10 @@ class Catalog:
         if entry is None:
             raise PluginError(f"capability is not enabled: {cid}")
         provider, raw = entry
-        return provider, read_json(raw)
+        # Catalog construction retained canonical, validated immutable bytes.
+        # Decode a fresh snapshot; do not repeat untrusted-input checks or share
+        # a mutable capability object with a caller.
+        return provider, json.loads(raw)
 
     @property
     def latex_dirs(self):

@@ -126,7 +126,7 @@ def main():
                     result = plugin.build_hooks[spec["build_hook"]](*request["args"])
                 elif method == "prepare_source":
                     result = plugin.authoring_hooks[spec["authoring_hook"]](*request["args"])
-                elif method in ("initial_state", "transition", "view"):
+                elif method in ("initial_state", "transition", "view", "record_keys"):
                     hook = plugin.state_hooks[spec["state_hook"]]
                     result = getattr(hook, method)(*request["args"])
                 else:
