@@ -4,7 +4,7 @@
   "python": ">=3.12",
   "universal": true,
   "files": {
-    "pyproject.toml": "de9db131d93120555e0efacbf21bd22e59bd62126bd4ae27e43db42d759b83e6",
+    "pyproject.toml": "867a649080f1c0db3b4b6588cc4215cd45e01ed5ed83f59365ed79369b01dec0",
     "maintenance/lock_dependencies.py": "0228f2365bba6004583b789ac61fa6aa597d1f30611f7aa2a348ee2e31ace6ac",
     "requirements/runtime.in": "8ecf051cc09aefb7f3b20a2c164e1a45e422fcdea376ef017b4dcf5bc86c9397",
     "requirements/runtime.txt": "86406fe187148f89b9fc01d766e2b3ed5c1f0f8628883be561c671ef3004169e",
