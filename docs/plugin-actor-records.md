@@ -101,3 +101,26 @@ mutations retain a fresh dirty marker, and every batch checks current membership
 role and state. No private projection is reused across actors or retained across
 an event-loop yield. This keeps socket replies and evaluator traffic moving while
 larger classes receive updates; it does not change worker policy or deadlines.
+
+
+## Lecture archives and projector summaries
+
+The presenter-authorized lecture ZIP includes `plugins.json` whenever the plugin
+runtime is active. This is the complete private plugin archive, including actor
+records, jobs and reference-bearing state. Keep it in lecturer storage.
+
+`GET /api/archive/SESSION/plugins-public.json` also requires the owning
+presenter's key. It returns `{format: 1, surface: "projector-overlay", items: [...]}`.
+Each item has `type`, `item`, an immutable provider requirement and an ordinary
+projector `snapshot` with epoch/revision/data. Only a declared, validated projector
+schema is accepted. A legacy provider yields `unavailable: "projector-schema-required"`;
+a failed view yields `unavailable: "projector-view-unavailable"`, without private
+exceptions or fallback data. This is a current projection, not an anonymized
+assessment export or event replay. Revealed solutions and intentionally shared
+answers can be present, just as on the projector.
+
+The core never derives this summary by stripping fields from the private archive.
+No transaction-specific knowledge or storage is added to the host. Presenter
+plugin controls project lecturer windows immediately and schedule audience views
+through the bounded broadcaster, preserving role filtering and keeping a large
+class reveal from delaying the control receipt.

@@ -564,6 +564,30 @@ class Runtime:
                 transition = self.workers.call(row["kind"], "transition", state, event, ctx)
                 self._commit(row, transition, actor=job["actor"], delivery=job["id"], audience_actor=job["actor"], record_actor=job["actor"])
 
+    def public_archive(self, sid):
+        """Projector snapshots, never a redaction of the private archive.
+
+        Callers still require presenter authorization. Legacy providers without
+        a projector schema and failed projections yield only a stable reason.
+        The lock keeps item revisions stable across this snapshot; view() owns
+        each read transaction. No jobs, receipts or actor records are exported.
+        """
+        with self.lock:
+            items = []
+            for row in self.db.execute("SELECT kind,item FROM items WHERE sid=? ORDER BY kind,item", (sid,)).fetchall():
+                kind, item = row["kind"], row["item"]
+                provider, spec = self.catalog.capability(kind)
+                entry = {"type": kind, "item": item, "provider": provider.requirement()}
+                if "projector-overlay" not in spec.get("view_schemas", {}):
+                    entry["unavailable"] = "projector-schema-required"
+                else:
+                    try:
+                        entry["snapshot"] = self.view(sid, kind, item, "projector", "projector-overlay")
+                    except PluginError:
+                        entry["unavailable"] = "projector-view-unavailable"
+                items.append(entry)
+            return {"format": 1, "surface": "projector-overlay", "items": items}
+
     def archive(self, sid):
         """Presenter-authorized callers only; includes private plugin state."""
         with self.lock:

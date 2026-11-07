@@ -192,3 +192,22 @@ def test_global_update_dominates_targeted_notifications(monkeypatch):
     s.plugins_changed('lesson',only={'alice'}); s.plugins_changed('lesson'); s.plugins_changed('lesson',only={'alice'})
     flush_once(s,monkeypatch)
     alice.push.assert_called_once(); other.push.assert_called_once()
+
+
+def test_presenter_receipt_projects_lecturers_then_flushes_the_class(monkeypatch):
+    s=server();students=[peer(s,'player',str(i)) for i in range(600)]
+    teacher=peer(s,'stage',None);projector=peer(s,'display',None)
+    bridge=object.__new__(PluginHost);bridge.server=s
+    bridge.identity=lambda conn: ('presenter','authenticated')
+    bridge.sync_points=lambda sid: None
+    bridge.sync=lambda sid: (None,SimpleNamespace(items={'kind':{'one':{}}}),[])
+    bridge.runtime=SimpleNamespace(command=Mock(return_value={'accepted':True}),drain=Mock(),take_changes=Mock(return_value=None))
+    result=bridge.handle(SimpleNamespace(session='lesson',role='stage',key='owner'),{'t':'plugin.command','command':{'type':'kind','item':'one'}})
+    assert result=={'receipt':{'accepted':True}}
+    teacher.push.assert_called_once();projector.push.assert_called_once()
+    assert all(not p.push.called for p in students)
+    assert s.plugin_dirty=={'lesson'}
+    flush_once(s,monkeypatch)
+    for p in students:
+        p.push.assert_called_once()
+        assert p.push.call_args.args[0]['private_actor']==p.player

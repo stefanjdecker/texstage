@@ -160,10 +160,11 @@ class PluginHost:
             self.runtime.drain(conn.session)
             self.sync_points(conn.session)
             if role == "presenter":
-                # Human phase/selection/share controls need their new guarded
-                # state immediately; only audience bursts are coalesced.
-                self.server.push(conn.session)
-                self.runtime.take_changes(conn.session)
+                # Acknowledge human controls after projecting the few lecturer
+                # windows. Render audience views in the existing bounded flusher
+                # so a 1,000-person reveal cannot block the control receipt.
+                self.server.push(conn.session, players=False)
+                self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
             else:
                 self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
             return {"receipt": result}

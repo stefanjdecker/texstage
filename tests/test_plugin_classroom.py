@@ -113,14 +113,14 @@ def test_presenter_controls_push_immediately_but_student_bursts_coalesce():
     host.runtime = SimpleNamespace(command=lambda *args, **kwargs: receipt, take_changes=lambda sid: None,
                                    drain=lambda sid: calls.append(('drain',sid)))
     host.sync_points = lambda sid: None  # durable projection tested separately
-    host.server = SimpleNamespace(push=lambda sid: calls.append(('push', sid)),
+    host.server = SimpleNamespace(push=lambda sid, **options: calls.append(('push', sid, options)),
                                   plugins_changed=lambda sid, only=None: calls.append(('coalesce', sid)))
     host.sync = lambda sid: (None, SimpleNamespace(items={'org.example.plane': {'one': {}}}), [])
     host.identity = lambda conn: (conn.role, 'actor')
     message = {'t': 'plugin.command', 'command': {'type': 'org.example.plane', 'item': 'one'}}
     for role in ('participant', 'presenter'):
         assert host.handle(SimpleNamespace(role=role, session='s'), message) == {'receipt': receipt}
-    assert calls == [('drain', 's'), ('coalesce', 's'), ('drain', 's'), ('push', 's')]
+    assert calls == [('drain', 's'), ('coalesce', 's'), ('drain', 's'), ('push', 's', {'players': False}), ('coalesce', 's')]
 
 
 @pytest.mark.parametrize('cost,delay', [(0.01,0.2),(0.25,0.75),(2,1)])

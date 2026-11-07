@@ -1017,6 +1017,11 @@ class Server:
                 (folder / file).write_text(text, encoding="utf-8")
             else:
                 log.warning("not an archive file: %r", file)
+        if self.plugins.runtime is not None:
+            target = folder / "plugins.json"
+            temporary = folder / "plugins.json.tmp"
+            temporary.write_text(json.dumps(self.plugins.runtime.archive(s.id), ensure_ascii=True), encoding="utf-8")
+            temporary.replace(target)
         return folder
 
     def take_info(self, t) -> dict:
@@ -1475,6 +1480,13 @@ def create_app(config: ServerConfig) -> Starlette:
         return JSONResponse(server.plugins.runtime.archive(s.id) if server.plugins.runtime else {"format": 1, "items": []},
                             headers={"Cache-Control": "no-store"})
 
+    async def plugin_public_archive(request: Request):
+        s, refused = own_game(request)
+        if refused: return refused
+        result = server.plugins.runtime.public_archive(s.id) if server.plugins.runtime else {
+            "format": 1, "surface": "projector-overlay", "items": []}
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
     async def plugin_asset(request: Request):
         try:
             raw, mime = server.plugins.asset(request.path_params["payload"], request.path_params["name"])
@@ -1654,6 +1666,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/status", status),
         Route("/plugins/{payload}/{name:path}", plugin_asset),
         Route("/api/archive/{session}/plugins.json", plugin_archive),
+        Route("/api/archive/{session}/plugins-public.json", plugin_public_archive),
         Route("/play", page("play")),
         Route("/host", page("host")),
         Route("/stage", page("stage")),
