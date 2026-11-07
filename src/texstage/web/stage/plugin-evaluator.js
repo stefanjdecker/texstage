@@ -36,15 +36,19 @@ export class PluginEvaluator {
   }
   async poll() {
     if (this.stopped) return;
+    let busy = false;
     try {
       const { jobs } = await this.client.send({ t: "plugin.work" });
+      busy = Boolean(jobs?.length);
       await Promise.all((jobs || []).map(async job => {
         const outcome = await this.evaluate(job);
         if (!this.stopped) await this.client.send({ t: "plugin.result", result: {
           id: job.id, generation: job.generation, epoch: job.epoch, outcome } });
       }));
-    } catch { /* disconnections are retried; the durable lease can be replaced */ }
-    if (!this.stopped) this.timer = setTimeout(() => this.poll(), 750);
+    } catch { busy = false; /* reconnect retries keep the idle backoff */ }
+    // Keep draining a busy queue with the same two-job lease and worker limits.
+    // Empty queues and transport errors retain the ordinary polling backoff.
+    if (!this.stopped) this.timer = setTimeout(() => this.poll(), busy ? 0 : 750);
   }
   destroy() { this.stopped = true; clearTimeout(this.timer); for (const w of this.workers) w.terminate(); this.workers.clear(); }
 }

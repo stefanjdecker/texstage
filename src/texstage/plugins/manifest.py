@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+from functools import lru_cache
 from pathlib import Path, PurePosixPath
 
 from jsonschema import Draft202012Validator
@@ -63,7 +64,11 @@ def resource_path(value: str) -> str:
     return PurePosixPath(value).as_posix()
 
 
-def validate_schema(schema: dict):
+@lru_cache(maxsize=128)
+def _schema_validator(raw: bytes):
+    # Keep an owned snapshot: a caller mutating its schema must not mutate a
+    # cached validator or reuse approval for different rules.
+    schema = json.loads(raw)
     def refs(node):
         if isinstance(node, dict):
             if "$ref" in node and not str(node["$ref"]).startswith("#"):
@@ -78,12 +83,26 @@ def validate_schema(schema: dict):
         Draft202012Validator.check_schema(schema)
     except Exception as exc:
         raise PluginError(f"invalid JSON schema: {str(exc)[:500]}") from exc
+    return Draft202012Validator(schema)
+
+
+def _validator(schema):
+    raw = canonical(schema)
+    # Bound retained schema bytes as well as entry count. Large valid schemas
+    # still work, but do not occupy the cache.
+    if len(raw) > 64 * 1024:
+        return _schema_validator.__wrapped__(raw)
+    return _schema_validator(raw)
+
+
+def validate_schema(schema: dict):
+    _validator(schema)
 
 
 def validate_json(schema: dict, value, *, label="value"):
-    validate_schema(schema)
+    validator = _validator(schema)
     try:
-        Draft202012Validator(schema).validate(value)
+        validator.validate(value)
     except Exception as exc:
         path = ".".join(str(p) for p in getattr(exc, "absolute_path", ())) or "root"
         rule = getattr(exc, "validator", "validation")

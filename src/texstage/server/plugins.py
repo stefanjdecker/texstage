@@ -17,6 +17,10 @@ class PluginHost:
     def close(self):
         if self.runtime: self.runtime.close()
 
+    def disconnect(self, conn):
+        if self.runtime is not None and conn.role == "stage" and conn.session:
+            self.runtime.release(conn.session, conn.key)
+
     def sync(self, sid):
         session = self.server.engine.sessions.get(sid)
         if session is None or session.ended is not None: raise PluginError("session has ended")
@@ -80,7 +84,12 @@ class PluginHost:
             if not isinstance(envelope, dict) or envelope.get("item") not in bundle.items.get(envelope.get("type"), {}):
                 raise PluginError("item does not belong to this session")
             result = self.runtime.command(conn.session, actor, role, envelope)
-            self.server.push(conn.session)
+            if role == "presenter":
+                # Human phase/selection/share controls need their new guarded
+                # state immediately; only audience bursts are coalesced.
+                self.server.push(conn.session)
+            else:
+                self.server.plugins_changed(conn.session)
             return {"receipt": result}
         if operation not in ("plugin.work", "plugin.result") or conn.role != "stage":
             raise PluginError("only the presenter window can evaluate plugin jobs")
@@ -94,7 +103,7 @@ class PluginHost:
             return {"jobs": jobs}
         accepted = self.runtime.finish(conn.session, conn.key, message.get("result"))
         self.runtime.drain(conn.session)
-        self.server.push(conn.session)
+        self.server.plugins_changed(conn.session)
         return {"accepted": accepted}
 
     def asset(self, payload, name):

@@ -411,6 +411,7 @@ class Server:
         self.media: dict[str, tuple[str, str, int]] = {}              # ticket -> bundle ID, relative video file, valid until
         self.conns: dict[str, set[Conn]] = defaultdict(set)    # session id -> connections
         self.dirty: set[str] = set()                           # sessions whose hosts need a push
+        self.plugin_dirty: set[str] = set()                    # coalesced full plugin projections
         self.qa_dirty: set[str] = set()                        # ... whose questions changed (M6)
         self.qa_pushed = 0.0
         self.replies: dict[tuple, OrderedDict] = defaultdict(OrderedDict)
@@ -433,6 +434,7 @@ class Server:
         those that show the audience's questions)."""
         now = now_ms()
         if sid not in self.engine.sessions:
+            self.plugin_dirty.discard(sid)
             self._sweep()
             return
         if players and only is None and not asking:
@@ -458,6 +460,8 @@ class Server:
                 self.conns[sid].discard(c)
         if hosts:
             self.dirty.discard(sid)
+        if hosts and players and only is None and not asking:
+            self.plugin_dirty.discard(sid)
 
     def _sweep(self):
         """Connections of sessions that ended: hosts move to the deck's new session, if there
@@ -498,6 +502,8 @@ class Server:
         while True:
             await asyncio.sleep(HOST_PUSH_S)
             try:
+                for sid in list(self.plugin_dirty):
+                    self.push(sid)
                 for sid in list(self.dirty):
                     self.push(sid, players=False)
                 if self.qa_dirty and time.monotonic() - self.qa_pushed >= QA_PUSH_S:
@@ -512,6 +518,12 @@ class Server:
         """The audience's questions changed: the hosts and the phones that show them learn it soon."""
         self.dirty.add(sid)
         self.qa_dirty.add(sid)
+
+    def plugins_changed(self, sid: str):
+        # Commands and durable receipts are immediate. Render the latest full,
+        # role-filtered snapshots at the ordinary five-per-second update rate.
+        # A burst must not render N audience views again for each of N answers.
+        self.plugin_dirty.add(sid)
 
     def push_due(self):
         """The phones a content type's change concerns get their state (game.py: take_due)."""
@@ -919,6 +931,7 @@ class Server:
         return {"answer": a.payload}
 
     def disconnect(self, conn: Conn):
+        self.plugins.disconnect(conn)
         if conn.role in HOSTS:
             self.engine.left(conn.key)                   # what it held (a content type's lease) is free
         if conn.session:

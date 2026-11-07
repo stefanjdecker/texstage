@@ -269,6 +269,16 @@ class Runtime:
                                "namespace": namespace(p, binding["engine"], engine, binding)})
             return result
 
+    def release(self, sid, owner):
+        """Requeue a disconnected evaluator's work; retain its retry count.
+
+        Clearing ownership also rejects an old result before the next lease.
+        Expiry remains the fallback when a disconnect cannot be observed.
+        """
+        with self.lock:
+            return self.db.execute("""UPDATE jobs SET status='queued',owner=NULL,deadline=0
+                WHERE sid=? AND owner=? AND status='leased'""", (sid, owner)).rowcount
+
     def finish(self, sid, owner, result, *, now=None):
         now = time.time() if now is None else now
         if not isinstance(result, dict) or set(result) != {"id", "generation", "epoch", "outcome"}:
