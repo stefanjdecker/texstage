@@ -66,8 +66,8 @@ def resource_path(value: str) -> str:
 
 @lru_cache(maxsize=128)
 def _schema_validator(raw: bytes):
-    # Keep an owned snapshot: a caller mutating its schema must not mutate a
-    # cached validator or reuse approval for different rules.
+    # Cache successful safety checks only. A validator's ValidationError can
+    # expose its schema, so retaining a validator would permit cache poisoning.
     schema = json.loads(raw)
     def refs(node):
         if isinstance(node, dict):
@@ -83,7 +83,7 @@ def _schema_validator(raw: bytes):
         Draft202012Validator.check_schema(schema)
     except Exception as exc:
         raise PluginError(f"invalid JSON schema: {str(exc)[:500]}") from exc
-    return Draft202012Validator(schema)
+    return None
 
 
 def _validator(schema):
@@ -91,8 +91,12 @@ def _validator(schema):
     # Bound retained schema bytes as well as entry count. Large valid schemas
     # still work, but do not occupy the cache.
     if len(raw) > 64 * 1024:
-        return _schema_validator.__wrapped__(raw)
-    return _schema_validator(raw)
+        _schema_validator.__wrapped__(raw)
+    else:
+        _schema_validator(raw)
+    # Each instance validation owns a fresh snapshot, including errors exposed
+    # through PluginError.__cause__. Never retain caller- or error-owned objects.
+    return Draft202012Validator(json.loads(raw))
 
 
 def validate_schema(schema: dict):

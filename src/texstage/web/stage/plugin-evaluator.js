@@ -2,6 +2,44 @@
 // SPDX-License-Identifier: Apache-2.0
 import { makeOutcome, validateResult } from "./plugin-contracts.js";
 
+// Only immutable, provider-pinned resource bytes are shared. postMessage clones
+// each ArrayBuffer into a fresh job worker; no engine or answer state is reused.
+class AssetCache {
+  constructor() { this.entries = new Map(); this.bytes = 0; }
+  remove(url) {
+    const entry = this.entries.get(url);
+    if (entry) { this.bytes -= entry.bytes; this.entries.delete(url); }
+  }
+  trim() {
+    while (this.entries.size > 64 || this.bytes > 16 * 1024 * 1024) this.remove(this.entries.keys().next().value);
+  }
+  get(url) {
+    let entry = this.entries.get(url);
+    if (entry) {
+      this.entries.delete(url); this.entries.set(url, entry);
+      return entry.promise;
+    }
+    entry = {bytes:0}; this.entries.set(url, entry); this.trim();
+    entry.promise = (async () => {
+      try {
+        const response = await fetch(url, {signal:AbortSignal.timeout(10000)});
+        if (!response.ok) throw new Error("error");
+        const bytes = await response.arrayBuffer();
+        if (this.entries.get(url) === entry) {
+          if (bytes.byteLength > 16 * 1024 * 1024) this.remove(url);
+          else { entry.bytes = bytes.byteLength; this.bytes += entry.bytes; this.trim(); }
+        }
+        return bytes;
+      } catch (error) {
+        if (this.entries.get(url) === entry) this.remove(url);
+        throw error;
+      }
+    })();
+    return entry.promise;
+  }
+  clear() { this.entries.clear(); this.bytes = 0; }
+}
+
 export class PluginEvaluator {
   constructor(client) { this.client = client; this.workers = new Set(); this.stopped = false; this.poll(); }
   async evaluate(job) {
@@ -14,12 +52,12 @@ export class PluginEvaluator {
       worker.postMessage(message);
     });
     try {
+      if (!/^\/plugins\/[a-f0-9]{64}\/[a-zA-Z0-9_./-]+\.mjs$/.test(job.engine.url) || job.engine.url.includes("..")) throw new Error("error");
+      this.assets ||= new AssetCache();
       const assets = {};
       for (const [name, url] of Object.entries(job.engine.assets)) {
         if (!url.startsWith(job.engine.url.slice(0, 74)) || url.includes("..")) throw new Error("error");
-        const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        if (!r.ok) throw new Error("error");
-        assets[name] = await r.arrayBuffer();
+        assets[name] = await this.assets.get(url);
       }
       if ((await exchange({ t: "init", job, assets }, 30000)).t !== "ready") throw new Error("error");
       const references = [];
@@ -50,5 +88,5 @@ export class PluginEvaluator {
     // Empty queues and transport errors retain the ordinary polling backoff.
     if (!this.stopped) this.timer = setTimeout(() => this.poll(), busy ? 0 : 750);
   }
-  destroy() { this.stopped = true; clearTimeout(this.timer); for (const w of this.workers) w.terminate(); this.workers.clear(); }
+  destroy() { this.stopped = true; clearTimeout(this.timer); for (const w of this.workers) w.terminate(); this.workers.clear(); this.assets?.clear(); }
 }

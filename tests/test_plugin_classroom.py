@@ -8,6 +8,7 @@ import pytest
 from texstage.plugins import PluginError
 from texstage.plugins import manifest
 from texstage.server.plugins import PluginHost
+from texstage.server.app import Server
 from test_plugins import command, provider, start
 
 
@@ -117,3 +118,39 @@ def test_presenter_controls_push_immediately_but_student_bursts_coalesce():
     for role in ('participant', 'presenter'):
         assert host.handle(SimpleNamespace(role=role, session='s'), message) == {'receipt': receipt}
     assert calls == [('coalesce', 's'), ('push', 's')]
+
+
+@pytest.mark.parametrize('cost,delay', [(0.01,0.2),(0.25,0.75),(2,1)])
+def test_broadcasts_reserve_loop_time_with_bounded_delay(monkeypatch, cost, delay):
+    clock = [100.0]
+    monkeypatch.setattr('texstage.server.app.time.monotonic', lambda: clock[0])
+    server = object.__new__(Server)
+    server.engine = SimpleNamespace(sessions={'s': object()})
+    server.plugin_dirty, server.plugin_push_after = set(), {}
+    pushes = []
+    def push(sid):
+        pushes.append(sid)
+        clock[0] += cost
+        server.plugin_dirty.discard(sid)
+    server.push = push
+    for _ in range(64): server.plugins_changed('s')
+    server.flush_plugins()
+    assert pushes == ['s']
+    server.plugins_changed('s')
+    clock[0] += delay - 0.001
+    server.flush_plugins()
+    assert pushes == ['s'] and server.plugin_dirty == {'s'}
+    clock[0] += 0.002
+    server.flush_plugins()
+    assert pushes == ['s','s'] and not server.plugin_dirty
+
+
+def test_ended_sessions_do_not_retain_broadcast_deadlines():
+    server = object.__new__(Server)
+    server.engine = SimpleNamespace(sessions={'live': object()}, players={})
+    server.plugin_dirty = {'live','ended'}
+    server.plugin_push_after = {'live': 1, 'ended': 2}
+    server.replies, server.conns = {}, {}
+    server._sweep()
+    assert server.plugin_dirty == {'live'}
+    assert server.plugin_push_after == {'live': 1}

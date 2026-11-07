@@ -233,8 +233,11 @@ running lecture nor an existing lock needs GitHub access.
 ## Classroom evaluation and reconnects
 
 Plugin commands keep their durable receipts. Participant submissions and
-evaluation results coalesce role-filtered views at the host's ordinary 200 ms
-update interval. Presenter phase, selection and sharing controls still push
+evaluation results coalesce role-filtered views. Cheap broadcasts retain the
+ordinary 200 ms update interval; expensive broadcasts wait up to one second
+before the next full projection, based on the preceding broadcast's cost. This
+leaves time for socket replies, asset requests and evaluation jobs during a
+classroom burst. Presenter phase, selection and sharing controls still push
 their new state immediately. An acknowledgement can
 arrive before its updated view. Clients must keep using the supplied epoch,
 revision and plugin-specific edit guards; an acknowledgement is not a new view.
@@ -245,6 +248,14 @@ batch after completing work; an empty queue or transport error retains the
 750 ms backoff. Every evaluation still uses a fresh restricted worker and the
 same two-second per-evaluation deadline. These bounds are unchanged.
 
+The presenter caches immutable provider asset bytes by the complete pinned URL
+(at most 64 entries and 16 MiB retained). Concurrent jobs share downloads, then
+each fresh worker receives its own cloned buffers. No worker, engine state,
+answer, result or reference is shared between jobs. Failed downloads are evicted;
+oversized assets are usable without retention. Destroying the evaluator clears
+the cache, and a late download cannot repopulate it. URL approval, CSP and all
+result checks remain enforced on every job.
+
 When the server observes a presenter socket disconnect, it requeues that
 connection's unfinished jobs. Reassignment increments the lease generation;
 results from an old owner or generation cannot update an answer. Disconnects do
@@ -252,10 +263,11 @@ not reset the three-attempt retry budget. The 120-second lease expiry remains
 the fallback when a lost connection has not yet been detected. Without a
 presenter evaluator, submitted answers remain pending.
 
-Schema validators are cached by complete canonical schema content, with an
-owned schema snapshot. The cache holds at most 128 schemas of at most 64 KiB
-each; larger schemas are checked without retention. Every value is still
-validated, and external references/scopes and dynamic references remain refused.
+Successful schema safety checks are cached by complete canonical schema content.
+The cache holds at most 128 schemas of at most 64 KiB each; larger schemas are
+checked without retention. Each value is validated with a fresh schema snapshot,
+so mutating an error's exposed schema cannot change later validation. External
+references/scopes and dynamic references remain refused.
 
 The FD Lab classroom-load record in the separate plugin collection documents
 the measured Windows/browser limits. A provider's storage ceiling does not

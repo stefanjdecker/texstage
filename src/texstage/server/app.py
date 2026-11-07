@@ -412,6 +412,7 @@ class Server:
         self.conns: dict[str, set[Conn]] = defaultdict(set)    # session id -> connections
         self.dirty: set[str] = set()                           # sessions whose hosts need a push
         self.plugin_dirty: set[str] = set()                    # coalesced full plugin projections
+        self.plugin_push_after: dict[str, float] = {}          # monotonic next broadcast time
         self.qa_dirty: set[str] = set()                        # ... whose questions changed (M6)
         self.qa_pushed = 0.0
         self.replies: dict[tuple, OrderedDict] = defaultdict(OrderedDict)
@@ -467,6 +468,9 @@ class Server:
         """Connections of sessions that ended: hosts move to the deck's new session, if there
         is one; players are told to join again."""
         live = set(self.engine.sessions) | set(self.engine.players)
+        for sid in self.plugin_push_after.keys() - self.engine.sessions.keys():
+            self.plugin_push_after.pop(sid, None)
+            self.plugin_dirty.discard(sid)
         for key in [k for k in self.replies if k[1] not in live]:   # retry caches of ended games
             del self.replies[key]
         for sid in [sid for sid in self.conns if sid not in self.engine.sessions]:
@@ -502,8 +506,7 @@ class Server:
         while True:
             await asyncio.sleep(HOST_PUSH_S)
             try:
-                for sid in list(self.plugin_dirty):
-                    self.push(sid)
+                self.flush_plugins()
                 for sid in list(self.dirty):
                     self.push(sid, players=False)
                 if self.qa_dirty and time.monotonic() - self.qa_pushed >= QA_PUSH_S:
@@ -521,9 +524,24 @@ class Server:
 
     def plugins_changed(self, sid: str):
         # Commands and durable receipts are immediate. Render the latest full,
-        # role-filtered snapshots at the ordinary five-per-second update rate.
+        # role-filtered snapshots at a rate bounded by measured broadcast cost.
         # A burst must not render N audience views again for each of N answers.
         self.plugin_dirty.add(sid)
+
+    def flush_plugins(self):
+        # Reserve time for socket replies, worker module requests and job
+        # delivery when a full class projection is expensive. Aim for at most
+        # 25% of the loop in these broadcasts, with at most one second added
+        # coalescing delay. Cheap projections retain the ordinary 200 ms rate.
+        # Presenter controls and core navigation still call push immediately.
+        for sid in list(self.plugin_dirty):
+            start = time.monotonic()
+            if start < self.plugin_push_after.get(sid, 0):
+                continue
+            self.push(sid)
+            end = time.monotonic()
+            if sid in self.engine.sessions:
+                self.plugin_push_after[sid] = end + min(1.0, max(HOST_PUSH_S, 3 * (end - start)))
 
     def push_due(self):
         """The phones a content type's change concerns get their state (game.py: take_due)."""
