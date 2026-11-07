@@ -10,6 +10,7 @@ PRIVATE_PATHS = (
     'docs/media/demo/', 'docs/demonstration.md',
     'docs/demonstration-transcript.md',
     'examples/showcase/VIDEO-SCRIPT.md', 'examples/showcase/RECORDING.md',
+    'texstage-media/',
 )
 SHOWCASE = 'examples/showcase/showcase.tex'
 
@@ -19,7 +20,8 @@ def git(*args):
 
 
 def private(path):
-    return any(path.startswith(p) if p.endswith('/') else path == p for p in PRIVATE_PATHS)
+    return (path.endswith('.bundle') or path.startswith('texstage-archive')
+            or any(path.startswith(p) if p.endswith('/') else path == p for p in PRIVATE_PATHS))
 
 
 def main():

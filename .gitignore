@@ -36,9 +36,16 @@ deploy/.env
 
 /_site/
 
-# Recording-production assets are maintained only in the private checkout.
+# Recording-production assets belong in the separate private texstage-media repository.
 /docs/media/demo/
 /docs/demonstration.md
 /docs/demonstration-transcript.md
 /examples/showcase/VIDEO-SCRIPT.md
 /examples/showcase/RECORDING.md
+
+# Do not nest a private media checkout or repository backups inside the code tree.
+/texstage-media/
+/texstage-archive*/
+*.bundle
+
+/node_modules/

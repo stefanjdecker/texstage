@@ -23,6 +23,7 @@ from texstage.server import types as stage_types
 
 FILE = re.compile(r"^((slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(jpg|png))$")   # pictures, posters
 STAGE_PDF = re.compile(r"^stage/[0-9a-f]{16}\.pdf$")
+PLUGIN_DATA = re.compile(r"plugin-data/[0-9a-f]{64}\.(?:json|txt|csv|sql|ttl|png|jpg)\Z")
 KNOWN_TYPES = stage_types.KNOWN      # the content types this server knows: a deck that needs another is refused
 
 
@@ -80,7 +81,9 @@ class Bundle:
         """A picture of the bundle (a slide, a phone picture, a video's poster) or a file a
         content type serves as the pictures are (types.py: FILES); None for anything else (no
         path tricks)."""
-        if not FILE.match(rel) and not stage_types.bundle_file(rel):
+        plugin_public = {v for entries in self.items.values() for item in entries.values()
+                         for v in item.get("plugin_assets", {}).values()} if self.deck_json.get("format") == 3 else set()
+        if not FILE.match(rel) and not stage_types.bundle_file(rel) and not (PLUGIN_DATA.fullmatch(rel) and rel in plugin_public):
             return None
         path = self.path / rel
         return path if path.is_file() else None
@@ -111,7 +114,7 @@ def bundle_files(*parts: dict) -> set[str]:
     """The pictures, the media files, the stage PDF and the content types' files (types.py:
     FILES) that deck.json and keys.json name."""
     kinds = [r"(?:slides|phone)/[0-9a-f]{16}\.png", r"stage/[0-9a-f]{16}\.pdf", r"media/[0-9a-f]{16}\.[a-z0-9]{2,4}",
-             *stage_types.FILES]
+             r"plugin-data/[0-9a-f]{64}\.(?:json|txt|csv|sql|ttl|png|jpg)", *stage_types.FILES]
     return set(re.findall(f'"((?:{"|".join(kinds)}))"', json.dumps(parts)))
 
 
@@ -123,7 +126,7 @@ def holds(b: Bundle) -> bool:
         return False
 
 
-def load_bundle(path: Path) -> Bundle:
+def load_bundle(path: Path, *, catalog=None) -> Bundle:
     try:
         deck = json.loads((path / "deck.json").read_text(encoding="utf-8"))
         keys = json.loads((path / "keys.json").read_text(encoding="utf-8"))
@@ -136,11 +139,45 @@ def load_bundle(path: Path) -> Bundle:
     unsigned = ({k: v for k, v in deck.items() if k != "bundle"}, {k: v for k, v in keys.items() if k != "bundle"})
     if not bid or keys.get("bundle") != bid or bundle_id(*unsigned) != bid:
         raise BundleError(f"{path}: deck.json and keys.json do not match their bundle ID")
+    external = set()
+    if fmt == 3:
+        from texstage.plugins import PluginError
+        from texstage.plugins.catalog import Catalog
+        from texstage.plugins.manifest import validate_bindings
+        from texstage.plugins.points import fixed_points
+        catalog = catalog or Catalog()
+        try:
+            catalog.check(deck.get("plugins"))
+            external = {cid for p in deck["plugins"] for cid in p["capabilities"] if cid in catalog.types}
+            if not external or set(deck.get("items", {})) - KNOWN_TYPES - external:
+                raise PluginError("bundle contains unpinned content types")
+            for kind in external:
+                _, spec = catalog.capability(kind)
+                for item, public_item in deck.get("items", {}).get(kind, {}).items():
+                    prepared = keys.get("items", {}).get(kind, {}).get(item)
+                    if not isinstance(prepared, dict) or set(prepared) != {"private", "assets", "evaluations"}:
+                        raise PluginError("missing plugin private item data")
+                    if not isinstance(public_item, dict) or not isinstance(prepared["private"], dict):
+                        raise PluginError("plugin public/private item data must be objects")
+                    for assets in (public_item.get("plugin_assets", {}), prepared["assets"]):
+                        if not isinstance(assets, dict) or any(
+                                not isinstance(name, str) or not isinstance(rel, str)
+                                or not PLUGIN_DATA.fullmatch(rel) for name, rel in assets.items()):
+                            raise PluginError("plugin data assets must use approved content-addressed paths")
+                    fixed_points(public_item, spec)
+                    bindings = prepared["evaluations"]
+                    validate_bindings(bindings, spec.get("evaluations", {}), prepared=True)
+                    required = {cid for p in deck["plugins"] for cid in p["capabilities"]}
+                    for name, binding in bindings.items():
+                        if binding.get("engine") != spec["evaluations"][name]["engine"] or binding["engine"] not in required:
+                            raise PluginError("evaluation engine is not pinned")
+        except (PluginError, TypeError, KeyError) as exc:
+            raise BundleError(f"{path}: plugin preflight failed: {exc}") from None
     if fmt == 1:
         public, private, view, items = deck["quizzes"], keys["quizzes"], deck, {"quiz": deck["quizzes"]}
     else:
         items = deck.get("items", {})
-        unknown = sorted(set(deck.get("types", [])) - KNOWN_TYPES)
+        unknown = sorted(set(deck.get("types", [])) - KNOWN_TYPES - external)
         if unknown:
             raise BundleError(f"{path}: the deck needs {', '.join(unknown)}, which this server does not know - "
                               f"update texstage")
@@ -159,7 +196,7 @@ def load_bundle(path: Path) -> Bundle:
             raise BundleError(f"{path}: slide {i} names an unknown quiz {s['quiz']}")
         shows: dict[str, list[str]] = {}
         for box in s.get("live", []):
-            if box.get("type") in stage_types.TYPES:
+            if box.get("type") in stage_types.TYPES or box.get("type") in external:
                 if box.get("item") not in items.get(box["type"], {}):
                     raise BundleError(f"{path}: slide {i} names an unknown {box['type']} {box.get('item')}")
                 shows.setdefault(box["type"], []).append(box["item"])
@@ -189,11 +226,12 @@ def client_view(deck: dict) -> dict:
 class BundleStore:
     RESCAN_S = 2.0           # an unknown ID rescans the folders at most this often
 
-    def __init__(self, roots: list[Path], published: Path | None = None, more=None):
+    def __init__(self, roots: list[Path], published: Path | None = None, more=None, *, catalog=None):
         """published: the folder of uploaded bundles, <lecturer>/<deck>/<bundle id>/ - they
         belong to their lecturer; the bundles in the other folders are open to every lecturer.
         more: further folders, asked at every scan (the builds of this machine, builds.py)."""
         self.roots = [Path(r) for r in roots]
+        self.catalog = catalog
         self.more = more or (lambda: [])
         self.published = published.resolve() if published else None
         self.bundles: dict[str, Bundle] = {}
@@ -211,7 +249,7 @@ class BundleStore:
         path = path.resolve()
         self.dropped.add(path)
         try:
-            bid = load_bundle(path).id
+            bid = load_bundle(path, catalog=self.catalog).id
         except BundleError:
             bid = next((bid for bid, b in self.bundles.items() if b.path.resolve() == path), None)
         if bid is None:
@@ -219,7 +257,7 @@ class BundleStore:
         self.bundles.pop(bid, None)
         for folder in self.folders():
             try:
-                b = load_bundle(folder)
+                b = load_bundle(folder, catalog=self.catalog)
             except BundleError:
                 continue
             if b.id == bid:
@@ -262,7 +300,7 @@ class BundleStore:
         self.dropped = {p for p in self.dropped if p.exists()}
         for folder in self.folders():
             try:
-                b = load_bundle(folder)
+                b = load_bundle(folder, catalog=self.catalog)
             except BundleError as err:
                 self.problems.append(str(err))
                 continue
@@ -275,7 +313,7 @@ class BundleStore:
 
     def add(self, path: Path) -> Bundle:
         """A bundle that has just arrived (texstage publish, a PPTX's join slide)."""
-        b = load_bundle(path)
+        b = load_bundle(path, catalog=self.catalog)
         self.dropped.discard(path.resolve())
         return self._merge(b, self.owner(path))
 

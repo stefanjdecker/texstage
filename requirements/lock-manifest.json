@@ -4,14 +4,14 @@
   "python": ">=3.12",
   "universal": true,
   "files": {
-    "pyproject.toml": "cf902c0910750dfb25d3f4a2d6c2364a42e40a14f0ef09635f5d2bfc2053dbbf",
+    "pyproject.toml": "867a649080f1c0db3b4b6588cc4215cd45e01ed5ed83f59365ed79369b01dec0",
     "maintenance/lock_dependencies.py": "0228f2365bba6004583b789ac61fa6aa597d1f30611f7aa2a348ee2e31ace6ac",
-    "requirements/runtime.in": "6d704ebcedd624a977f1b82672f90abcfc5c188555981b277733cd05b41bbb9e",
-    "requirements/runtime.txt": "af1c025269205bf1d8ca59c1e97fbc598985b2a4d8e1e3dc20df7f287cd13a5b",
+    "requirements/runtime.in": "8ecf051cc09aefb7f3b20a2c164e1a45e422fcdea376ef017b4dcf5bc86c9397",
+    "requirements/runtime.txt": "86406fe187148f89b9fc01d766e2b3ed5c1f0f8628883be561c671ef3004169e",
     "requirements/build.in": "2e1a2958752f47a443cf2524f0057db560ca9bc06062bdc64730014211fe30d7",
     "requirements/build.txt": "9c482fa721548dd14edba2f2a7ec98b2dda4b7b27950a6e437a10eae88580f1e",
     "requirements/dev.in": "015ba92518a5e93cf38f6a995ff8560e5caa0b6aa545b874fc0b5a2dc60103b0",
-    "requirements/dev.txt": "fb6f5de7bc5a32a2bd49126ddd330352f081c0a7619fff213cd0fd6cf876d31c",
+    "requirements/dev.txt": "6165003f2146e5a3412c9fd6fcb72345d09f5c058e0fddaeabfc325c3ebc9813",
     "requirements/docs.in": "07f5a6aa13d961c7f1a49d642df70fad25796be6c07badba1d8c88c9265e5798",
     "requirements/docs.txt": "5055f4ae690877b15a76df52dd73bdb451d077cae00648bb093cab369a9dc190"
   }

@@ -1,4 +1,6 @@
+jsonschema>=4.23
 lxml>=5
+packaging>=24.2
 pillow>=11
 pypdfium2>=5
 python-pptx>=1.0

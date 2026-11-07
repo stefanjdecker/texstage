@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "texstage"
-version = "0.2.1.dev3"
+version = "0.2.1.dev7"
 description = "Beamer decks presented live, with quizzes authored in LaTeX (texquiz) - in the browser or in PowerPoint"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -36,6 +36,8 @@ dependencies = [
   "starlette>=0.46",
   "uvicorn[standard]>=0.34",
   "segno>=1.6",
+  "jsonschema>=4.23",     # local, non-executable plugin contracts
+  "packaging>=24.2",
 ]
 
 [project.optional-dependencies]
@@ -49,6 +51,7 @@ texstage = "texstage.cli:main"
 # Four generic LaTeX packages are installed under texstage/latex/.
 package-dir = { "" = "src", "texstage.latex" = "latex" }
 packages = ["texstage", "texstage.build", "texstage.server", "texstage.latex",
+            "texstage.plugins", "texstage.plugin_api", "texstage.plugin_api.v1",
             # the web pages' folders - data, but importable names to Python, so setuptools wants them listed
             "texstage.web", "texstage.web.addin", "texstage.web.host", "texstage.web.play", "texstage.web.shared",
             "texstage.web.stage", "texstage.web.engines", "texstage.web.vendor", "texstage.web.vendor.katex",
@@ -57,4 +60,5 @@ packages = ["texstage", "texstage.build", "texstage.server", "texstage.latex",
 
 [tool.setuptools.package-data]
 texstage = ["web/**/*"]      # the pages the server serves (phone, host console, live views, texstage)
+"texstage.plugins" = ["schemas/*.json"]
 "texstage.latex" = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]

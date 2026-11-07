@@ -2247,6 +2247,104 @@
           "p": "In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported."
         }
       ]
+    },
+    {
+      "title": "Experimental plugin authoring",
+      "reference": true,
+      "layout": "text",
+      "images": [],
+      "blocks": [
+        {
+          "p": "The experimental plugin implementation adds texstagepluginbox as a generic bridge for external slide types. Install and explicitly enable trusted plugin wheels in an isolated environment. Plugin code is never included in an uploaded deck. The implementation and remaining release gates are described in docs/plugins.md; API 1 is not yet stable."
+        },
+        {
+          "code": "\\usepackage{texstage}\n\\begin{texstagepluginbox}[\n  type=org.example.coordinates.plane,id=walk,\n  public=plane-public.json,private=plane-private.json\n]{0.9\\linewidth}{4cm}\n  Static diagram or explanation for PDF and PowerPoint.\n\\end{texstagepluginbox}"
+        },
+        {
+          "table": {
+            "headers": [
+              "Key or argument",
+              "Meaning"
+            ],
+            "rows": [
+              [
+                "type",
+                "Qualified content-type ID from an enabled plugin manifest."
+              ],
+              [
+                "id",
+                "A unique item ID: a letter followed by letters, digits, underscore or hyphen."
+              ],
+              [
+                "public",
+                "UTF-8 JSON file relative to the deck directory; public item data."
+              ],
+              [
+                "private",
+                "Optional JSON file for reference answers and presenter-only data."
+              ],
+              [
+                "public-json / private-json",
+                "Inline JSON alternatives for plugin convenience styles; do not combine a file and inline value for the same field."
+              ],
+              [
+                "Width / height",
+                "The two mandatory dimensions reserve the live overlay rectangle. The body supplies the static fallback."
+              ]
+            ]
+          }
+        },
+        {
+          "p": "The enabled package prepares and validates the item data. Its declared evaluation engines must also be installed and enabled. External-plugin bundles use format 3 with exact provider payload pins; built-in-only bundles remain format 2. The server checks those pins before accepting the bundle. Handout and solutions PDFs retain the LaTeX body; plugin styles may provide a solutions-specific diagram."
+        },
+        {
+          "code": "texstage build plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json\ntexstage pdf plane.tex --solutions --data ./plugin-profile\ntexstage serve ./texquiz-out --data ./plugin-profile"
+        },
+        {
+          "p": "The host supplies approved plugin style directories only for this compilation and verifies the recorder output. A stale local style that TeX actually loads instead of the approved package fails the build. Existing course snapshots and the lecture-tools installation remain untouched. Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter."
+        }
+      ]
+    },
+    {
+      "title": "Prepared plugin exercises",
+      "reference": true,
+      "layout": "text",
+      "images": [],
+      "blocks": [
+        {
+          "p": "An enabled revision-2 provider can declare authoring_hook instead of build_hook. With an explicit --activities JSON file, Texstage prepares the live data, exercise and worked solution before LaTeX. All build modes use that preparation. The transaction activity itself remains a separate implementation milestone; see docs/plugin-authoring.md for the full contract."
+        },
+        {
+          "code": "{\"format\":1,\"language\":\"en\",\"items\":[\n  {\"id\":\"counter\",\"type\":\"org.example.counter.exercise\",\n   \"source\":\"counter.json\"}\n]}"
+        },
+        {
+          "p": "This schematic counter example requires a provider implementing the named type. Source paths are relative to the master deck directory. Install and enable that provider explicitly; the activity file cannot install code."
+        },
+        {
+          "code": "\\usepackage{texstage}\n\\begin{frame}{Predict the result}\n  \\texstageprepared{counter}{.92\\linewidth}{.55\\textheight}\n\\end{frame}"
+        },
+        {
+          "p": "\\texstageprepared{ID}{width}{height} reserves the live rectangle and inserts the prepared exercise in present/handout mode, or the worked solution in solutions mode. The ID must occur in the activity file. A provider style may wrap this command."
+        },
+        {
+          "p": "\\texstagepreparedasset{ID}{asset} expands to a host-materialized declared data/image asset. Private assets through this command are available only in solutions. Raw exercise sources and generated solution fragments are not copied to public bundle routes."
+        },
+        {
+          "code": "texstage build lesson.tex --activities lesson.activities.json --data ./profile\ntexstage pdf lesson.tex --solutions --activities lesson.activities.json --data ./profile\ntexstage prepare lesson.tex --activities lesson.activities.json --data ./profile"
+        },
+        {
+          "p": "The prepare command prints handout, solutions and present entry points for direct pdfLaTeX. These local artifacts include explicit style paths and freshness checks. Regenerate them after changing an exercise, asset or provider. The local preparation directory contains the worked solution; distribute the intended PDF or bundle output."
+        },
+        {
+          "heading": "Generated bridge commands"
+        },
+        {
+          "p": "\\texstageprepareddeclare{ID}{type}{digest}{exercise}{solutions} registers the generated fragments. \\texstagepreparedassetdeclare{ID}{asset}{path}{visibility} registers an asset. \\texstagepreparedcheck{path}{MD5} refuses changed inputs during direct pdfLaTeX. These commands belong to generated registry files; ordinary deck authors use texstageprepared and texstagepreparedasset."
+        },
+        {
+          "p": "Every mode verifies matching prepared records; live builds also verify geometry bindings. Python checks source, provider and artifact hashes. present --activities always rebuilds and stops on failure. Existing plugins that use the post-LaTeX build_hook retain their original workflow."
+        }
+      ]
     }
   ]
 }

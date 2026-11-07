@@ -1,0 +1,12 @@
+{
+  "name": "texstage-maintenance",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build:workers": "node maintenance/build_worker_modules.cjs",
+    "check:workers": "node maintenance/build_worker_modules.cjs --check"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

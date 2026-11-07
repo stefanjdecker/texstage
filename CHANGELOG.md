@@ -2,6 +2,33 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Fix Firefox/WebKit plugin-worker startup using dynamic loading of self-contained
+  ES modules, preserving the worker Content Security Policy and result validation.
+  Add a reproducible contract bundle and CI freshness check. Matching transaction
+  and relational-engine bundles and active security probes live in the plugin collection.
+
+- Prepare explicitly declared plugin activities before LaTeX, sharing one source
+  between live data, handouts, solutions and static PowerPoint. Add bounded
+  authoring hooks, source/asset identity checks and direct-pdfLaTeX exports.
+
+- Add revision-2 plugin manifests with bounded typed engine results and explicit
+  surface-view schemas, retaining revision-1 providers. Validate complete results
+  in the worker, browser transport and server; pin schema identity in result keys.
+- Guard presenter reset by epoch while preserving durable retry receipts, and
+  add an SDK helper for actor-scoped evaluation correlations.
+- Add cross-language schema, result, concurrency and browser conformance checks.
+
+- Add an experimental plugin host: metadata discovery, explicit enablement and
+  locks, portable wheels, generic LaTeX boxes and format-3 bundle preflight.
+- Connect external slide types to isolated hooks, durable command receipts and
+  evaluation jobs, presenter/projector/phone views and browser engine workers.
+- Add catalog refresh/search/inspection and verified wheel installation, with
+  independent examples in the separate texstage-plugins collection.
+- Document the prototype and remaining API 1 release gates; retain legacy
+  formats and built-in activity behavior. Extend the authoring reference.
+- Fix presenter startup with an already saved key by initializing module helpers
+  before opening the remembered deck.
+
 - Update public-source installation, SQL activity restrictions, PowerPoint
   command guidance and release status; correct screenshot provenance.
 - Regenerate the Markdown, LaTeX and PDF manuals from their shared source.

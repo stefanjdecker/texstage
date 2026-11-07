@@ -27,6 +27,8 @@ Packages, commands, options and developer interfaces
 - [Core asset and layout helpers](#core-asset-and-layout-helpers)
 - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
 - [Deck language and live labels](#deck-language-and-live-labels)
+- [Experimental plugin authoring](#experimental-plugin-authoring)
+- [Prepared plugin exercises](#prepared-plugin-exercises)
 
 ## LaTeX reference: packages and loading
 
@@ -464,3 +466,76 @@ Texstage records the active Babel or Polyglossia language when LaTeX builds a de
 ```
 
 In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported.
+
+
+## Experimental plugin authoring
+
+The experimental plugin implementation adds texstagepluginbox as a generic bridge for external slide types. Install and explicitly enable trusted plugin wheels in an isolated environment. Plugin code is never included in an uploaded deck. The implementation and remaining release gates are described in docs/plugins.md; API 1 is not yet stable.
+
+```
+\usepackage{texstage}
+\begin{texstagepluginbox}[
+  type=org.example.coordinates.plane,id=walk,
+  public=plane-public.json,private=plane-private.json
+]{0.9\linewidth}{4cm}
+  Static diagram or explanation for PDF and PowerPoint.
+\end{texstagepluginbox}
+```
+
+| Key or argument | Meaning |
+| --- | --- |
+| type | Qualified content-type ID from an enabled plugin manifest. |
+| id | A unique item ID: a letter followed by letters, digits, underscore or hyphen. |
+| public | UTF-8 JSON file relative to the deck directory; public item data. |
+| private | Optional JSON file for reference answers and presenter-only data. |
+| public-json / private-json | Inline JSON alternatives for plugin convenience styles; do not combine a file and inline value for the same field. |
+| Width / height | The two mandatory dimensions reserve the live overlay rectangle. The body supplies the static fallback. |
+
+The enabled package prepares and validates the item data. Its declared evaluation engines must also be installed and enabled. External-plugin bundles use format 3 with exact provider payload pins; built-in-only bundles remain format 2. The server checks those pins before accepting the bundle. Handout and solutions PDFs retain the LaTeX body; plugin styles may provide a solutions-specific diagram.
+
+```
+texstage build plane.tex --data ./plugin-profile --plugins-lock ./plugins.lock.json
+texstage pdf plane.tex --solutions --data ./plugin-profile
+texstage serve ./texquiz-out --data ./plugin-profile
+```
+
+The host supplies approved plugin style directories only for this compilation and verifies the recorder output. A stale local style that TeX actually loads instead of the approved package fails the build. Existing course snapshots and the lecture-tools installation remain untouched. Native PowerPoint uses the static fallback for external slide types; live interaction takes place in the browser presenter.
+
+
+## Prepared plugin exercises
+
+An enabled revision-2 provider can declare authoring_hook instead of build_hook. With an explicit --activities JSON file, Texstage prepares the live data, exercise and worked solution before LaTeX. All build modes use that preparation. The transaction activity itself remains a separate implementation milestone; see docs/plugin-authoring.md for the full contract.
+
+```
+{"format":1,"language":"en","items":[
+  {"id":"counter","type":"org.example.counter.exercise",
+   "source":"counter.json"}
+]}
+```
+
+This schematic counter example requires a provider implementing the named type. Source paths are relative to the master deck directory. Install and enable that provider explicitly; the activity file cannot install code.
+
+```
+\usepackage{texstage}
+\begin{frame}{Predict the result}
+  \texstageprepared{counter}{.92\linewidth}{.55\textheight}
+\end{frame}
+```
+
+\texstageprepared{ID}{width}{height} reserves the live rectangle and inserts the prepared exercise in present/handout mode, or the worked solution in solutions mode. The ID must occur in the activity file. A provider style may wrap this command.
+
+\texstagepreparedasset{ID}{asset} expands to a host-materialized declared data/image asset. Private assets through this command are available only in solutions. Raw exercise sources and generated solution fragments are not copied to public bundle routes.
+
+```
+texstage build lesson.tex --activities lesson.activities.json --data ./profile
+texstage pdf lesson.tex --solutions --activities lesson.activities.json --data ./profile
+texstage prepare lesson.tex --activities lesson.activities.json --data ./profile
+```
+
+The prepare command prints handout, solutions and present entry points for direct pdfLaTeX. These local artifacts include explicit style paths and freshness checks. Regenerate them after changing an exercise, asset or provider. The local preparation directory contains the worked solution; distribute the intended PDF or bundle output.
+
+### Generated bridge commands
+
+\texstageprepareddeclare{ID}{type}{digest}{exercise}{solutions} registers the generated fragments. \texstagepreparedassetdeclare{ID}{asset}{path}{visibility} registers an asset. \texstagepreparedcheck{path}{MD5} refuses changed inputs during direct pdfLaTeX. These commands belong to generated registry files; ordinary deck authors use texstageprepared and texstagepreparedasset.
+
+Every mode verifies matching prepared records; live builds also verify geometry bindings. Python checks source, provider and artifact hashes. present --activities always rebuilds and stops on failure. Existing plugins that use the post-LaTeX build_hook retain their original workflow.

@@ -31,6 +31,17 @@ def world(tmp_path):
         yield client, fb
 
 
+def test_plugin_worker_keeps_connection_and_nested_worker_restrictions(world):
+    client, _ = world
+    response = client.get("/static/stage/plugin-evaluator-worker.js")
+    assert response.status_code == 200
+    assert response.headers["content-security-policy"] == (
+        "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
+        "connect-src 'none'; worker-src 'none'"
+    )
+    assert response.headers["cache-control"] == "no-cache"
+
+
 def recv(ws, t: str | None = None, until=None, limit: int = 60) -> dict:
     """The next message of type t (and matching `until`); states may be coalesced, so wait
     for the one that shows what the test expects."""
@@ -829,7 +840,7 @@ def test_bundles_of_format_2_and_1(tmp_path):
     with pytest.raises(BundleError, match="needs cell, which this server does not know"):
         load_bundle(tmp_path / "cell")
     write(tmp_path / "three", deck | {"format": 3}, keys | {"format": 3})
-    with pytest.raises(BundleError, match="bundle format 3, this server reads 1 and 2"):
+    with pytest.raises(BundleError, match="external bundles require an explicit plugin lock"):
         load_bundle(tmp_path / "three")
     lost = {"id": 258, "image": "slides/2222222222222222.png", "live": [{"type": "video", "item": "gone", "rects": {}}]}
     write(tmp_path / "lost", deck | {"types": ["quiz", "video"], "slides": [*deck["slides"], lost]}, keys)

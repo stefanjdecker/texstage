@@ -118,6 +118,9 @@ from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
 from texstage.server.game import Engine, GameError, Settings, clean_nickname, token_hash
 from texstage.server.store import Store
+from texstage.plugins import PluginError
+from texstage.plugins.policy import catalog_for
+from texstage.server.plugins import PluginHost
 
 log = logging.getLogger("texstage.server")
 HOST_PUSH_S = 0.2           # live counts to the hosts: at most 5 updates a second
@@ -137,6 +140,7 @@ ARCHIVE_MAX = 300 * 1024 * 1024                      # an annotated PDF (texstag
 DOWNLOAD_MS = 600_000                                 # a recording's download address stays valid
 MEDIA_MS = 12 * 3_600_000                             # a video's address (a ticket): a lecture day
 BUNDLE_ENTRY = re.compile(r"^(deck\.json|keys\.json|(slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(mp4|m4v|webm|mov|jpg|png)"
+                          r"|plugin-data/[0-9a-f]{64}\.(json|txt|csv|sql|ttl|png|jpg)"
                           r"|stage/[0-9a-f]{16}\.pdf" + "".join(f"|{p}" for p in stage_types.FILES) + r")$")
 ZIP_JUNK = re.compile(r"(^|/)(__MACOSX/|\.DS_Store$|Thumbs\.db$|desktop\.ini$)", re.IGNORECASE)   # zipped by hand
 ZIP_ERRORS = (zipfile.BadZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)  # broken, Deflate64, encrypted
@@ -164,6 +168,8 @@ class Static(StaticFiles):
         response.headers["Cache-Control"] = "no-cache"
         if str(args[0] if args else kwargs.get("full_path", "")).endswith(EVALUATOR):
             response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
+        if str(args[0] if args else kwargs.get("full_path", "")).endswith("plugin-evaluator-worker.js"):
+            response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'none'"
         return response
 
 
@@ -380,6 +386,7 @@ def _int(msg: dict, key: str, default=None) -> int | None:
 class Server:
     def __init__(self, config: ServerConfig):
         self.config = config
+        self.plugin_catalog = catalog_for(config.data_dir)
         self.published = config.data_dir / "bundles"         # texstage publish puts bundles here
         self.published.mkdir(parents=True, exist_ok=True)
         self.incoming = config.data_dir / "incoming"         # uploads being unpacked (not scanned)
@@ -390,7 +397,7 @@ class Server:
             if not any(r.resolve() == own.resolve() for r in roots):
                 roots.append(own)
         self.bundles = BundleStore(roots, published=self.published,     # <lecturer>/<deck>.bundle
-                                   more=lambda: build_folders(config.data_dir))   # this machine's builds
+                                   more=lambda: build_folders(config.data_dir), catalog=self.plugin_catalog)
         self.lecturers = Lecturers(config.data_dir / "lecturers.json", {config.owner: config.presenter_key})
         self.devices = Devices(config.data_dir / "devices.json")
         self.library = Library(config.data_dir / "library.json")     # the deck page: folders, names
@@ -404,6 +411,9 @@ class Server:
         self.media: dict[str, tuple[str, str, int]] = {}              # ticket -> bundle ID, relative video file, valid until
         self.conns: dict[str, set[Conn]] = defaultdict(set)    # session id -> connections
         self.dirty: set[str] = set()                           # sessions whose hosts need a push
+        self.plugin_dirty: set[str] = set()                    # coalesced full plugin projections
+        self.plugin_recipients: dict[str, set[str] | None] = {}
+        self.plugin_push_after: dict[str, float] = {}          # monotonic next broadcast time
         self.qa_dirty: set[str] = set()                        # ... whose questions changed (M6)
         self.qa_pushed = 0.0
         self.replies: dict[tuple, OrderedDict] = defaultdict(OrderedDict)
@@ -411,6 +421,7 @@ class Server:
         self.wake = asyncio.Event()
         self.tasks: list[asyncio.Task] = []
         self.instance = secrets.token_hex(8)       # in /api/status: does an address lead to this server?
+        self.plugins = PluginHost(self, self.plugin_catalog)
 
     # ------------------------------------------------------------ pushing
     def _attach(self, conn: Conn, sid: str):
@@ -420,39 +431,54 @@ class Server:
         self.conns[sid].add(conn)
 
     def push(self, sid: str, hosts: bool = True, players: bool = True, only: str | set | None = None,
-             asking: bool = False):
+             asking: bool = False, *, connections=None, complete: bool = True):
         """The views of the game's connections: hosts, players (`only` one, or a set; `asking`:
         those that show the audience's questions)."""
         now = now_ms()
         if sid not in self.engine.sessions:
+            self.plugin_dirty.discard(sid)
+            self.plugin_recipients.pop(sid, None)
             self._sweep()
             return
-        if players and only is None and not asking:
+        if complete and players and only is None and not asking:
             self.engine.due.pop(sid, None)            # every phone gets its state now
         host_view = None
-        for c in list(self.conns.get(sid, ())):
+        for c in list(self.conns.get(sid, ())) if connections is None else connections:
+            if connections is not None and (c not in self.conns.get(sid, ()) or c.session != sid):
+                continue
             try:
                 if c.role in HOSTS and hosts:
+                    plugin_view = self.plugins.safe_view(c)
                     if host_view is None:
                         host_view = self.engine.host_view(sid, now)
                         host_view["session"]["join"] = f"{self.config.public_url}/play?pin={host_view['session']['pin']}"
                         host_view["session"]["qr"] = f"/join/{host_view['session']['pin']}.svg"
-                    c.push({"t": "state", "now": now, "role": c.role, **host_view})
+                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **plugin_view})
                 elif (c.role == "player" and players
                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
                       and (not asking or c.qa)):
+                    plugin_view = self.plugins.safe_view(c)
                     view = self.engine.player_view(c.player, now, questions=c.qa)
-                    c.push({"t": "state", "now": now, "role": "player", **view})
+                    c.push({"t": "state", "now": now, "role": "player", **view, **plugin_view})
+            except PluginError as err:
+                c.push({"t": "plugin.error", "message": str(err)})
             except GameError as err:
                 c.bye(err.code, str(err))
                 self.conns[sid].discard(c)
-        if hosts:
+        if complete and hosts:
             self.dirty.discard(sid)
+        if complete and hosts and players and only is None and not asking:
+            self.plugin_dirty.discard(sid)
+            self.plugin_recipients.pop(sid, None)
 
     def _sweep(self):
         """Connections of sessions that ended: hosts move to the deck's new session, if there
         is one; players are told to join again."""
         live = set(self.engine.sessions) | set(self.engine.players)
+        for sid in self.plugin_push_after.keys() - self.engine.sessions.keys():
+            self.plugin_push_after.pop(sid, None)
+            self.plugin_recipients.pop(sid, None)
+            self.plugin_dirty.discard(sid)
         for key in [k for k in self.replies if k[1] not in live]:   # retry caches of ended games
             del self.replies[key]
         for sid in [sid for sid in self.conns if sid not in self.engine.sessions]:
@@ -488,6 +514,7 @@ class Server:
         while True:
             await asyncio.sleep(HOST_PUSH_S)
             try:
+                await self.flush_plugins()
                 for sid in list(self.dirty):
                     self.push(sid, players=False)
                 if self.qa_dirty and time.monotonic() - self.qa_pushed >= QA_PUSH_S:
@@ -503,6 +530,44 @@ class Server:
         self.dirty.add(sid)
         self.qa_dirty.add(sid)
 
+    def plugins_changed(self, sid: str, only: set[str] | None = None):
+        # Commands and durable receipts are immediate. Render the latest full,
+        # role-filtered snapshots at a rate bounded by measured broadcast cost.
+        # A burst must not render N audience views again for each of N answers.
+        self.plugin_dirty.add(sid)
+        if only is None:
+            self.plugin_recipients[sid] = None
+        elif self.plugin_recipients.get(sid, set()) is not None:
+            self.plugin_recipients.setdefault(sid, set()).update(only)
+
+    async def flush_plugins(self):
+        # Reserve time for socket replies, worker module requests and job
+        # delivery when a full class projection is expensive. Aim for at most
+        # 25% of the loop in these broadcasts, with at most one second added
+        # coalescing delay. Cheap projections retain the ordinary 200 ms rate.
+        # Presenter controls and core navigation still call push immediately.
+        for sid in list(self.plugin_dirty):
+            start = time.monotonic()
+            if start < self.plugin_push_after.get(sid, 0):
+                continue
+            recipients = self.plugin_recipients.pop(sid, None)
+            # Consume this generation before yielding. New mutations during the
+            # broadcast leave a new marker, so no newer projection is lost.
+            self.plugin_dirty.discard(sid)
+            self.dirty.discard(sid)
+            peers = [c for c in self.conns.get(sid, ()) if
+                     recipients is None or c.role in HOSTS or c.player in recipients]
+            if not peers:
+                self.push(sid)
+            for offset in range(0, len(peers), 16):
+                # Authentication, membership and state are read afresh for each
+                # batch. Never retain private views across an event-loop yield.
+                self.push(sid, only=recipients, connections=peers[offset:offset + 16], complete=False)
+                await asyncio.sleep(0)
+            end = time.monotonic()
+            if sid in self.engine.sessions:
+                self.plugin_push_after[sid] = end + min(1.0, max(HOST_PUSH_S, 3 * (end - start)))
+
     def push_due(self):
         """The phones a content type's change concerns get their state (game.py: take_due)."""
         for sid, who in self.engine.take_due().items():
@@ -515,6 +580,7 @@ class Server:
         for t in self.tasks:
             t.cancel()
         self.store.close()
+        self.plugins.close()
 
     # ------------------------------------------------------------ publishing
     def unpack_bundle(self, packed: Path, bid: str, lecturer: str) -> Path:
@@ -542,7 +608,7 @@ class Server:
             except ZIP_ERRORS as err:
                 raise BundleError(f"not a zip file: {err}") from None
             try:
-                b = load_bundle(work)
+                b = load_bundle(work, catalog=self.plugin_catalog)
             except BundleError as err:                   # without the server's own folder in it
                 raise BundleError(str(err).removeprefix(f"{work}: ")) from None
             if b.id != bid:
@@ -616,6 +682,9 @@ class Server:
                 self._enter(conn, self.engine.player_by_token(_str(msg, "token")), mid, None)
             elif conn.role is None:
                 raise GameError("hello-first", "say hello, join or resume first")
+            elif isinstance(t, str) and t.startswith("plugin."):
+                reply = self.plugins.handle(conn, msg)
+                conn.send({"t": "ok", "re": mid, **reply})
             else:
                 key = (conn.role, conn.player or conn.session)
                 cache = self.replies[key]
@@ -646,6 +715,8 @@ class Server:
                     while len(cache) > REPLY_CACHE:
                         cache.popitem(last=False)
                 conn.send(reply)
+        except PluginError as err:
+                        conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except GameError as err:
             conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except Exception as err:                         # a bug: report it, keep the connection
@@ -903,6 +974,7 @@ class Server:
         return {"answer": a.payload}
 
     def disconnect(self, conn: Conn):
+        self.plugins.disconnect(conn)
         if conn.role in HOSTS:
             self.engine.left(conn.key)                   # what it held (a content type's lease) is free
         if conn.session:
@@ -917,6 +989,8 @@ class Server:
     def results_csv(self, s) -> tuple[str, str]:
         """A game's results as CSV - (file name, text): a row per player (game.py results_table)."""
         buf = io.StringIO()
+        if self.plugins.runtime is not None and s.ended is None:
+            self.plugins.sync(s.id)
         csv.writer(buf).writerows(self.engine.results_table(s.id))
         day = time.strftime("%Y-%m-%d", time.localtime(s.created / 1000))
         return f"{s.deck}-{day}-{s.pin}.csv", "﻿" + buf.getvalue()         # BOM: Excel reads UTF-8
@@ -1394,6 +1468,20 @@ def create_app(config: ServerConfig) -> Starlette:
         return Response(text, media_type="text/csv; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
+    async def plugin_archive(request: Request):
+        s, refused = own_game(request)
+        if refused: return refused
+        return JSONResponse(server.plugins.runtime.archive(s.id) if server.plugins.runtime else {"format": 1, "items": []},
+                            headers={"Cache-Control": "no-store"})
+
+    async def plugin_asset(request: Request):
+        try:
+            raw, mime = server.plugins.asset(request.path_params["payload"], request.path_params["name"])
+        except PluginError:
+            return PlainTextResponse("not found", status_code=404)
+        return Response(raw, media_type=mime, headers={"Cache-Control": "public, max-age=31536000, immutable",
+                                                       "X-Content-Type-Options": "nosniff"})
+
     async def archive_pdf(request: Request):
         """PUT /api/archive/<game>/annotated.pdf: the annotated PDF the presenter window made
         (texstage, M4) into the lecture archive, with the game's results as they are now."""
@@ -1563,6 +1651,8 @@ def create_app(config: ServerConfig) -> Starlette:
     app = Starlette(routes=[
         Route("/", home),
         Route("/api/status", status),
+        Route("/plugins/{payload}/{name:path}", plugin_asset),
+        Route("/api/archive/{session}/plugins.json", plugin_archive),
         Route("/play", page("play")),
         Route("/host", page("host")),
         Route("/stage", page("stage")),
