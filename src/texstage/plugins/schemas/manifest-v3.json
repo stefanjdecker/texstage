@@ -245,6 +245,10 @@
           "type": "integer",
           "minimum": 1
         },
+        "participant_updates": {
+          "type": "string",
+          "const": "actor"
+        },
         "latex_packages": {
           "type": "array",
           "uniqueItems": true,

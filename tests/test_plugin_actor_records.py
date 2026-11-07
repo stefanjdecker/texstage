@@ -213,3 +213,17 @@ def test_old_manifests_cannot_enable_records_and_participants_cannot_request_rea
     )):
         with pytest.raises(PluginError):
             catalog(tmp_path/str(i),modify=modify)
+
+
+@pytest.mark.parametrize('revision', [3, 4])
+@pytest.mark.parametrize('policy', ['actor', 'all', True, None])
+def test_actor_update_policy_remains_available_with_records_and_points(tmp_path, revision, policy):
+    def modify(manifest):
+        manifest['manifest_version'] = revision
+        manifest['capabilities']['content_types'][TYPE]['participant_updates'] = policy
+    if policy == 'actor':
+        result = catalog(tmp_path, modify=modify)
+        assert result.capability(TYPE)[1]['participant_updates'] == 'actor'
+    else:
+        with pytest.raises(PluginError):
+            catalog(tmp_path, modify=modify)
