@@ -2,9 +2,9 @@
 
 ## Unreleased — 0.2.1.dev7 candidate
 
-- Preserve revision 3–5 storage options and actor-only updates from main; older
-  actor-record manifests without a shared-field list refresh all participants
-  when shared state changes.
+- Preserve revision 3–5 storage options and the actor-only update contract from
+  main. Presenter-only counters in older actor-record plugins such as FD Lab do
+  not trigger class-wide refreshes; explicit shared broadcast fields still do.
 - Combine fixed plugin points with bounded actor records and batched audience
   projections, keeping each student's credit private until publication.
 - Reduce redundant class-wide counts and private-score reranking while preserving

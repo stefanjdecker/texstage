@@ -346,14 +346,13 @@ class Runtime:
             self.db.execute("ROLLBACK"); raise
         spec = self.catalog.capability(row["kind"])[1]
         targeted = not reset and audience_actor is not None and spec.get("participant_updates") == "actor"
-        if targeted and "actor_records" in spec:
+        if targeted and "broadcast_fields" in spec:
             before, after = read_json(row["state"]), transition["state"]
-            fields = spec.get("broadcast_fields")
-            # Existing actor-record manifests may omit the field list. In that
-            # case any shared-state change must invalidate all participant views.
-            targeted = (before == after if fields is None else
-                        isinstance(before, dict) and isinstance(after, dict) and
-                        all(before.get(field) == after.get(field) for field in fields))
+            # Without an explicit field list, retain the existing actor-only
+            # contract: providers promise peer submissions cannot change a
+            # participant's projection, even if presenter-only counters change.
+            targeted = (isinstance(before, dict) and isinstance(after, dict) and
+                        all(before.get(field) == after.get(field) for field in spec["broadcast_fields"]))
         sid = row["sid"]
         if not targeted:
             self.changes[sid] = None

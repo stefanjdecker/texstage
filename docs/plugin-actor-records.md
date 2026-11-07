@@ -81,9 +81,11 @@ Participant submissions and evaluation completions then notify that authenticate
 actor's connections and all presenter/projector connections. A change to any
 declared shared field, any presenter command or reset notifies the whole class.
 Global notifications dominate pending actor-only notifications. Existing
-actor-record manifests may omit `broadcast_fields`; then any shared-state change
-notifies the whole class. An explicit field list requires `actor_records` and
-`participant_updates: "actor"`; it cannot be used with `state_records`.
+actor-record manifests may omit `broadcast_fields`; they retain the actor-only
+contract, so presenter-only counters do not trigger class-wide updates. Such
+providers promise that participant commands and their completions cannot change
+another participant's projection. An explicit field list requires `actor_records`
+and `participant_updates: "actor"`; it cannot be used with `state_records`.
 
 This optimization promises that another student's submission cannot affect the
 participant view except through the declared shared fields. Such a participant

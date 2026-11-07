@@ -281,7 +281,7 @@ def test_actor_update_policy_remains_available_with_records_and_points(tmp_path,
             catalog(tmp_path, modify=modify)
 
 @pytest.mark.parametrize('fields', [None, ['page']])
-def test_actor_update_opt_in_and_shared_fields_invalidate_the_whole_class(tmp_path, fields):
+def test_actor_updates_preserve_legacy_contract_and_opt_in_shared_fields(tmp_path, fields):
     options = {'participant_updates': 'actor'}
     if fields is not None:
         options['broadcast_fields'] = fields
@@ -302,14 +302,14 @@ def test_actor_update_opt_in_and_shared_fields_invalidate_the_whole_class(tmp_pa
             return result
         h.call=change_unlisted
         r.command('s','alice','participant',command(5))
-        assert r.take_changes('s') == (None if fields is None else {'alice'})
+        assert r.take_changes('s') == {'alice'}
         def change_global(kind,method,*args):
             result=original(kind,method,*args)
             if method=='transition':result['state']['page']=1
             return result
         h.call=change_global
         r.command('s','alice','participant',command(3))
-        assert r.take_changes('s') is None
+        assert r.take_changes('s') == ({'alice'} if fields is None else None)
         r.command('s','teacher','presenter',command(4,'_reset'))
         assert r.take_changes('s') is None
     finally:r.close()
