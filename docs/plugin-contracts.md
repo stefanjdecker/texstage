@@ -214,7 +214,8 @@ leases, queue policy, worker CSP or provider authorization.
 
 ## Bounded item records (host 0.2.1.dev4)
 
-A manifest-revision-2 content type can declare `state_records: true`. Its state
+A content type can declare `state_records: true` in manifest revision 2
+(or revisions 3/4/5 from host 0.2.1.dev7). It must not also declare `actor_records`. Its state
 hook then implements `record_keys(state, event, ctx)` before transition and view
 calls. Return a list of keys, or `{"keys": [...], "page": {"offset": 0, "limit": 16}}`.
 The host supplies the requested existing values in `ctx["records"]` and the

@@ -217,6 +217,9 @@
         },
         "result_data_schema": {
           "$ref": "#/$defs/path"
+        },
+        "result_cache": {
+          "const": "by-input"
         }
       }
     },
@@ -410,6 +413,14 @@
               "$ref": "#/$defs/name"
             }
           }
+        },
+        "state_records": {
+          "type": "boolean",
+          "const": true
+        },
+        "participant_updates": {
+          "type": "string",
+          "const": "actor"
         }
       },
       "oneOf": [
@@ -433,7 +444,13 @@
             ]
           }
         }
-      ]
+      ],
+      "not": {
+        "required": [
+          "state_records",
+          "actor_records"
+        ]
+      }
     }
   }
 }

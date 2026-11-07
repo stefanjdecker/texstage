@@ -6,6 +6,14 @@ The plugin decides whether an answer meets its target. TeXStage owns the award,
 publication boundary, durable ledger, total, rank and CSV export. Revisions 1–3
 keep their existing behavior; declaring a `correct` field alone awards nothing.
 
+TeXStage 0.2.1.dev7 also accepts the earlier `state_records`,
+`participant_updates: "actor"` and engine `result_cache: "by-input"` options
+in manifest revisions 3, 4 and 5. This allows bounded item-record providers to add
+points without replacing their record contract. A content type must choose
+either `state_records` or `actor_records`; declaring both is rejected because
+their hook contexts differ. Existing limits, authentication and cache policies
+are unchanged.
+
 A content type opts in with:
 
 ```json
