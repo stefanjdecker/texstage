@@ -183,3 +183,21 @@ atomic cancellation/replacement at queue capacity; see the
 [renderer contract](plugins.md). Fair scheduling and measured classroom load
 remain later prerequisites for the transaction activity. A published compatible host
 commit must be pinned in collection CI before claiming hosted conformance.
+
+## Repeated schema validation
+
+The host caches successful JSON-schema safety and meta-schema checks by canonical
+schema content. It still validates every command, result and role-specific view.
+The cache holds at most 128 immutable keys of at most 64 KiB each; larger schemas
+are checked without caching. This does not change message, view or worker limits.
+
+Each call uses a fresh snapshot for instance validation. Mutating an input schema
+causes another safety check, and a schema exposed by a validation error cannot
+alter a later call. External references, external scopes and dynamic references
+remain forbidden. No validator, mutable schema or validated instance is shared
+through this cache. See `tests/test_plugin_schema_cache.py` and
+`tests/test_plugin_schema_cache_isolation.py` for security and mutation regressions.
+
+This generic optimization was prompted by Query-plan's 64-participant load
+probe. It does not establish a host-wide capacity guarantee or change evaluator
+leases, queue policy, worker CSP or provider authorization.

@@ -65,7 +65,8 @@ class PluginHost:
                            | {n: f"/bundle/{bundle.id}/{path}" for n, path in bundle.items[kind][item].get("plugin_assets", {}).items()},
                            "modules": {s: f"/plugins/{provider.payload}/{spec['views'][s]}" for s in surfaces},
                            "views": {s: self.runtime.view(conn.session, kind, item, role, s, actor) for s in surfaces}})
-        return {"plugins": {"catalog": self.catalog.fingerprint, "items": result}}
+        return {"language": bundle.deck_json.get("language") or "en",
+                "plugins": {"catalog": self.catalog.fingerprint, "items": result}}
 
     def safe_view(self, conn):
         try:

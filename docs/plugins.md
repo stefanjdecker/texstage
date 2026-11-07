@@ -307,3 +307,25 @@ Still required before a stable API 1 release:
 
 Existing courses and lecture-tools remain on their current packages and style
 snapshots. Adopting plugins into a course is a separate change.
+
+## Language in participant plugin views
+
+Plugin projections carry the deck's language to participant, presenter and
+projector renderers; decks without a language default to English. The phone's
+browser-selected language supplies a fallback until that projection arrives.
+The built-in phone controls retain their own browser-language selection.
+Unchanged language updates do not remount a plugin or discard its draft; a
+language change remounts the surface through the existing lifecycle contract.
+
+Provider authoring language is separate: it selects generated static text and
+provider-owned prepared explanations. Authors should align the activity sidecar
+language with the deck's Babel/Polyglossia language where appropriate.
+
+Presenter/projector navigation shortcuts leave key events to native interactive
+controls and plugin surfaces. Enter/Space can activate a plugin button without
+advancing the slide, arrows can operate a selector or scroll proof tables, and
+an event already handled by a renderer is not handled again. Slide-navigation
+shortcuts remain available when focus returns to the slide background.
+
+In a narrow, short presenter window (including browser zoom), the workspace
+scrolls vertically so notes and plugin controls retain usable height.

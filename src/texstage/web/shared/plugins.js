@@ -118,18 +118,19 @@ export class PluginBox {
 }
 
 export class PluginScreen {
-  constructor({ root, client }) { Object.assign(this, { root, client }); this.views = new Map(); }
+  constructor({ root, client, language = "en" }) { Object.assign(this, { root, client, language }); this.views = new Map(); }
   update(state) {
+    const language = state.language || this.language;
     const keep = new Set();
     for (const d of state.plugins?.items || []) {
       if (!d.modules["participant-input"]) continue;
       const key = `${d.type}:${d.item}`; keep.add(key);
       const existing = this.views.get(key);
-      if (existing && existing.identity !== identity(d, "participant-input", "participant", state.language)) {
+      if (existing && existing.identity !== identity(d, "participant-input", "participant", language)) {
         existing.destroy(); this.views.delete(key);
       }
       if (!this.views.has(key)) this.views.set(key, new Surface({ parent: this.root, descriptor: d,
-        surface: "participant-input", role: "participant", send: msg => this.client.send(msg), language: state.language }));
+        surface: "participant-input", role: "participant", send: msg => this.client.send(msg), language }));
       this.views.get(key).update(d.views["participant-input"]);
     }
     for (const [key, v] of this.views) if (!keep.has(key)) { v.destroy(); this.views.delete(key); }

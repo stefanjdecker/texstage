@@ -2182,7 +2182,7 @@ function escape() {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (!deck || !state || e.target.closest("input, textarea") || e.altKey || $(".dialog")) return;   // a dialog's keys
+  if (!deck || !state || e.defaultPrevented || e.target?.closest?.("input, textarea, select, button, a[href], summary, [contenteditable]:not([contenteditable=false]), .texstage-plugin") || e.altKey || $(".dialog")) return;   // a dialog's keys
   if (e.ctrlKey || e.metaKey) {
     const k = e.key.toLowerCase();
     if (k === "z" && !e.shiftKey) inkAction("ink.undo");

@@ -27,3 +27,11 @@ def test_plugin_asset_cache_bounds_and_isolation():
         capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
 
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="needs Node.js")
+def test_presenter_and_projector_leave_keys_to_interactive_controls():
+    result = subprocess.run([shutil.which("node"), "--test",
+        str(Path(__file__).with_name("web-keyboard-controls.test.cjs"))],
+        capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+

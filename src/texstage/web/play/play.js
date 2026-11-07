@@ -248,7 +248,7 @@ function render() {
       screenKey = k;
       typeScreen?.destroy();
       app.innerHTML = "";
-      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state });
+      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state, language: GERMAN ? "de" : "en" });
     }
     typeScreen.update(state);
     progress();

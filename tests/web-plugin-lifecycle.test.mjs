@@ -96,3 +96,22 @@ test("dispatch preserves domain receipts and operational error codes", async () 
   await assert.rejects(ctx.dispatch("submit",{}), e => e.code === "read-only");
 });
 
+
+test("phone language is retained when server pushes omit language", async () => {
+  const h = await harness(), screen = new h.api.PluginScreen({
+    root:new Node(),client:{send:async()=>{}},language:"de"
+  }), d = descriptor();
+  screen.update({plugins:{items:[d]}}); await settle(screen.views);
+  assert.equal(h.contexts[0].language,"de");
+  d.views["participant-input"].revision++;
+  screen.update({plugins:{items:[d]}}); await settle(screen.views);
+  assert.equal(h.mounts.length,1);
+  assert.equal(h.mounts[0].destroyed,0);
+  screen.update({language:"en",plugins:{items:[d]}}); await settle(screen.views);
+  assert.equal(h.contexts[1].language,"en");
+  assert.equal(h.mounts[0].destroyed,1);
+  screen.update({plugins:{items:[d]}}); await settle(screen.views);
+  assert.equal(h.contexts[2].language,"de");
+  screen.destroy();
+  assert.ok(h.contexts.every(ctx => ctx.signal.aborted));
+});
