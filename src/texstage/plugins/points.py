@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Host-owned credits, submission clocks and a durable publication ledger."""
 import time
+from collections import OrderedDict
 from . import PluginError
 from .manifest import read_json
 from .records import ActorRecords
@@ -43,6 +44,7 @@ class FixedPoints:
     """The original fixed-v1 ledger also supports timed quiz-v1 contributions."""
     def __init__(self, db, catalog):
         self.db, self.catalog = db, catalog
+        self._settings = OrderedDict()
         db.executescript("""
           CREATE TABLE IF NOT EXISTS point_rounds (
             sid TEXT, kind TEXT, item TEXT, epoch INTEGER, revision INTEGER,
@@ -64,7 +66,15 @@ class FixedPoints:
 
     def settings(self, row):
         _, spec = self.catalog.capability(row["kind"])
-        return point_settings(read_json(row["spec"], limit=8*1024*1024)["public"], spec) if "scoring" in spec else None
+        if "scoring" not in spec:
+            return None
+        key = (row["kind"], row["spec"])
+        if key not in self._settings:
+            self._settings[key] = point_settings(read_json(row["spec"], limit=8*1024*1024)["public"], spec)
+            if len(self._settings) > 16:
+                self._settings.popitem(last=False)
+        self._settings.move_to_end(key)
+        return self._settings[key]
 
     @staticmethod
     def key(row):

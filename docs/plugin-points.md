@@ -99,3 +99,24 @@ The authenticated bridge supplies the participant's complete scoring context:
 Derived fields are absent for pending/unavailable feedback. No other actor's
 values are exposed. Released quiz-v1 CSV rows add speed, bonus and time columns.
 Score changes refresh all rankings even for actor-scoped provider updates.
+
+## Bounded item records and scoring
+
+Revision 4 also retains revision-2 `state_records: true`,
+`participant_updates: "actor"` and engine `result_cache: "by-input"`.
+A content type may use either `state_records` or `actor_records`, never both:
+their hook record contexts differ. ER decisions uses item records and the
+same fixed points ledger as actor-record providers. A changed score triggers
+the host's full game/rank broadcast even with actor-scoped plugin updates.
+
+The host caches validated point settings for at most 16 exact prepared
+specifications and content types. Changed specifications are validated again;
+credits and publication state always come from the durable ledger.
+After reset, private credits keep the projection revision current without
+recomputing class totals or rankings until publication. Phone projections
+still run their authenticated hooks on every update. The host retains at most
+128 successful schema checks keyed by exact JSON bytes, provider payload and
+schema path; changed data, JSON type and size checks still run normally.
+Prepared item JSON has a separate 16-entry cache of successful strict checks;
+each hook still receives a freshly decoded object. Duplicate keys, non-finite
+numbers and the original size limit remain enforced for every new byte string.

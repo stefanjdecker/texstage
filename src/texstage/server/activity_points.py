@@ -126,7 +126,9 @@ def reconcile(engine, snapshot):
         return False
     # After reset the mirror remains present. Private clock/credit revisions
     # must not replay the shared timeline or broadcast every player's score.
-    if row.policy == "quiz-v1" and not row.published and not (old and old.published):
+    # Keep the durable projection revision current without touching class
+    # totals/ranks for private attempts under either scoring policy.
+    if not row.published and not (old and old.published):
         try:
             engine._save(row)
             engine._commit()

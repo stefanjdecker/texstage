@@ -43,6 +43,8 @@ class Runtime:
         self.lock = threading.RLock()
         self.changes = {}
         self.outcomes = OrderedDict()
+        self.view_checks = OrderedDict()
+        self.spec_checks = OrderedDict()
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -81,8 +83,20 @@ class Runtime:
             raise PluginError("plugin runtime changed: resume this session in its original environment", code="environment-changed")
         return row
 
+    def _spec(self, row):
+        raw = row["spec"]
+        if raw not in self.spec_checks:
+            read_json(raw, limit=8 * 1024 * 1024)
+            self.spec_checks[raw] = None
+            if len(self.spec_checks) > 16:
+                self.spec_checks.popitem(last=False)
+        self.spec_checks.move_to_end(raw)
+        # The exact bytes already passed duplicate-key/non-finite/budget checks.
+        # Decode a fresh object, so hooks cannot mutate another call's context.
+        return json.loads(raw)
+
     def _ctx(self, row, *, actor=None, role="system", now=None, record_actor=None):
-        return {"item": read_json(row["spec"], limit=8 * 1024 * 1024), "epoch": row["epoch"], "revision": row["revision"],
+        return {"item": self._spec(row), "epoch": row["epoch"], "revision": row["revision"],
                 "actor": actor, "role": role, "timestamp": time.time() if now is None else now,
                 **self.records.context(row, actor=actor if role == "participant" else record_actor, role=role),
                 **self.points.context(row, actor=actor if role == "participant" else None)}
@@ -233,7 +247,7 @@ class Runtime:
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
-        bindings = read_json(row["spec"], limit=8 * 1024 * 1024).get("evaluations", {})
+        bindings = self._spec(row).get("evaluations", {})
         jobs, correlations, records = [], set(), {}
         for effect in effects:
             if not isinstance(effect, dict): raise PluginError("invalid effect")
@@ -374,13 +388,22 @@ class Runtime:
             if scoring is not None and role == "participant":
                 ctx["scoring"] = scoring
             data = self.workers.call(kind, "view", state, audience, ctx)
-            if len(canonical(data)) > 128 * 1024: raise PluginError("view exceeds output budget")
+            raw = canonical(data)
+            if len(raw) > 128 * 1024: raise PluginError("view exceeds output budget")
             provider, spec = self.catalog.capability(kind)
             if "view_schemas" in spec:
                 if surface not in spec["view_schemas"]:
                     raise PluginError("view surface is not declared")
                 json_data(data)
-                validate_json(resource_schema(provider, spec["view_schemas"][surface]), data, label="surface view")
+                # Cache only successful schema checks of identical JSON bytes,
+                # never projections or authorization. Every actor's hook runs.
+                check = (provider.payload, spec["view_schemas"][surface], raw)
+                if check not in self.view_checks:
+                    validate_json(resource_schema(provider, spec["view_schemas"][surface]), data, label="surface view")
+                    self.view_checks[check] = None
+                    if len(self.view_checks) > 128:
+                        self.view_checks.popitem(last=False)
+                self.view_checks.move_to_end(check)
             return {"epoch": row["epoch"], "revision": row["revision"], "data": data}
 
     def lease(self, sid, owner, *, now=None, limit=2):
@@ -399,7 +422,7 @@ class Runtime:
                 if job["generation"] >= 3:
                     self.db.execute("UPDATE jobs SET status='failed',result=? WHERE id=?", ('{"status":"timeout"}', job["id"]))
                     continue
-                binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
+                binding = self._spec(row)["evaluations"][job["binding"]]
                 p, engine = self.catalog.capability(binding["engine"], engine=True)
                 key = self._outcome_key(job, p, engine, binding)
                 if key is not None and key in self.outcomes and cached < MAX_CACHE_DELIVERIES:
@@ -450,7 +473,7 @@ class Runtime:
             job = self.db.execute("SELECT * FROM jobs WHERE id=? AND sid=?", (result["id"], sid)).fetchone()
             if job is None: return False
             row = self._item(sid, job["kind"], job["item"])
-            binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
+            binding = self._spec(row)["evaluations"][job["binding"]]
             provider, engine = self.catalog.capability(binding["engine"], engine=True)
             validate_outcome(outcome, provider, engine,
                              namespace(provider, binding["engine"], engine, binding),
