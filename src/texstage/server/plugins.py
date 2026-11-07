@@ -12,6 +12,7 @@ from texstage.plugins.contracts import result_contract
 class PluginHost:
     def __init__(self, server, catalog):
         self.server, self.catalog = server, catalog
+        self.point_versions = {}
         self.runtime = Runtime(server.config.data_dir / "plugins.sqlite3", catalog) if catalog.providers else None
 
     def close(self):
@@ -39,7 +40,26 @@ class PluginHost:
                     active.append((kind, item))
         self.runtime.activate(sid, set(active))
         self.runtime.drain(sid)
+        self.sync_points(sid)
         return session, bundle, active
+
+    def sync_points(self, sid):
+        if self.runtime is None:
+            return
+        session = self.server.engine.sessions[sid]
+        for head in self.runtime.points.heads(sid):
+            key = (sid, head["kind"], head["item"])
+            version = (head["epoch"], head["revision"])
+            if self.point_versions.get(key) == version:
+                continue
+            self.runtime._item(*key)  # reject replay into a changed environment
+            if head["published"] or key[1:] in session.activity_points:
+                if self.server.engine.replace_activity_points(self.runtime.points.snapshot(head)):
+                    # A changed total can change every participant's rank, even
+                    # when this provider otherwise uses actor-scoped updates.
+                    self.server.plugins_changed(sid)
+            # Advance only after the game transaction succeeds; a crash/retry can replay.
+            self.point_versions[key] = version
 
     def identity(self, conn):
         session = self.server.engine.sessions.get(conn.session)
@@ -85,26 +105,38 @@ class PluginHost:
             if not isinstance(envelope, dict) or envelope.get("item") not in bundle.items.get(envelope.get("type"), {}):
                 raise PluginError("item does not belong to this session")
             result = self.runtime.command(conn.session, actor, role, envelope)
+            # An exact successful cache hit still has its own durable job and
+            # guarded completion. Deliver it before sending an avoidable pending
+            # projection to this actor; no worker is started by a participant.
+            self.runtime.drain(conn.session)
+            self.sync_points(conn.session)
             if role == "presenter":
                 # Human phase/selection/share controls need their new guarded
                 # state immediately; only audience bursts are coalesced.
                 self.server.push(conn.session)
+                self.runtime.take_changes(conn.session)
             else:
-                self.server.plugins_changed(conn.session)
+                self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
             return {"receipt": result}
         if operation not in ("plugin.work", "plugin.result") or conn.role != "stage":
             raise PluginError("only the presenter window can evaluate plugin jobs")
         if operation == "plugin.work":
             jobs = self.runtime.lease(conn.session, conn.key)
+            self.runtime.drain(conn.session)
+            self.sync_points(conn.session)
+            changes = self.runtime.take_changes(conn.session)
+            if changes is None or changes:
+                self.server.plugins_changed(conn.session, only=changes)
             for job in jobs:
                 p, engine = self.catalog.capability(job["binding"]["engine"], engine=True)
                 job["engine"] = engine | {"url": f"/plugins/{p.payload}/{engine['module']}",
                                            "assets": {n: f"/plugins/{p.payload}/{n}" for n in engine.get("assets", [])},
                                            "result_contract": result_contract(p, engine)}
-            return {"jobs": jobs}
+            return {"jobs": jobs, "more_work": self.runtime.pending(conn.session)}
         accepted = self.runtime.finish(conn.session, conn.key, message.get("result"))
         self.runtime.drain(conn.session)
-        self.server.plugins_changed(conn.session)
+        self.sync_points(conn.session)
+        self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
         return {"accepted": accepted}
 
     def asset(self, payload, name):

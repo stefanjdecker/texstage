@@ -15,16 +15,24 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections import OrderedDict
 
 from . import PluginError
 from .catalog import environment_fingerprint
 from .contracts import namespace, resource_schema, validate_outcome, json_data
 from .manifest import canonical, digest, read_json, validate_json
 from .worker import Workers
+from .records import ActorRecords
+from .points import FixedPoints, fixed_points
 
 REQUEST = re.compile(r"[A-Za-z0-9_-]{8,128}\Z")
 MAX_RECEIPTS = 100000
 MAX_PENDING = 1000
+MAX_RECORDS = 1024
+MAX_RECORD_BYTES = 4096
+MAX_RECORD_READS = 32
+MAX_CACHED_RESULTS = 128
+MAX_CACHE_DELIVERIES = 32
 
 
 class Runtime:
@@ -33,6 +41,8 @@ class Runtime:
         self.workers = workers or Workers(catalog)
         self.fingerprint = fingerprint or environment_fingerprint(catalog)
         self.lock = threading.RLock()
+        self.changes = {}
+        self.outcomes = OrderedDict()
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -52,7 +62,13 @@ class Runtime:
             result TEXT, delivered INTEGER DEFAULT 0,
             UNIQUE(sid,kind,item,epoch,correlation));
           CREATE INDEX IF NOT EXISTS jobs_pending ON jobs(sid,status,delivered);
+          CREATE TABLE IF NOT EXISTS records (
+            sid TEXT, kind TEXT, item TEXT, epoch INTEGER, key TEXT, value TEXT,
+            PRIMARY KEY(sid,kind,item,epoch,key));
         """)
+
+        self.records = ActorRecords(self.db, catalog)
+        self.points = FixedPoints(self.db, catalog)
 
     def close(self):
         self.workers.close()
@@ -65,20 +81,63 @@ class Runtime:
             raise PluginError("plugin runtime changed: resume this session in its original environment", code="environment-changed")
         return row
 
-    def _ctx(self, row, *, actor=None, role="system", now=None):
+    def _ctx(self, row, *, actor=None, role="system", now=None, record_actor=None):
         return {"item": read_json(row["spec"], limit=8 * 1024 * 1024), "epoch": row["epoch"], "revision": row["revision"],
-                "actor": actor, "role": role, "timestamp": time.time() if now is None else now}
+                "actor": actor, "role": role, "timestamp": time.time() if now is None else now,
+                **self.records.context(row, actor=actor if role == "participant" else record_actor, role=role),
+                **self.points.context(row, actor=actor if role == "participant" else None)}
 
     def ensure(self, sid, kind, item, spec):
         with self.lock:
             if self.db.execute("SELECT 1 FROM items WHERE sid=? AND kind=? AND item=?", (sid, kind, item)).fetchone():
                 self._item(sid, kind, item)
                 return
+            fixed_points(spec.get("public", {}), self.catalog.capability(kind)[1])
+            fresh = {"sid": sid, "kind": kind, "item": item, "epoch": 1, "state": "{}", "spec": canonical(spec).decode()}
             state = self.workers.call(kind, "initial_state", spec,
                                       {"item": spec, "epoch": 1, "revision": 0, "role": "system",
-                                       "actor": None, "timestamp": time.time()})
+                                       "actor": None, "timestamp": time.time(),
+                                       **self.records.context(fresh), **self.points.context(fresh)})
             self.db.execute("INSERT INTO items VALUES (?,?,?,?,?,?,?,?,?)",
                             (sid, kind, item, 1, 0, self.fingerprint, canonical(state).decode(), canonical(spec).decode(), 0))
+
+    def _records_enabled(self, kind):
+        return self.catalog.capability(kind)[1].get("state_records") is True
+
+    @staticmethod
+    def _record_key(key):
+        return isinstance(key, str) and 0 < len(key) <= 256 and len(canonical(key)) <= 512
+
+    def _record_context(self, row, state, event, ctx):
+        if not self._records_enabled(row["kind"]):
+            return ctx
+        keys = self.workers.call(row["kind"], "record_keys", state, event, ctx)
+        page_keys = []
+        if isinstance(keys, dict):
+            if set(keys) != {"keys", "page"} or not isinstance(keys["page"], dict) or set(keys["page"]) != {"offset", "limit"}:
+                raise PluginError("invalid record page")
+            page = keys["page"]
+            if type(page["offset"]) is not int or not 0 <= page["offset"] <= MAX_RECORDS \
+                    or type(page["limit"]) is not int or not 1 <= page["limit"] <= MAX_RECORD_READS:
+                raise PluginError("invalid record page bounds")
+            page_keys = [r[0] for r in self.db.execute(
+                "SELECT key FROM records WHERE sid=? AND kind=? AND item=? AND epoch=? ORDER BY key LIMIT ? OFFSET ?",
+                (row["sid"], row["kind"], row["item"], row["epoch"], page["limit"], page["offset"]))]
+            keys = keys["keys"]
+        if not isinstance(keys, list) or len(keys) > MAX_RECORD_READS or any(not self._record_key(k) for k in keys):
+            raise PluginError("invalid record read set")
+        if len(set(keys)) != len(keys):
+            raise PluginError("duplicate record read key")
+        keys = list(dict.fromkeys([*keys, *page_keys]))
+        if len(keys) > MAX_RECORD_READS:
+            raise PluginError("record read budget exceeded")
+        records = {}
+        for key in keys:
+            value = self.db.execute("SELECT value FROM records WHERE sid=? AND kind=? AND item=? AND epoch=? AND key=?",
+                                   (row["sid"], row["kind"], row["item"], row["epoch"], key)).fetchone()
+            if value is not None:
+                records[key] = read_json(value["value"], limit=MAX_RECORD_BYTES)
+        return ctx | {"records": records, "record_page": page_keys}
 
     def _receipt(self, sid, actor, request, envelope_digest):
         old = self.db.execute("SELECT digest,receipt FROM receipts WHERE sid=? AND actor=? AND request=?",
@@ -131,16 +190,24 @@ class Runtime:
                 receipt = {"accepted": False, "error": error, "epoch": row["epoch"], "revision": row["revision"]}
                 self._save_receipt(sid, actor, envelope["request_id"], ed, receipt)
                 return receipt
-            ctx = self._ctx(row, actor=actor, role=role)
+            target = envelope["payload"].get(message.get("record_actor_field")) if (
+                not reset and message.get("record_actor_field")) else None
+            ctx = self._ctx(row, actor=actor, role=role, record_actor=target)
             if reset:
                 ctx |= {"epoch": row["epoch"] + 1, "revision": 0}
+                # Initial/activation hooks see the fresh epoch, never the old roster.
+                fresh = dict(row) | {"epoch": row["epoch"] + 1, "state": "{}"}
+                ctx.update(self.records.context(fresh, role=role))
+                ctx.update(self.points.context(fresh))
                 transition = {"state": self.workers.call(kind, "initial_state", ctx["item"], ctx), "effects": []}
                 if row["active"]:
                     transition = self.workers.call(kind, "transition", transition["state"], {"kind": "activate"}, ctx)
             else:
                 event = {"kind": "command", "operation": op, "payload": envelope["payload"],
                          "actor": actor, "request_id": envelope["request_id"]}
-                transition = self.workers.call(kind, "transition", read_json(row["state"]), event, ctx)
+                state = read_json(row["state"])
+                ctx = self._record_context(row, state, event, ctx)
+                transition = self.workers.call(kind, "transition", state, event, ctx)
             if isinstance(transition, dict) and set(transition) == {"refusal"}:
                 code = transition["refusal"]
                 if not isinstance(code, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,79}", code):
@@ -149,21 +216,34 @@ class Runtime:
                 self._save_receipt(sid, actor, envelope["request_id"], ed, receipt)
                 return receipt
             return self._commit(row, transition, actor=actor, request=envelope["request_id"],
-                                envelope_digest=ed, reset=reset)
+                                envelope_digest=ed, reset=reset, audience_actor=actor if role == "participant" else None,
+                                record_actor=actor if role == "participant" else None, scoring_role=role)
 
     def _commit(self, row, transition, *, actor="system", request=None, envelope_digest=None,
-                reset=False, active=None, delivery=None):
+                reset=False, active=None, delivery=None, audience_actor=None, record_actor=None, scoring_role="system"):
         if not isinstance(transition, dict) or set(transition) != {"state", "effects"} or not isinstance(transition["effects"], list):
             raise PluginError("transition must contain state and effects")
         if len(canonical(transition)) > 256 * 1024 or len(transition["effects"]) > 32:
             raise PluginError("transition exceeds resource budget")
+        record = self.records.prepare(row, transition["effects"], record_actor)
+        scoring = self.points.prepare(row, transition["effects"], record_actor, scoring_role)
+        effects = [e for e in transition["effects"] if not (isinstance(e, dict) and e.get("kind") in ("save-actor", "set-credit", "publish-points"))]
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
         bindings = read_json(row["spec"], limit=8 * 1024 * 1024).get("evaluations", {})
-        jobs, correlations = [], set()
-        for effect in transition["effects"]:
+        jobs, correlations, records = [], set(), {}
+        for effect in effects:
             if not isinstance(effect, dict): raise PluginError("invalid effect")
+            if effect.get("kind") == "put-record":
+                if not self._records_enabled(row["kind"]) or set(effect) != {"kind", "key", "value"} \
+                        or not self._record_key(effect["key"]) or effect["key"] in records:
+                    raise PluginError("invalid record write")
+                value = canonical(effect["value"])
+                if len(value) > MAX_RECORD_BYTES:
+                    raise PluginError("record exceeds resource budget")
+                records[effect["key"]] = value.decode()
+                continue
             correlation = effect.get("correlation_id")
             if not isinstance(correlation, str) or not REQUEST.fullmatch(correlation):
                 raise PluginError("invalid evaluation correlation ID")
@@ -185,28 +265,57 @@ class Runtime:
         try:
             # Account atomically for the slots this transition actually frees.
             # A full queue must still permit replacement of an actor's old job.
-            pending = self.db.execute("SELECT count(*) FROM jobs WHERE sid=? AND status IN ('queued','leased')",
-                                      (row["sid"],)).fetchone()[0]
             cancellations = {e["correlation_id"] for e in transition["effects"] if e["kind"] == "cancel-evaluation"}
-            old_jobs = self.db.execute("""SELECT correlation FROM jobs WHERE sid=? AND kind=? AND item=?
-              AND epoch=? AND status IN ('queued','leased')""", (*identity, row["epoch"])).fetchall()
-            freed = len(old_jobs) if reset else sum(job["correlation"] in cancellations for job in old_jobs)
-            if pending - freed + len(jobs) > MAX_PENDING:
-                raise PluginError("evaluation queue is full; request can be retried", code="queue-full")
+            if jobs:
+                pending = self.db.execute("SELECT count(*) FROM jobs WHERE sid=? AND status IN ('queued','leased')",
+                                          (row["sid"],)).fetchone()[0]
+                freed = 0
+                if reset or cancellations:
+                    query = "SELECT count(*) FROM jobs WHERE sid=? AND kind=? AND item=? AND epoch=? AND status IN ('queued','leased')"
+                    params = (*identity, row["epoch"])
+                    if not reset:
+                        query += " AND correlation IN (" + ",".join("?" for _ in cancellations) + ")"
+                        params += tuple(cancellations)
+                    freed = self.db.execute(query, params).fetchone()[0]
+                if pending - freed + len(jobs) > MAX_PENDING:
+                    raise PluginError("evaluation queue is full; request can be retried", code="queue-full")
+            if records:
+                total = existing = 0
+                if not reset:
+                    scope = " FROM records WHERE sid=? AND kind=? AND item=? AND epoch=?"
+                    total = self.db.execute("SELECT count(*)" + scope, (*identity, epoch)).fetchone()[0]
+                    existing = self.db.execute("SELECT count(*)" + scope + " AND key IN (" +
+                        ",".join("?" for _ in records) + ")", (*identity, epoch, *records)).fetchone()[0]
+                if total + len(records) - existing > MAX_RECORDS:
+                    raise PluginError("item record capacity reached", code="capacity")
             changed = self.db.execute("""UPDATE items SET state=?,epoch=?,revision=?,active=?
               WHERE sid=? AND kind=? AND item=? AND epoch=? AND revision=?""",
               (canonical(transition["state"]).decode(), epoch, revision, row["active"] if active is None else int(active),
                *identity, row["epoch"], row["revision"])).rowcount
             if changed != 1: raise PluginError("item changed concurrently; retry command", code="concurrent-update")
+            self.records.apply(row, record, reset=reset)
+            self.points.apply(row, scoring, reset=reset)
             if reset:
+                self.db.execute("DELETE FROM records WHERE sid=? AND kind=? AND item=?", identity)
                 self.db.execute("UPDATE jobs SET status=CASE WHEN status IN ('queued','leased') THEN 'cancelled' ELSE status END,delivered=1 WHERE sid=? AND kind=? AND item=? AND epoch=?",
                                 (*identity, row["epoch"]))
+            for key, value in records.items():
+                self.db.execute("INSERT INTO records VALUES (?,?,?,?,?,?) ON CONFLICT(sid,kind,item,epoch,key) DO UPDATE SET value=excluded.value",
+                                (*identity, epoch, key, value))
             for jid, effect in jobs:
+                binding = bindings[effect["binding"]]
+                provider, engine = self.catalog.capability(binding["engine"], engine=True)
+                key = self._outcome_key({"sid": row["sid"], "kind": row["kind"], "item": row["item"],
+                                         "epoch": epoch, "text": effect["text"]}, provider, engine, binding)
+                cached = self.outcomes.get(key) if key is not None else None
+                if cached is not None:
+                    self.outcomes.move_to_end(key)
                 self.db.execute("""INSERT INTO jobs
-                  (id,sid,kind,item,epoch,revision,actor,binding,correlation,text,status,owner,generation,deadline)
-                  VALUES (?,?,?,?,?,?,?,?,?,?,'queued',NULL,0,0)""",
-                  (jid, *identity, epoch, revision, actor, effect["binding"], effect["correlation_id"], effect["text"]))
-            for effect in transition["effects"]:
+                  (id,sid,kind,item,epoch,revision,actor,binding,correlation,text,status,owner,generation,deadline,result)
+                  VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL,0,0,?)""",
+                  (jid, *identity, epoch, revision, actor, effect["binding"], effect["correlation_id"], effect["text"],
+                   "succeeded" if cached is not None else "queued", cached.decode() if cached is not None else None))
+            for effect in effects:
                 if effect["kind"] == "cancel-evaluation":
                     self.db.execute("""UPDATE jobs SET status='cancelled',result=? WHERE sid=? AND kind=? AND item=?
                       AND epoch=? AND correlation=? AND status IN ('queued','leased')""",
@@ -216,7 +325,28 @@ class Runtime:
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK"); raise
+        targeted = not reset and audience_actor is not None and self.catalog.capability(row["kind"])[1].get("participant_updates") == "actor"
+        sid = row["sid"]
+        if not targeted:
+            self.changes[sid] = None
+        elif self.changes.get(sid, set()) is not None:
+            self.changes.setdefault(sid, set()).add(audience_actor)
         return receipt
+
+    def take_changes(self, sid):
+        """None means all participants; a set names only affected actors."""
+        with self.lock:
+            return self.changes.pop(sid, set())
+
+    def _outcome_key(self, job, provider, engine, binding):
+        if engine.get("result_cache") != "by-input":
+            return None
+        return (job["sid"], job["kind"], job["item"], job["epoch"],
+                namespace(provider, binding["engine"], engine, binding), job["text"])
+
+    def pending(self, sid):
+        with self.lock:
+            return self.db.execute("SELECT 1 FROM jobs WHERE sid=? AND status='queued' LIMIT 1", (sid,)).fetchone() is not None
 
     def activate(self, sid, active_items):
         with self.lock:
@@ -224,8 +354,10 @@ class Runtime:
                 wanted = (row["kind"], row["item"]) in active_items
                 if wanted == bool(row["active"]): continue
                 self._item(sid, row["kind"], row["item"])
-                transition = self.workers.call(row["kind"], "transition", read_json(row["state"]),
-                                                {"kind": "activate" if wanted else "deactivate"}, self._ctx(row))
+                state = read_json(row["state"])
+                event = {"kind": "activate" if wanted else "deactivate"}
+                ctx = self._record_context(row, state, event, self._ctx(row))
+                transition = self.workers.call(row["kind"], "transition", state, event, ctx)
                 self._commit(row, transition, active=wanted)
 
     def view(self, sid, kind, item, role, surface, actor=None):
@@ -234,8 +366,10 @@ class Runtime:
             raise PluginError("surface not allowed for role")
         with self.lock:
             row = self._item(sid, kind, item)
-            data = self.workers.call(kind, "view", read_json(row["state"]),
-                                     {"role": role, "surface": surface, "actor": actor}, self._ctx(row, actor=actor, role=role))
+            state = read_json(row["state"])
+            audience = {"role": role, "surface": surface, "actor": actor}
+            ctx = self._record_context(row, state, {"kind": "view", "audience": audience}, self._ctx(row, actor=actor, role=role))
+            data = self.workers.call(kind, "view", state, audience, ctx)
             if len(canonical(data)) > 128 * 1024: raise PluginError("view exceeds output budget")
             provider, spec = self.catalog.capability(kind)
             if "view_schemas" in spec:
@@ -247,23 +381,41 @@ class Runtime:
 
     def lease(self, sid, owner, *, now=None, limit=2):
         now = time.time() if now is None else now
-        with self.lock:
+        with self.lock, self.db:
+            # One bounded work batch is durable before the caller sees it.
+            # Preserve FULL synchronization without one fsync per cache hit.
+            self.db.execute("BEGIN IMMEDIATE")
             jobs = self.db.execute("""SELECT * FROM jobs WHERE sid=? AND
-               (status='queued' OR (status='leased' AND deadline<?)) ORDER BY rowid LIMIT ?""", (sid, now, limit)).fetchall()
+               (status='queued' OR (status='leased' AND deadline<?)) ORDER BY rowid LIMIT ?""", (sid, now, limit + MAX_CACHE_DELIVERIES)).fetchall()
             result = []
+            cached = 0
             for job in jobs:
                 row = self._item(sid, job["kind"], job["item"])
                 if job["epoch"] != row["epoch"]: continue
                 if job["generation"] >= 3:
                     self.db.execute("UPDATE jobs SET status='failed',result=? WHERE id=?", ('{"status":"timeout"}', job["id"]))
                     continue
+                binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
+                p, engine = self.catalog.capability(binding["engine"], engine=True)
+                key = self._outcome_key(job, p, engine, binding)
+                if key is not None and key in self.outcomes and cached < MAX_CACHE_DELIVERIES:
+                    raw = self.outcomes[key]
+                    # Only validated successful outcomes from an accepted lease
+                    # enter this immutable cache. Every actor still has a durable
+                    # job and its own guarded transition/receipt/private projection.
+                    self.db.execute("UPDATE jobs SET status='succeeded',result=?,owner=NULL,deadline=0 WHERE id=? AND status IN ('queued','leased')",
+                                    (raw.decode(), job["id"]))
+                    self.outcomes.move_to_end(key); cached += 1
+                    if cached == MAX_CACHE_DELIVERIES:
+                        break
+                    continue
+                if len(result) >= limit:
+                    break
                 generation = job["generation"] + 1
                 updated = self.db.execute("""UPDATE jobs SET status='leased',owner=?,generation=?,deadline=?
                     WHERE id=? AND generation=? AND status IN ('queued','leased')""",
                     (owner, generation, now + 120, job["id"], job["generation"])).rowcount
                 if not updated: continue
-                binding = read_json(row["spec"], limit=8 * 1024 * 1024)["evaluations"][job["binding"]]
-                p, engine = self.catalog.capability(binding["engine"], engine=True)
                 result.append({"id": job["id"], "generation": generation, "epoch": job["epoch"],
                                "text": job["text"], "binding": binding,
                                "namespace": namespace(p, binding["engine"], engine, binding)})
@@ -299,10 +451,17 @@ class Runtime:
             validate_outcome(outcome, provider, engine,
                              namespace(provider, binding["engine"], engine, binding),
                              references=bool(binding.get("references")))
-            return bool(self.db.execute("""UPDATE jobs SET status=?,result=? WHERE id=? AND sid=? AND owner=?
+            accepted = bool(self.db.execute("""UPDATE jobs SET status=?,result=? WHERE id=? AND sid=? AND owner=?
                AND status='leased' AND generation=? AND epoch=? AND deadline>=?""",
                ("succeeded" if outcome["status"] == "ok" else "failed", canonical(outcome).decode(), result["id"],
                 sid, owner, result["generation"], result["epoch"], now)).rowcount)
+            key = self._outcome_key(job, provider, engine, binding)
+            if accepted and outcome["status"] == "ok" and key is not None:
+                self.outcomes[key] = canonical(outcome)
+                self.outcomes.move_to_end(key)
+                while len(self.outcomes) > MAX_CACHED_RESULTS:
+                    self.outcomes.popitem(last=False)
+            return accepted
 
     def drain(self, sid):
         with self.lock:
@@ -313,12 +472,18 @@ class Runtime:
                     self.db.execute("UPDATE jobs SET delivered=1 WHERE id=?", (job["id"],)); continue
                 event = {"kind": "evaluation.finished", "job_id": job["id"], "correlation_id": job["correlation"],
                          "actor": job["actor"], "binding": job["binding"], "outcome": read_json(job["result"])}
-                transition = self.workers.call(row["kind"], "transition", read_json(row["state"]), event, self._ctx(row))
-                self._commit(row, transition, actor=job["actor"], delivery=job["id"])
+                state = read_json(row["state"])
+                ctx = self._record_context(row, state, event, self._ctx(row, record_actor=job["actor"]))
+                transition = self.workers.call(row["kind"], "transition", state, event, ctx)
+                self._commit(row, transition, actor=job["actor"], delivery=job["id"], audience_actor=job["actor"], record_actor=job["actor"])
 
     def archive(self, sid):
         """Presenter-authorized callers only; includes private plugin state."""
         with self.lock:
             return {"format": 1, "runtime": self.fingerprint,
                     "items": [dict(r) for r in self.db.execute("SELECT * FROM items WHERE sid=?", (sid,))],
-                    "jobs": [dict(r) for r in self.db.execute("SELECT * FROM jobs WHERE sid=?", (sid,))]}
+                    "jobs": [dict(r) for r in self.db.execute("SELECT * FROM jobs WHERE sid=?", (sid,))],
+                    "point_rounds": [dict(r) for r in self.points.heads(sid)],
+                    "point_credits": [dict(r) for r in self.db.execute("SELECT * FROM point_credits WHERE sid=?", (sid,))],
+                    "records": [dict(r) for r in self.db.execute("SELECT * FROM records WHERE sid=?", (sid,))],
+                    "actor_records": [dict(r) for r in self.db.execute("SELECT * FROM actor_records WHERE sid=?", (sid,))]}

@@ -129,7 +129,11 @@ def test_namespace_includes_schema_and_contract_identity(typed):
 def test_manifest_versions_missing_resources_and_view_coverage(typed):
     m = typed.manifest
     assert load_manifest(canonical(m)) == m
-    for revision in (1, 3, True):
+    v3 = copy.deepcopy(m); v3["manifest_version"] = 3
+    assert load_manifest(canonical(v3)) == v3
+    v4 = copy.deepcopy(m); v4["manifest_version"] = 4
+    load_manifest(canonical(v4))
+    for revision in (1, 5, True):
         bad = copy.deepcopy(m); bad["manifest_version"] = revision
         with pytest.raises(PluginError): load_manifest(canonical(bad))
     bad = copy.deepcopy(m); del bad["resources"]["fixture_plugin/result.json"]

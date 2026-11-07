@@ -215,6 +215,9 @@
         "state_policy": {
           "const": "fresh-per-submission"
         },
+        "result_cache": {
+          "const": "by-input"
+        },
         "result_data_schema": {
           "$ref": "#/$defs/path"
         }
@@ -244,6 +247,14 @@
         "state_schema": {
           "type": "integer",
           "minimum": 1
+        },
+        "state_records": {
+          "type": "boolean",
+          "const": true
+        },
+        "participant_updates": {
+          "type": "string",
+          "const": "actor"
         },
         "latex_packages": {
           "type": "array",

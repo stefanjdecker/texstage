@@ -19,10 +19,12 @@ from pathlib import Path
 
 from texstage.server import types as stage_types
 from texstage.server.game import Answer, Player, Round, Session
+from texstage.server.activity_points import ActivityPoints
 from texstage.server.ink import Stroke
 from texstage.server.qa import Asked
 
 TABLES = {
+    ActivityPoints: ("activity_points", ["session", "kind", "item", "epoch", "revision", "published", "maximum", "awards"]),
     Session: ("sessions", ["id", "pin", "deck", "bundle", "created", "last_active", "owner", "ended",
                            "finished", "slide", "current", "stage", "polls"]),
     Player: ("players", ["id", "session", "nickname", "token_hash", "joined", "kicked", "score", "streak",
@@ -35,9 +37,9 @@ TABLES = {
                          "erased"]),
     Asked: ("questions", ["id", "session", "player", "text", "created", "votes", "state"]),
 }
-KEYS = {"sessions": "id", "players": "id", "rounds": "id", "answers": "round, player", "strokes": "id",
+KEYS = {"activity_points": "session, kind, item", "sessions": "id", "players": "id", "rounds": "id", "answers": "round, player", "strokes": "id",
         "questions": "id"}
-JSON = {Session: ("stage", "polls"), Answer: ("payload",), Stroke: ("points",), Asked: ("votes",)}   # per table:
+JSON = {ActivityPoints: ("awards",), Session: ("stage", "polls"), Answer: ("payload",), Stroke: ("points",), Asked: ("votes",)}   # per table:
 # an answer's points are a number (files of M2 to M5 stored them as JSON text too; load() reads both)
 for _cls, (_table, _cols, _key, _json) in stage_types.ROWS.items():     # the content types' tables (types.py)
     TABLES[_cls], KEYS[_table], JSON[_cls] = (_table, _cols), _key, _json
@@ -130,6 +132,9 @@ class Store:
                         a.sequence = next_number
                         self.save(a)
             self.db.commit()
+        for r in self.db.execute(f"SELECT * FROM activity_points WHERE session IN ({marks})", list(sessions)):
+            item = ActivityPoints(**{**dict(r), "published": bool(r["published"]), "awards": json.loads(r["awards"])})
+            sessions[item.session].activity_points[(item.kind, item.item)] = item
         return list(sessions.values())
 
     def load_strokes(self, sessions: list[str]) -> list[Stroke]:

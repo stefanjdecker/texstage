@@ -71,12 +71,14 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Installation and quick start](docs/installation.md) | Requirements, first deck, troubleshooting and deployment |
 | [Authoring](docs/authoring.md) | Quiz syntax, build modes and presenting |
 | [Demo](examples/demo/README.md) | A runnable synthetic deck |
+| [Database activity lab](examples/database/README.md) | A campus-library deck with SQL, SPARQL, Turtle, shared graphs and all nine quiz types |
 | [Guided feature showcase](examples/showcase/README.md) | A coherent picnic-themed tour, all nine quiz types, live activities, local video playback and presenter notes |
 | [Plain PowerPoint conversion](docs/powerpoint.md) | Convert Beamer, preserve overlays and notes, or use the Python API |
 | [SQL activity rules](docs/manual.md#sql-activities-permitted-statements) | Accepted queries, refused writes and where submissions run |
 | [LaTeX compilation API](docs/compilation.md) | Shared pdflatex/latexmk runner for standalone documents and course tools |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
 | [Experimental plugins](docs/plugins.md) | Install and try independent activity engines and slide types; current limits and release gates |
+| [Transaction-plugin API review](docs/architecture/transaction-plugin-review.md) | Planned host revisions for phased activities, structured feedback and classroom-sized use |
 | [Plugin system design](docs/architecture/plugin-system-design.md) | Target API 1 contracts and implementation sequence |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |

@@ -6,6 +6,8 @@ exclude docs/manual-latex/*.log docs/manual-latex/*.out docs/manual-latex/*.pdf
 exclude docs/manual-latex/*.synctex.gz docs/manual-latex/*.toc
 graft examples/demo
 prune examples/demo/texquiz-out
+graft examples/database
+prune examples/database/texquiz-out
 graft examples/manual
 prune examples/manual/texquiz-out
 graft deploy

@@ -33,6 +33,14 @@ test("empty and failed polls retain backoff",async()=>{
   await tick();assert.equal(timers[0].delay,750);evaluator.destroy();
  }
 });
+test("cached deliveries keep draining promptly without creating workers",async()=>{
+ let work=0;
+ const {evaluator,timers}=await setup(async()=>({jobs:[],more_work:work++===0}));
+ evaluator.evaluate=()=>{throw Error("a cached delivery must not start a worker");};
+ await tick();assert.equal(timers[0].delay,0);
+ timers[0].fn();await tick();assert.equal(timers[1].delay,750);
+ evaluator.destroy();
+});
 test("destroy during evaluation neither submits an old result nor schedules another poll",async()=>{
  let release;const sent=[];
  const {evaluator,timers}=await setup(async m=>{sent.push(m);return {jobs:[{id:"a"}]};});

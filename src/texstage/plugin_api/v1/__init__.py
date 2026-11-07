@@ -71,6 +71,35 @@ class CancelEvaluation:
 
 
 @dataclass(frozen=True)
+class PutRecord:
+    """Replace one bounded, private item record atomically with the transition."""
+    key: str
+    value: Any
+    kind: str = field(default="put-record", init=False)
+
+
+@dataclass(frozen=True)
+class SaveActor:
+    """Replace the authenticated event actor's record in the host transaction."""
+    value: Any
+    summary: dict
+    kind: str = field(default="save-actor", init=False)
+
+
+@dataclass(frozen=True)
+class SetCredit:
+    """Replace this event actor's credit (0–1000), or clear it with None."""
+    credit: int | None
+    kind: str = field(default="set-credit", init=False)
+
+
+@dataclass(frozen=True)
+class PublishPoints:
+    """Presenter-only publication of this activity's current and late credits."""
+    kind: str = field(default="publish-points", init=False)
+
+
+@dataclass(frozen=True)
 class Transition:
     state: Any
     effects: list = field(default_factory=list)
