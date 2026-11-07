@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Authentication-aware bridge to the experimental plugin host."""
 from texstage.plugins import PluginError
+import time
+from texstage.server.activity_points import scoring_context
 from pathlib import Path
 from texstage.plugins.assets import public_asset, MIME
 from texstage.plugins.manifest import read_json
@@ -84,7 +86,9 @@ class PluginHost:
                            "assets": {n: f"/plugins/{provider.payload}/{n}" for n in provider.resources if Path(n).suffix.lower() in MIME}
                            | {n: f"/bundle/{bundle.id}/{path}" for n, path in bundle.items[kind][item].get("plugin_assets", {}).items()},
                            "modules": {s: f"/plugins/{provider.payload}/{spec['views'][s]}" for s in surfaces},
-                           "views": {s: self.runtime.view(conn.session, kind, item, role, s, actor) for s in surfaces}})
+                           "views": {s: self.runtime.view(conn.session, kind, item, role, s, actor,
+                               scoring=scoring_context(self.server.engine.sessions[conn.session],kind,item,actor) if role == "participant" else None)
+                               for s in surfaces}})
         return {"language": bundle.deck_json.get("language") or "en",
                 "plugins": {"catalog": self.catalog.fingerprint, "items": result}}
 
@@ -96,6 +100,7 @@ class PluginHost:
             return {"plugins": {"items": [], "error": str(exc) if conn.role in ("host", "stage") else "Activity unavailable"}}
 
     def handle(self, conn, message):
+        received = time.time()
         role, actor = self.identity(conn)
         if self.runtime is None: raise PluginError("no plugins are enabled")
         _, bundle, _ = self.sync(conn.session)
@@ -104,7 +109,7 @@ class PluginHost:
             envelope = message.get("command")
             if not isinstance(envelope, dict) or envelope.get("item") not in bundle.items.get(envelope.get("type"), {}):
                 raise PluginError("item does not belong to this session")
-            result = self.runtime.command(conn.session, actor, role, envelope)
+            result = self.runtime.command(conn.session, actor, role, envelope, now=received)
             # An exact successful cache hit still has its own durable job and
             # guarded completion. Deliver it before sending an avoidable pending
             # projection to this actor; no worker is started by a participant.

@@ -1,5 +1,8 @@
 # Experimental plugins
 
+Manifest revision 5 adds [quiz speed points and shared streaks](plugin-points.md#quiz-speed-and-shared-streaks-revision-5).
+
+
 Optional [activity points](plugin-points.md) connect manifest-4 providers to
 the normal game total, leaderboard and CSV export.
 
@@ -32,7 +35,7 @@ The commands below use the virtual environment's `python` and `texstage` command
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/dev.txt
 python -m build --no-isolation
-python -m pip install --no-deps dist/texstage-0.2.1.dev5-py3-none-any.whl
+python -m pip install --no-deps dist/texstage-0.2.1.dev6-py3-none-any.whl
 ```
 
 In the separate collection checkout, build its two packages with

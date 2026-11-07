@@ -46,7 +46,7 @@ from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from texstage.server import qa
-from texstage.server.activity_points import ActivityPoints, reconcile
+from texstage.server.activity_points import ActivityPoints, reconcile, rescore as rescore_activities
 from texstage.server import types as stage_types
 from texstage.server.bundles import Bundle, QuizDef, SlideInfo
 from texstage.server.ink import InkBook, Stroke, check_frame
@@ -590,6 +590,9 @@ class Engine:
     def _rescore(self, s: Session):
         """Scores, streaks, streak bonuses and ranks from the rounds the game still has,
         replayed in the order they were revealed - as if the withdrawn ones had never run."""
+        if any(a.policy == "quiz-v1" for a in s.activity_points.values()):
+            rescore_activities(self,s)
+            return
         players = s.active_players()
         for p in players:
             p.score = p.streak = p.total_ms = p.rank = p.prev_rank = 0
@@ -631,6 +634,7 @@ class Engine:
             return
         q = self.quiz(s, r.quiz)
         scored = q.scored and not r.practice
+        combined = any(a.policy == "quiz-v1" for a in s.activity_points.values())
         for p in s.active_players():
             a = r.answers.get(p.id)
             if a is not None:
@@ -638,7 +642,7 @@ class Engine:
                 a.correct, a.credit = verdict.correct, verdict.credit
                 if scored:
                     a.points = int(speed_points(q.base, a.answer_ms, r.limit_ms) * verdict.credit + 0.5)
-            if scored:
+            if scored and not combined:
                 if a is not None and a.correct:
                     p.streak += 1
                     a.bonus = streak_bonus(p.streak) if self.settings.streak_bonus else 0
@@ -654,7 +658,8 @@ class Engine:
         r.revealed = now
         self._save(r)
         if scored:
-            self._rank(s)
+            if combined:self._rescore(s)
+            else:self._rank(s)
 
     def _rank(self, s: Session):
         ranked = sorted(s.active_players(), key=lambda p: (-p.score, p.total_ms, p.joined))
@@ -1344,6 +1349,8 @@ class Engine:
         activities = sorted((a for a in s.activity_points.values() if a.published), key=lambda a: (a.kind, a.item))
         for a in activities:
             header += [f"{a.item} activity credit", f"{a.item} activity points"]
+            if a.policy == "quiz-v1":
+                header += [f"{a.item} speed points", f"{a.item} streak bonus", f"{a.item} answer ms"]
         rounds = {q: next((r for r in sorted(s.rounds.values(), key=lambda r: r.attempt)
                            if r.quiz == q and not r.practice), None) for q in quizzes}
         rows = [header]
@@ -1366,12 +1373,15 @@ class Engine:
             for activity in activities:
                 award = activity.awards.get(p.id)
                 if award is None:
-                    cells += ["", ""]
+                    cells += [""] * (5 if activity.policy == "quiz-v1" else 2)
                 else:
                     answered += 1
                     credit = award["credit"]
                     correct += credit == 1000
-                    cells += [credit / 1000 if credit is not None else "", award["points"] if credit is not None else ""]
+                    result = activity.results.get(p.id) if activity.policy == "quiz-v1" else award
+                    cells += [credit / 1000 if credit is not None else "", result["points"] if result and credit is not None else ""]
+                    if activity.policy == "quiz-v1":
+                        cells += [result[k] for k in ("base_points", "bonus", "answer_ms")] if result else ["", "", ""]
             rows.append([p.rank or "", p.nickname, p.score, correct, answered] + cells)
         return rows
 

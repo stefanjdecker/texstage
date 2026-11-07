@@ -19,10 +19,12 @@ def test_plugin_projection_includes_deck_language_without_widening_roles(languag
     host = object.__new__(PluginHost)
     host.catalog = SimpleNamespace(fingerprint="catalog", capability=lambda kind: (provider, spec))
     calls = []
-    def project(session, kind, item, requested_role, surface, actor):
+    def project(session, kind, item, requested_role, surface, actor, *, scoring=None):
         calls.append((requested_role, surface, actor))
+        assert scoring is None
         return {"epoch": 1, "revision": 0, "data": {}}
     host.runtime = SimpleNamespace(view=project)
+    host.server = SimpleNamespace(engine=SimpleNamespace(sessions={"test-session": SimpleNamespace(activity_points={})}))
     host.identity = lambda connection: (role, "authenticated")
     host.sync = lambda sid: (None, bundle, [("org.example.lesson", "one")])
     result = host.view(SimpleNamespace(session="test-session"))

@@ -109,7 +109,7 @@ def test_presenter_controls_push_immediately_but_student_bursts_coalesce():
     calls = []
     host = object.__new__(PluginHost)
     receipt = {'accepted': True, 'epoch': 1, 'revision': 2}
-    host.runtime = SimpleNamespace(command=lambda *args: receipt, take_changes=lambda sid: None,
+    host.runtime = SimpleNamespace(command=lambda *args, **kwargs: receipt, take_changes=lambda sid: None,
                                    drain=lambda sid: calls.append(('drain',sid)))
     host.sync_points = lambda sid: None  # durable projection tested separately
     host.server = SimpleNamespace(push=lambda sid: calls.append(('push', sid)),

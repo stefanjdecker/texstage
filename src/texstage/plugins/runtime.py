@@ -23,7 +23,7 @@ from .contracts import namespace, resource_schema, validate_outcome, json_data
 from .manifest import canonical, digest, read_json, validate_json
 from .worker import Workers
 from .records import ActorRecords
-from .points import FixedPoints, fixed_points
+from .points import FixedPoints, fixed_points, SCORING_EFFECTS
 
 REQUEST = re.compile(r"[A-Za-z0-9_-]{8,128}\Z")
 MAX_RECEIPTS = 100000
@@ -151,7 +151,8 @@ class Runtime:
         self.db.execute("INSERT INTO receipts VALUES (?,?,?,?,?)",
                         (sid, actor, request, envelope_digest, canonical(receipt).decode()))
 
-    def command(self, sid, actor, role, envelope):
+    def command(self, sid, actor, role, envelope, *, now=None):
+        received = time.time() if now is None else now
         if role not in ("presenter", "participant"):
             raise PluginError("this role cannot dispatch plugin commands")
         fields = {"type", "item", "operation", "epoch", "request_id", "expected_revision", "payload"}
@@ -217,17 +218,18 @@ class Runtime:
                 return receipt
             return self._commit(row, transition, actor=actor, request=envelope["request_id"],
                                 envelope_digest=ed, reset=reset, audience_actor=actor if role == "participant" else None,
-                                record_actor=actor if role == "participant" else None, scoring_role=role)
+                                record_actor=actor if role == "participant" else None, scoring_role=role,
+                                scoring_now=int(received*1000))
 
     def _commit(self, row, transition, *, actor="system", request=None, envelope_digest=None,
-                reset=False, active=None, delivery=None, audience_actor=None, record_actor=None, scoring_role="system"):
+                reset=False, active=None, delivery=None, audience_actor=None, record_actor=None, scoring_role="system", scoring_now=None):
         if not isinstance(transition, dict) or set(transition) != {"state", "effects"} or not isinstance(transition["effects"], list):
             raise PluginError("transition must contain state and effects")
         if len(canonical(transition)) > 256 * 1024 or len(transition["effects"]) > 32:
             raise PluginError("transition exceeds resource budget")
         record = self.records.prepare(row, transition["effects"], record_actor)
         scoring = self.points.prepare(row, transition["effects"], record_actor, scoring_role)
-        effects = [e for e in transition["effects"] if not (isinstance(e, dict) and e.get("kind") in ("save-actor", "set-credit", "publish-points"))]
+        effects = [e for e in transition["effects"] if not (isinstance(e, dict) and e.get("kind") in SCORING_EFFECTS | {"save-actor"})]
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
@@ -294,7 +296,7 @@ class Runtime:
                *identity, row["epoch"], row["revision"])).rowcount
             if changed != 1: raise PluginError("item changed concurrently; retry command", code="concurrent-update")
             self.records.apply(row, record, reset=reset)
-            self.points.apply(row, scoring, reset=reset)
+            self.points.apply(row, scoring, reset=reset, now=scoring_now)
             if reset:
                 self.db.execute("DELETE FROM records WHERE sid=? AND kind=? AND item=?", identity)
                 self.db.execute("UPDATE jobs SET status=CASE WHEN status IN ('queued','leased') THEN 'cancelled' ELSE status END,delivered=1 WHERE sid=? AND kind=? AND item=? AND epoch=?",
@@ -360,7 +362,7 @@ class Runtime:
                 transition = self.workers.call(row["kind"], "transition", state, event, ctx)
                 self._commit(row, transition, active=wanted)
 
-    def view(self, sid, kind, item, role, surface, actor=None):
+    def view(self, sid, kind, item, role, surface, actor=None, *, scoring=None):
         if surface not in {"presenter": ("presenter-overlay", "presenter-controls"),
                            "projector": ("projector-overlay",), "participant": ("participant-input",)}.get(role, ()):
             raise PluginError("surface not allowed for role")
@@ -369,6 +371,8 @@ class Runtime:
             state = read_json(row["state"])
             audience = {"role": role, "surface": surface, "actor": actor}
             ctx = self._record_context(row, state, {"kind": "view", "audience": audience}, self._ctx(row, actor=actor, role=role))
+            if scoring is not None and role == "participant":
+                ctx["scoring"] = scoring
             data = self.workers.call(kind, "view", state, audience, ctx)
             if len(canonical(data)) > 128 * 1024: raise PluginError("view exceeds output budget")
             provider, spec = self.catalog.capability(kind)

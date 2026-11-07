@@ -133,7 +133,7 @@ def test_manifest_versions_missing_resources_and_view_coverage(typed):
     assert load_manifest(canonical(v3)) == v3
     v4 = copy.deepcopy(m); v4["manifest_version"] = 4
     load_manifest(canonical(v4))
-    for revision in (1, 5, True):
+    for revision in (1, 6, True):
         bad = copy.deepcopy(m); bad["manifest_version"] = revision
         with pytest.raises(PluginError): load_manifest(canonical(bad))
     bad = copy.deepcopy(m); del bad["resources"]["fixture_plugin/result.json"]

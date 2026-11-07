@@ -1,5 +1,8 @@
 # Engine results and view schemas
 
+Manifest revision 5 adds [quiz speed points and shared streaks](plugin-points.md#quiz-speed-and-shared-streaks-revision-5).
+
+
 Revision 4 adds optional [host-owned activity points](plugin-points.md).
 Earlier manifest revisions remain supported.
 
@@ -14,7 +17,7 @@ classroom-capacity changes are separate milestones. The subsequent
 
 ## Manifest compatibility
 
-The host accepts manifest revisions 1, 2, 3 and 4. Revision 1 remains closed and cannot
+The host accepts manifest revisions 1, 2, 3, 4 and 5. Revision 1 remains closed and cannot
 declare the new fields. Revision 2 adds an optional engine `result_data_schema`
 and requires each content type to declare `view_schemas` covering exactly the
 surfaces in `views`. All schema paths refer to inventoried, hashed package JSON

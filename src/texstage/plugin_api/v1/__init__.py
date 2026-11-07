@@ -94,6 +94,13 @@ class SetCredit:
 
 
 @dataclass(frozen=True)
+class SetPointsOpen:
+    """Open/resume or pause quiz-v1 scoring time using the host clock."""
+    open: bool
+    kind: str = field(default="points-open", init=False)
+
+
+@dataclass(frozen=True)
 class PublishPoints:
     """Presenter-only publication of this activity's current and late credits."""
     kind: str = field(default="publish-points", init=False)

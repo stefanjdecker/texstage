@@ -137,7 +137,7 @@ def validate_bindings(bindings, declared, *, prepared=False):
 def load_manifest(raw: bytes | str) -> dict:
     value = read_json(raw)
     version = value.get("manifest_version") if isinstance(value, dict) else None
-    if type(version) is not int or version not in (1, 2, 3, 4):
+    if type(version) is not int or version not in (1, 2, 3, 4, 5):
         raise PluginError("unsupported plugin manifest version; this host supports revisions 1, 2 and 3")
     schema = read_json((Path(__file__).parent / "schemas" / f"manifest-v{version}.json").read_bytes())
     validate_json(schema, value, label="plugin manifest")
