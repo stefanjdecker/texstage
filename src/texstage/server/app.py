@@ -443,23 +443,26 @@ class Server:
         if complete and players and only is None and not asking:
             self.engine.due.pop(sid, None)            # every phone gets its state now
         host_view = None
-        for c in list(self.conns.get(sid, ())) if connections is None else connections:
-            if connections is not None and (c not in self.conns.get(sid, ()) or c.session != sid):
-                continue
+        connections = (list(self.conns.get(sid, ())) if connections is None else
+                       [c for c in connections if c in self.conns.get(sid, ()) and c.session == sid])
+        recipients = [c for c in connections if (c.role in HOSTS and hosts) or
+                      (c.role == "player" and players
+                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
+                       and (not asking or c.qa))]
+        plugin_views = self.plugins.safe_views(recipients)
+        for c in connections:
             try:
                 if c.role in HOSTS and hosts:
-                    plugin_view = self.plugins.safe_view(c)
                     if host_view is None:
                         host_view = self.engine.host_view(sid, now)
                         host_view["session"]["join"] = f"{self.config.public_url}/play?pin={host_view['session']['pin']}"
                         host_view["session"]["qr"] = f"/join/{host_view['session']['pin']}.svg"
-                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **plugin_view})
+                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **plugin_views[c]})
                 elif (c.role == "player" and players
                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
                       and (not asking or c.qa)):
-                    plugin_view = self.plugins.safe_view(c)
                     view = self.engine.player_view(c.player, now, questions=c.qa)
-                    c.push({"t": "state", "now": now, "role": "player", **view, **plugin_view})
+                    c.push({"t": "state", "now": now, "role": "player", **view, **plugin_views[c]})
             except PluginError as err:
                 c.push({"t": "plugin.error", "message": str(err)})
             except GameError as err:
@@ -477,8 +480,8 @@ class Server:
         live = set(self.engine.sessions) | set(self.engine.players)
         for sid in self.plugin_push_after.keys() - self.engine.sessions.keys():
             self.plugin_push_after.pop(sid, None)
-            self.plugin_recipients.pop(sid, None)
             self.plugin_dirty.discard(sid)
+            self.plugin_recipients.pop(sid, None)
         for key in [k for k in self.replies if k[1] not in live]:   # retry caches of ended games
             del self.replies[key]
         for sid in [sid for sid in self.conns if sid not in self.engine.sessions]:
@@ -550,18 +553,16 @@ class Server:
             start = time.monotonic()
             if start < self.plugin_push_after.get(sid, 0):
                 continue
-            recipients = self.plugin_recipients.pop(sid, None)
-            # Consume this generation before yielding. New mutations during the
-            # broadcast leave a new marker, so no newer projection is lost.
+            # Consume this generation before yielding. Any later mutation leaves
+            # a new dirty marker. Views/membership are refreshed per bounded batch.
             self.plugin_dirty.discard(sid)
             self.dirty.discard(sid)
+            recipients = self.plugin_recipients.pop(sid, None)
             peers = [c for c in self.conns.get(sid, ()) if
                      recipients is None or c.role in HOSTS or c.player in recipients]
             if not peers:
                 self.push(sid)
             for offset in range(0, len(peers), 16):
-                # Authentication, membership and state are read afresh for each
-                # batch. Never retain private views across an event-loop yield.
                 self.push(sid, only=recipients, connections=peers[offset:offset + 16], complete=False)
                 await asyncio.sleep(0)
             end = time.monotonic()

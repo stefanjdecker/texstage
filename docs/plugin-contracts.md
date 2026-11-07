@@ -23,6 +23,11 @@ and requires each content type to declare `view_schemas` covering exactly the
 surfaces in `views`. All schema paths refer to inventoried, hashed package JSON
 resources. Discovery validates them without importing the factory.
 
+Revision 3 retains those contracts and adds optional schema-validated
+[actor records](plugin-actor-records.md) and presenter-only record selection.
+Revision-1/2 providers keep their existing behavior. A provider using records
+must declare revision 3; older hosts reject it rather than ignoring the fields.
+
 Engine capability addition:
 
 ```json

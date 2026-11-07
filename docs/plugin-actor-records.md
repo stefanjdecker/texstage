@@ -68,6 +68,32 @@ write, delete, full-roster or cross-session read effects. The resource limits
 remain explicit. A changed provider/environment requires a fresh session;
 old sessions are not automatically migrated.
 
+Batched projections still call the ordinary provider `view` hook separately
+with fresh state, audience and context objects. Each hook receives only its own
+bounded actor context; the internal batch envelope never reaches provider hooks.
+Every view retains independent schema, 128 KiB size and 250 ms timeout checks.
+The batch mechanism does not reuse private projections across actors or sessions.
+
+An actor-record content type may also opt into `participant_updates: "actor"`
+and declare `broadcast_fields`, a list of at most 16 shared-state field names.
+For example, B+ declares `phase`, `phase_version`, `active`, `shared` and `replay`.
+Participant submissions and evaluation completions then notify that authenticated
+actor's connections and all presenter/projector connections. A change to any
+declared shared field, any presenter command or reset notifies the whole class.
+Global notifications dominate pending actor-only notifications. Existing
+actor-record manifests may omit `broadcast_fields`; then any shared-state change
+notifies the whole class. An explicit field list requires `actor_records` and
+`participant_updates: "actor"`; it cannot be used with `state_records`.
+
+This optimization promises that another student's submission cannot affect the
+participant view except through the declared shared fields. Such a participant
+view must omit global answer counts, rosters and other per-class aggregates;
+those remain in presenter/projector views. Keep default full updates if the
+promise does not hold. Authentication, role projection and schema checks still
+run for every recipient. There is no cross-actor view/result cache.
+
+Shared state, records and roster pages are read in one SQLite WAL snapshot,
+including across batches, so a concurrent server commit cannot mix revisions.
 Full-class plugin broadcasts yield between batches of 16 connections. New
 mutations retain a fresh dirty marker, and every batch checks current membership,
 role and state. No private projection is reused across actors or retained across

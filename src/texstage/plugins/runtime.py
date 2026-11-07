@@ -20,8 +20,8 @@ from collections import OrderedDict
 from . import PluginError
 from .catalog import environment_fingerprint
 from .contracts import namespace, resource_schema, validate_outcome, json_data
-from .manifest import canonical, digest, read_json, validate_json
-from .worker import Workers
+from .manifest import canonical, digest, read_json, validate_json, validate_json_many
+from .worker import Workers, VIEW_BATCH
 from .records import ActorRecords
 from .points import FixedPoints, fixed_points, SCORING_EFFECTS
 
@@ -193,7 +193,7 @@ class Runtime:
                 return receipt
             target = envelope["payload"].get(message.get("record_actor_field")) if (
                 not reset and message.get("record_actor_field")) else None
-            ctx = self._ctx(row, actor=actor, role=role, record_actor=target)
+            ctx = self._ctx(row, actor=actor, role=role, record_actor=target or None)
             if reset:
                 ctx |= {"epoch": row["epoch"] + 1, "revision": 0}
                 # Initial/activation hooks see the fresh epoch, never the old roster.
@@ -230,6 +230,23 @@ class Runtime:
         record = self.records.prepare(row, transition["effects"], record_actor)
         scoring = self.points.prepare(row, transition["effects"], record_actor, scoring_role)
         effects = [e for e in transition["effects"] if not (isinstance(e, dict) and e.get("kind") in SCORING_EFFECTS | {"save-actor"})]
+        encoded_state = canonical(transition["state"]).decode()
+        if delivery and not reset and active is None and not transition["effects"] and encoded_state == row["state"]:
+            # A superseded/cancelled job can legitimately leave state unchanged.
+            # Persist its delivery, but do not rewrite the whole class snapshot
+            # or invent a visible revision. Keep the same compare-and-swap guard.
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                current = self.db.execute("SELECT epoch,revision FROM items WHERE sid=? AND kind=? AND item=?",
+                                          (row["sid"], row["kind"], row["item"])).fetchone()
+                if current is None or tuple(current) != (row["epoch"], row["revision"]):
+                    raise PluginError("item changed concurrently; retry command", code="concurrent-update")
+                self.db.execute("UPDATE jobs SET delivered=1 WHERE id=?", (delivery,))
+                self.db.execute("COMMIT")
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+            return {"accepted": True, "epoch": row["epoch"], "revision": row["revision"], "jobs": {}}
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
@@ -292,7 +309,7 @@ class Runtime:
                     raise PluginError("item record capacity reached", code="capacity")
             changed = self.db.execute("""UPDATE items SET state=?,epoch=?,revision=?,active=?
               WHERE sid=? AND kind=? AND item=? AND epoch=? AND revision=?""",
-              (canonical(transition["state"]).decode(), epoch, revision, row["active"] if active is None else int(active),
+              (encoded_state, epoch, revision, row["active"] if active is None else int(active),
                *identity, row["epoch"], row["revision"])).rowcount
             if changed != 1: raise PluginError("item changed concurrently; retry command", code="concurrent-update")
             self.records.apply(row, record, reset=reset)
@@ -327,7 +344,16 @@ class Runtime:
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK"); raise
-        targeted = not reset and audience_actor is not None and self.catalog.capability(row["kind"])[1].get("participant_updates") == "actor"
+        spec = self.catalog.capability(row["kind"])[1]
+        targeted = not reset and audience_actor is not None and spec.get("participant_updates") == "actor"
+        if targeted and "actor_records" in spec:
+            before, after = read_json(row["state"]), transition["state"]
+            fields = spec.get("broadcast_fields")
+            # Existing actor-record manifests may omit the field list. In that
+            # case any shared-state change must invalidate all participant views.
+            targeted = (before == after if fields is None else
+                        isinstance(before, dict) and isinstance(after, dict) and
+                        all(before.get(field) == after.get(field) for field in fields))
         sid = row["sid"]
         if not targeted:
             self.changes[sid] = None
@@ -366,7 +392,8 @@ class Runtime:
         if surface not in {"presenter": ("presenter-overlay", "presenter-controls"),
                            "projector": ("projector-overlay",), "participant": ("participant-input",)}.get(role, ()):
             raise PluginError("surface not allowed for role")
-        with self.lock:
+        with self.lock, self.db:
+            self.db.execute("BEGIN")
             row = self._item(sid, kind, item)
             state = read_json(row["state"])
             audience = {"role": role, "surface": surface, "actor": actor}
@@ -383,9 +410,66 @@ class Runtime:
                 validate_json(resource_schema(provider, spec["view_schemas"][surface]), data, label="surface view")
             return {"epoch": row["epoch"], "revision": row["revision"], "data": data}
 
-    def lease(self, sid, owner, *, now=None, limit=2):
+    def views(self, sid, kind, item, audiences):
+        """Project one committed snapshot for independently authorized audiences."""
+        surfaces = {"presenter": ("presenter-overlay", "presenter-controls"),
+                    "projector": ("projector-overlay",), "participant": ("participant-input",)}
+        for audience in audiences:
+            if audience["surface"] not in surfaces.get(audience["role"], ()):
+                raise PluginError("surface not allowed for role")
+        with self.lock, self.db:
+            # State, actor values and roster pages share one WAL read snapshot,
+            # including when another server process commits between batches.
+            self.db.execute("BEGIN")
+            row = self._item(sid, kind, item)
+            state, ctx = read_json(row["state"]), self._ctx(row)
+            provider, spec = self.catalog.capability(kind)
+            schemas = {}
+            if "view_schemas" in spec:
+                for surface in {a["surface"] for a in audiences}:
+                    if surface not in spec["view_schemas"]:
+                        raise PluginError("view surface is not declared")
+                    schemas[surface] = resource_schema(provider, spec["view_schemas"][surface])
+            result = []
+            for offset in range(0, len(audiences), VIEW_BATCH):
+                batch = audiences[offset:offset + VIEW_BATCH]
+                contexts, wire_audiences = [], []
+                for audience in batch:
+                    role, actor = audience["role"], audience["actor"]
+                    wire = {k: audience[k] for k in ("role", "actor", "surface")}
+                    own = self.records.context(row, actor=actor if role == "participant" else None, role=role)
+                    own.update(self.points.context(row, actor=actor if role == "participant" else None))
+                    if self._records_enabled(kind):
+                        selected = self._record_context(row, state, {"kind": "view", "audience": wire},
+                                                        ctx | own | {"role": role, "actor": actor})
+                        own.update(records=selected["records"], record_page=selected["record_page"])
+                    if role == "participant" and audience.get("scoring") is not None:
+                        own["scoring"] = audience["scoring"]
+                    contexts.append(own); wire_audiences.append(wire)
+                data = self.workers.views(kind, state, wire_audiences, ctx | {"_audience_contexts": contexts})
+                if len(data) != len(batch): raise PluginError("invalid view response count")
+                by_surface = {}
+                for audience, value in zip(batch, data):
+                    if len(canonical(value)) > 128 * 1024: raise PluginError("view exceeds output budget")
+                    if schemas:
+                        json_data(value)
+                        by_surface.setdefault(audience["surface"], []).append(value)
+                    result.append({"epoch": row["epoch"], "revision": row["revision"], "data": value})
+                for surface, values in by_surface.items():
+                    validate_json_many(schemas[surface], values, label="surface view")
+            return result
+
+
+    def lease(self, sid, owner, *, now=None, limit=2, adaptive=False):
         now = time.time() if now is None else now
         with self.lock, self.db:
+            if adaptive:
+                # Presenter throughput policy, not an engine permission. Use at
+                # most eight fresh workers for a very large backlog; small queues
+                # keep the two-job batch. Count only work eligible to lease.
+                waiting = self.db.execute("""SELECT count(*) FROM jobs WHERE sid=? AND
+                    (status='queued' OR (status='leased' AND deadline<?))""", (sid, now)).fetchone()[0]
+                limit = 8 if waiting >= 128 else 4 if waiting >= 32 else 2
             # One bounded work batch is durable before the caller sees it.
             # Preserve FULL synchronization without one fsync per cache hit.
             self.db.execute("BEGIN IMMEDIATE")

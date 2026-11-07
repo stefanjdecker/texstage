@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev3 candidate
+## Unreleased — 0.2.1.dev7 candidate
+
+- Preserve revision 3–5 storage options and actor-only updates from main; older
+  actor-record manifests without a shared-field list refresh all participants
+  when shared state changes.
+- Combine fixed plugin points with bounded actor records and batched audience
+  projections, keeping each student's credit private until publication.
+- Reduce redundant class-wide counts and private-score reranking while preserving
+  atomic updates, worker isolation, deadlines and the 1,000-answer ceiling.
+- Document scored B+ capacity checks: Chrome/Firefox presenters pass at 600 and
+  1,000 students; Windows WebKit passes at 600 but remains unstable at 1,000.
+
+## Earlier 0.2.1.dev3 candidate
 
 - Fix Firefox/WebKit plugin-worker startup using dynamic loading of self-contained
   ES modules, preserving the worker Content Security Policy and result validation.

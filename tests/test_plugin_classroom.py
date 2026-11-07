@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Load-discovered host invariants: cached schemas and evaluator disconnects."""
 import copy
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -154,6 +155,7 @@ def test_ended_sessions_do_not_retain_broadcast_deadlines():
     server = object.__new__(Server)
     server.engine = SimpleNamespace(sessions={'live': object()}, players={})
     server.plugin_dirty = {'live','ended'}
+    server.plugin_recipients = {'ended': {'alice'}}
     server.plugin_push_after = {'live': 1, 'ended': 2}
     server.plugin_recipients = {'live': {'alice'}, 'ended': {'bob'}}
     server.replies, server.conns = {}, {}

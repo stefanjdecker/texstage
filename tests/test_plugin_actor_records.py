@@ -81,30 +81,83 @@ def live(tmp_path):
     runtime.close()
 
 
-def test_600_records_are_separate_and_each_context_is_bounded(live):
+@pytest.mark.parametrize("count", [600, 1000])
+def test_large_classes_are_separate_and_each_context_is_bounded(live, count):
     r,h,_=live
-    for i in range(600):
+    for i in range(count):
         assert r.command("session",f"student{i}","participant",command(i,value=i))["accepted"]
         ctx=h.contexts[-1]
         assert ctx["records"]["count"]==i and ctx["records"]["value"] is None
         assert "record_page" not in ctx and len(canonical(ctx))<2048
     row=r._item("session",TYPE,"exercise")
     assert json.loads(row["state"])=={"page":0}
-    assert r.records.count(row)==600
+    assert r.records.count(row)==count
     r.view("session",TYPE,"exercise","participant","participant-input","student599")
     assert h.contexts[-1]["records"]["value"]=={"answer":599}
     assert "student598" not in canonical(h.contexts[-1]).decode()
     r.view("session",TYPE,"exercise","presenter","presenter-controls","teacher")
     page=h.contexts[-1]["record_page"]
-    assert page["pages"]==24 and len(page["rows"])==25
+    assert page["pages"]==count//25 and len(page["rows"])==25
     assert [p["number"] for p in page["rows"]]==list(range(1,26))
     assert all(set(p)=={"actor","number","summary"} for p in page["rows"])
     assert h.contexts[-1]["records"]["value"] is None
-    r.command("session","teacher","presenter",command(700,"inspect","student599"))
+    r.command("session","teacher","presenter",command(1700,"inspect","student599"))
     assert h.contexts[-1]["records"]["value"]=={"answer":599}
     r.ensure("other",TYPE,"exercise",{})
     r.view("other",TYPE,"exercise","participant","participant-input","student599")
     assert h.contexts[-1]["records"]["value"] is None
+    if count == 1000:
+        with pytest.raises(PluginError, match="capacity"):
+            r.command("session","one-too-many","participant",command(2000))
+        assert r.command("session","student599","participant",command(2001,value=7))["accepted"]
+        assert r.records.count(r._item("session",TYPE,"exercise")) == 1000
+
+
+def test_record_batch_contexts_are_actor_role_and_item_specific(live):
+    r,h,_=live
+    r.command("session","alice","participant",command(1,value=11))
+    r.command("session","bob","participant",command(2,value=22))
+    captured=[]
+    def views(kind,state,audiences,ctx):
+        captured.extend(copy.deepcopy(ctx["_audience_contexts"]))
+        return [{} for a in audiences]
+    h.views=views
+    r.views("session",TYPE,"exercise",[
+        {"role":"participant","surface":"participant-input","actor":"alice"},
+        {"role":"participant","surface":"participant-input","actor":"bob"},
+        {"role":"presenter","surface":"presenter-controls","actor":"teacher"},
+        {"role":"projector","surface":"projector-overlay","actor":"projector"},
+    ])
+    assert captured[0]["records"]["value"] == {"answer":11}
+    assert captured[1]["records"]["value"] == {"answer":22}
+    assert "record_page" not in captured[0] and "record_page" not in captured[1]
+    assert len(captured[2]["record_page"]["rows"]) == 2
+    assert captured[2]["records"]["value"] is None
+    assert captured[3]["records"]["value"] is None and "record_page" not in captured[3]
+
+
+def test_record_batches_share_one_snapshot_when_another_process_commits(live):
+    r,h,cat=live
+    for i in range(33):
+        r.command("session",f"student{i}","participant",command(i,value=i))
+    other=Runtime(r.db.execute("PRAGMA database_list").fetchone()[2],cat,workers=Hooks())
+    captured=[]
+    def views(kind,state,audiences,ctx):
+        if not captured:
+            other.command("session","student32","participant",command(100,value=99))
+        captured.extend(copy.deepcopy(ctx["_audience_contexts"]))
+        return [{} for a in audiences]
+    h.views=views
+    try:
+        r.views("session",TYPE,"exercise",[
+            {"role":"participant","surface":"participant-input","actor":f"student{i}"}
+            for i in range(33)])
+        assert captured[-1]["records"]["value"] == {"answer":32}
+        assert not r.db.in_transaction
+        r.view("session",TYPE,"exercise","participant","participant-input","student32")
+        assert h.contexts[-1]["records"]["value"] == {"answer":99}
+    finally:
+        other.close()
 
 
 def test_initial_and_reset_contexts_are_empty_in_the_new_epoch(live):
@@ -214,7 +267,7 @@ def test_old_manifests_cannot_enable_records_and_participants_cannot_request_rea
         with pytest.raises(PluginError):
             catalog(tmp_path/str(i),modify=modify)
 
-@pytest.mark.parametrize('revision', [3, 4])
+@pytest.mark.parametrize('revision', [3, 4, 5])
 @pytest.mark.parametrize('policy', ['actor', 'all', True, None])
 def test_actor_update_policy_remains_available_with_records_and_points(tmp_path, revision, policy):
     def modify(manifest):
@@ -226,3 +279,56 @@ def test_actor_update_policy_remains_available_with_records_and_points(tmp_path,
     else:
         with pytest.raises(PluginError):
             catalog(tmp_path, modify=modify)
+
+@pytest.mark.parametrize('fields', [None, ['page']])
+def test_actor_update_opt_in_and_shared_fields_invalidate_the_whole_class(tmp_path, fields):
+    options = {'participant_updates': 'actor'}
+    if fields is not None:
+        options['broadcast_fields'] = fields
+    cat=catalog(tmp_path/'installed',modify=lambda m:m['capabilities']['content_types'][TYPE].update(options))
+    h=Hooks();r=Runtime(tmp_path/'db.sqlite',cat,workers=h)
+    try:
+        r.ensure('s',TYPE,'exercise',{});r.activate('s',{(TYPE,'exercise')})
+        assert r.take_changes('s') is None
+        r.command('s','alice','participant',command(1))
+        r.command('s','bob','participant',command(2))
+        assert r.take_changes('s') == {'alice','bob'}
+        r.command('s','alice','participant',command(1))
+        assert r.take_changes('s') == set()
+        original=h.call
+        def change_unlisted(kind,method,*args):
+            result=original(kind,method,*args)
+            if method=='transition':result['state']['unlisted']=True
+            return result
+        h.call=change_unlisted
+        r.command('s','alice','participant',command(5))
+        assert r.take_changes('s') == (None if fields is None else {'alice'})
+        def change_global(kind,method,*args):
+            result=original(kind,method,*args)
+            if method=='transition':result['state']['page']=1
+            return result
+        h.call=change_global
+        r.command('s','alice','participant',command(3))
+        assert r.take_changes('s') is None
+        r.command('s','teacher','presenter',command(4,'_reset'))
+        assert r.take_changes('s') is None
+    finally:r.close()
+
+
+@pytest.mark.parametrize('fields', [
+    {'participant_updates':'all'}, {'broadcast_fields':['page']},
+    {'participant_updates':'actor','broadcast_fields':['page']*17},
+])
+def test_invalid_notification_declarations_are_refused(tmp_path,fields):
+    with pytest.raises(PluginError):
+        catalog(tmp_path,modify=lambda m:m['capabilities']['content_types'][TYPE].update(fields))
+
+
+def test_shared_field_declarations_require_actor_records(tmp_path):
+    def modify(manifest):
+        spec = manifest['capabilities']['content_types'][TYPE]
+        del spec['actor_records']
+        del spec['messages']['inspect']
+        spec.update(state_records=True, participant_updates='actor', broadcast_fields=['page'])
+    with pytest.raises(PluginError, match='broadcast_fields require actor_records'):
+        catalog(tmp_path, modify=modify)

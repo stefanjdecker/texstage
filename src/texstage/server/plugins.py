@@ -99,6 +99,50 @@ class PluginHost:
             # Preserve ordinary navigation and the static slide if a provider fails.
             return {"plugins": {"items": [], "error": str(exc) if conn.role in ("host", "stage") else "Activity unavailable"}}
 
+    def safe_views(self, conns):
+        """Batch a session's views without sharing private audience projections."""
+        conns = list(conns)
+        result = {conn: {} for conn in conns}
+        if not conns or self.runtime is None: return result
+        def failed(conn, exc):
+            return {"plugins": {"items": [], "error": str(exc) if conn.role in ("host", "stage") else "Activity unavailable"}}
+        identities = {}
+        for conn in conns:
+            try:
+                identities[conn] = self.identity(conn)
+            except PluginError as exc:
+                result[conn] = failed(conn, exc)
+        if not identities: return result
+        try:
+            sid = next(iter(identities)).session
+            if any(conn.session != sid for conn in identities):
+                raise PluginError("views must belong to one session")
+            _, bundle, active = self.sync(sid)
+            for conn in identities:
+                result[conn] = {"language": bundle.deck_json.get("language") or "en",
+                                "plugins": {"catalog": self.catalog.fingerprint, "items": []}}
+            for kind, item in active:
+                provider, spec = self.catalog.capability(kind)
+                requests, targets = [], []
+                for conn, (role, actor) in identities.items():
+                    surfaces = [s for s in spec["views"] if s.startswith(role + "-")]
+                    descriptor = {"type": kind, "item": item, "public": bundle.items[kind][item],
+                        "assets": {n: f"/plugins/{provider.payload}/{n}" for n in provider.resources if Path(n).suffix.lower() in MIME}
+                        | {n: f"/bundle/{bundle.id}/{path}" for n, path in bundle.items[kind][item].get("plugin_assets", {}).items()},
+                        "modules": {s: f"/plugins/{provider.payload}/{spec['views'][s]}" for s in surfaces}, "views": {}}
+                    result[conn]["plugins"]["items"].append(descriptor)
+                    for surface in surfaces:
+                        request = {"role": role, "actor": actor, "surface": surface}
+                        if role == "participant" and "scoring" in spec:
+                            request["scoring"] = scoring_context(self.server.engine.sessions[sid], kind, item, actor)
+                        requests.append(request)
+                        targets.append((descriptor["views"], surface))
+                for (views, surface), value in zip(targets, self.runtime.views(sid, kind, item, requests)):
+                    views[surface] = value
+        except PluginError as exc:
+            for conn in identities: result[conn] = failed(conn, exc)
+        return result
+
     def handle(self, conn, message):
         received = time.time()
         role, actor = self.identity(conn)
@@ -126,7 +170,7 @@ class PluginHost:
         if operation not in ("plugin.work", "plugin.result") or conn.role != "stage":
             raise PluginError("only the presenter window can evaluate plugin jobs")
         if operation == "plugin.work":
-            jobs = self.runtime.lease(conn.session, conn.key)
+            jobs = self.runtime.lease(conn.session, conn.key, adaptive=True)
             self.runtime.drain(conn.session)
             self.sync_points(conn.session)
             changes = self.runtime.take_changes(conn.session)
