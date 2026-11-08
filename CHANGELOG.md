@@ -7,6 +7,8 @@
   individual receipts, rollback, schema checks, worker limits and FULL durability.
 - Yield between batches and defer repeated audience projections for at most one
   additional second while a burst is queued; presenter controls remain responsive.
+- Bound adaptive presenter evaluation to four fresh workers, retaining two for
+  small queues, to reduce worker startup contention during submission bursts.
 
 - Preserve revision 3–5 storage options and the actor-only update contract from
   main. Presenter-only counters in older actor-record plugins such as FD Lab do

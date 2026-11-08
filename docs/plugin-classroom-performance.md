@@ -23,9 +23,9 @@ The 8 MiB IPC frame, 256 KiB transition, queue, receipt and evaluation limits ar
 unchanged, as are browser CSP and fresh-per-submission engine workers.
 
 The authenticated presenter normally leases two jobs at a time. With at least
-32 eligible queued/expired jobs, it leases up to four; at 128 it leases up to
-eight. This bounded throughput
-policy reduces fresh-worker startup overhead in large classes. Each job still
+32 eligible queued/expired jobs, it leases up to four. The four-worker ceiling
+reduces competition between fresh module startup, the presenter and incoming
+submissions. Each job still
 gets a separate worker, the same evaluation timeout and validated result/lease
 identity. No engine state is pooled; a presenter disconnect requeues the owned
 leases without resetting their retry generations.
@@ -56,12 +56,12 @@ texstage-plugins repository supplies the installed-wheel 600–1,000-student B+ 
 probe, including replacements and evaluator recovery. Synthetic loopback load
 does not measure a lecture hall's Wi-Fi or physical phones.
 
-The scored B+ 0.7.0 checks completed at 600/1,000 with Chrome and Firefox
+Earlier scored B+ 0.7.0 checks with the 2/4/8 policy completed at 600/1,000 with Chrome and Firefox
 presenters, and at 600 with Windows WebKit. WebKit intermittently crashed at
-1,000; use Chrome or Firefox for that ceiling. Lowering the worker ceiling did
-not establish a reliable faster alternative, so the existing 2/4/8 policy and
-all security restrictions remain. See the collection's scoring verification
-record for successful and failed runs; physical-classroom testing remains open.
+1,000; use Chrome or Firefox for that ceiling. Those historical measurements
+do not establish capacity for the current four-worker policy. The collection's
+classroom release validation records current transaction results separately
+from B+ checks. Physical-classroom testing remains open.
 
 For large-class B+ activities, manifest-3 actor records keep each answer outside
 shared state and page private presenter summaries in groups of 25. See
@@ -70,5 +70,5 @@ ceiling; atomic cancellation permits replacement at a full queue. Queue
 admission queries count only relevant rows and run only when adding jobs.
 No change to SQLite FULL durability, per-worker isolation or security policy is
 part of the throughput adaptation. Four-job batches apply at 32 eligible jobs;
-eight-job batches apply at 128; smaller queues use two. Each bounded lease batch
+smaller queues use two. Each bounded lease batch
 commits once before any jobs are returned and rolls back entirely on failure.

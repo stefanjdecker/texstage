@@ -187,8 +187,8 @@ def test_batch_schema_errors_cannot_poison_another_batch_or_hide_invalid_values(
         validate_json_many(schema, [])
 
 
-@pytest.mark.parametrize("count,expected", [(3, 2), (31, 2), (32, 4), (127, 4), (128, 8), (1000, 8)])
-def test_classroom_leases_adapt_with_an_eight_job_ceiling(tmp_path, typed, count, expected):
+@pytest.mark.parametrize("count,expected", [(3, 2), (31, 2), (32, 4), (127, 4), (128, 4), (1000, 4)])
+def test_classroom_leases_adapt_with_a_four_job_ceiling(tmp_path, typed, count, expected):
     runtime = start(tmp_path, typed, hooks=BatchedHooks())
     try:
         for n in range(count):

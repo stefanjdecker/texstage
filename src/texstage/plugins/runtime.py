@@ -523,11 +523,14 @@ class Runtime:
         with self.lock, self.db:
             if adaptive:
                 # Presenter throughput policy, not an engine permission. Use at
-                # most eight fresh workers for a very large backlog; small queues
+                # most four fresh workers for a large backlog; small queues
                 # keep the two-job batch. Count only work eligible to lease.
                 waiting = self.db.execute("""SELECT count(*) FROM jobs WHERE sid=? AND
                     (status='queued' OR (status='leased' AND deadline<?))""", (sid, now)).fetchone()[0]
-                limit = 8 if waiting >= 128 else 4 if waiting >= 32 else 2
+                # Four fresh browser workers keep a large backlog moving without
+                # eight simultaneous module initializations competing with the
+                # presenter UI and acknowledgement traffic on smaller machines.
+                limit = 4 if waiting >= 32 else 2
             # One bounded work batch is durable before the caller sees it.
             # Preserve FULL synchronization without one fsync per cache hit.
             self.db.execute("BEGIN IMMEDIATE")
