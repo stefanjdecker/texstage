@@ -9,6 +9,8 @@
   additional second while a burst is queued; presenter controls remain responsive.
 - Bound adaptive presenter evaluation to four fresh workers, retaining two for
   small queues, to reduce worker startup contention during submission bursts.
+- Give a new submission burst a bounded head start before leasing evaluator
+  jobs, without holding up presenter controls or starving sustained evaluation.
 
 - Preserve revision 3–5 storage options and the actor-only update contract from
   main. Presenter-only counters in older actor-record plugins such as FD Lab do

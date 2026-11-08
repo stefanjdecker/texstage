@@ -164,6 +164,27 @@ def test_busy_queue_cannot_starve_broadcasts_or_retain_unbounded_sessions():
     assert not host.defer_broadcast('0',12.1)
 
 
+def test_continuous_submissions_cannot_starve_evaluation():
+    host = PluginHost.__new__(PluginHost)
+    host.command_queue = asyncio.Queue(maxsize=64)
+    host.evaluation_deferred = {}
+    for _ in range(COMMAND_BATCH): host.command_queue.put_nowait(None)
+    assert host.defer_evaluation('s', 10)
+    assert host.defer_evaluation('s', 10.999)
+    assert not host.defer_evaluation('s', 11)
+    # A still-busy queue cannot restart the delay on every poll.
+    assert not host.defer_evaluation('s', 11.01)
+    assert not host.defer_evaluation('s', 100)
+    for i in range(200): host.defer_evaluation(str(i), 100)
+    assert len(host.evaluation_deferred) == 128
+    assert not host.defer_evaluation('overflow', 100)
+    while not host.command_queue.empty(): host.command_queue.get_nowait()
+    assert not host.defer_evaluation('s', 101)
+    assert 's' not in host.evaluation_deferred
+    for _ in range(COMMAND_BATCH): host.command_queue.put_nowait(None)
+    assert host.defer_evaluation('s', 102)
+
+
 def test_spec_cache_retains_only_checked_text_and_returns_independent_values(tmp_path, provider):
     r = start(tmp_path, provider)
     try:

@@ -276,6 +276,13 @@ batches. During a burst, ordinary coalesced projections may defer for up to one
 additional second; sustained traffic cannot indefinitely suppress audience
 updates. Presenter controls retain their immediate lecturer projections.
 
+New evaluation leases also yield to the first second of a busy participant
+queue. The authenticated work poll returns an empty batch immediately, keeping
+the socket reader available for controls; the browser uses its usual 750 ms
+idle backoff. The deferral does not restart until the command queue drains, so
+continuous submissions cannot starve evaluation. Already running jobs keep
+their deadlines and result validation.
+
 Schema validation has a fast acceptance path for a deliberately limited subset
 of Draft 2020-12. Safety checks still run before caching. Private predicates
 retain immutable constants only; unsupported keywords and failed checks use the

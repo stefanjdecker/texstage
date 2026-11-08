@@ -18,6 +18,7 @@ class PluginHost:
         self.point_versions = {}
         self.command_queue = asyncio.Queue(maxsize=64)
         self.broadcast_deferred = {}
+        self.evaluation_deferred = {}
         self.runtime = Runtime(server.config.data_dir / "plugins.sqlite3", catalog) if catalog.providers else None
 
     def close(self):
@@ -95,6 +96,19 @@ class PluginHost:
         except Exception as exc:
             for future in targets:
                 if not future.done(): future.set_exception(exc)
+
+    def defer_evaluation(self, sid, now):
+        # Let a new submission burst obtain its durable receipts before starting
+        # fresh browser workers. Keep the socket reader free for human controls.
+        # Delay only the first second of a continuously busy queue, then lease
+        # normally until it drains. The browser retains its ordinary idle poll.
+        if self.command_queue.qsize() < COMMAND_BATCH:
+            self.evaluation_deferred.pop(sid, None)
+            return False
+        if sid not in self.evaluation_deferred and len(self.evaluation_deferred) >= 128:
+            return False
+        since = self.evaluation_deferred.setdefault(sid, now)
+        return now - since < 1.0
 
     def disconnect(self, conn):
         if self.runtime is not None and conn.role == "stage" and conn.session:
@@ -247,6 +261,8 @@ class PluginHost:
         if operation not in ("plugin.work", "plugin.result") or conn.role != "stage":
             raise PluginError("only the presenter window can evaluate plugin jobs")
         if operation == "plugin.work":
+            if self.defer_evaluation(conn.session, time.monotonic()):
+                return {"jobs": [], "more_work": False}
             jobs = self.runtime.lease(conn.session, conn.key, adaptive=True)
             self.runtime.drain(conn.session)
             self.sync_points(conn.session)

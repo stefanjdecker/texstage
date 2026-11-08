@@ -30,6 +30,12 @@ gets a separate worker, the same evaluation timeout and validated result/lease
 identity. No engine state is pooled; a presenter disconnect requeues the owned
 leases without resetting their retry generations.
 
+For the first second of a queued submission burst, a work poll may return an
+empty batch so receipts can reach students before more browser workers start.
+The existing 750 ms idle poll applies. Once this short window expires, leases
+continue normally even under sustained traffic. Human controls and running
+evaluation results are not delayed by this scheduling preference.
+
 Participant bursts coalesce projections; opt-in actor-record providers can
 target the affected student's connections while retaining shared-field
 invalidation. See [actor notifications](plugin-actor-records.md).
