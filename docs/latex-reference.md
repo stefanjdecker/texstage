@@ -457,7 +457,7 @@ The [reference inventory](latex-reference-inventory.json) and [example build ins
 
 ## Deck language and live labels
 
-Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone uses its browser language independently of the deck. Rebuild an existing bundle to capture its deck language.
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone follows the deck language as soon as its PIN identifies the session, including the join form, waiting messages, quizzes and built-in activities. Before a session is identified, it uses the browser language. Rebuild an existing bundle to capture its deck language.
 
 ```
 \documentclass{beamer}

@@ -344,8 +344,8 @@ Language is explicit in the Typst deck configuration (`en` or `de`, with
 supported regional tags normalized) and sets both text language and the deck's
 runtime language. The sidecar selects prepared exercise/solution language.
 The prototype requires them to agree. Keep existing LaTeX mismatch behavior
-unchanged. Plugin controls follow deck language; the host's general phone
-controls retain browser-language behavior. Neither backend translates authored
+unchanged. Plugin and general phone controls follow deck language once the PIN identifies
+the session; before that, the phone uses its browser language. Neither backend translates authored
 prose automatically.
 
 ## Plugin contract: prepare once, render for a target

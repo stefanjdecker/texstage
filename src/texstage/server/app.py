@@ -107,6 +107,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from texstage import __version__
+from texstage.build.bundle import language_tag
 from texstage.builds import build_folders
 from texstage.keys import load_presenter_key  # noqa: F401  (the server's key: texstage serve)
 from texstage.server import archive
@@ -1092,6 +1093,29 @@ def create_app(config: ServerConfig) -> Starlette:
                              "instance": server.instance, "bundles": len(server.bundles.bundles),
                              "games": len(server.engine.sessions)})
 
+    async def join_language(request: Request):
+        """Only the UI language of an active PIN, before a phone joins.
+
+        Share the join endpoint's wrong-PIN budget: this must not provide an
+        unthrottled way to discover games. No deck, participant or answer data.
+        """
+        headers = {"Cache-Control": "no-store"}
+        addr = request.client.host if request.client else ""
+        now = now_ms()
+        if server.attempts.blocked(addr, now):
+            return JSONResponse({"language": None}, status_code=429, headers=headers)
+        pin = request.query_params.get("pin", "")
+        if re.fullmatch(r"[0-9]{6}", pin) is None:
+            return JSONResponse({"language": None}, headers=headers)
+        session = next((s for s in server.engine.sessions.values()
+                        if s.pin == pin and s.ended is None), None)
+        if session is None:
+            server.attempts.failed(addr, now)
+            return JSONResponse({"language": None}, headers=headers)
+        bundle = server.engine.bundle(session)
+        language = language_tag(bundle.deck_json.get("language") or "") or "en"
+        return JSONResponse({"language": language}, headers=headers)
+
     async def presenter_key(request: Request):
         # Only to the machine itself, asked as localhost: not through a proxy (behind Caddy
         # every request comes from a local address) and not to a web page that had its own
@@ -1677,6 +1701,7 @@ def create_app(config: ServerConfig) -> Starlette:
     app = Starlette(routes=[
         Route("/", home),
         Route("/api/status", status),
+        Route("/api/join-language", join_language),
         Route("/plugins/{payload}/{name:path}", plugin_asset),
         Route("/api/archive/{session}/plugins.json", plugin_archive),
         Route("/api/archive/{session}/plugins-public.json", plugin_public_archive),

@@ -1427,6 +1427,7 @@ class Engine:
             self._commit()
         b = self.bundle(s)
         view = {
+            "language": b.deck_json.get("language") or "en",
             "session": {"pin": s.pin, "name": b.name, "base": f"/bundle/{s.bundle}/",
                         "finished": s.finished is not None},
             "me": {"id": p.id, "nickname": p.nickname, "score": p.score, "rank": p.rank,

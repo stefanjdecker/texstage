@@ -8,15 +8,52 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { activeContentType } from "../src/texstage/web/play/content-type.js";
+import { languageTag, phoneLabels, phoneError } from "../src/texstage/web/play/locale.js";
+
+test("a current plugin replaces retained built-in activity feedback on the phone", () => {
+  const types = { activity: true, plugins: true };
+  const state = { session: {}, activity: { id: "turtle-many", phase: "closed" },
+    plugins: { items: [{ modules: { "participant-input": "/plugins/lesson.mjs" } }] } };
+  assert.equal(activeContentType(state, types), "plugins");
+  for (const phase of ["get-ready", "open"]) {
+    assert.equal(activeContentType({ ...state, round: { phase } }, types), undefined);
+  }
+  assert.equal(activeContentType({ ...state, round: { phase: "revealed" } }, types), "plugins");
+  assert.equal(activeContentType({ ...state, session: { finished: true } }, types), undefined);
+  for (const items of [[], [{ modules: { "projector-overlay": "/plugins/slide.mjs" } }]]) {
+    assert.equal(activeContentType({ ...state, plugins: { items } }, types), "activity");
+  }
+  assert.equal(activeContentType({ session: {}, plugins: { items: [] } }, types), undefined);
+});
 
 const url = pathToFileURL(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/texstage/web/play/activity.js")).href;
 async function phone(language) {
-  // the module as a phone of this language loads it (its words follow navigator.language)
-  Object.defineProperty(globalThis, "navigator", { value: { language }, configurable: true });
-  return import(`${url}?${language}`);
+  // The browser disagrees with the deck. Both mounted and standalone labels
+  // must use the explicit session language, not a module-time browser global.
+  Object.defineProperty(globalThis, "navigator", { value: { language: "fr-FR" }, configurable: true });
+  const module = await import(url);
+  return { ...module, language, words: engine => module.words(engine, language) };
 }
 const en = await phone("en-GB");
 const de = await phone("de-DE");
+
+test("phone labels and join errors follow an explicit deck language", () => {
+  assert.equal(languageTag("de-AT"), "de");
+  assert.equal(languageTag("EN-gb"), "en");
+  assert.equal(languageTag("fr"), "en");
+  const german = phoneLabels("de-DE"), english = phoneLabels("en");
+  assert.equal(german.join, "Mitspielen");
+  assert.equal(german.in, "Du bist dabei!");
+  assert.equal(english.in, "You're in!");
+  assert.deepEqual(Object.keys(german).sort(), Object.keys(english).sort());
+  assert.equal(phoneError({ code: "nickname-taken", message: "this nickname is taken" }, "de"),
+    "Dieser Spitzname ist bereits vergeben.");
+  assert.match(phoneError({ code: "unknown-pin" }, "de"), /kein laufendes Spiel/);
+  assert.match(phoneError({ code: "too-many-attempts" }, "de"), /falsche PINs/);
+  assert.equal(phoneError({ message: "unknown error" }, "de"),
+    "Die Aktion konnte nicht ausgeführt werden. Bitte versuche es erneut.");
+});
 
 test("a turtle activity's words: valid Turtle, the same graph - a query's as they were", () => {
   const turtle = en.words("turtle");
@@ -51,7 +88,8 @@ function screen(module, activity) {
   };
   const root = { innerHTML: "", querySelector: el, querySelectorAll: (s) => (s === "[data-role=used]" ? [el(s)] : []) };
   const base = { id: "berlin", phase: "open", input: "code", limit: 5, used: 0, blocked: false, tokens: [":", "_:"] };
-  const s = new module.ActivityScreen({ root, client: {}, state: { session: { base: "/" }, activity: { ...base, ...activity } } });
+  const s = new module.ActivityScreen({ root, client: {}, state: { language: module.language,
+    session: { base: "/" }, activity: { ...base, ...activity } } });
   return { root, el, update: (more) => s.update({ activity: { ...base, ...activity, ...more } }) };
 }
 

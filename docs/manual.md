@@ -543,7 +543,7 @@ This shortcut card is for the texstage browser presenter. PowerPoint uses its ow
 
 The screenshots were captured with texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. They are retained as illustrations in this 0.2.1.dev3 manual; the capture version is recorded separately from the manual version.
 
-All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface can use German according to browser language.
+All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface follows the presentation language once its PIN is known.
 
 The source deck is [examples/manual/demo.tex](../examples/manual/demo.tex). It uses 240-second quiz rounds for capture and rehearsal. Replace the example local join address and choose a realistic round duration for teaching. Live session join information comes from the server's advertised address.
 
@@ -990,7 +990,7 @@ The [reference inventory](latex-reference-inventory.json) and [example build ins
 
 ## Deck language and live labels
 
-Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone uses its browser language independently of the deck. Rebuild an existing bundle to capture its deck language.
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone follows the deck language as soon as its PIN identifies the session, including the join form, waiting messages, quizzes and built-in activities. Before a session is identified, it uses the browser language. Rebuild an existing bundle to capture its deck language.
 
 ```
 \documentclass{beamer}
