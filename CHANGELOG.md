@@ -15,6 +15,10 @@
   windows and phones translate; new codes for votes on one's own or answered
   questions, poll and whiteboard limits, empty activity fields and the deck
   library. German phone texts now use "Sie", as the slides do.
+- Keep a presenter key stored in the browser when the presenter window or the
+  host console reloads. It was deleted as "not accepted": the start ran before
+  the script's constants were set, and any failure at the start forgot the
+  key. Now only the server's refusal forgets it.
 - Update public-source installation, SQL activity restrictions, PowerPoint
   command guidance and release status; correct screenshot provenance.
 - Regenerate the Markdown, LaTeX and PDF manuals from their shared source.

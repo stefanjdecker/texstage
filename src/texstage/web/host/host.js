@@ -27,8 +27,6 @@ let local = null;       // the slide this console shows (follows the server unle
 let pending = null;     // a slide we asked for and the server has not confirmed yet
 let T = null;           // the page's texts (speak): the open deck's language, else the browser's
 
-start();
-
 function speak(tag) {
   // the page's language from now on - the open deck's (a deck built before 2026-10-24 names none:
   // English), or the browser's (null)
@@ -48,7 +46,10 @@ async function start() {
   if (!key) return keyForm();
   try {
     await showDecks(true);
-  } catch {
+  } catch (err) {
+    // only the server's refusal of the key forgets it; the server out of reach for a moment, or
+    // anything else, leaves it stored for the next try
+    if (err?.status !== 403) return keyForm(errorText(pageLanguage(), err));
     try { localStorage.removeItem(KEY); } catch { /* ignore */ }
     keyForm(T.errors["bad-key"]);
   }
@@ -66,8 +67,8 @@ function keyForm(error = "") {
     try {
       await showDecks();
       try { localStorage.setItem(KEY, key); } catch { /* private mode */ }
-    } catch {
-      keyForm(T.errors["bad-key"]);
+    } catch (err) {
+      keyForm(err?.status === 403 ? T.errors["bad-key"] : errorText(pageLanguage(), err));
     }
   });
 }
@@ -240,3 +241,6 @@ document.addEventListener("keydown", (e) => {
   else return;
   e.preventDefault();
 });
+
+// Last, when every constant above has its value (as in the presenter window, presenter.js).
+start();

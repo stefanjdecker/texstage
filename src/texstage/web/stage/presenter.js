@@ -100,8 +100,6 @@ const device = deviceId();
 const prefs = loadPrefs();
 const follow = new BroadcastChannel("texstage");   // the projector window follows when the deck changes
 
-start();
-
 function loadPrefs() {
   const base = { notes: "page", size: 22, pen: PENS[0], marker: MARKERS[0], width: "M", mic: "", poll: "choice", pollTime: 0,
     split: SHARES, deckSort: "name" };
@@ -129,7 +127,10 @@ async function start() {
   if (!auth) return keyForm();
   try {
     await showDecks(true);
-  } catch {
+  } catch (err) {
+    // only the server's refusal of the key (or of this device) forgets it; the server out of
+    // reach for a moment, or anything else, leaves it stored for the next try
+    if (err?.status !== 403) return keyForm(why(err));
     const removed = typeof auth === "object";
     forget();
     keyForm(removed ? T.presenter.removed : T.errors["bad-key"]);
@@ -145,7 +146,6 @@ function speak(tag) {
   $("#rtt").title = T.presenter.roundTrip;
 }
 
-// (functions, not constants: start() above runs before the module's constants below have values)
 function deckLanguage(d) {
   return d?.language || "";                          // (usePageLanguage: undefined would be no deck)
 }
@@ -202,8 +202,8 @@ function keyForm(error = "") {
     try {
       await showDecks();
       try { localStorage.setItem(KEY, auth); } catch { /* private mode */ }
-    } catch {
-      keyForm(T.errors["bad-key"]);
+    } catch (err) {
+      keyForm(err?.status === 403 ? T.errors["bad-key"] : why(err));
     }
   });
 }
@@ -2242,3 +2242,8 @@ document.addEventListener("keydown", (e) => {
   }
   if (onKey(e)) e.preventDefault();
 });
+
+// Last, when every constant above has its value: with a stored key start() reaches showDecks()
+// before its first pause, and a constant whose line has not run yet (folderList) would throw -
+// which start() took for a refused key, and forgot the key.
+start();
