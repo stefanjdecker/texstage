@@ -34,8 +34,7 @@ result and a minimal input. For sensitive reports, follow [SECURITY.md](SECURITY
 
 This checkout contains the public source, examples and user documentation.
 Recording-production media, transcripts, captions and scripts are maintained
-in the separate private `texstage-media` repository. The same code commits go to
-GitHub and GitLab; see [repository layout](docs/repository-layout.md). Do not merge or mirror a private repository into this history.
+separately. Do not merge or mirror a private repository into this history.
 Before pushing, run `python maintenance/check_public_content.py`. The same
 check runs in CI and reviews reachable history as well as tracked files.
 

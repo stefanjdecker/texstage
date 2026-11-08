@@ -10,10 +10,7 @@
 // survives the pushes. The words follow the engine: a Turtle text (engine=turtle) is valid or
 // not, its graph the reference's or not (words).
 
-import { languageTag, phoneError } from "./locale.js";
-
-function vocabulary(language) {
-const GERMAN = languageTag(language) === "de";
+const GERMAN = (navigator.language || "en").toLowerCase().startsWith("de");
 const L = GERMAN ? {
   add: "Hinzufügen", send: "Abschicken", mine: "Deine Beiträge", withdraw: "Zurückziehen",
   of: (n, m) => `${n} von ${m}`, closed: "Die Aktivität ist geschlossen.", blocked: "Die Lehrperson hat Beiträge für dich gesperrt.",
@@ -39,11 +36,7 @@ const ENGINE_WORDS = {
     match: "The same graph as the reference ✓", differ: "A different graph than the reference", query: "Your Turtle",
   },
 };
-return engine => ({ ...L, ...(ENGINE_WORDS[engine] || {}) });
-}
-const VOCABULARY = { en: vocabulary("en"), de: vocabulary("de") };
-export const words = (engine, language = "en") => VOCABULARY[languageTag(language)](engine);
-
+export const words = (engine) => ({ ...L, ...(ENGINE_WORDS[engine] || {}) });
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // The token bar: a token goes in at the cursor - a word (SELECT, a, :Professor, ?name, dbr:Berlin)
@@ -63,14 +56,13 @@ export function insertToken(value, start, end, token) {
 }
 
 export class ActivityScreen {
-  constructor({ root, client, state, language = state.language || "en" }) {
+  constructor({ root, client, state }) {
     this.root = root;
     this.client = client;
-    this.language = language;
     const a = state.activity;
     this.id = a.id;
     this.kind = a.input;
-    const L = this.L = words(a.engine, language);
+    const L = this.L = words(a.engine);
     const prompt = a.prompt ? `<div class="card prompt"><img src="${esc(state.session.base + a.prompt.image)}"
       style="width:${(a.prompt.width * 1.4).toFixed(1)}px" alt=""></div>` : "";
     root.innerHTML = this.kind === "tuple"
@@ -103,7 +95,7 @@ export class ActivityScreen {
       root.querySelector("[data-role=mine]").addEventListener("click", (e) => {
         const b = e.target.closest("button[data-withdraw]");
         if (b) this.client.send({ t: "activity.withdraw", activity: this.id, contribution: b.dataset.withdraw })
-          .catch((err) => this.error(phoneError(err, this.language)));
+          .catch((err) => this.error(err.message));
       });
     }
     this.listed = "";
@@ -137,7 +129,7 @@ export class ActivityScreen {
         await this.client.send({ t: "activity.send", activity: this.id, text: this.text.value });
       }
     } catch (err) {
-      this.error(phoneError(err, this.language));
+      this.error(err.message || String(err));
     } finally {
       button.disabled = false;
     }

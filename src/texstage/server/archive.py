@@ -36,7 +36,7 @@ log = logging.getLogger("texstage.server")
 TAKE = re.compile(r"^[0-9a-f]{12}$")
 EXTS = ("webm", "mp4")
 FILE = re.compile(r"^(annotated\.pdf|[a-z0-9-]+\.csv|sketch-[a-z0-9-]+-[0-9]+\.svg"
-                  r"|recording-([0-9a-f]{12})\.(?:webm|mp4)|plugins\.json"
+                  r"|recording-([0-9a-f]{12})\.(?:webm|mp4)"
                   + "".join(f"|{p}" for p in stage_types.ARCHIVE) + r")$")    # (the content types' files)
 PENS = ("#1d1d1f", "#e21b3c", "#1368ce", "#26890c")      # a sketch's colours (web/shared/sketch.js)
 PART_MAX = 64 * 1024 * 1024             # a part: 10 s of video, a few MB

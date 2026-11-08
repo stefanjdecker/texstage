@@ -16,22 +16,19 @@ classifier remains set for this development candidate. Separately, the public
 repository's Pages workflow publishes the homepage and manual PDF on relevant
 pushes to `main`.
 
-Maintain one code checkout and publish the same reviewed commits to GitHub and
-the GitLab code mirror. Keep private demonstration recordings, scripts,
-transcripts, captions and the narrated production showcase in the separate
-`texstage-media` repository. Follow [repository-layout.md](repository-layout.md)
-for remotes, synchronization and the transition from the old private history.
-Do not merge or fetch private media history into the code repository.
-
-Before publishing code to either host, run:
+The public and private repositories have separate histories. Keep private
+demonstration recordings, scripts, transcripts and captions in the private
+repository. Apply shared changes to each checkout separately; never merge the
+private history into the public repository. In the public checkout, before a
+public push, run:
 
 ```sh
 python maintenance/check_public_content.py --rev HEAD
 ```
 
-The pre-push hook also checks each proposed tip and its ancestry. This check
-covers the known private recording paths and narration; it is not a general
-audit of all sensitive content.
+The public pre-push hook also checks each proposed tip and its ancestry. This
+check covers the known private recording paths and narration; it is not a
+general audit of all sensitive content.
 
 ## Remaining packaged-release work
 

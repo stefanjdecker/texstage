@@ -31,42 +31,6 @@ def world(tmp_path):
         yield client, fb
 
 
-def test_plugin_worker_keeps_connection_and_nested_worker_restrictions(world):
-    client, _ = world
-    response = client.get("/static/stage/plugin-evaluator-worker.js")
-    assert response.status_code == 200
-    assert response.headers["content-security-policy"] == (
-        "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
-        "connect-src 'none'; worker-src 'none'"
-    )
-    assert response.headers["cache-control"] == "no-store"
-
-
-@pytest.mark.parametrize("filename", ["plugin-evaluator-worker.js", "plugin-contracts-worker.mjs"])
-def test_plugin_worker_bootstrap_avoids_conditional_response_crash(world, filename):
-    client, _ = world
-    path = "/static/stage/" + filename
-    first = client.get(path)
-    assert first.status_code == 200 and first.content
-    for headers in ({"If-None-Match": first.headers["etag"]},
-                    {"If-Modified-Since": first.headers["last-modified"]},
-                    {"If-None-Match": "*"}):
-        response = client.get(path, headers=headers)
-        assert response.status_code == 200
-        assert response.content == first.content
-        assert response.headers["cache-control"] == "no-store"
-        assert response.headers.get("content-security-policy") == first.headers.get("content-security-policy")
-        head = client.head(path, headers=headers)
-        assert head.status_code == 200 and not head.content
-        assert head.headers["content-length"] == first.headers["content-length"]
-        assert head.headers["cache-control"] == "no-store"
-    # Ordinary UI files still use their existing update-safe revalidation.
-    ordinary = client.get("/static/shared/client.js")
-    cached = client.get("/static/shared/client.js", headers={"If-None-Match": ordinary.headers["etag"]})
-    assert cached.status_code == 304
-    assert cached.headers["cache-control"] == "no-cache"
-
-
 def recv(ws, t: str | None = None, until=None, limit: int = 60) -> dict:
     """The next message of type t (and matching `until`); states may be coalesced, so wait
     for the one that shows what the test expects."""
@@ -865,7 +829,7 @@ def test_bundles_of_format_2_and_1(tmp_path):
     with pytest.raises(BundleError, match="needs cell, which this server does not know"):
         load_bundle(tmp_path / "cell")
     write(tmp_path / "three", deck | {"format": 3}, keys | {"format": 3})
-    with pytest.raises(BundleError, match="external bundles require an explicit plugin lock"):
+    with pytest.raises(BundleError, match="bundle format 3, this server reads 1 and 2"):
         load_bundle(tmp_path / "three")
     lost = {"id": 258, "image": "slides/2222222222222222.png", "live": [{"type": "video", "item": "gone", "rects": {}}]}
     write(tmp_path / "lost", deck | {"types": ["quiz", "video"], "slides": [*deck["slides"], lost]}, keys)

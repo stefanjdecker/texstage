@@ -35,7 +35,6 @@
 import { color, shapeSVG } from "./shapes.js";
 import { sketchSVG } from "./sketch.js";
 import { textHTML } from "./text.js";
-import { PluginBox } from "./plugins.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const pct = (v) => `${(v * 100).toFixed(3)}%`;
@@ -431,12 +430,11 @@ export class Stage {
     for (const b of boxes) {
       const item = deck.items?.[b.type]?.[b.item];
       const key = `${b.type}:${b.item}`;
-      const Renderer = this.types[b.type] || (state.plugins?.items.some(d => d.type === b.type && d.item === b.item) ? PluginBox : null);
-      if (!Renderer || !item || keep.has(key)) continue;
+      if (!this.types[b.type] || !item || keep.has(key)) continue;
       keep.add(key);
       let r = this.mounted.get(key);
       if (!r) {
-        r = new Renderer({ type: b.type, id: b.item, item, layer: this.typeLayer, controls: this.typeControls,
+        r = new this.types[b.type]({ id: b.item, item, layer: this.typeLayer, controls: this.typeControls,
           host: this.host, clock: () => this.clock(), language: this.language });
         this.mounted.set(key, r);
       }

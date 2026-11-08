@@ -45,7 +45,7 @@ def compile_latex(
     rerun_pattern: str | None = None, halt_on_error: bool = True, file_line_error: bool = False,
     texinputs: tuple[str | Path, ...] = (), env: Mapping[str, str] | None = None,
     log_encoding: str = "utf-8", output_encoding: str | None = None,
-    on_pass: Callable[[int, int], None] | None = None, recorder: bool = False,
+    on_pass: Callable[[int, int], None] | None = None,
 ) -> LatexResult:
     """Compile beside the source, leaving relative includes and local styles intact.
 
@@ -80,8 +80,6 @@ def compile_latex(
     if engine == "latexmk":
         command.append("-pdf")
     command.append("-interaction=nonstopmode")
-    if recorder:
-        command.append("-recorder")
     if halt_on_error:
         command.append("-halt-on-error")
     if file_line_error:

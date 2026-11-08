@@ -56,11 +56,6 @@ class BuildOptions:
     max_shrink: float = 15.0
     passes: int = 2
     stage: bool = False          # also the stage PDF for texstage (stage.py)
-    plugin_data: Path | None = None  # explicit operator profile; no ambient plugin discovery
-    plugins_lock: Path | None = None
-    plugins: object = field(default=None, repr=False)  # immutable catalog, prepared by build
-    activities: Path | None = None  # explicit authoring sidecar, never inferred from TeX
-    preparation: object = field(default=None, init=False, repr=False)
 
 
 @dataclass
@@ -85,7 +80,7 @@ class Slide:
 
     def boxes(self, uses_addin: bool) -> list[dict]:
         """Its boxes of the types that do (or do not) use PowerPoint's add-in."""
-        return [b for b in self.live if (TYPES[b["type"]].USES_ADDIN if b["type"] in TYPES else False) == uses_addin]
+        return [b for b in self.live if TYPES[b["type"]].USES_ADDIN == uses_addin]
 
 
 @dataclass
@@ -129,7 +124,7 @@ def plan_slides(tqz: Tqz, pictures, warnings: list[str]) -> list[Slide]:
     notes = {p.page: p.notes for p in pictures}
     for page in tqz.pages.values():
         for item in page.items:
-            if of_kind(item.kind) is None and item.kind != "plugin":
+            if of_kind(item.kind) is None:
                 raise BuildError(f"page {page.page}: an item of kind {item.kind!r}, which no content type of "
                                  f"this build knows - update texstage (the lecture's tools/)")
     try:
@@ -140,10 +135,7 @@ def plan_slides(tqz: Tqz, pictures, warnings: list[str]) -> list[Slide]:
     for page, item, added in planned:
         live = [quiz.box(tqz, item)] if item is not None else []
         if not added:                                 # the page's items of the other types
-            from . import plugins as plugin_build
-            definitions = plugin_build.records(tqz)
-            live += [(plugin_build.box(tqz, i, definitions) if i.kind == "plugin" else of_kind(i.kind).box(tqz, i))
-                     for i in (tqz.pages[page].items if page in tqz.pages else [])
+            live += [of_kind(i.kind).box(tqz, i) for i in (tqz.pages[page].items if page in tqz.pages else [])
                      if i.kind not in quiz.KINDS]
         slides.append(Slide(page, images[page], "" if added else notes[page], live))
     return slides
@@ -185,12 +177,6 @@ def first_slide(name: str, size: tuple[int, int]) -> bytes:
 
 def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildResult:
     opts = opts or BuildOptions()
-    from texstage.plugins.policy import catalog_for
-    from texstage.plugins.lock import check_lock
-    from . import plugins as plugin_build
-    opts.plugins = catalog_for(opts.plugin_data)
-    if opts.plugins_lock:
-        check_lock(Path(opts.plugins_lock), opts.plugins)
     try:
         server = origin(opts.server)             # the add-in the live slides reference (powerpoint.py)
     except ValueError as err:
@@ -200,13 +186,8 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     name = deck_name(tex)
     deck_id = opts.deck_id or slug(name)
     work = out_dir / "build"
-    from .authoring import prepare_sources
-    opts.preparation = (prepare_sources(tex, opts.activities, opts.plugins, work)
-                        if opts.activities is not None else None)
     present, staged = compile_present(tex, work, opts)
     tqz = Tqz.read(present.tqz)
-    plugin_items, plugin_keys, plugin_files, requirements = plugin_build.prepare(
-        tqz, tex.parent, opts.plugins, opts.preparation)
     with Pdf(present.pdf) as doc:
         total = len(doc)
     count = total - len(tqz.assets)
@@ -226,7 +207,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
             raise BuildError(f"{staged.pdf.name}: {err}") from None
     pictures = render_slides(present.pdf, count, tqz.paper, opts.height)
     phone, phone_files = quiz.files(tqz, render_pages(present.pdf, range(count + 1, total + 1)))
-    warnings: list[str] = list(opts.preparation.diagnostics) if opts.preparation else []
+    warnings: list[str] = []
     slides = plan_slides(tqz, pictures, warnings)
     for s in slides:
         if s.boxes(uses_addin=True) and s.boxes(uses_addin=False):
@@ -256,17 +237,12 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
         items[activity.NAME] = activities
     if activity_keys:
         secret[activity.NAME] = activity_keys
-    items.update(plugin_items)
-    secret.update(plugin_keys)
     used = sorted({b["type"] for s in slides for b in s.live} | set(items))
     language = bnd.language_tag(tqz.language)           # what the live views speak (English without it)
     deck = {"format": bnd.FORMAT, "deck": deck_id, "name": name, **({"language": language} if language else {}),
             "types": used, "image": {"width": size[0], "height": size[1]},
             "slides": [], "items": items}
     keys = {"format": bnd.FORMAT, "deck": deck_id, "items": secret}
-    if requirements:
-        deck.update(format=3, plugins=requirements)
-        keys["format"] = 3
     for s, sid in zip(slides, ids):
         entry = {"id": sid, "image": s.image}
         if s.live:
@@ -278,7 +254,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
         deck["pdf"] = stage.deck_entry()
     bid = bnd.bundle_id(deck, keys)
     deck["bundle"] = keys["bundle"] = bid
-    files = {s.image: pngs[s.page] for s in slides} | phone_files | video_files | activity_files | plugin_files
+    files = {s.image: pngs[s.page] for s in slides} | phone_files | video_files | activity_files
     if stage is not None:
         files[stage.file] = stage_pdf
     bundle_dir = out_dir / f"{name}.bundle"
@@ -345,13 +321,11 @@ def compile_present(tex: Path, work: Path, opts: BuildOptions):
     """The present compile, and with --stage the stage compile alongside it: two pdflatex
     runs side by side, each with its own job name (stage.py)."""
     if not opts.stage:
-        return compile_deck(tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins,
-                            preparation=opts.preparation), None
+        return compile_deck(tex, "present", work, notes=True, passes=opts.passes), None
     with ThreadPoolExecutor(max_workers=2) as pool:
-        present = pool.submit(compile_deck, tex, "present", work, notes=True, passes=opts.passes, plugins=opts.plugins,
-                              preparation=opts.preparation)
+        present = pool.submit(compile_deck, tex, "present", work, notes=True, passes=opts.passes)
         staged = pool.submit(compile_deck, tex, "present", work, notes="stage", jobname=f"{tex.stem}-stage",
-                             passes=opts.passes, plugins=opts.plugins, preparation=opts.preparation)
+                             passes=opts.passes)
         return present.result(), staged.result()
 
 
@@ -363,9 +337,8 @@ def check(tex: Path, present, pictures, work: Path, opts: BuildOptions,
     where = locator(tex, present.log.with_suffix(".nav"))
     findings = check_log(present.log, "present", where, opts.max_shrink)
     log = present.log.read_text(encoding="latin-1", errors="replace")
-    if quiz.solutions(log) or opts.preparation:
-        solutions = compile_deck(tex, "solutions", work, passes=opts.passes, plugins=opts.plugins,
-                                 preparation=opts.preparation)
+    if quiz.solutions(log):
+        solutions = compile_deck(tex, "solutions", work, passes=opts.passes)
         where_s = locator(tex, solutions.log.with_suffix(".nav"))
         findings += check_log(solutions.log, "solutions", where_s, opts.max_shrink)
     for p in pictures:

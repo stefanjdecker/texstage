@@ -40,7 +40,6 @@ import { ask, askText, notice, tell } from "/static/stage/ask.js";
 import { BATCH, ERASER, MARKER, MARKERS, PENS, SIZES, deviceId } from "/static/stage/pen.js";   // (the projector's pen too)
 import { VideoBox, mediaAddresses } from "/static/stage/video.js";
 import { ActivityAgent, ActivityBox, codeWords, resultLabel, resultTable } from "/static/stage/activity.js";
-import { PluginEvaluator } from "/static/stage/plugin-evaluator.js";
 import { Evaluator } from "/static/stage/evaluator.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -89,14 +88,12 @@ let recTicker = null;   // its time and the microphone's level, while it runs
 let qaPanel = null;     // the audience's questions while their panel is open (M6)
 let gallery = null;     // a sketch question's drawings while their gallery is open (M6)
 let agent = null;       // the deck's live activities: the lease, the layout, the evaluation (activity.js)
-let pluginEvaluator = null;
 let actPanel = null;    // their panel while it is open
 const device = deviceId();
 const prefs = loadPrefs();
 const follow = new BroadcastChannel("texstage");   // the projector window follows when the deck changes
 
-// A saved key can enter showDecks synchronously; initialize the module's helpers first.
-queueMicrotask(start);
+start();
 
 function loadPrefs() {
   const base = { notes: "page", size: 22, pen: PENS[0], marker: MARKERS[0], width: "M", mic: "", poll: "choice", pollTime: 0,
@@ -592,7 +589,6 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
         <div class="notetext" id="notetext"></div></div>
     </section>
     <footer class="toolbar" id="toolbar">
-      <span class="group" id="plugincontrols" aria-label="Activity controls"></span>
       <span class="group"><button data-tool="auto" title="navigate - a pen draws all the same (Esc)">↖</button>
         <button data-tool="pen" title="pen (P)">✎ Pen</button><button data-tool="highlighter" title="highlighter (H)">▮ Marker</button>
         <button data-tool="eraser" title="eraser (E) - also the pen's eraser end">⌫ Eraser</button>
@@ -650,8 +646,6 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   });
   book = new InkBook(client);
   agent?.destroy();
-  pluginEvaluator?.destroy();
-  pluginEvaluator = deck.plugins?.length ? new PluginEvaluator(client) : null;
   agent = deck.items?.activity ? new ActivityAgent({ send: (msg) => client.send(msg) }) : null;
   if (agent && Object.values(deck.items.activity).some((a) => a.input === "code")) {
     // the queries are evaluated here while this window has the lease (evaluator.js)
@@ -663,7 +657,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
     sketches: (quiz, players) => client.send({ t: "sketch.get", quiz, players }).then((r) => r.sketches),
     types: { video: VideoBox, activity: ActivityBox },
     host: { role: "presenter", send: (msg) => client.send(msg).catch(alertError), media: mediaAddresses(deck.bundle, auth),
-      read: (msg) => client.send(msg), agent, pluginControls: $("#plugincontrols") } });
+      read: (msg) => client.send(msg), agent } });
   box = $("#stage");
   ink = new InkLayer(book, aspect);
   laser = new PointerLayer(aspect);
@@ -2182,7 +2176,7 @@ function escape() {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (!deck || !state || e.defaultPrevented || e.target?.closest?.("input, textarea, select, button, a[href], summary, [contenteditable]:not([contenteditable=false]), .texstage-plugin") || e.altKey || $(".dialog")) return;   // a dialog's keys
+  if (!deck || !state || e.target.closest("input, textarea") || e.altKey || $(".dialog")) return;   // a dialog's keys
   if (e.ctrlKey || e.metaKey) {
     const k = e.key.toLowerCase();
     if (k === "z" && !e.shiftKey) inkAction("ink.undo");

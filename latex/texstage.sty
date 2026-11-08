@@ -111,93 +111,6 @@
       }
   }
 
-% Experimental plugin bridge. Only JSON data references enter TQZ, never code.
-% Prepared fragments and the matching live item come from an explicit authoring
-% prepass. This separate record stream is checked in ALL modes, including handouts.
-\iow_new:N \g__texstage_prepared_iow
-\AddToHook { begindocument }
-  { \iow_open:Nn \g__texstage_prepared_iow { \jobname.tpa } }
-\AddToHook { enddocument/afterlastpage }
-  { \iow_close:N \g__texstage_prepared_iow }
-\NewDocumentCommand \texstagepreparedcheck { m m }
-  {
-    \str_if_eq:eeF { \pdf@filemdfivesum{#1} } {#2}
-      { \texstage_error:n { Stale~prepared~input;~run~texstage~prepare~again. } }
-  }
-\NewDocumentCommand \texstageprepareddeclare { m m m m m }
-  {
-    \cs_if_exist:cT { texstage@prepared@#1@type }
-      { \texstage_error:n { Duplicate~prepared~item~#1. } }
-    \cs_gset:cpn { texstage@prepared@#1@type } {#2}
-    \cs_gset:cpn { texstage@prepared@#1@digest } {#3}
-    \cs_gset:cpn { texstage@prepared@#1@exercise } {#4}
-    \cs_gset:cpn { texstage@prepared@#1@solutions } {#5}
-  }
-\NewDocumentCommand \texstagepreparedassetdeclare { m m m m }
-  {
-    \cs_gset:cpn { texstage@prepared@#1@asset@#2 } {#3}
-    \cs_gset:cpn { texstage@prepared@#1@visibility@#2 } {#4}
-  }
-\NewExpandableDocumentCommand \texstagepreparedasset { m m }
-  {
-    \str_if_eq:eeTF { \use:c { texstage@prepared@#1@visibility@#2 } } { public }
-      { \use:c { texstage@prepared@#1@asset@#2 } }
-      {
-        \texstage_if_mode:nTF { solutions }
-          { \use:c { texstage@prepared@#1@asset@#2 } }
-          { \msg_expandable_error:nnn { texstage } { general } { Private~prepared~asset~outside~solutions. } }
-      }
-  }
-\NewDocumentCommand \texstageprepared { m m m }
-  {
-    \cs_if_exist:cF { texstage@prepared@#1@type }
-      { \texstage_error:n { Missing~prepared~item~#1;~build~with~--activities. } }
-    \iow_now:Ne \g__texstage_prepared_iow
-      { #1|\use:c{texstage@prepared@#1@type}|\use:c{texstage@prepared@#1@digest} }
-    \texstage_emit:n
-      { prepared|#1|\use:c{texstage@prepared@#1@type}|\use:c{texstage@prepared@#1@digest} }
-    \begin{texstagepluginbox}[id={#1},type={\use:c{texstage@prepared@#1@type}}]{#2}{#3}
-      \texstage_if_mode:nTF { solutions }
-        { \input{\use:c{texstage@prepared@#1@solutions}} }
-        { \input{\use:c{texstage@prepared@#1@exercise}} }
-    \end{texstagepluginbox}
-  }
-\tl_new:N \l__texstage_plugin_type_tl
-\tl_new:N \l__texstage_plugin_id_tl
-\tl_new:N \l__texstage_plugin_public_tl
-\tl_new:N \l__texstage_plugin_private_tl
-\tl_new:N \l__texstage_plugin_public_json_tl
-\tl_new:N \l__texstage_plugin_private_json_tl
-\keys_define:nn { texstage/plugin }
-  {
-    type .tl_set:N = \l__texstage_plugin_type_tl,
-    id .tl_set:N = \l__texstage_plugin_id_tl,
-    public .tl_set:N = \l__texstage_plugin_public_tl,
-    private .tl_set:N = \l__texstage_plugin_private_tl,
-    public-json .tl_set:N = \l__texstage_plugin_public_json_tl,
-    private-json .tl_set:N = \l__texstage_plugin_private_json_tl
-  }
-\NewDocumentEnvironment { texstagepluginbox } { O{} m m +b }
-  {
-    \group_begin:
-    \keys_set:nn { texstage/plugin }
-      { type=,id=,public=,private=,public-json=,private-json=,#1 }
-    \tl_if_empty:NT \l__texstage_plugin_id_tl { \texstage_error:n { Plugin~box~needs~id. } }
-    \tl_if_empty:NT \l__texstage_plugin_type_tl { \texstage_error:n { Plugin~box~needs~type. } }
-    \texstage_emit:n
-      { plugin | \l__texstage_plugin_id_tl | \texstage_hex:e {\l__texstage_plugin_type_tl}
-        | \texstage_hex:e {\l__texstage_plugin_public_tl} | \texstage_hex:e {\l__texstage_plugin_private_tl}
-        | \texstage_hex:e {\l__texstage_plugin_public_json_tl} | \texstage_hex:e {\l__texstage_plugin_private_json_tl} }
-    \texstage_page_record:nnn { plugin } { \l__texstage_plugin_id_tl } { live }
-    \leavevmode
-    \hbox:n
-      {
-        \texstage_rect:nnnnn { \l__texstage_plugin_id_tl } { live } { box } {#2} {#3}
-        \begin{minipage}[b][#3][c]{#2} #4 \end{minipage}
-      }
-    \group_end:
-  } { }
-
 % Shrunk frames: Beamer typesets the frame body first and then scales the finished
 % box (\beamer@shrinkframebox: pgftext[left,top] under pgftransformscale) - a PDF
 % transformation that \pdfsavepos does not see, so every position recorded inside a
@@ -448,5 +361,4 @@
       \exhyphenpenalty=10000\setlength{\parskip}{1.2em}\insertnote\par}%
   \fi}
 
-\@ifundefined{texstagepreparedfile}{}{\input{\texstagepreparedfile}}
 \endinput

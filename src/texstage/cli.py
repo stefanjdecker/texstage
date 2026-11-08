@@ -27,37 +27,12 @@ def cmd_pdf(args: argparse.Namespace) -> int:
         return 2
     out_dir = Path(args.output_dir) if args.output_dir else tex.parent / "texquiz-out"
     try:
-        from texstage.plugins.policy import catalog_for
-        from texstage.plugins.lock import check_lock
-        plugins = catalog_for(Path(args.data) if getattr(args, "data", None) else None)
-        if getattr(args, "plugins_lock", None): check_lock(Path(args.plugins_lock), plugins)
-        result = compile_deck(tex, args.mode, out_dir, passes=args.passes, plugins=plugins,
-                              activities=Path(args.activities) if getattr(args, "activities", None) else None)
+        result = compile_deck(tex, args.mode, out_dir, passes=args.passes)
     except LatexError as err:
         print(f"texstage: LaTeX failed\n{err}", file=sys.stderr)
         return 1
     note = f", {result.overfull} overfull boxes" if result.overfull else ""
     print(f"{result.pdf}{note}")
-    return 0
-
-
-def cmd_prepare(args: argparse.Namespace) -> int:
-    from texstage.build.authoring import prepare_sources
-    from texstage.plugins.policy import catalog_for
-    from texstage.plugins.lock import check_lock
-    tex = Path(args.tex)
-    if not tex.is_file():
-        print(f"texstage: no such file: {tex}", file=sys.stderr)
-        return 2
-    catalog = catalog_for(Path(args.data) if args.data else None)
-    if args.plugins_lock:
-        check_lock(Path(args.plugins_lock), catalog)
-    out = Path(args.output_dir) if args.output_dir else tex.parent / "texquiz-out"
-    preparation = prepare_sources(tex, Path(args.activities), catalog, out)
-    for mode, path in preparation.export(tex, catalog).items():
-        print(f"{mode}: {path}")
-    for diagnostic in preparation.diagnostics:
-        print(diagnostic)
     return 0
 
 
@@ -102,15 +77,13 @@ def cmd_build(args: argparse.Namespace) -> int:
         key = find_key(args.server, path=data / "servers.json", data_dir=data)
     opts = BuildOptions(server=args.server, key=key, deck_id=args.deck, height=args.height,
                         check=not args.no_check, max_shrink=args.max_shrink, passes=args.passes,
-                        stage=not args.no_stage, plugin_data=data if args.data else None,
-                        plugins_lock=Path(args.plugins_lock) if getattr(args, "plugins_lock", None) else None,
-                        activities=Path(args.activities) if getattr(args, "activities", None) else None)
+                        stage=not args.no_stage)            # the stage PDF: for PowerPoint and texstage alike
     try:
         r = build(tex, out_dir, opts)
     except LatexError as err:
         print(f"texstage: LaTeX failed\n{err}", file=sys.stderr)
         return 1
-    except (BuildError, FileExistsError, ValueError) as err:
+    except (BuildError, FileExistsError) as err:
         print(f"texstage: {err}", file=sys.stderr)
         return 1
     live = sum(1 for s in r.slides if s.live)
@@ -345,23 +318,18 @@ def cmd_present(args: argparse.Namespace) -> int:
     targets = args.targets or ["."]
     first, *more = targets
     path = Path(first)
-    activities = getattr(args, "activities", None)
-    if activities and (args.no_build or path.suffix.lower() != ".tex"):
-        print("texstage: --activities requires a .tex target and a build; omit --no-build", file=sys.stderr)
-        return 2
     if path.suffix.lower() == ".tex":
         if not path.is_file():
             print(f"texstage: no such file: {path}", file=sys.stderr)
             return 2
         out = Path(args.output_dir) if args.output_dir else path.parent / "texquiz-out"
-        why = "activity preparation" if activities else "asked for" if args.build else None if args.no_build else needs_build(path.parent, out)
+        why = "asked for" if args.build else None if args.no_build else needs_build(path.parent, out)
         if why:
             print(f"texstage present: building {path.name} ({why})", flush=True)
             code = cmd_build(argparse.Namespace(
                 tex=str(path), output_dir=str(out), server=f"http://localhost:{args.port}", key=None, deck=args.deck,
-                height=1080, no_check=args.no_check, max_shrink=15.0, passes=2, no_stage=False, data=args.data,
-                plugins_lock=getattr(args, "plugins_lock", None), activities=activities))
-            if code != 0 and (activities or needs_build(path.parent, out)):
+                height=1080, no_check=args.no_check, max_shrink=15.0, passes=2, no_stage=False, data=args.data))
+            if code != 0 and needs_build(path.parent, out):
                 return code                                   # LaTeX or the build failed: nothing to present
             if code != 0:
                 print("texstage present: the check found problems in the quiz frames (above) - presenting the deck anyway")
@@ -501,7 +469,7 @@ def cmd_retarget(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = ("present", "pdf", "prepare", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin", "plugins")
+COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -511,8 +479,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="texstage", description="Beamer decks presented live, with their "
                                      "quizzes: texstage present <deck> starts a lecture")
     sub = parser.add_subparsers(dest="command", required=True)
-    from texstage.plugins.cli import add_parser
-    add_parser(sub)
     pr = sub.add_parser("present", help="present a deck: built first if needed, then in texstage's presenter window "
                                         "(or --powerpoint) on the quiz server running here, or on one started now")
     present_options(pr)
@@ -528,18 +494,7 @@ def main(argv: list[str] | None = None) -> int:
                       help="question, reveal and leaderboard slides (preview of the live deck)")
     p.add_argument("-o", "--output-dir", help="default: texquiz-out next to the source")
     p.add_argument("--passes", type=int, default=2)
-    p.add_argument("--data", help="explicit plugin operator profile")
-    p.add_argument("--plugins-lock", help="verify enabled packages against this portable plugin lock")
-    p.add_argument("--activities", help="explicit activity JSON sidecar; prepare before compiling")
     p.set_defaults(mode="handout", func=cmd_pdf)
-
-    p = sub.add_parser("prepare", help="materialize plugin exercises for direct pdfLaTeX")
-    p.add_argument("tex")
-    p.add_argument("--activities", required=True, help="activity JSON sidecar under the deck directory")
-    p.add_argument("-o", "--output-dir", help="parent of a fresh prepared directory (default: texquiz-out)")
-    p.add_argument("--data", help="explicit plugin operator profile")
-    p.add_argument("--plugins-lock", help="verify enabled packages against this portable plugin lock")
-    p.set_defaults(func=cmd_prepare)
 
     p = sub.add_parser("pptx", help="convert Beamer to a static PowerPoint with speaker notes",
                        description="Beamer .tex to .pptx with images and speaker notes.")
@@ -585,8 +540,6 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--data", help=f"the data folder of this machine's quiz server (default ~/{DEFAULT_DATA.name}): the build "
                                   "is recorded there, and the server serves it without an upload")
     b.set_defaults(func=cmd_build)
-    b.add_argument("--plugins-lock", help="verify enabled packages against this portable plugin lock")
-    b.add_argument("--activities", help="explicit activity JSON sidecar; prepare once for every build mode")
 
     s = sub.add_parser("serve", help="run the quiz server (laptop or hosted)")
     s.add_argument("bundles", nargs="*", help="bundles, or folders with bundles (e.g. a chapter's "
@@ -648,17 +601,10 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--data", help=f"where to put the manifest (default ~/{DEFAULT_DATA.name})")
     a.set_defaults(func=cmd_addin)
     args = parser.parse_args(argv)
-    from texstage.plugins import PluginError
-    try:
-        return args.func(args)
-    except PluginError as err:
-        print(f"texstage: {err}", file=sys.stderr)
-        return 2
+    return args.func(args)
 
 
 def present_options(parser: argparse.ArgumentParser):
-    parser.add_argument("--plugins-lock", help="building: verify this portable plugin lock")
-    parser.add_argument("--activities", help="building: explicit activity JSON sidecar (always rebuilds)")
     parser.add_argument("targets", nargs="*", help="the deck: its .tex file (built first if its build is missing or "
                                                    "older than its sources), or a build folder; further folders are "
                                                    "served too; default: the current folder")

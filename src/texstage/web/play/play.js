@@ -14,17 +14,46 @@
 // states only while the tab is open (qa.watch).
 
 import { ActivityScreen } from "/static/play/activity.js";
-import { PluginScreen } from "/static/shared/plugins.js";
-import { activeContentType } from "./content-type.js";
-import { languageTag, phoneLabels, phoneError } from "./locale.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
 import { PENS, SketchPad, sketchSVG } from "/static/shared/sketch.js";
 import { textHTML } from "/static/shared/text.js";
 
-let language = languageTag(navigator.language);
-let T = phoneLabels(language);
-document.documentElement.lang = language;
+const GERMAN = (navigator.language || "en").toLowerCase().startsWith("de");
+document.documentElement.lang = GERMAN ? "de" : "en";
+const T = GERMAN ? {
+  pin: "Spiel-PIN", nick: "Dein Spitzname", join: "Mitspielen", in: "Du bist dabei!", watch: "Schau nach vorne – gleich geht es los.",
+  ready: "Gleich geht's los!", send: "Abschicken", sent: "Antwort abgeschickt", waitOthers: "Warte auf die anderen …",
+  timesUp: "Die Zeit ist um", noAnswer: "Keine Antwort", correct: "Richtig!", wrong: "Leider falsch", partly: "Teilweise richtig",
+  thanks: "Danke!", points: "Punkte", streak: "Serie", rank: (r, n) => `Platz ${r} von ${n}`, paused: "Pausiert",
+  finished: "Spielende", yourRank: "Dein Platz", again: "Neu beitreten", gameOver: "Dieses Spiel ist vorbei.",
+  kicked: "Du wurdest aus dem Spiel entfernt.", offline: "Verbindung wird wiederhergestellt …", typeHere: "Deine Antwort",
+  several: "Mehrere Antworten können richtig sein", tickAll: "Alles Zutreffende ankreuzen",
+  orderHint: "In die richtige Reihenfolge bringen", practice: "Übungsrunde – ohne Punkte",
+  answerWas: "Richtige Antwort", up: "nach oben", down: "nach unten", bonus: "Serienbonus",
+  answer: "Antwort", questionPicture: "Die Frage, wie vorne gezeigt",
+  waitReveal: "Gleich kommt die Auflösung …", reading: "Lies die Frage – gleich kommen die Antworten.",
+  draw: "Zeichne mit dem Finger.", undo: "Rückgängig", clear: "Löschen", pens: ["Schwarz", "Rot", "Blau", "Grün"],
+  tooMuch: "Zu viel gezeichnet – nimm ein paar Striche zurück.", quizTab: "Quiz", qaTab: "Fragen",
+  ask: "Stell eine Frage – anonym.", yourQuestion: "Deine Frage", askSend: "Fragen", noQuestions: "Noch keine Fragen.",
+  yours: "deine", answered: "beantwortet", upvote: "Diese Frage unterstützen", asked: "Deine Frage ist da.",
+} : {
+  pin: "Game PIN", nick: "Your nickname", join: "Join", in: "You're in!", watch: "Watch the screen – it starts soon.",
+  ready: "Get ready!", send: "Submit", sent: "Answer sent", waitOthers: "Waiting for the others …",
+  timesUp: "Time's up", noAnswer: "No answer", correct: "Correct!", wrong: "Not quite", partly: "Partly right",
+  thanks: "Thanks!", points: "points", streak: "streak", rank: (r, n) => `Rank ${r} of ${n}`, paused: "Paused",
+  finished: "Game over", yourRank: "Your rank", again: "Join again", gameOver: "This game is over.",
+  kicked: "You have been removed from the game.", offline: "Reconnecting …", typeHere: "Your answer",
+  several: "Several answers can be correct", tickAll: "Tick all that apply",
+  orderHint: "Put them in the right order", practice: "Practice round – no points",
+  answerWas: "Right answer", up: "up", down: "down", bonus: "streak bonus",
+  answer: "Answer", questionPicture: "The question, as shown at the front",
+  waitReveal: "The answer comes next …", reading: "Read the question – the answers come next.",
+  draw: "Draw with your finger.", undo: "Undo", clear: "Clear", pens: ["black", "red", "blue", "green"],
+  tooMuch: "Too much drawn – undo a few strokes.", quizTab: "Quiz", qaTab: "Questions",
+  ask: "Ask a question – anonymously.", yourQuestion: "Your question", askSend: "Ask", noQuestions: "No questions yet.",
+  yours: "yours", answered: "answered", upvote: "Upvote this question", asked: "Your question is in.",
+};
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -34,8 +63,7 @@ const STORE = "texquiz:player";
 let state = null;        // the server's player view
 let screenKey = "";
 let draft = {};          // per round: selection, order, value, text, strokes
-let joinError = null;
-let languageRequest = 0;
+let joinError = "";
 let tab = "quiz";        // or "qa": the audience's questions (M6)
 let switched = null;     // the round that brought the quiz tab back
 let listed = "";         // the questions as last drawn
@@ -45,7 +73,7 @@ const redraw = () => { screenKey = ""; listed = ""; if (state) render(); };   //
 // part of the state is there (state[name], with its item's id) gets the screen while no quiz round
 // is open - the round comes first. Its screen owns its elements, so what is being typed survives
 // the pushes:  new PHONE_TYPES[name]({root, client, T, state})  .update(state)  .destroy()
-const PHONE_TYPES = { activity: ActivityScreen, plugins: PluginScreen };
+const PHONE_TYPES = { activity: ActivityScreen };
 let typeScreen = null;
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } })();
@@ -57,7 +85,7 @@ const client = new Client({
     $("#offline").textContent = T.offline;
     if (s === "open" && tab === "qa") client.send({ t: "qa.watch", on: true }).catch(() => {});   // a new connection
   },
-  onState: (m) => { languageRequest++; state = m; selectLanguage(m.language || "en"); render(); },
+  onState: (m) => { state = m; render(); },
   onBye: (m) => {
     forget();
     state = null;
@@ -70,42 +98,6 @@ function remember(pin, token, nickname) {
 }
 function forget() {
   try { localStorage.removeItem(STORE); } catch { /* ignore */ }
-}
-
-// Update labels in place: a late language lookup must not erase a nickname,
-// move focus, or replace a form while the student is typing.
-function selectLanguage(value) {
-  const next = languageTag(value);
-  if (next === language) return;
-  language = next;
-  T = phoneLabels(language);
-  document.documentElement.lang = language;
-  if (state) screenKey = "";
-  listed = "";
-  const set = (selector, text) => { const el = $(selector); if (el) el.textContent = text; };
-  set('#join label[for="pin"]', T.pin);
-  set('#join label[for="nick"]', T.nick);
-  set('#join button[type="submit"]', T.join);
-  if (joinError) set("#join #err", phoneError(joinError, language));
-  set("#offline", T.offline);
-  set('#tabs [data-tab="quiz"]', T.quizTab);
-  set('#tabs [data-tab="qa"]', T.qaTab);
-  set('#qa label[for="asktext"]', T.ask);
-  set("#asksend", T.askSend);
-  if ($("#asktext")) $("#asktext").placeholder = T.yourQuestion;
-}
-
-async function joinLanguage(pin) {
-  const request = ++languageRequest;
-  if (!/^[0-9]{6}$/.test(pin)) return;
-  try {
-    const response = await fetch("/api/join-language?pin=" + encodeURIComponent(pin),
-      { cache: "no-store", signal: AbortSignal.timeout(3000) });
-    if (!response.ok) return;
-    const value = await response.json();
-    if (request === languageRequest && !state &&
-        $("#pin")?.value.replace(/\D/g, "") === pin && value.language) selectLanguage(value.language);
-  } catch { /* Joining still works if a pre-join lookup is unavailable. */ }
 }
 
 // ------------------------------------------------------------------ joining
@@ -125,10 +117,8 @@ function joinForm() {
     <label for="nick">${esc(T.nick)}</label>
     <input id="nick" type="text" maxlength="20" value="${esc(saved?.nickname || "")}" required autocapitalize="words">
     <button class="main" type="submit">${esc(T.join)}</button>
-    <div class="error" id="err">${esc(joinError ? phoneError(joinError, language) : "")}</div></form>`;
+    <div class="error" id="err">${esc(joinError)}</div></form>`;
   const form = $("#join");
-  $("#pin").addEventListener("input", () => { joinLanguage($("#pin").value.replace(/\D/g, "")); });
-  joinLanguage($("#pin").value.replace(/\D/g, ""));
   (urlPin ? $("#nick") : $("#pin")).focus();
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -137,14 +127,13 @@ function joinForm() {
     const button = form.querySelector("button");
     button.disabled = true;
     try {
-      await joinLanguage(pin);
       const w = await client.login({ t: "join", pin, nickname });
       remember(pin, w.token, w.nickname);
       client.relogin({ t: "resume", token: w.token });
-      joinError = null;
+      joinError = "";
     } catch (err) {
-      joinError = err;
-      $("#err").textContent = phoneError(err, language);
+      joinError = err.message || String(err);
+      $("#err").textContent = joinError;
       button.disabled = false;
     }
   });
@@ -157,7 +146,7 @@ function showMessage(text) {
   setTab("quiz");
   $("#tabs").hidden = true;
   app.innerHTML = `<div class="center"><h2>${esc(text)}</h2><button class="main" id="again">${esc(T.again)}</button></div>`;
-  $("#again").onclick = () => { joinError = null; joinForm(); };
+  $("#again").onclick = () => { joinError = ""; joinForm(); };
 }
 
 // ------------------------------------------------------------------ the audience's questions (M6)
@@ -214,7 +203,7 @@ function askForm() {
       $("#askerr").textContent = T.asked;
     } catch (err) {
       $("#askerr").className = "error";
-      $("#askerr").textContent = phoneError(err, language);
+      $("#askerr").textContent = err.message;
       $("#asksend").disabled = false;
     }
   });
@@ -249,14 +238,15 @@ function render() {
   tabs();
   if (tab === "qa") questions();
   const r = state.round;
-  const typed = activeContentType(state, PHONE_TYPES);
+  const asking = r && (r.phase === "get-ready" || r.phase === "open");
+  const typed = state.session.finished || asking ? undefined : Object.keys(PHONE_TYPES).find((name) => state[name]);
   if (typed) {
     const k = `type:${typed}:${state[typed].id ?? ""}`;
     if (k !== screenKey || !typeScreen) {
       screenKey = k;
       typeScreen?.destroy();
       app.innerHTML = "";
-      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state, language });
+      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state });
     }
     typeScreen.update(state);
     progress();
@@ -468,7 +458,7 @@ async function submit(r, answer) {
     if (navigator.vibrate) navigator.vibrate(30);
   } catch (err) {
     const el = $("#err");
-    if (el) el.textContent = phoneError(err, language);
+    if (el) el.textContent = err.message;
     app.querySelectorAll("button").forEach((b) => { b.disabled = false; });
     app.querySelectorAll(".answer").forEach((x) => x.classList.remove("dim"));
   }

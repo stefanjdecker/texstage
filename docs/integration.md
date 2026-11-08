@@ -36,20 +36,8 @@ or a later compatible version. The exact companion pin, wheel metadata and
 `check_pair.py` prevent silently using a candidate without the conversion API.
 
 Course styles, database and graph notation, DBIS appearance and optional live
-loading remain separate modules in lecture-tools. Lecture-tools keeps a
-wheel-verified snapshot of the four generic styles for offline LaTeX; that
-snapshot is not updated by the experimental plugin implementation.
+loading remain separate modules in lecture-tools. The four generic style files
+are unchanged; lecture-tools keeps a wheel-verified snapshot for offline LaTeX.
 Lecture-tools delegates frame/deck engine execution through `compile_latex`.
 It retains source assembly, course settings, reference/layout checks and locked-PDF
 recovery policy. See the [compilation contract](compilation.md).
-
-## Experimental plugin API
-
-The [experimental plugin host](plugins.md) now supports independently installed
-activity engines and custom slide types, including presenter, projector and phone
-views. Profiles and locks are explicit command inputs. Existing SQL, SPARQL,
-Turtle, quiz and video registries remain compatible while the complete prototype
-passes the [design's release gates](architecture/plugin-system-design.md).
-The plugin API is separate from the supported `texstage.api` facade above;
-importing that facade does not discover or execute external plugins. Course
-wrappers and verified style snapshots remain unchanged.

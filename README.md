@@ -76,9 +76,6 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [SQL activity rules](docs/manual.md#sql-activities-permitted-statements) | Accepted queries, refused writes and where submissions run |
 | [LaTeX compilation API](docs/compilation.md) | Shared pdflatex/latexmk runner for standalone documents and course tools |
 | [Integration API](docs/integration.md) | Supported API for companion course tooling |
-| [Experimental plugins](docs/plugins.md) | Install and try independent activity engines and slide types; current limits and release gates |
-| [Plugin system design](docs/architecture/plugin-system-design.md) | Target API 1 contracts and implementation sequence |
-| [Optional Typst backend design](docs/architecture/typst-backend-design.md) and [implementation plan](docs/architecture/typst-backend-plan.md) | Proposed four-slide prototype and staged implementation; Typst support is not implemented yet |
 | [Development](docs/development.md) | Tests, CI and installed-wheel checks |
 | [Dependency locks](docs/dependencies.md) | Reproducible Python environments and updates |
 | [Releasing](docs/releasing.md) | Candidate verification and publication prerequisites |

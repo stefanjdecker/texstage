@@ -174,7 +174,7 @@ document.addEventListener("mousemove", () => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (!channel || e.defaultPrevented || e.target?.closest?.("input, textarea, select, button, a[href], summary, [contenteditable]:not([contenteditable=false]), .texstage-plugin") || e.ctrlKey || e.metaKey || e.altKey || ["F11", "Tab"].includes(e.key)) return;
+  if (!channel || e.ctrlKey || e.metaKey || e.altKey || e.key === "F11") return;
   channel.postMessage({ type: "key", key: e.key });
   e.preventDefault();
 });

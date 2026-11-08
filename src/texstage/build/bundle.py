@@ -33,7 +33,7 @@ from pathlib import Path
 from texstage.build.tqz import Rect
 
 FORMAT = 2                     # what the build writes
-READS = (1, 2, 3)              # format 3 pins explicitly enabled external capabilities
+READS = (1, 2)                 # what a server reads
 
 
 def content_name(folder: str, data: bytes, suffix: str = ".png") -> str:
@@ -92,7 +92,7 @@ def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes]):
     for sub in ("slides", "phone"):
         (folder / sub).mkdir(parents=True)
     for name, data in files.items():
-        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).parent.mkdir(exist_ok=True)              # stage/: the stage PDF
         (folder / name).write_bytes(data)
     for name, data in (("deck.json", deck), ("keys.json", keys)):
         (folder / name).write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")

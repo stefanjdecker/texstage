@@ -38,8 +38,7 @@ class CompileResult:
 
 def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = False,
                  jobname: str | None = None, passes: int = 2,
-                 explicit_mode: bool = True, plugins=None, activities: Path | None = None,
-                 preparation=None) -> CompileResult:
+                 explicit_mode: bool = True) -> CompileResult:
     """Run pdflatex `passes` times next to the source (so relative paths keep
     working) and write all output to `out_dir`.  Returns the PDF and, in present
     mode, the .tqz metadata file.  notes=True: every page holds the slide and its
@@ -55,42 +54,19 @@ def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = Fal
     tex = tex.resolve()
     out_dir = out_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    if activities is not None and preparation is not None:
-        raise ValueError("use activities or an existing preparation, not both")
-    if activities is not None:
-        from texstage.plugins.catalog import Catalog
-        from .authoring import prepare_sources
-        plugins = plugins if plugins is not None else Catalog()
-        preparation = prepare_sources(tex, activities, plugins, out_dir)
-    if preparation is not None:
-        preparation.validate(plugins)
-        if preparation.root != tex.parent:
-            raise ValueError("prepared activities belong to a different deck directory")
     jobname = jobname or f"{tex.stem}-{mode}"
     flags = (rf"\def\texquizmode{{{mode}}}" if explicit_mode else "") \
         + (r"\def\texquiznotes{stage}" if notes == "stage" else r"\def\texquiznotes{}" if notes else "")
-    if preparation is not None:
-        flags += preparation.preamble()
     result = compile_latex(
         tex, output_dir=out_dir, jobname=jobname, preamble=flags,
         passes=passes, extra_passes=EXTRA_PASSES if passes > 1 else 0,
-        file_line_error=True, texinputs=(LATEX_DIR, *(plugins.latex_dirs if plugins else ())), output_encoding="utf-8",
-        recorder=bool(plugins and plugins.providers),
+        file_line_error=True, texinputs=(LATEX_DIR,), output_encoding="utf-8",
         env={"max_print_line": os.environ.get("max_print_line", "10000")},
     )
     log = result.log
     if result.returncode:
         raise LatexError(first_error(log) or result.stdout[-2000:])
-    if plugins and plugins.providers:
-        from .plugins import verify_styles
-        verify_styles(plugins, out_dir / f"{jobname}.fls", tex.parent)
     tqz = out_dir / f"{jobname}.tqz"
-    if preparation is not None:
-        from .tqz import Tqz
-        preparation.validate(plugins)
-        preparation.validate_compile(out_dir / f"{jobname}.tpa")
-        if mode == "present":
-            preparation.validate_tqz(Tqz.read(tqz))
     return CompileResult(out_dir / f"{jobname}.pdf", log, tqz if mode == "present" else None,
                          count_overfull(log))
 
