@@ -85,6 +85,10 @@ def test_lecturers_are_kept_apart(two):
     client, keys, tmp = two
     ada_deck = make_bundle(tmp / "ada", title="Ada's deck")              # both decks are called "test"
     bob_deck = make_bundle(tmp / "bob", title="Bob's deck")
+    # ZIP timestamps have two-second precision. Make build ordering explicit:
+    # uploading an older build grants access but does not make it the newest.
+    os.utime(ada_deck.path / "deck.json", (1700000000, 1700000000))
+    os.utime(bob_deck.path / "deck.json", (1700000010, 1700000010))
     assert upload(client, ada_deck, keys["ada"]).status_code == 201
     assert upload(client, bob_deck, keys["bob"]).status_code == 201
     assert (tmp / "data" / "bundles" / "ada" / "test" / ada_deck.id).is_dir()
@@ -105,6 +109,12 @@ def test_lecturers_are_kept_apart(two):
     assert client.get(f"/api/results/{wa['session']}.csv", headers={"X-Texquiz-Key": keys["ada"]}).status_code == 200
     # the same build, uploaded by bob too: both may play it, each their own game
     assert upload(client, ada_deck, keys["bob"]).status_code == 201
+    assert set(decks(client, keys["bob"])) == {bob_deck.id}
+    assert client.get(f"/api/deck/{ada_deck.id}", headers=h).status_code == 200
+    with client.websocket_connect("/ws") as b:
+        b.send_json({"t": "hello", "role": "host", "key": keys["bob"], "deck": "test", "bundle": ada_deck.id, "id": 1})
+        shared = recv(b, "welcome")
+        assert shared["session"] != wa["session"] and shared["pin"] != wa["pin"]
     assert ada_deck.id in decks(client, keys["bob"])
 
 

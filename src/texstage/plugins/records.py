@@ -102,12 +102,18 @@ class ActorRecords:
         old = self.db.execute(
             "SELECT number FROM actor_records WHERE sid=? AND kind=? AND item=? AND epoch=? AND actor=?",
             (*self.identity(row), actor)).fetchone()
-        count = self.count(row)
-        if old is None and count >= self.policy(row["kind"])["capacity"]:
-            raise PluginError("actor record capacity reached", code="actor-capacity")
+        if old is None:
+            count = self.count(row)
+            if count >= self.policy(row["kind"])["capacity"]:
+                raise PluginError("actor record capacity reached", code="actor-capacity")
+            number = count + 1
+        else:
+            # Saving feedback or replacing an answer never changes admission or
+            # response order. Keep the existing slot without recounting the class.
+            number = old["number"]
         self.db.execute(
             """INSERT INTO actor_records VALUES (?,?,?,?,?,?,?,?)
                ON CONFLICT(sid,kind,item,epoch,actor)
                DO UPDATE SET value=excluded.value,summary=excluded.summary""",
-            (*self.identity(row), actor, old["number"] if old else count + 1,
+            (*self.identity(row), actor, number,
              canonical(effect["value"]).decode(), canonical(effect["summary"]).decode()))

@@ -421,6 +421,14 @@
         "participant_updates": {
           "type": "string",
           "const": "actor"
+        },
+        "broadcast_fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/name"
+          },
+          "maxItems": 16,
+          "uniqueItems": true
         }
       },
       "oneOf": [

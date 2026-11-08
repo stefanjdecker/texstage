@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Load-discovered host invariants: cached schemas and evaluator disconnects."""
 import copy
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -112,14 +113,14 @@ def test_presenter_controls_push_immediately_but_student_bursts_coalesce():
     host.runtime = SimpleNamespace(command=lambda *args, **kwargs: receipt, take_changes=lambda sid: None,
                                    drain=lambda sid: calls.append(('drain',sid)))
     host.sync_points = lambda sid: None  # durable projection tested separately
-    host.server = SimpleNamespace(push=lambda sid: calls.append(('push', sid)),
+    host.server = SimpleNamespace(push=lambda sid, **options: calls.append(('push', sid, options)),
                                   plugins_changed=lambda sid, only=None: calls.append(('coalesce', sid)))
     host.sync = lambda sid: (None, SimpleNamespace(items={'org.example.plane': {'one': {}}}), [])
     host.identity = lambda conn: (conn.role, 'actor')
     message = {'t': 'plugin.command', 'command': {'type': 'org.example.plane', 'item': 'one'}}
     for role in ('participant', 'presenter'):
         assert host.handle(SimpleNamespace(role=role, session='s'), message) == {'receipt': receipt}
-    assert calls == [('drain', 's'), ('coalesce', 's'), ('drain', 's'), ('push', 's')]
+    assert calls == [('drain', 's'), ('coalesce', 's'), ('drain', 's'), ('push', 's', {'players': False}), ('coalesce', 's')]
 
 
 @pytest.mark.parametrize('cost,delay', [(0.01,0.2),(0.25,0.75),(2,1)])
@@ -129,6 +130,7 @@ def test_broadcasts_reserve_loop_time_with_bounded_delay(monkeypatch, cost, dela
     monkeypatch.setattr('texstage.server.app.time.monotonic', lambda: clock[0])
     server = object.__new__(Server)
     server.engine = SimpleNamespace(sessions={'s': object()})
+    server.plugins = SimpleNamespace(defer_broadcast=lambda sid,now:False)
     server.plugin_dirty, server.plugin_push_after = set(), {}
     server.plugin_recipients = {}
     server.dirty, server.conns = set(), {}
@@ -154,6 +156,7 @@ def test_ended_sessions_do_not_retain_broadcast_deadlines():
     server = object.__new__(Server)
     server.engine = SimpleNamespace(sessions={'live': object()}, players={})
     server.plugin_dirty = {'live','ended'}
+    server.plugin_recipients = {'ended': {'alice'}}
     server.plugin_push_after = {'live': 1, 'ended': 2}
     server.plugin_recipients = {'live': {'alice'}, 'ended': {'bob'}}
     server.replies, server.conns = {}, {}

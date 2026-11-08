@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev3 candidate
+## Unreleased — 0.2.1.dev7 candidate
+
+- Improve simultaneous plugin submissions with bounded durable commit batches,
+  immutable schema predicates and prepared-specification caching. Preserve
+  individual receipts, rollback, schema checks, worker limits and FULL durability.
+- Yield between batches and defer repeated audience projections for at most one
+  additional second while a burst is queued; presenter controls remain responsive.
+- Bound adaptive presenter evaluation to four fresh workers, retaining two for
+  small queues, to reduce worker startup contention during submission bursts.
+- Give a new submission burst a bounded head start before leasing evaluator
+  jobs, without holding up presenter controls or starving sustained evaluation.
+
+- Preserve revision 3–5 storage options and the actor-only update contract from
+  main. Presenter-only counters in older actor-record plugins such as FD Lab do
+  not trigger class-wide refreshes; explicit shared broadcast fields still do.
+- Combine fixed plugin points with bounded actor records and batched audience
+  projections, keeping each student's credit private until publication.
+- Reduce redundant class-wide counts and private-score reranking while preserving
+  atomic updates, worker isolation, deadlines and the 1,000-answer ceiling.
+- Document scored B+ capacity checks: Chrome/Firefox presenters pass at 600 and
+  1,000 students; Windows WebKit passes at 600 but remains unstable at 1,000.
+
+## Earlier 0.2.1.dev3 candidate
 
 - Fix Firefox/WebKit plugin-worker startup using dynamic loading of self-contained
   ES modules, preserving the worker Content Security Policy and result validation.

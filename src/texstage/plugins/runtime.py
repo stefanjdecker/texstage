@@ -3,8 +3,9 @@
 """Durable plugin state, receipts and evaluation jobs.
 
 The server authenticates a connection before calling this host. All commands,
-navigation and completions serialize on the host lock. Hooks run outside write
-transactions; revision compare-and-swap detects another process using the DB.
+navigation and completions serialize on the host lock. Ordinary hooks run outside
+write transactions; small participant batches hold one bounded write transaction
+and isolate each command with savepoints. Revision compare-and-swap guards writes.
 Jobs are the durable outbox: leasing and terminal delivery survive a restart.
 """
 from __future__ import annotations
@@ -20,8 +21,8 @@ from collections import OrderedDict
 from . import PluginError
 from .catalog import environment_fingerprint
 from .contracts import namespace, resource_schema, validate_outcome, json_data
-from .manifest import canonical, digest, read_json, validate_json
-from .worker import Workers
+from .manifest import canonical, digest, read_json, validate_json, validate_json_many
+from .worker import Workers, VIEW_BATCH
 from .records import ActorRecords
 from .points import FixedPoints, fixed_points, SCORING_EFFECTS
 
@@ -33,6 +34,8 @@ MAX_RECORD_BYTES = 4096
 MAX_RECORD_READS = 32
 MAX_CACHED_RESULTS = 128
 MAX_CACHE_DELIVERIES = 32
+MAX_SPEC_CACHE_BYTES = 64 * 1024
+COMMAND_BATCH = 8
 
 
 class Runtime:
@@ -43,6 +46,7 @@ class Runtime:
         self.lock = threading.RLock()
         self.changes = {}
         self.outcomes = OrderedDict()
+        self.checked_specs = OrderedDict()
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -81,8 +85,25 @@ class Runtime:
             raise PluginError("plugin runtime changed: resume this session in its original environment", code="environment-changed")
         return row
 
+    def _spec(self, row):
+        raw = row["spec"]
+        # Retain only validated immutable bytes, never a hook- or caller-owned
+        # object. The exact stored text is the key, so another process changing
+        # the specification cannot reuse the earlier validation. Large items
+        # remain supported without occupying this cache (32 entries, each with
+        # at most 64 KiB of UTF-8 text).
+        if raw in self.checked_specs:
+            self.checked_specs.move_to_end(raw)
+            return json.loads(raw)
+        value = read_json(raw, limit=8 * 1024 * 1024)
+        if len(raw.encode("utf-8")) <= MAX_SPEC_CACHE_BYTES:
+            self.checked_specs[raw] = None
+            while len(self.checked_specs) > 32:
+                self.checked_specs.popitem(last=False)
+        return value
+
     def _ctx(self, row, *, actor=None, role="system", now=None, record_actor=None):
-        return {"item": read_json(row["spec"], limit=8 * 1024 * 1024), "epoch": row["epoch"], "revision": row["revision"],
+        return {"item": self._spec(row), "epoch": row["epoch"], "revision": row["revision"],
                 "actor": actor, "role": role, "timestamp": time.time() if now is None else now,
                 **self.records.context(row, actor=actor if role == "participant" else record_actor, role=role),
                 **self.points.context(row, actor=actor if role == "participant" else None)}
@@ -151,6 +172,37 @@ class Runtime:
         self.db.execute("INSERT INTO receipts VALUES (?,?,?,?,?)",
                         (sid, actor, request, envelope_digest, canonical(receipt).decode()))
 
+    def command_batch(self, commands):
+        """Commit up to eight authenticated participant commands durably together.
+
+        Each entry is (session, actor, envelope, received_time). A domain or
+        validation error rolls back only that command. Results are returned
+        only after FULL-synchronous COMMIT; a storage failure returns no receipts.
+        This is host scheduling, not a provider API or a client batch protocol.
+        """
+        if not 1 <= len(commands) <= COMMAND_BATCH:
+            raise PluginError("invalid command batch size")
+        with self.lock:
+            before = {sid: None if actors is None else set(actors) for sid, actors in self.changes.items()}
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                replies = []
+                for sid, actor, envelope, received in commands:
+                    self.db.execute("SAVEPOINT plugin_command")
+                    try:
+                        reply = self.command(sid, actor, "participant", envelope, now=received)
+                    except PluginError as exc:
+                        self.db.execute("ROLLBACK TO plugin_command")
+                        reply = exc
+                    self.db.execute("RELEASE plugin_command")
+                    replies.append(reply)
+                self.db.execute("COMMIT")
+                return replies
+            except Exception:
+                self.db.execute("ROLLBACK")
+                self.changes = before
+                raise
+
     def command(self, sid, actor, role, envelope, *, now=None):
         received = time.time() if now is None else now
         if role not in ("presenter", "participant"):
@@ -193,7 +245,7 @@ class Runtime:
                 return receipt
             target = envelope["payload"].get(message.get("record_actor_field")) if (
                 not reset and message.get("record_actor_field")) else None
-            ctx = self._ctx(row, actor=actor, role=role, record_actor=target)
+            ctx = self._ctx(row, actor=actor, role=role, record_actor=target or None)
             if reset:
                 ctx |= {"epoch": row["epoch"] + 1, "revision": 0}
                 # Initial/activation hooks see the fresh epoch, never the old roster.
@@ -230,10 +282,28 @@ class Runtime:
         record = self.records.prepare(row, transition["effects"], record_actor)
         scoring = self.points.prepare(row, transition["effects"], record_actor, scoring_role)
         effects = [e for e in transition["effects"] if not (isinstance(e, dict) and e.get("kind") in SCORING_EFFECTS | {"save-actor"})]
+        encoded_state = canonical(transition["state"]).decode()
+        if delivery and not reset and active is None and not transition["effects"] and encoded_state == row["state"]:
+            # A superseded/cancelled job can legitimately leave state unchanged.
+            # Persist its delivery, but do not rewrite the whole class snapshot
+            # or invent a visible revision. Keep the same compare-and-swap guard.
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                current = self.db.execute("SELECT epoch,revision FROM items WHERE sid=? AND kind=? AND item=?",
+                                          (row["sid"], row["kind"], row["item"])).fetchone()
+                if current is None or tuple(current) != (row["epoch"], row["revision"]):
+                    raise PluginError("item changed concurrently; retry command", code="concurrent-update")
+                self.db.execute("UPDATE jobs SET delivered=1 WHERE id=?", (delivery,))
+                self.db.execute("COMMIT")
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+            return {"accepted": True, "epoch": row["epoch"], "revision": row["revision"], "jobs": {}}
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
-        bindings = read_json(row["spec"], limit=8 * 1024 * 1024).get("evaluations", {})
+        bindings = self._spec(row).get("evaluations", {}) if any(
+            isinstance(e, dict) and e.get("kind") == "evaluate" for e in effects) else {}
         jobs, correlations, records = [], set(), {}
         for effect in effects:
             if not isinstance(effect, dict): raise PluginError("invalid effect")
@@ -263,7 +333,8 @@ class Runtime:
                 raise PluginError("unknown plugin effect")
         receipt = {"accepted": True, "epoch": epoch, "revision": revision,
                    "jobs": {e["correlation_id"]: jid for jid, e in jobs}}
-        self.db.execute("BEGIN IMMEDIATE")
+        batched = self.db.in_transaction
+        self.db.execute("SAVEPOINT plugin_transition" if batched else "BEGIN IMMEDIATE")
         try:
             # Account atomically for the slots this transition actually frees.
             # A full queue must still permit replacement of an actor's old job.
@@ -292,7 +363,7 @@ class Runtime:
                     raise PluginError("item record capacity reached", code="capacity")
             changed = self.db.execute("""UPDATE items SET state=?,epoch=?,revision=?,active=?
               WHERE sid=? AND kind=? AND item=? AND epoch=? AND revision=?""",
-              (canonical(transition["state"]).decode(), epoch, revision, row["active"] if active is None else int(active),
+              (encoded_state, epoch, revision, row["active"] if active is None else int(active),
                *identity, row["epoch"], row["revision"])).rowcount
             if changed != 1: raise PluginError("item changed concurrently; retry command", code="concurrent-update")
             self.records.apply(row, record, reset=reset)
@@ -324,10 +395,23 @@ class Runtime:
                       (canonical({"status": "cancelled"}).decode(), *identity, epoch, effect["correlation_id"]))
             if request: self._save_receipt(row["sid"], actor, request, envelope_digest, receipt)
             if delivery: self.db.execute("UPDATE jobs SET delivered=1 WHERE id=?", (delivery,))
-            self.db.execute("COMMIT")
+            self.db.execute("RELEASE plugin_transition" if batched else "COMMIT")
         except Exception:
-            self.db.execute("ROLLBACK"); raise
-        targeted = not reset and audience_actor is not None and self.catalog.capability(row["kind"])[1].get("participant_updates") == "actor"
+            if batched:
+                self.db.execute("ROLLBACK TO plugin_transition")
+                self.db.execute("RELEASE plugin_transition")
+            else:
+                self.db.execute("ROLLBACK")
+            raise
+        spec = self.catalog.capability(row["kind"])[1]
+        targeted = not reset and audience_actor is not None and spec.get("participant_updates") == "actor"
+        if targeted and "broadcast_fields" in spec:
+            before, after = read_json(row["state"]), transition["state"]
+            # Without an explicit field list, retain the existing actor-only
+            # contract: providers promise peer submissions cannot change a
+            # participant's projection, even if presenter-only counters change.
+            targeted = (isinstance(before, dict) and isinstance(after, dict) and
+                        all(before.get(field) == after.get(field) for field in spec["broadcast_fields"]))
         sid = row["sid"]
         if not targeted:
             self.changes[sid] = None
@@ -366,7 +450,8 @@ class Runtime:
         if surface not in {"presenter": ("presenter-overlay", "presenter-controls"),
                            "projector": ("projector-overlay",), "participant": ("participant-input",)}.get(role, ()):
             raise PluginError("surface not allowed for role")
-        with self.lock:
+        with self.lock, self.db:
+            self.db.execute("BEGIN")
             row = self._item(sid, kind, item)
             state = read_json(row["state"])
             audience = {"role": role, "surface": surface, "actor": actor}
@@ -383,9 +468,69 @@ class Runtime:
                 validate_json(resource_schema(provider, spec["view_schemas"][surface]), data, label="surface view")
             return {"epoch": row["epoch"], "revision": row["revision"], "data": data}
 
-    def lease(self, sid, owner, *, now=None, limit=2):
+    def views(self, sid, kind, item, audiences):
+        """Project one committed snapshot for independently authorized audiences."""
+        surfaces = {"presenter": ("presenter-overlay", "presenter-controls"),
+                    "projector": ("projector-overlay",), "participant": ("participant-input",)}
+        for audience in audiences:
+            if audience["surface"] not in surfaces.get(audience["role"], ()):
+                raise PluginError("surface not allowed for role")
+        with self.lock, self.db:
+            # State, actor values and roster pages share one WAL read snapshot,
+            # including when another server process commits between batches.
+            self.db.execute("BEGIN")
+            row = self._item(sid, kind, item)
+            state, ctx = read_json(row["state"]), self._ctx(row)
+            provider, spec = self.catalog.capability(kind)
+            schemas = {}
+            if "view_schemas" in spec:
+                for surface in {a["surface"] for a in audiences}:
+                    if surface not in spec["view_schemas"]:
+                        raise PluginError("view surface is not declared")
+                    schemas[surface] = resource_schema(provider, spec["view_schemas"][surface])
+            result = []
+            for offset in range(0, len(audiences), VIEW_BATCH):
+                batch = audiences[offset:offset + VIEW_BATCH]
+                contexts, wire_audiences = [], []
+                for audience in batch:
+                    role, actor = audience["role"], audience["actor"]
+                    wire = {k: audience[k] for k in ("role", "actor", "surface")}
+                    own = self.records.context(row, actor=actor if role == "participant" else None, role=role)
+                    own.update(self.points.context(row, actor=actor if role == "participant" else None))
+                    if self._records_enabled(kind):
+                        selected = self._record_context(row, state, {"kind": "view", "audience": wire},
+                                                        ctx | own | {"role": role, "actor": actor})
+                        own.update(records=selected["records"], record_page=selected["record_page"])
+                    if role == "participant" and audience.get("scoring") is not None:
+                        own["scoring"] = audience["scoring"]
+                    contexts.append(own); wire_audiences.append(wire)
+                data = self.workers.views(kind, state, wire_audiences, ctx | {"_audience_contexts": contexts})
+                if len(data) != len(batch): raise PluginError("invalid view response count")
+                by_surface = {}
+                for audience, value in zip(batch, data):
+                    if len(canonical(value)) > 128 * 1024: raise PluginError("view exceeds output budget")
+                    if schemas:
+                        json_data(value)
+                        by_surface.setdefault(audience["surface"], []).append(value)
+                    result.append({"epoch": row["epoch"], "revision": row["revision"], "data": value})
+                for surface, values in by_surface.items():
+                    validate_json_many(schemas[surface], values, label="surface view")
+            return result
+
+
+    def lease(self, sid, owner, *, now=None, limit=2, adaptive=False):
         now = time.time() if now is None else now
         with self.lock, self.db:
+            if adaptive:
+                # Presenter throughput policy, not an engine permission. Use at
+                # most four fresh workers for a large backlog; small queues
+                # keep the two-job batch. Count only work eligible to lease.
+                waiting = self.db.execute("""SELECT count(*) FROM jobs WHERE sid=? AND
+                    (status='queued' OR (status='leased' AND deadline<?))""", (sid, now)).fetchone()[0]
+                # Four fresh browser workers keep a large backlog moving without
+                # eight simultaneous module initializations competing with the
+                # presenter UI and acknowledgement traffic on smaller machines.
+                limit = 4 if waiting >= 32 else 2
             # One bounded work batch is durable before the caller sees it.
             # Preserve FULL synchronization without one fsync per cache hit.
             self.db.execute("BEGIN IMMEDIATE")
@@ -480,6 +625,30 @@ class Runtime:
                 ctx = self._record_context(row, state, event, self._ctx(row, record_actor=job["actor"]))
                 transition = self.workers.call(row["kind"], "transition", state, event, ctx)
                 self._commit(row, transition, actor=job["actor"], delivery=job["id"], audience_actor=job["actor"], record_actor=job["actor"])
+
+    def public_archive(self, sid):
+        """Projector snapshots, never a redaction of the private archive.
+
+        Callers still require presenter authorization. Legacy providers without
+        a projector schema and failed projections yield only a stable reason.
+        The lock keeps item revisions stable across this snapshot; view() owns
+        each read transaction. No jobs, receipts or actor records are exported.
+        """
+        with self.lock:
+            items = []
+            for row in self.db.execute("SELECT kind,item FROM items WHERE sid=? ORDER BY kind,item", (sid,)).fetchall():
+                kind, item = row["kind"], row["item"]
+                provider, spec = self.catalog.capability(kind)
+                entry = {"type": kind, "item": item, "provider": provider.requirement()}
+                if "projector-overlay" not in spec.get("view_schemas", {}):
+                    entry["unavailable"] = "projector-schema-required"
+                else:
+                    try:
+                        entry["snapshot"] = self.view(sid, kind, item, "projector", "projector-overlay")
+                    except PluginError:
+                        entry["unavailable"] = "projector-view-unavailable"
+                items.append(entry)
+            return {"format": 1, "surface": "projector-overlay", "items": items}
 
     def archive(self, sid):
         """Presenter-authorized callers only; includes private plugin state."""

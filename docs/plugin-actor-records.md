@@ -68,8 +68,59 @@ write, delete, full-roster or cross-session read effects. The resource limits
 remain explicit. A changed provider/environment requires a fresh session;
 old sessions are not automatically migrated.
 
+Batched projections still call the ordinary provider `view` hook separately
+with fresh state, audience and context objects. Each hook receives only its own
+bounded actor context; the internal batch envelope never reaches provider hooks.
+Every view retains independent schema, 128 KiB size and 250 ms timeout checks.
+The batch mechanism does not reuse private projections across actors or sessions.
+
+An actor-record content type may also opt into `participant_updates: "actor"`
+and declare `broadcast_fields`, a list of at most 16 shared-state field names.
+For example, B+ declares `phase`, `phase_version`, `active`, `shared` and `replay`.
+Participant submissions and evaluation completions then notify that authenticated
+actor's connections and all presenter/projector connections. A change to any
+declared shared field, any presenter command or reset notifies the whole class.
+Global notifications dominate pending actor-only notifications. Existing
+actor-record manifests may omit `broadcast_fields`; they retain the actor-only
+contract, so presenter-only counters do not trigger class-wide updates. Such
+providers promise that participant commands and their completions cannot change
+another participant's projection. An explicit field list requires `actor_records`
+and `participant_updates: "actor"`; it cannot be used with `state_records`.
+
+This optimization promises that another student's submission cannot affect the
+participant view except through the declared shared fields. Such a participant
+view must omit global answer counts, rosters and other per-class aggregates;
+those remain in presenter/projector views. Keep default full updates if the
+promise does not hold. Authentication, role projection and schema checks still
+run for every recipient. There is no cross-actor view/result cache.
+
+Shared state, records and roster pages are read in one SQLite WAL snapshot,
+including across batches, so a concurrent server commit cannot mix revisions.
 Full-class plugin broadcasts yield between batches of 16 connections. New
 mutations retain a fresh dirty marker, and every batch checks current membership,
 role and state. No private projection is reused across actors or retained across
 an event-loop yield. This keeps socket replies and evaluator traffic moving while
 larger classes receive updates; it does not change worker policy or deadlines.
+
+
+## Lecture archives and projector summaries
+
+The presenter-authorized lecture ZIP includes `plugins.json` whenever the plugin
+runtime is active. This is the complete private plugin archive, including actor
+records, jobs and reference-bearing state. Keep it in lecturer storage.
+
+`GET /api/archive/SESSION/plugins-public.json` also requires the owning
+presenter's key. It returns `{format: 1, surface: "projector-overlay", items: [...]}`.
+Each item has `type`, `item`, an immutable provider requirement and an ordinary
+projector `snapshot` with epoch/revision/data. Only a declared, validated projector
+schema is accepted. A legacy provider yields `unavailable: "projector-schema-required"`;
+a failed view yields `unavailable: "projector-view-unavailable"`, without private
+exceptions or fallback data. This is a current projection, not an anonymized
+assessment export or event replay. Revealed solutions and intentionally shared
+answers can be present, just as on the projector.
+
+The core never derives this summary by stripping fields from the private archive.
+No transaction-specific knowledge or storage is added to the host. Presenter
+plugin controls project lecturer windows immediately and schedule audience views
+through the bounded broadcaster, preserving role filtering and keeping a large
+class reveal from delaying the control receipt.

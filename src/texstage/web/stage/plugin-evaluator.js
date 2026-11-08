@@ -84,7 +84,7 @@ export class PluginEvaluator {
           id: job.id, generation: job.generation, epoch: job.epoch, outcome } });
       }));
     } catch { busy = false; /* reconnect retries keep the idle backoff */ }
-    // Keep draining a busy queue with the same two-job lease and worker limits.
+    // Drain the server-bounded batch (two jobs, or four at 32 pending).
     // Empty queues and transport errors retain the ordinary polling backoff.
     if (!this.stopped) this.timer = setTimeout(() => this.poll(), busy ? 0 : 750);
   }

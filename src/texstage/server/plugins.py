@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Authentication-aware bridge to the experimental plugin host."""
 from texstage.plugins import PluginError
+import asyncio
 import time
 from texstage.server.activity_points import scoring_context
 from pathlib import Path
 from texstage.plugins.assets import public_asset, MIME
 from texstage.plugins.manifest import read_json
-from texstage.plugins.runtime import Runtime
+from texstage.plugins.runtime import Runtime, COMMAND_BATCH
 from texstage.plugins.contracts import result_contract
 
 
@@ -15,10 +16,99 @@ class PluginHost:
     def __init__(self, server, catalog):
         self.server, self.catalog = server, catalog
         self.point_versions = {}
+        self.command_queue = asyncio.Queue(maxsize=64)
+        self.broadcast_deferred = {}
+        self.evaluation_deferred = {}
         self.runtime = Runtime(server.config.data_dir / "plugins.sqlite3", catalog) if catalog.providers else None
 
     def close(self):
+        while not self.command_queue.empty():
+            self.command_queue.get_nowait()[3].cancel()
         if self.runtime: self.runtime.close()
+
+    async def submit(self, conn, message, received):
+        # One outstanding request per WebSocket reader, and a bounded queue.
+        # Authentication is rechecked when executed, after any intervening
+        # navigation, kick or session closure.
+        future = asyncio.get_running_loop().create_future()
+        await self.command_queue.put((conn, message, received, future))
+        return await future
+
+    async def commands(self):
+        while True:
+            first = await self.command_queue.get()
+            entries = [first]
+            try:
+                # Coalesce already arriving saves, without a timer/debounce.
+                if self.command_queue.empty(): await asyncio.sleep(0)
+                while len(entries) < COMMAND_BATCH and not self.command_queue.empty():
+                    entries.append(self.command_queue.get_nowait())
+                self._commands(entries)
+            finally:
+                for _, _, _, future in entries:
+                    if not future.done(): future.cancel()
+            # Give receipt writers, navigation and evaluator traffic a turn.
+            await asyncio.sleep(0)
+
+    def defer_broadcast(self, sid, now):
+        # A short arrival burst should spend its CPU on durable acknowledgements
+        # before projecting the same changing class state repeatedly. Cap this
+        # preference at one second so sustained traffic cannot starve views.
+        if self.command_queue.qsize() >= COMMAND_BATCH:
+            if sid not in self.broadcast_deferred and len(self.broadcast_deferred) >= 128:
+                return False
+            since = self.broadcast_deferred.setdefault(sid, now)
+            if now - since < 1.0:
+                return True
+        self.broadcast_deferred.pop(sid, None)
+        return False
+
+    def _commands(self, entries):
+        calls, targets, sessions = [], [], {}
+        for conn, message, received, future in entries:
+            if future.cancelled(): continue
+            try:
+                role, actor = self.identity(conn)
+                if role != "participant" or message.get("t") != "plugin.command":
+                    raise PluginError("only participant commands may be queued")
+                if self.runtime is None: raise PluginError("no plugins are enabled")
+                if conn.session not in sessions:
+                    sessions[conn.session] = self.sync(conn.session)[1]
+                envelope = message.get("command")
+                if (not isinstance(envelope, dict) or not isinstance(envelope.get("type"), str) or
+                        not isinstance(envelope.get("item"), str) or
+                        envelope.get("item") not in sessions[conn.session].items.get(envelope["type"], {})):
+                    raise PluginError("item does not belong to this session")
+                calls.append((conn.session, actor, envelope, received))
+                targets.append(future)
+            except Exception as exc:
+                future.set_exception(exc)
+        if not calls: return
+        try:
+            replies = self.runtime.command_batch(calls)
+            for sid in sessions:
+                self.runtime.drain(sid)
+                self.sync_points(sid)
+                self.server.plugins_changed(sid, only=self.runtime.take_changes(sid))
+            for future, reply in zip(targets, replies):
+                if isinstance(reply, Exception): future.set_exception(reply)
+                else: future.set_result({"receipt": reply})
+        except Exception as exc:
+            for future in targets:
+                if not future.done(): future.set_exception(exc)
+
+    def defer_evaluation(self, sid, now):
+        # Let a new submission burst obtain its durable receipts before starting
+        # fresh browser workers. Keep the socket reader free for human controls.
+        # Delay only the first second of a continuously busy queue, then lease
+        # normally until it drains. The browser retains its ordinary idle poll.
+        if self.command_queue.qsize() < COMMAND_BATCH:
+            self.evaluation_deferred.pop(sid, None)
+            return False
+        if sid not in self.evaluation_deferred and len(self.evaluation_deferred) >= 128:
+            return False
+        since = self.evaluation_deferred.setdefault(sid, now)
+        return now - since < 1.0
 
     def disconnect(self, conn):
         if self.runtime is not None and conn.role == "stage" and conn.session:
@@ -99,6 +189,50 @@ class PluginHost:
             # Preserve ordinary navigation and the static slide if a provider fails.
             return {"plugins": {"items": [], "error": str(exc) if conn.role in ("host", "stage") else "Activity unavailable"}}
 
+    def safe_views(self, conns):
+        """Batch a session's views without sharing private audience projections."""
+        conns = list(conns)
+        result = {conn: {} for conn in conns}
+        if not conns or self.runtime is None: return result
+        def failed(conn, exc):
+            return {"plugins": {"items": [], "error": str(exc) if conn.role in ("host", "stage") else "Activity unavailable"}}
+        identities = {}
+        for conn in conns:
+            try:
+                identities[conn] = self.identity(conn)
+            except PluginError as exc:
+                result[conn] = failed(conn, exc)
+        if not identities: return result
+        try:
+            sid = next(iter(identities)).session
+            if any(conn.session != sid for conn in identities):
+                raise PluginError("views must belong to one session")
+            _, bundle, active = self.sync(sid)
+            for conn in identities:
+                result[conn] = {"language": bundle.deck_json.get("language") or "en",
+                                "plugins": {"catalog": self.catalog.fingerprint, "items": []}}
+            for kind, item in active:
+                provider, spec = self.catalog.capability(kind)
+                requests, targets = [], []
+                for conn, (role, actor) in identities.items():
+                    surfaces = [s for s in spec["views"] if s.startswith(role + "-")]
+                    descriptor = {"type": kind, "item": item, "public": bundle.items[kind][item],
+                        "assets": {n: f"/plugins/{provider.payload}/{n}" for n in provider.resources if Path(n).suffix.lower() in MIME}
+                        | {n: f"/bundle/{bundle.id}/{path}" for n, path in bundle.items[kind][item].get("plugin_assets", {}).items()},
+                        "modules": {s: f"/plugins/{provider.payload}/{spec['views'][s]}" for s in surfaces}, "views": {}}
+                    result[conn]["plugins"]["items"].append(descriptor)
+                    for surface in surfaces:
+                        request = {"role": role, "actor": actor, "surface": surface}
+                        if role == "participant" and "scoring" in spec:
+                            request["scoring"] = scoring_context(self.server.engine.sessions[sid], kind, item, actor)
+                        requests.append(request)
+                        targets.append((descriptor["views"], surface))
+                for (views, surface), value in zip(targets, self.runtime.views(sid, kind, item, requests)):
+                    views[surface] = value
+        except PluginError as exc:
+            for conn in identities: result[conn] = failed(conn, exc)
+        return result
+
     def handle(self, conn, message):
         received = time.time()
         role, actor = self.identity(conn)
@@ -116,17 +250,20 @@ class PluginHost:
             self.runtime.drain(conn.session)
             self.sync_points(conn.session)
             if role == "presenter":
-                # Human phase/selection/share controls need their new guarded
-                # state immediately; only audience bursts are coalesced.
-                self.server.push(conn.session)
-                self.runtime.take_changes(conn.session)
+                # Acknowledge human controls after projecting the few lecturer
+                # windows. Render audience views in the existing bounded flusher
+                # so a 1,000-person reveal cannot block the control receipt.
+                self.server.push(conn.session, players=False)
+                self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
             else:
                 self.server.plugins_changed(conn.session, only=self.runtime.take_changes(conn.session))
             return {"receipt": result}
         if operation not in ("plugin.work", "plugin.result") or conn.role != "stage":
             raise PluginError("only the presenter window can evaluate plugin jobs")
         if operation == "plugin.work":
-            jobs = self.runtime.lease(conn.session, conn.key)
+            if self.defer_evaluation(conn.session, time.monotonic()):
+                return {"jobs": [], "more_work": False}
+            jobs = self.runtime.lease(conn.session, conn.key, adaptive=True)
             self.runtime.drain(conn.session)
             self.sync_points(conn.session)
             changes = self.runtime.take_changes(conn.session)

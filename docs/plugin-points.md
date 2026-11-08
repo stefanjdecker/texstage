@@ -99,3 +99,23 @@ The authenticated bridge supplies the participant's complete scoring context:
 Derived fields are absent for pending/unavailable feedback. No other actor's
 values are exposed. Released quiz-v1 CSV rows add speed, bonus and time columns.
 Score changes refresh all rankings even for actor-scoped provider updates.
+
+## Scored actor records and batched views
+
+The capacity host can combine manifest-4 fixed points with actor_records,
+participant_updates: "actor" and declared broadcast_fields. Private credit
+changes retain targeted notifications. Published contribution changes notify the
+whole session because another actor's rank may change. A reset removes the old
+contribution once; private work in the new epoch does not repeatedly recalculate
+class ranks.
+
+Replacing a credit or saved actor record reuses its existing slot and response
+number. Capacity counts are checked for new actors inside the same transaction;
+updating feedback does not rescan the class. The 1,000-actor ceiling, rollback
+behavior and SQLite FULL durability are unchanged.
+
+Batched projections read state, records and credits from one SQLite snapshot.
+Every audience receives its own record and scoring context; presenter/projector
+contexts never inherit a participant award. Each view hook receives only its own
+audience's private context. Immutable point settings may be cached by exact item
+specification; actor credits and publication are always read from the ledger.

@@ -21,7 +21,8 @@ def server():
         player_view=lambda actor, now, questions: {"actor": actor})
     s.config = SimpleNamespace(public_url="https://example.test")
     s.conns = defaultdict(set)
-    s.plugins = SimpleNamespace(safe_view=lambda conn: {"private_actor": conn.player})
+    s.plugins = SimpleNamespace(safe_views=lambda conns: {c: {"private_actor": c.player} for c in conns},
+                                defer_broadcast=lambda sid,now:False)
     return s
 
 
@@ -29,9 +30,7 @@ def peer(s, role, actor):
     class Connection:
         pass
     c = Connection()
-    c.role, c.player, c.qa = role, actor, False
-    c.session = "lesson"
-    c.session = "lesson"
+    c.role, c.player, c.qa, c.session = role, actor, False, "lesson"
     c.push = Mock()
     s.conns["lesson"].add(c)
     return c
@@ -39,10 +38,9 @@ def peer(s, role, actor):
 
 def flush_once(s, monkeypatch):
     calls = 0
-    async def sleep(_):
+    async def sleep(delay):
         nonlocal calls
-        if _ == 0:
-            return
+        if delay == 0: return
         calls += 1
         if calls > 1:
             raise asyncio.CancelledError()
@@ -126,6 +124,7 @@ def test_receipt_follows_durable_operation_without_eager_broadcast(operation):
     bridge.sync_points = lambda sid: None  # this fixture isolates broadcast scheduling
     bridge.server = s
     bridge.identity = lambda conn: ("participant" if operation == "plugin.command" else "presenter", "authenticated")
+    bridge.sync_points = lambda sid: None
     bridge.sync = lambda sid: (None, SimpleNamespace(items={"kind": {"one": {}}}), [])
     bridge.runtime = SimpleNamespace(command=Mock(return_value={"accepted": True}),
         finish=Mock(return_value=True), drain=Mock(), take_changes=Mock(return_value=None))
@@ -137,6 +136,49 @@ def test_receipt_follows_durable_operation_without_eager_broadcast(operation):
     s.push.assert_not_called()
 
 
+def test_yielded_batches_refresh_membership_and_preserve_new_dirty_generation(monkeypatch):
+    s = server()
+    peers = [peer(s, "player", str(i)) for i in range(65)]
+    s.plugins_changed("lesson")
+    yielded = 0
+    removed = moved = None
+    async def yield_to_commands(delay):
+        nonlocal yielded, removed, moved
+        assert delay == 0
+        yielded += 1
+        if yielded == 1:
+            unsent = [c for c in peers if not c.push.called]
+            removed, moved = unsent[:2]
+            s.conns["lesson"].remove(removed)
+            moved.session = "other-session"
+            s.plugins_changed("lesson")
+    monkeypatch.setattr("texstage.server.app.asyncio.sleep", yield_to_commands)
+    asyncio.run(s.flush_plugins())
+    assert yielded == 5 and s.plugin_dirty == {"lesson"}
+    removed.push.assert_not_called()
+    moved.push.assert_not_called()
+    for c in peers:
+        if c not in (removed, moved):
+            c.push.assert_called_once()
+            assert c.push.call_args.args[0]["private_actor"] == c.player
+
+
+def test_actor_updates_reach_both_devices_and_hosts_but_not_other_students(monkeypatch):
+    s = server()
+    a, a2, b = peer(s,"player","alice"), peer(s,"player","alice"), peer(s,"player","bob")
+    teacher, projector = peer(s,"stage",None), peer(s,"display",None)
+    s.plugins_changed("lesson",only={"alice"})
+    flush_once(s,monkeypatch)
+    for c in (a,a2,teacher,projector):c.push.assert_called_once()
+    b.push.assert_not_called()
+    assert not s.plugin_dirty and not s.plugin_recipients
+    s.plugins_changed("lesson",only={"alice"})
+    s.plugins_changed("lesson")  # shared-state change dominates targeted markers
+    s.plugins_changed("lesson",only={"bob"})
+    assert s.plugin_recipients["lesson"] is None
+    s.plugin_push_after.clear()
+    flush_once(s,monkeypatch)
+    b.push.assert_called_once()
 def test_targeted_updates_union_actors_and_keep_presenters_current(monkeypatch):
     s=server(); alice=peer(s,'player','alice'); bob=peer(s,'player','bob'); other=peer(s,'player','other')
     host=peer(s,'stage',None)
@@ -151,3 +193,22 @@ def test_global_update_dominates_targeted_notifications(monkeypatch):
     s.plugins_changed('lesson',only={'alice'}); s.plugins_changed('lesson'); s.plugins_changed('lesson',only={'alice'})
     flush_once(s,monkeypatch)
     alice.push.assert_called_once(); other.push.assert_called_once()
+
+
+def test_presenter_receipt_projects_lecturers_then_flushes_the_class(monkeypatch):
+    s=server();students=[peer(s,'player',str(i)) for i in range(600)]
+    teacher=peer(s,'stage',None);projector=peer(s,'display',None)
+    bridge=object.__new__(PluginHost);bridge.server=s
+    bridge.identity=lambda conn: ('presenter','authenticated')
+    bridge.sync_points=lambda sid: None
+    bridge.sync=lambda sid: (None,SimpleNamespace(items={'kind':{'one':{}}}),[])
+    bridge.runtime=SimpleNamespace(command=Mock(return_value={'accepted':True}),drain=Mock(),take_changes=Mock(return_value=None))
+    result=bridge.handle(SimpleNamespace(session='lesson',role='stage',key='owner'),{'t':'plugin.command','command':{'type':'kind','item':'one'}})
+    assert result=={'receipt':{'accepted':True}}
+    teacher.push.assert_called_once();projector.push.assert_called_once()
+    assert all(not p.push.called for p in students)
+    assert s.plugin_dirty=={'lesson'}
+    flush_once(s,monkeypatch)
+    for p in students:
+        p.push.assert_called_once()
+        assert p.push.call_args.args[0]['private_actor']==p.player

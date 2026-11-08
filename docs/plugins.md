@@ -20,6 +20,12 @@ typed engine facts, surface schemas and epoch-guarded reset. See
 limits and examples. [Preparation before LaTeX](plugin-authoring.md) now supplies
 one exercise source for live data and static editions.
 
+Large-class activities can opt into manifest-3 [actor records](plugin-actor-records.md):
+up to 1,000 private answers per activity, with bounded presenter roster pages.
+[Classroom projections](plugin-classroom-performance.md) describes batching,
+durable evaluation leases and the unchanged worker security restrictions.
+Use the matching host/provider builds and a fresh session for this extension.
+
 A plugin is an installed Python distribution with a declarative manifest. It may
 provide a browser activity engine, a complete interactive slide type, or both.
 It may include zero or more LaTeX packages. An ordinary `.sty` theme is not itself

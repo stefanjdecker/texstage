@@ -23,6 +23,11 @@ and requires each content type to declare `view_schemas` covering exactly the
 surfaces in `views`. All schema paths refer to inventoried, hashed package JSON
 resources. Discovery validates them without importing the factory.
 
+Revision 3 retains those contracts and adds optional schema-validated
+[actor records](plugin-actor-records.md) and presenter-only record selection.
+Revision-1/2 providers keep their existing behavior. A provider using records
+must declare revision 3; older hosts reject it rather than ignoring the fields.
+
 Engine capability addition:
 
 ```json
@@ -251,6 +256,39 @@ remain full broadcasts. Multiple pending actor sets are unioned, and a full
 broadcast dominates them. Providers without this declaration retain the original
 broadcast behavior. Global participant counts therefore belong in presenter
 views for an opted-in activity, not in each phone's live projection.
+
+## Durable participant command batches
+
+The server queues participant plugin commands with backpressure (64 queued
+entries, one outstanding request per WebSocket reader). It rechecks identity,
+session and bundle membership at execution, then processes at most eight saves
+per disk transaction. Every command retains its own schema and role checks,
+actor context, epoch/revision guards, queue/capacity checks and retry receipt.
+Savepoints isolate rejected commands from accepted neighbours. Receipts are sent
+only after SQLite WAL `synchronous=FULL` commits; a failed commit exposes no
+successful acknowledgement and exact retries remain safe after a restart.
+
+Unlike a single command, hooks within a batch may run while that bounded write
+transaction is open. Their deadlines and quarantine policy are unchanged.
+No provider gets database access through this mechanism. Navigation, presenter
+controls, evaluation replies and socket writers get event-loop turns between
+batches. During a burst, ordinary coalesced projections may defer for up to one
+additional second; sustained traffic cannot indefinitely suppress audience
+updates. Presenter controls retain their immediate lecturer projections.
+
+New evaluation leases also yield to the first second of a busy participant
+queue. The authenticated work poll returns an empty batch immediately, keeping
+the socket reader available for controls; the browser uses its usual 750 ms
+idle backoff. The deferral does not restart until the command queue drains, so
+continuous submissions cannot starve evaluation. Already running jobs keep
+their deadlines and result validation.
+
+Schema validation has a fast acceptance path for a deliberately limited subset
+of Draft 2020-12. Safety checks still run before caching. Private predicates
+retain immutable constants only; unsupported keywords and failed checks use the
+ordinary validator and its isolated error schema. Every instance is checked.
+Prepared specifications similarly cache only checked immutable text, returning
+fresh objects to hooks. These optimizations do not change a provider contract.
 
 ## Deterministic successful-result reuse
 

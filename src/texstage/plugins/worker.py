@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import importlib
 import queue
 import subprocess
@@ -15,6 +16,7 @@ from .catalog import discover
 from .manifest import MAX_JSON, canonical, read_json
 
 FRAME_MAX = 8 * 1024 * 1024  # includes item data and a seed of up to 2 MiB
+VIEW_BATCH = 32
 
 
 class Worker:
@@ -80,6 +82,33 @@ class Worker:
             for stream in (process.stdin, process.stdout):
                 if stream: stream.close()
 
+    def views(self, capability, state, audiences, ctx):
+        """Send one snapshot; receive separately time-bounded, isolated views.
+
+        This is private host IPC, not an additional provider hook. Every view
+        still gets fresh input objects and its own ordinary 250 ms deadline.
+        """
+        if not 1 <= len(audiences) <= VIEW_BATCH:
+            raise PluginError("invalid view batch size")
+        with self.lock:
+            if self.process is None: self._start()
+            raw = canonical({"capability": capability, "method": "view_batch", "args": [state, audiences, ctx]})
+            if len(raw) > FRAME_MAX: raise PluginError("hook input exceeds JSON budget")
+            try:
+                self.process.stdin.write(raw + b"\n")
+                self.process.stdin.flush()
+            except (BrokenPipeError, OSError):
+                self.close()
+                raise PluginError("plugin worker unavailable; request can be retried", code="worker-unavailable") from None
+            result = []
+            for index in range(len(audiences)):
+                response = self._response(.25)
+                if response.get("view") != index:
+                    self.close()
+                    raise PluginError("invalid view response order")
+                result.append(response["result"])
+            return result
+
 
 class Workers:
     def __init__(self, catalog):
@@ -99,6 +128,17 @@ class Workers:
 
     def close(self):
         for worker in self.workers.values(): worker.close()
+
+    def views(self, cid, state, audiences, ctx):
+        provider, _ = self.catalog.capability(cid)
+        if self.failures.get(provider.id, 0) >= 3:
+            raise PluginError(f"{provider.id}: worker quarantined after repeated failures; restart the server after fixing the provider", code="worker-unavailable")
+        worker = self.workers.setdefault(provider.id, Worker(provider))
+        try:
+            return worker.views(cid, state, audiences, ctx)
+        except PluginError:
+            self.failures[provider.id] = self.failures.get(provider.id, 0) + 1
+            raise
 
 
 def main():
@@ -121,6 +161,33 @@ def main():
             request = read_json(raw, limit=FRAME_MAX)
             spec = specs[request["capability"]]
             method = request["method"]
+            if method == "view_batch":
+                state, audiences, ctx = request["args"]
+                if not isinstance(audiences, list) or not 1 <= len(audiences) <= VIEW_BATCH:
+                    raise PluginError("invalid view batch size")
+                hook = plugin.state_hooks[spec["state_hook"]]
+                contexts = ctx.pop("_audience_contexts", None)
+                if contexts is not None and (not isinstance(contexts, list) or len(contexts) != len(audiences)
+                                             or any(not isinstance(c, dict) for c in contexts)):
+                    raise PluginError("invalid audience contexts")
+                for index, audience in enumerate(audiences):
+                    # A badly behaved view must not contaminate another actor's
+                    # input. Preserve the isolation of separate ordinary calls.
+                    own_ctx = copy.deepcopy(ctx)
+                    if contexts is not None:
+                        own_ctx.update(copy.deepcopy(contexts[index]))
+                    own_ctx.update(role=audience["role"], actor=audience["actor"])
+                    with contextlib.redirect_stdout(sys.stderr):
+                        result = hook.view(copy.deepcopy(state), copy.deepcopy(audience), own_ctx)
+                    value = json_value(result)
+                    # Bound each response before streaming it, so a batch never
+                    # accumulates many oversized values ahead of host validation.
+                    if len(canonical(value)) > 128 * 1024:
+                        raise PluginError("view exceeds output budget")
+                    response = canonical({"view": index, "result": value})
+                    if len(response) > FRAME_MAX: raise PluginError("hook output exceeds JSON budget")
+                    output.write(response + b"\n"); output.flush()
+                continue
             with contextlib.redirect_stdout(sys.stderr):
                 if method == "prepare":
                     result = plugin.build_hooks[spec["build_hook"]](*request["args"])

@@ -163,12 +163,19 @@ class Static(StaticFiles):
     """The pages' files, revalidated on every load (a server update must not leave old
     scripts in the phones' caches)."""
 
-    def file_response(self, *args, **kwargs):
-        response = super().file_response(*args, **kwargs)
-        response.headers["Cache-Control"] = "no-cache"
-        if str(args[0] if args else kwargs.get("full_path", "")).endswith(EVALUATOR):
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        filename = Path(full_path).name
+        # WebKit Inspector can dereference a missing response buffer when a
+        # fresh worker revalidates an interrupted script load (WebKit #328941).
+        # These small host scripts must be fresh after an update anyway. Send
+        # the body even if a cache from an older server supplies validators.
+        worker_bootstrap = filename in {"plugin-evaluator-worker.js", "plugin-contracts-worker.mjs"}
+        response = (FileResponse(full_path, status_code=status_code, stat_result=stat_result)
+                    if worker_bootstrap else super().file_response(full_path, stat_result, scope, status_code))
+        response.headers["Cache-Control"] = "no-store" if worker_bootstrap else "no-cache"
+        if filename.endswith(EVALUATOR):
             response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
-        if str(args[0] if args else kwargs.get("full_path", "")).endswith("plugin-evaluator-worker.js"):
+        if filename == "plugin-evaluator-worker.js":
             response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'none'"
         return response
 
@@ -443,23 +450,26 @@ class Server:
         if complete and players and only is None and not asking:
             self.engine.due.pop(sid, None)            # every phone gets its state now
         host_view = None
-        for c in list(self.conns.get(sid, ())) if connections is None else connections:
-            if connections is not None and (c not in self.conns.get(sid, ()) or c.session != sid):
-                continue
+        connections = (list(self.conns.get(sid, ())) if connections is None else
+                       [c for c in connections if c in self.conns.get(sid, ()) and c.session == sid])
+        recipients = [c for c in connections if (c.role in HOSTS and hosts) or
+                      (c.role == "player" and players
+                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
+                       and (not asking or c.qa))]
+        plugin_views = self.plugins.safe_views(recipients)
+        for c in connections:
             try:
                 if c.role in HOSTS and hosts:
-                    plugin_view = self.plugins.safe_view(c)
                     if host_view is None:
                         host_view = self.engine.host_view(sid, now)
                         host_view["session"]["join"] = f"{self.config.public_url}/play?pin={host_view['session']['pin']}"
                         host_view["session"]["qr"] = f"/join/{host_view['session']['pin']}.svg"
-                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **plugin_view})
+                    c.push({"t": "state", "now": now, "role": c.role, **host_view, **plugin_views[c]})
                 elif (c.role == "player" and players
                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
                       and (not asking or c.qa)):
-                    plugin_view = self.plugins.safe_view(c)
                     view = self.engine.player_view(c.player, now, questions=c.qa)
-                    c.push({"t": "state", "now": now, "role": "player", **view, **plugin_view})
+                    c.push({"t": "state", "now": now, "role": "player", **view, **plugin_views[c]})
             except PluginError as err:
                 c.push({"t": "plugin.error", "message": str(err)})
             except GameError as err:
@@ -477,8 +487,8 @@ class Server:
         live = set(self.engine.sessions) | set(self.engine.players)
         for sid in self.plugin_push_after.keys() - self.engine.sessions.keys():
             self.plugin_push_after.pop(sid, None)
-            self.plugin_recipients.pop(sid, None)
             self.plugin_dirty.discard(sid)
+            self.plugin_recipients.pop(sid, None)
         for key in [k for k in self.replies if k[1] not in live]:   # retry caches of ended games
             del self.replies[key]
         for sid in [sid for sid in self.conns if sid not in self.engine.sessions]:
@@ -550,18 +560,18 @@ class Server:
             start = time.monotonic()
             if start < self.plugin_push_after.get(sid, 0):
                 continue
-            recipients = self.plugin_recipients.pop(sid, None)
-            # Consume this generation before yielding. New mutations during the
-            # broadcast leave a new marker, so no newer projection is lost.
+            if self.plugins.defer_broadcast(sid, start):
+                continue
+            # Consume this generation before yielding. Any later mutation leaves
+            # a new dirty marker. Views/membership are refreshed per bounded batch.
             self.plugin_dirty.discard(sid)
             self.dirty.discard(sid)
+            recipients = self.plugin_recipients.pop(sid, None)
             peers = [c for c in self.conns.get(sid, ()) if
                      recipients is None or c.role in HOSTS or c.player in recipients]
             if not peers:
                 self.push(sid)
             for offset in range(0, len(peers), 16):
-                # Authentication, membership and state are read afresh for each
-                # batch. Never retain private views across an event-loop yield.
                 self.push(sid, only=recipients, connections=peers[offset:offset + 16], complete=False)
                 await asyncio.sleep(0)
             end = time.monotonic()
@@ -574,7 +584,8 @@ class Server:
             self.push(sid, hosts=False, only=None if who is True else who)
 
     async def start(self):
-        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher())]
+        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher()),
+                      asyncio.create_task(self.plugins.commands())]
 
     async def stop(self):
         for t in self.tasks:
@@ -683,7 +694,10 @@ class Server:
             elif conn.role is None:
                 raise GameError("hello-first", "say hello, join or resume first")
             elif isinstance(t, str) and t.startswith("plugin."):
-                reply = self.plugins.handle(conn, msg)
+                if t == "plugin.command" and conn.role == "player":
+                    reply = await self.plugins.submit(conn, msg, now / 1000)
+                else:
+                    reply = self.plugins.handle(conn, msg)
                 conn.send({"t": "ok", "re": mid, **reply})
             else:
                 key = (conn.role, conn.player or conn.session)
@@ -1016,6 +1030,11 @@ class Server:
                 (folder / file).write_text(text, encoding="utf-8")
             else:
                 log.warning("not an archive file: %r", file)
+        if self.plugins.runtime is not None:
+            target = folder / "plugins.json"
+            temporary = folder / "plugins.json.tmp"
+            temporary.write_text(json.dumps(self.plugins.runtime.archive(s.id), ensure_ascii=True), encoding="utf-8")
+            temporary.replace(target)
         return folder
 
     def take_info(self, t) -> dict:
@@ -1474,6 +1493,13 @@ def create_app(config: ServerConfig) -> Starlette:
         return JSONResponse(server.plugins.runtime.archive(s.id) if server.plugins.runtime else {"format": 1, "items": []},
                             headers={"Cache-Control": "no-store"})
 
+    async def plugin_public_archive(request: Request):
+        s, refused = own_game(request)
+        if refused: return refused
+        result = server.plugins.runtime.public_archive(s.id) if server.plugins.runtime else {
+            "format": 1, "surface": "projector-overlay", "items": []}
+        return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
     async def plugin_asset(request: Request):
         try:
             raw, mime = server.plugins.asset(request.path_params["payload"], request.path_params["name"])
@@ -1653,6 +1679,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/status", status),
         Route("/plugins/{payload}/{name:path}", plugin_asset),
         Route("/api/archive/{session}/plugins.json", plugin_archive),
+        Route("/api/archive/{session}/plugins-public.json", plugin_public_archive),
         Route("/play", page("play")),
         Route("/host", page("host")),
         Route("/stage", page("stage")),
