@@ -163,12 +163,19 @@ class Static(StaticFiles):
     """The pages' files, revalidated on every load (a server update must not leave old
     scripts in the phones' caches)."""
 
-    def file_response(self, *args, **kwargs):
-        response = super().file_response(*args, **kwargs)
-        response.headers["Cache-Control"] = "no-cache"
-        if str(args[0] if args else kwargs.get("full_path", "")).endswith(EVALUATOR):
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        filename = Path(full_path).name
+        # WebKit Inspector can dereference a missing response buffer when a
+        # fresh worker revalidates an interrupted script load (WebKit #328941).
+        # These small host scripts must be fresh after an update anyway. Send
+        # the body even if a cache from an older server supplies validators.
+        worker_bootstrap = filename in {"plugin-evaluator-worker.js", "plugin-contracts-worker.mjs"}
+        response = (FileResponse(full_path, status_code=status_code, stat_result=stat_result)
+                    if worker_bootstrap else super().file_response(full_path, stat_result, scope, status_code))
+        response.headers["Cache-Control"] = "no-store" if worker_bootstrap else "no-cache"
+        if filename.endswith(EVALUATOR):
             response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
-        if str(args[0] if args else kwargs.get("full_path", "")).endswith("plugin-evaluator-worker.js"):
+        if filename == "plugin-evaluator-worker.js":
             response.headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'none'; worker-src 'none'"
         return response
 
