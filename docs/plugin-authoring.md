@@ -64,6 +64,33 @@ explicitly and stops if preparation/build fails; it cannot be combined with
 `--no-build`. This prevents presenting a cached deck after an exercise changes.
 The static PowerPoint is the `*-static.pptx` output of `build`.
 
+## Select English or German
+
+Set both the main LaTeX language and the activity sidecar language:
+
+| Edition | LaTeX preamble | Sidecar, beside `format` and `items` |
+| --- | --- | --- |
+| English | `\usepackage[english]{babel}` | `"language": "en"` |
+| German | `\usepackage[ngerman]{babel}` | `"language": "de"` |
+
+With several Babel languages, use an explicit main language, for example
+`\usepackage[main=ngerman,english]{babel}`. Rebuild with the matching `--activities`
+file. Babel/Polyglossia selects the deck language passed to live plugin views;
+the sidecar selects generated static exercises and solutions. It does not
+translate arbitrary frame titles, questions, notes or source text.
+
+The phone's join, waiting, quiz and built-in activity controls follow the deck's
+language, just like plugin controls. The QR link supplies the PIN; entering a
+valid PIN manually also selects that session's language before joining.
+The browser language is only a fallback until a session is identified.
+There is no per-student plugin language switch. Missing or unsupported deck languages
+fall back to English. Provider translation coverage and missing-text fallback
+are provider-specific. Supply both authored translations for a bilingual lesson.
+
+The collection's [language guide](https://github.com/stefanjdecker/texstage-plugins/blob/codex/database-activity-examples/docs/languages.md)
+and [database example](https://github.com/stefanjdecker/texstage-plugins/tree/codex/database-activity-examples/examples/database)
+show matching masters with shared exercise data and reference answers.
+
 ## Implement a provider
 
 A revision-2 content capability declares exactly one of `authoring_hook` and

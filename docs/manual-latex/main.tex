@@ -636,7 +636,7 @@ This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoin
 \manualsection{About the screenshots and further help}
 The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} They are retained as illustrations in this 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 manual; the capture version is recorded separately from the manual version.\par
 
-All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface can use German according to browser language.\par
+All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface follows the presentation language once its PIN is known.\par
 
 The source deck is \href{\manualdocroot ../examples/manual/demo.tex}{examples/\allowbreak{}manual/\allowbreak{}demo.\allowbreak{}tex}.\allowbreak{} It uses 240-\allowbreak{}second quiz rounds for capture and rehearsal.\allowbreak{} Replace the example local join address and choose a realistic round duration for teaching.\allowbreak{} Live session join information comes from the server's advertised address.\par
 
@@ -1346,7 +1346,7 @@ The compiled reference example covers every quiz type, delayed answers, explicit
 The \href{\manualdocroot latex-reference-inventory.json}{reference inventory} and \href{\manualdocroot ../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
 
 \manualsection{Deck language and live labels}
-Texstage records the active Babel or Polyglossia language when LaTeX builds a deck.\allowbreak{} German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English.\allowbreak{} The phone uses its browser language independently of the deck.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck.\allowbreak{} German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English.\allowbreak{} The phone follows the deck language as soon as its PIN identifies the session, including the join form, waiting messages, quizzes and built-\allowbreak{}in activities.\allowbreak{} Before a session is identified, it uses the browser language.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
 
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}

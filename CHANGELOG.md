@@ -2,6 +2,14 @@
 
 ## Unreleased — 0.2.1.dev7 candidate
 
+- Use the presentation language for phone joining, waiting, quizzes, Q&A and
+  built-in activities. Resolve the language from a valid PIN before joining,
+  preserve it on resume, and translate routine phone errors. The pre-join
+  lookup exposes only language and shares the existing wrong-PIN throttle.
+
+- Show the current plugin's phone controls when a mixed deck moves on from a
+  built-in activity, while retaining quiz and session-finished precedence.
+
 - Improve simultaneous plugin submissions with bounded durable commit batches,
   immutable schema predicates and prepared-specification caching. Preserve
   individual receipts, rollback, schema checks, worker limits and FULL durability.
