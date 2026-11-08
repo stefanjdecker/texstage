@@ -134,6 +134,59 @@ def test_the_decks_language_is_babels(tqz, tmp_path):
     assert Tqz.read(compile_deck(tex, "present", tmp_path / "out", passes=1).tqz).language == "ngerman"
 
 
+# a deck with a slide text of each kind: the join slide, a true/false, a numeric and a multiple
+# choice question's hints, a live activity's box
+LANGUAGE_BODY = r"""
+\quizjoinframe
+\begin{quiz}[id=tf, type=truefalse, answer=false]{Statement one.}\end{quiz}
+\begin{quiz}[id=num, type=numeric, answer=6, min=0, max=12]{How many?}\end{quiz}
+\begin{quiz}[id=multi]{Which?}
+  \choice*{One}
+  \choice*{Two}
+  \choice{Three}
+\end{quiz}
+\begin{frame}[t]{Triples}
+  \begin{activity}[id=tuples,input=tuple,fields={S,P,O}]
+    \prompt{A triple.}
+  \end{activity}
+\end{frame}
+"""
+ENGLISH_TEXTS = ["Join the quiz", "Enter a number on your phone.", "Several answers can be correct.", "True", "False",
+                 "Live activity"]
+GERMAN_TEXTS = ["Mitmachen", "Geben Sie auf Ihrem Handy eine Zahl ein.", "Mehrere Antworten k", "Wahr", "Falsch",
+                "Live-Aktivit"]          # (an umlaut's accent comes apart in the OT1 font's text)
+
+
+def language_text(tmp: Path, name: str, preamble: str = "") -> str:
+    tex = tmp / f"{name}.tex"
+    tex.write_text("\\documentclass[aspectratio=169]{beamer}\n" + preamble
+                   + "\\usepackage{texquiz}\n\\usepackage{texactivity}\n\\begin{document}\n"
+                   + textwrap.dedent(LANGUAGE_BODY) + "\\end{document}\n", encoding="utf-8")
+    return " ".join(pdf_text(compile_deck(tex, "present", tmp / f"{name}-out", passes=1).pdf).split())
+
+
+def test_the_slides_texts_are_in_the_decks_language(tmp_path):
+    """texquiz's and texactivity's slide texts follow the deck's language, babel's main one
+    (texstage.sty, section "language"): a German deck's join slide, hints, true/false labels and
+    activity box are German; a deck without babel keeps English."""
+    english = language_text(tmp_path, "english")
+    german = language_text(tmp_path, "german", "\\usepackage[english,ngerman]{babel}\n")
+    for en, de in zip(ENGLISH_TEXTS, GERMAN_TEXTS):
+        assert en in english and de not in english, (en, de)
+        assert de in german and en not in german, (en, de)
+
+
+def test_a_text_quizsetup_gives_stays_in_any_language(tmp_path):
+    """A text \\quizsetup gives - in the preamble, as a course theme does, before babel or after it -
+    goes over the deck's language's; the other texts stay the language's."""
+    setup = "\\usepackage{texquiz}\n\\quizsetup{join-title={Machen Sie mit}, number-hint={Bitte eine Zahl.}}\n"
+    german = language_text(tmp_path, "german", setup + "\\usepackage[ngerman]{babel}\n")
+    assert "Machen Sie mit" in german and "Bitte eine Zahl." in german
+    assert "Mitmachen" not in german and "Geben Sie" not in german and "Mehrere Antworten k" in german
+    english = language_text(tmp_path, "english", "\\usepackage{texquiz}\n\\quizsetup{join-title={Phones out}}\n")
+    assert "Phones out" in english and "Join the quiz" not in english and "Enter a number on your phone." in english
+
+
 def test_metadata(tqz):
     q = tqz.questions["rdf-triple"]
     assert (q.type, q.time, q.points, q.leaderboard) == ("single", 20, "standard", True)

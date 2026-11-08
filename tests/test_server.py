@@ -64,8 +64,8 @@ def test_a_round_over_websockets(world):
         assert recv(h, "error")["error"] == "bad-key"
         pin = hello(h, fb, 2)["pin"]
         state = recv(h, "state")
-        assert state["session"]["join"] == f"http://quiz.test/play?pin={pin}"
-        assert state["session"]["qr"] == f"/join/{pin}.svg"
+        assert state["session"]["join"] == f"http://quiz.test/play?pin={pin}&lang=en"    # the deck's language
+        assert state["session"]["qr"] == f"/join/{pin}.svg?lang=en"
         with client.websocket_connect("/ws") as p1, client.websocket_connect("/ws") as p2:
             w1 = join(p1, pin, "Ada")
             assert w1["nickname"] == "Ada" and w1["token"]

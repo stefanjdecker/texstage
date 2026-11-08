@@ -2,21 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // A code activity on the phone (web/play/activity.js), in Node: what its screen says, engine by
 // engine - a Turtle text is valid or not, a graph the reference's or not; a query's words as they
-// were -, and the token bar's insertion at the cursor: a word with spaces around it, the start of
-// one (?, _:, dbr:) with a space before it only, a sign (:, ., ", @, ^^) as it is.
+// were -, in the deck's language (play.js gives it; never the phone's own), the server's refusals
+// in its words, and the token bar's insertion at the cursor: a word with spaces around it, the
+// start of one (?, _:, dbr:) with a space before it only, a sign (:, ., ", @, ^^) as it is.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const url = pathToFileURL(path.join(path.dirname(fileURLToPath(import.meta.url)), "../src/texstage/web/play/activity.js")).href;
-async function phone(language) {
-  // the module as a phone of this language loads it (its words follow navigator.language)
-  Object.defineProperty(globalThis, "navigator", { value: { language }, configurable: true });
-  return import(`${url}?${language}`);
-}
-const en = await phone("en-GB");
-const de = await phone("de-DE");
+// an English phone: what it shows follows the deck, not navigator.language
+Object.defineProperty(globalThis, "navigator", { value: { language: "en-GB", languages: ["en-GB"] }, configurable: true });
+const module = await import(url);
+// the screen as a phone shows it for a deck of this language
+const phone = (language) => ({ ...module, language, words: (engine) => module.words(engine, language) });
+const en = phone("en");
+const de = phone("de");
 
 test("a turtle activity's words: valid Turtle, the same graph - a query's as they were", () => {
   const turtle = en.words("turtle");
@@ -34,7 +35,9 @@ test("a turtle activity's words: valid Turtle, the same graph - a query's as the
     assert.deepEqual(de.words(engine), de.words("sparql"));
   }
   assert.equal(de.words("turtle").ok, "Gültiges Turtle ✓");
-  assert.equal(de.words("sparql").ok, "Deine Anfrage läuft ✓");
+  assert.equal(de.words("sparql").ok, "Ihre Anfrage läuft ✓");
+  assert.deepEqual(module.words("sparql", "fr"), en.words("sparql"), "a language without texts: English");
+  assert.deepEqual(module.words("sparql"), en.words("sparql"), "a deck that names none: English");
   assert.deepEqual(Object.keys(en.words("turtle")).sort(), Object.keys(en.words("sparql")).sort());
   assert.deepEqual(Object.keys(de.words("turtle")).sort(), Object.keys(en.words("turtle")).sort());
 });
@@ -51,9 +54,26 @@ function screen(module, activity) {
   };
   const root = { innerHTML: "", querySelector: el, querySelectorAll: (s) => (s === "[data-role=used]" ? [el(s)] : []) };
   const base = { id: "berlin", phase: "open", input: "code", limit: 5, used: 0, blocked: false, tokens: [":", "_:"] };
-  const s = new module.ActivityScreen({ root, client: {}, state: { session: { base: "/" }, activity: { ...base, ...activity } } });
-  return { root, el, update: (more) => s.update({ activity: { ...base, ...activity, ...more } }) };
+  const s = new module.ActivityScreen({ root, client: {}, language: module.language,
+    state: { session: { base: "/" }, activity: { ...base, ...activity } } });
+  return { root, el, screen: s, update: (more) => s.update({ activity: { ...base, ...activity, ...more } }) };
 }
+
+test("the screen speaks the deck's language, and says the server's refusals in it", () => {
+  const g = screen(de, { engine: "sparql" });
+  assert.match(g.root.innerHTML, /Ihre Anfrage/);
+  assert.match(g.root.innerHTML, /Abschicken/);
+  g.update({ phase: "closed" });
+  assert.equal(g.el("[data-role=error]").textContent, "Die Aktivität ist geschlossen.");
+  assert.equal(g.screen.refusal({ code: "too-fast", message: "one every 5 seconds" }),
+    "Bitte warten Sie ein paar Sekunden, bevor Sie wieder etwas schicken.");
+  assert.equal(g.screen.refusal({ code: "text", message: "a query has 1 to 2000 characters" }), "Bitte tippen Sie zuerst Ihre Anfrage.");
+  assert.equal(screen(de, { engine: "turtle" }).screen.refusal({ code: "text" }), "Bitte tippen Sie zuerst Ihr Turtle.");
+  assert.equal(screen(de, { input: "tuple", fields: ["s", "p", "o"] }).screen.refusal({ code: "field" }), "Bitte füllen Sie jedes Feld aus.");
+  assert.equal(g.screen.refusal({ code: "kicked" }), "Sie wurden aus dem Spiel entfernt.", "a refusal of the game's: the phone's words");
+  assert.equal(g.screen.refusal({ code: "invalid", message: "fields: 3 texts" }), "Das hat nicht geklappt: fields: 3 texts");
+  assert.equal(screen(en, { engine: "sparql" }).screen.refusal({ code: "duplicate" }), "You have sent this one already.");
+});
 
 test("the screen says it: valid Turtle, a syntax error at its line, the same graph - a query runs", () => {
   const t = screen(en, { engine: "turtle" });

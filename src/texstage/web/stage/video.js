@@ -23,7 +23,10 @@
 //     send(msg)            to the server (a presenter window; the projector only follows)
 //     media(file, fresh)   a promise of the file's address (mediaAddresses below)
 //     click(what)          the browser wants a click in this window: "sound" or "start"
+//
+// The bar and the note speak the deck's language, which the Stage gives the box (i18n's "video").
 
+import { texts } from "/static/i18n/i18n.js";
 import { authHeaders } from "/static/shared/client.js";
 
 const DRIFT = 0.3;          // s: the windows follow closer than this
@@ -255,11 +258,12 @@ class VimeoPlayer {
 
 // ------------------------------------------------------------------ the renderer
 export class VideoBox {
-  constructor({ id, item, layer, controls, host = {}, clock = () => Date.now() }) {
+  constructor({ id, item, layer, controls, host = {}, clock = () => Date.now(), language = "" }) {
     this.id = id;
     this.item = item;
     this.host = host;
     this.clock = clock;
+    this.words = texts(language).video;   // the deck's language
     this.start = item.start ?? 0;
     this.presenter = host.role === "presenter";
     this.state = null;             // the server's {playing, time, at} for this video - or ours, on its way
@@ -420,7 +424,7 @@ export class VideoBox {
     if (this.waiting === what) return;
     this.waiting = what;
     this.note ||= Object.assign(document.createElement("div"), { className: "tq-vnote" });
-    this.note.textContent = what === "sound" ? "🔇 Click for sound" : "▶ Click for the video";
+    this.note.textContent = what === "sound" ? `🔇 ${this.words.sound}` : `▶ ${this.words.start}`;
     this.controls?.append(this.note);
     this.el.classList.toggle("tq-wait", what === "start" && Boolean(this.player.clickable));
     this.placeNote();
@@ -479,9 +483,11 @@ export class VideoBox {
 
   makeBar() {
     const bar = this.bar = Object.assign(document.createElement("div"), { className: "tq-vbar" });
-    bar.innerHTML = `<button class="tq-vplay" title="Play or pause - K, or a click into the video"></button>
-      <div class="tq-vtrack" title="Drag: another position - J: 10 s back"><div class="tq-vdone"></div></div>
+    bar.innerHTML = `<button class="tq-vplay"></button>
+      <div class="tq-vtrack"><div class="tq-vdone"></div></div>
       <span class="tq-vtime"></span>`;
+    bar.querySelector(".tq-vplay").title = this.words.toggle;
+    bar.querySelector(".tq-vtrack").title = this.words.track;
     this.controls.append(bar);
     this.button = bar.querySelector(".tq-vplay");
     this.done = bar.querySelector(".tq-vdone");
@@ -548,7 +554,7 @@ export class VideoBox {
     if (p.text !== text) this.time.textContent = text;
     if (p.playing !== playing) {
       this.button.textContent = playing ? "⏸" : "▶";
-      this.button.setAttribute("aria-label", playing ? "Pause" : "Play");
+      this.button.setAttribute("aria-label", playing ? this.words.pause : this.words.play);
     }
     this.painted = { share, text, playing };
   }

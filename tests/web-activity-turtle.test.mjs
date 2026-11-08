@@ -165,3 +165,10 @@ test("a graph against the reference's: the triples in both, missing, more", () =
   assert.deepEqual(compare(run(SHORT.replace(', "Berlino"@it', "")), reference), { common: 2, missing: 1, extra: 0 });
   assert.deepEqual(compare(run(SHORT.replace("3596999", '"3596999"')), reference), { common: 2, missing: 1, extra: 1 });
 });
+
+test("where and why, in the deck's language (the presenter window's) - Oxigraph's words as they are", () => {
+  const r = turtle.evaluate(state, 'dbr:Berlin rdfs:label "Berlin"@de\ndbr:Berlin dbo:populationTotal 3596999 .', "de");
+  assert.deepEqual([r.status, r.error], ["syntax", "Zeile 2, Spalte 1: A dot is expected at the end of statements"]);
+  assert.equal(turtle.evaluate(state, "# nothing yet", "de").error, "keine Tripel");
+  assert.equal(turtle.evaluate(state, "# nothing yet", "en-GB").error, "no triples");
+});

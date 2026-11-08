@@ -2,6 +2,19 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Speak the deck's language everywhere, English or German: shared message
+  catalogs (`web/i18n/`) for the live views, the phones, the presenter,
+  projector and host windows and the PowerPoint add-in. Phones follow the deck
+  instead of their browser; the join slide's QR code names the language.
+  Pages without a deck use the browser's language.
+- German defaults for the slides' own texts (texquiz's `\quizsetup` texts,
+  texactivity's labels), chosen by Babel's main language; `\quizsetup` values
+  still win. Typed polls get their title and yes/no answers in the deck's
+  language.
+- Server refusals carry codes (WebSocket `error`, HTTP API `code`) that the
+  windows and phones translate; new codes for votes on one's own or answered
+  questions, poll and whiteboard limits, empty activity fields and the deck
+  library. German phone texts now use "Sie", as the slides do.
 - Update public-source installation, SQL activity restrictions, PowerPoint
   command guidance and release status; correct screenshot provenance.
 - Regenerate the Markdown, LaTeX and PDF manuals from their shared source.

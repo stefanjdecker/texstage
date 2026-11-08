@@ -25,19 +25,21 @@ FOLDERS_MAX = 500      # per lecturer
 
 
 class LibraryError(ValueError):
-    """A request the library refuses; `missing` for an unknown folder (404 rather than 400)."""
+    """A request the library refuses; `missing` for an unknown folder (404 rather than 400); `code`
+    the window's (web/i18n: errors)."""
 
-    def __init__(self, message: str, missing: bool = False):
+    def __init__(self, message: str, missing: bool = False, code: str = "library"):
         super().__init__(message)
         self.missing = missing
+        self.code = "no-folder" if missing else code
 
 
 def _name(value, limit: int, what: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise LibraryError(f"a {what} needs a name")
+        raise LibraryError(f"a {what} needs a name", code="name-empty")
     text = " ".join(value.split())
     if len(text) > limit:
-        raise LibraryError(f"a {what}'s name has at most {limit} characters")
+        raise LibraryError(f"a {what}'s name has at most {limit} characters", code="name-long")
     return text
 
 
@@ -91,7 +93,7 @@ class Library:
         node = parent
         while node is not None:                          # not into itself, nor into one of its own
             if node == moving:
-                raise LibraryError("a folder cannot go into itself")
+                raise LibraryError("a folder cannot go into itself", code="folder-cycle")
             node = folders.get(node, {}).get("parent")
 
     def add_folder(self, lecturer: str, name, parent=None) -> str:
@@ -99,7 +101,7 @@ class Library:
             data = self._read()
             own = self._own(data, lecturer)
             if len(own["folders"]) >= FOLDERS_MAX:
-                raise LibraryError(f"at most {FOLDERS_MAX} folders")
+                raise LibraryError(f"at most {FOLDERS_MAX} folders", code="too-many-folders")
             self._check_parent(own["folders"], parent)
             fid = secrets.token_hex(6)
             own["folders"][fid] = {"name": _name(name, NAME_MAX, "folder"), "parent": parent}

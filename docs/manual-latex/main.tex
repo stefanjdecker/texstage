@@ -636,7 +636,7 @@ This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoin
 \manualsection{About the screenshots and further help}
 The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} They are retained as illustrations in this 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 manual; the capture version is recorded separately from the manual version.\par
 
-All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English; the participant interface can use German according to browser language.\par
+All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.\par
 
 The source deck is \href{\manualdocroot ../examples/manual/demo.tex}{examples/\allowbreak{}manual/\allowbreak{}demo.\allowbreak{}tex}.\allowbreak{} It uses 240-\allowbreak{}second quiz rounds for capture and rehearsal.\allowbreak{} Replace the example local join address and choose a realistic round duration for teaching.\allowbreak{} Live session join information comes from the server's advertised address.\par
 
@@ -896,32 +896,32 @@ Use ordinary decimal notation such as -\allowbreak{}1.\allowbreak{}5, not expone
 For delayed answers, give the quiz reveal=\allowbreak{}none, then write an answer=\allowbreak{}its-\allowbreak{}id frame later.\allowbreak{} Do not put quizjoinframe, quizleaderboardframe or quizpodiumframe inside a frame: each command creates one.\par
 
 \manualsection{Quiz display strings (1/\allowbreak{}2)}
-These quizsetup keys replace visible static slide text.\allowbreak{} Values below are the generic English defaults, before a course theme is loaded.\allowbreak{} They do not configure the language of the phone application.\par
+These quizsetup keys replace visible static slide text.\allowbreak{} Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below.\allowbreak{} A value given here wins in every language.\allowbreak{} The phone application and the presenter windows follow the deck's language by themselves.\par
 
 {\small
-\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.260000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}}
 \toprule
-\textbf{Setup key} & \textbf{Initial text} \\
+\textbf{Setup key} & \textbf{English} & \textbf{German} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Setup key} & \textbf{Initial text} \\
+\textbf{Setup key} & \textbf{English} & \textbf{German} \\
 \midrule
 \endhead
 \midrule
 \endfoot
 \bottomrule
 \endlastfoot
-\texttt{join-\allowbreak{}title} & Join the quiz \\ \addlinespace[3pt]
-\texttt{join-\allowbreak{}text} & During the lecture, join with your phone using the PIN shown on this slide. \\ \addlinespace[3pt]
-\texttt{leaderboar\allowbreak{}d-\allowbreak{}title} & Leaderboard \\ \addlinespace[3pt]
-\texttt{podium-\allowbreak{}title} & Final standings \\ \addlinespace[3pt]
-\texttt{handout-\allowbreak{}heading} & Live quiz \\ \addlinespace[3pt]
-\texttt{handout-\allowbreak{}text} & This question is asked live in the lecture. \\ \addlinespace[3pt]
-\texttt{results-\allowbreak{}text} & The results are shown live in the lecture. \\ \addlinespace[3pt]
-\texttt{answer-\allowbreak{}title} & Answer \\ \addlinespace[3pt]
-\texttt{answer-\allowbreak{}heading} & Answer \\ \addlinespace[3pt]
-\texttt{answer-\allowbreak{}text} & The answer is shown in the lecture. \\ \addlinespace[3pt]
+\texttt{join-\allowbreak{}title} & Join the quiz & Mitmachen \\ \addlinespace[3pt]
+\texttt{join-\allowbreak{}text} & During the lecture, join with your phone using the PIN shown on this slide. & In der Vorlesung: mit dem Handy und der PIN auf dieser Folie teilnehmen. \\ \addlinespace[3pt]
+\texttt{leaderboar\allowbreak{}d-\allowbreak{}title} & Leaderboard & Bestenliste \\ \addlinespace[3pt]
+\texttt{podium-\allowbreak{}title} & Final standings & Endstand \\ \addlinespace[3pt]
+\texttt{handout-\allowbreak{}heading} & Live quiz & Live-\allowbreak{}Quiz \\ \addlinespace[3pt]
+\texttt{handout-\allowbreak{}text} & This question is asked live in the lecture. & Diese Frage wird live in der Vorlesung gestellt. \\ \addlinespace[3pt]
+\texttt{results-\allowbreak{}text} & The results are shown live in the lecture. & Die Ergebnisse werden live in der Vorlesung gezeigt. \\ \addlinespace[3pt]
+\texttt{answer-\allowbreak{}title} & Answer & Antwort \\ \addlinespace[3pt]
+\texttt{answer-\allowbreak{}heading} & Answer & Antwort \\ \addlinespace[3pt]
+\texttt{answer-\allowbreak{}text} & The answer is shown in the lecture. & Die Antwort gibt es in der Vorlesung. \\ \addlinespace[3pt]
 \end{longtable}}
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -933,32 +933,32 @@ These quizsetup keys replace visible static slide text.\allowbreak{} Values belo
 Use braces for values containing commas or paragraphs.\allowbreak{} Change the setup after loading a theme to retain your override.\allowbreak{} For the DBIS German strings and its leaderboard defaults, see the separate lecture-\allowbreak{}tools style reference.\par
 
 \manualsection{Quiz display strings (2/\allowbreak{}2)}
-These quizsetup keys replace visible static slide text.\allowbreak{} Values below are the generic English defaults, before a course theme is loaded.\allowbreak{} They do not configure the language of the phone application.\par
+These quizsetup keys replace visible static slide text.\allowbreak{} Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below.\allowbreak{} A value given here wins in every language.\allowbreak{} The phone application and the presenter windows follow the deck's language by themselves.\par
 
 {\small
-\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.260000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}}
 \toprule
-\textbf{Setup key} & \textbf{Initial text} \\
+\textbf{Setup key} & \textbf{English} & \textbf{German} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Setup key} & \textbf{Initial text} \\
+\textbf{Setup key} & \textbf{English} & \textbf{German} \\
 \midrule
 \endhead
 \midrule
 \endfoot
 \bottomrule
 \endlastfoot
-\texttt{true-\allowbreak{}label} & True \\ \addlinespace[3pt]
-\texttt{false-\allowbreak{}label} & False \\ \addlinespace[3pt]
-\texttt{number-\allowbreak{}hint} & Enter a number on your phone. \\ \addlinespace[3pt]
-\texttt{text-\allowbreak{}hint} & Type your answer on the phone. \\ \addlinespace[3pt]
-\texttt{multiple-\allowbreak{}hint} & Several answers can be correct. \\ \addlinespace[3pt]
-\texttt{poll-\allowbreak{}hint} & Tick all that apply. \\ \addlinespace[3pt]
-\texttt{order-\allowbreak{}hint} & Put the items in the right order on your phone. \\ \addlinespace[3pt]
-\texttt{sketch-\allowbreak{}hint} & Draw your answer on your phone. \\ \addlinespace[3pt]
-\texttt{answer-\allowbreak{}label} & Answer: \\ \addlinespace[3pt]
-\texttt{accepted-\allowbreak{}label} & Accepted answers: \\ \addlinespace[3pt]
+\texttt{true-\allowbreak{}label} & True & Wahr \\ \addlinespace[3pt]
+\texttt{false-\allowbreak{}label} & False & Falsch \\ \addlinespace[3pt]
+\texttt{number-\allowbreak{}hint} & Enter a number on your phone. & Geben Sie auf Ihrem Handy eine Zahl ein. \\ \addlinespace[3pt]
+\texttt{text-\allowbreak{}hint} & Type your answer on your phone. & Tippen Sie Ihre Antwort auf dem Handy ein. \\ \addlinespace[3pt]
+\texttt{multiple-\allowbreak{}hint} & Several answers can be correct. & Mehrere Antworten können richtig sein. \\ \addlinespace[3pt]
+\texttt{poll-\allowbreak{}hint} & Tick all that apply. & Kreuzen Sie alles Zutreffende an. \\ \addlinespace[3pt]
+\texttt{order-\allowbreak{}hint} & Put the items in the right order on your phone. & Bringen Sie die Elemente auf dem Handy in die richtige Reihenfolge. \\ \addlinespace[3pt]
+\texttt{sketch-\allowbreak{}hint} & Draw your answer on your phone. & Zeichnen Sie Ihre Antwort auf dem Handy. \\ \addlinespace[3pt]
+\texttt{answer-\allowbreak{}label} & Answer: & Antwort: \\ \addlinespace[3pt]
+\texttt{accepted-\allowbreak{}label} & Accepted answers: & Akzeptierte Antworten: \\ \addlinespace[3pt]
 \end{longtable}}
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -1227,7 +1227,7 @@ For ordinary course files, prefer seed=\allowbreak{}people.\allowbreak{}sql and 
 Runnable examples and an isolated validation command are provided in \href{\manualdocroot ../examples/reference/README.md}{examples/\allowbreak{}reference/\allowbreak{}README.\allowbreak{}md}.\allowbreak{} They use dedicated output/\allowbreak{}data directories and do not load existing courses.\par
 
 \manualsection{Activity labels and documentation helpers}
-The activity label hooks are ordinary macros.\allowbreak{} Redefine them after loading texactivity to localize static slide text; they do not change the phone UI language.\par
+The activity label hooks are ordinary macros.\allowbreak{} By default they give the text of the deck's language, English or German; redefine them after loading texactivity for other wording.\allowbreak{} The phone UI follows the deck's language by itself.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.420000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.580000\linewidth-2\tabcolsep\relax}}
@@ -1243,8 +1243,8 @@ The activity label hooks are ordinary macros.\allowbreak{} Redefine them after l
 \endfoot
 \bottomrule
 \endlastfoot
-\texttt{\textbackslash{}\allowbreak{}texactivit\allowbreak{}ylabel} & No arguments.\allowbreak{} Default: Live activity -\allowbreak{}-\allowbreak{} on your phones. \\ \addlinespace[3pt]
-\texttt{\textbackslash{}\allowbreak{}texactivit\allowbreak{}yreference\allowbreak{}label} & No arguments.\allowbreak{} Default: Reference.\allowbreak{} Used above solution reference text. \\ \addlinespace[3pt]
+\texttt{\textbackslash{}\allowbreak{}texactivit\allowbreak{}ylabel} & No arguments.\allowbreak{} Default: Live activity -\allowbreak{}-\allowbreak{} on your phones (German: Live-\allowbreak{}Aktivität -\allowbreak{}-\allowbreak{} auf Ihren Handys). \\ \addlinespace[3pt]
+\texttt{\textbackslash{}\allowbreak{}texactivit\allowbreak{}yreference\allowbreak{}label} & No arguments.\allowbreak{} Default: Reference (German: Referenz).\allowbreak{} Used above solution reference text. \\ \addlinespace[3pt]
 \end{longtable}}
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -1283,6 +1283,8 @@ These expl3 interfaces are shared by texquiz, texvideo and texactivity.\allowbre
 \texttt{\textbackslash{}\allowbreak{}texstage\_\allowbreak{}savepos:, \textbackslash{}\allowbreak{}texstage\_\allowbreak{}lastx:, \textbackslash{}\allowbreak{}texstage\_\allowbreak{}lasty:} & Save the current position and read engine coordinates in scaled points. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}texstage\_\allowbreak{}rect:nnnnn \{\allowbreak{}id\}\allowbreak{}\{\allowbreak{}phase\}\allowbreak{}\{\allowbreak{}key\}\allowbreak{}\{\allowbreak{}width\}\allowbreak{}\{\allowbreak{}height\}} & Records a rectangle at the current lower-\allowbreak{}left reference point. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}texstage\_\allowbreak{}vmark:nnn \{\allowbreak{}id\}\allowbreak{}\{\allowbreak{}phase\}\allowbreak{}\{\allowbreak{}key\}} & Records a horizontal boundary across linewidth in vertical mode for a live region. \\ \addlinespace[3pt]
+\texttt{\textbackslash{}\allowbreak{}texstage\_\allowbreak{}texts:nnn \{\allowbreak{}package\}\allowbreak{}\{\allowbreak{}language\}\allowbreak{}\{\allowbreak{}key =\allowbreak{} text, .\allowbreak{}.\allowbreak{}.\allowbreak{}\}} & Gives a package's slide texts in a language (en, de), in the preamble.\allowbreak{} A key a language lacks falls back to English. \\ \addlinespace[3pt]
+\texttt{\textbackslash{}\allowbreak{}texstage\_\allowbreak{}text:nn \{\allowbreak{}package\}\allowbreak{}\{\allowbreak{}key\}} & Expands to the text in the deck's language: Babel's main language at \textbackslash{}\allowbreak{}begin\{\allowbreak{}document\}\allowbreak{}, de for German variants, else en.\allowbreak{} The text itself is not expanded. \\ \addlinespace[3pt]
 \end{longtable}}
 
 Do not emit arbitrary records from a course deck.\allowbreak{} The Python build registry must understand the content type, its public metadata, private answer data, phone assets and rendering.\allowbreak{} Shipout and shrink corrections are coordinated by the core.\par
@@ -1346,7 +1348,7 @@ The compiled reference example covers every quiz type, delayed answers, explicit
 The \href{\manualdocroot latex-reference-inventory.json}{reference inventory} and \href{\manualdocroot ../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
 
 \manualsection{Deck language and live labels}
-Texstage records the active Babel or Polyglossia language when LaTeX builds a deck.\allowbreak{} German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English.\allowbreak{} The phone uses its browser language independently of the deck.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck, and everything the deck's audience and lecturer read follows it: the slides' static texts (the quizsetup defaults, the activity labels), the live views on the projector, the phones, the presenter and host windows, the PowerPoint add-\allowbreak{}in, and the polls typed during the lecture.\allowbreak{} German variants such as ngerman select German; English and unsupported languages use English.\allowbreak{} A phone that scans the join slide's code shows its join form in the deck's language, otherwise in its browser language until it has joined.\allowbreak{} Pages without a deck, such as the deck list and device pairing, use the browser language.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
 
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
@@ -1356,6 +1358,6 @@ Texstage records the active Babel or Polyglossia language when LaTeX builds a de
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-In a DBIS course, keep the language in the course dbis-\allowbreak{}style.\allowbreak{}sty setting.\allowbreak{} lecture-\allowbreak{}tools supplies the German activity heading and reference label.\allowbreak{} Private presenter activity controls remain English.\allowbreak{} Older bundles and TQZ records without a language field remain supported.\par
+In a DBIS course, keep the language in the course dbis-\allowbreak{}style.\allowbreak{}sty setting; the course theme's own quizsetup texts still win.\allowbreak{} Older bundles and TQZ records without a language field remain supported and use English.\par
 
 \end{document}

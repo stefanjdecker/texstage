@@ -6,8 +6,8 @@
 // in German, through the Stage the presenter and projector windows make; an English deck, and one
 // built before deck.json named its language, get them as they were. A window's own labels go over
 // the deck's; the add-in, which shows its slide before its deck has come, speaks the deck's once it
-// is there. The presenter window's activity panel (codeWords, resultLabel, resultTable without a
-// language) keeps English.
+// is there. The presenter window's activity panel (codeWords, resultLabel, resultTable) speaks the
+// language it is given - English without one.
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -195,13 +195,13 @@ test("an English deck's activity box is as it was - also a deck that names no la
   assert.ok(box(undefined, null, { ...GRAPH, phase: "closed" }).includes("No triples."));
 });
 
-test("the box's words: German for every English one; the presenter window's panel keeps English", () => {
+test("the box's words: German for every English one; without a language English", () => {
   const shape = (w) => JSON.stringify(Object.keys(w).sort().map((k) => [k, typeof w[k] === "object" && !Array.isArray(w[k])
     ? Object.keys(w[k]).sort().map((j) => [j, typeof w[k][j] === "object" ? Object.keys(w[k][j]).sort() : typeof w[k][j]]) : typeof w[k]]));
   assert.equal(shape(boxWords("de")), shape(boxWords("en")));
   for (const other of [undefined, "", "en", "fr", "constructor", "__proto__"]) assert.equal(boxWords(other), boxWords("en"));
   assert.equal(boxWords("de-DE"), boxWords("de"));
-  // (presenter.js calls these with no language)
+  // (the presenter window's panel calls these with the deck's language; without one: English)
   assert.equal(codeWords({ engine: "sql" }).many, "queries");
   assert.equal(codeWords({ engine: "turtle" }).one, "text");
   assert.equal(codeWords({ engine: "turtle" }, "de").one, "Text");

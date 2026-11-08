@@ -7,14 +7,20 @@
 // browser, nothing to install.
 //
 //   uploadButton(el, auth, (message) => showDecks(false, message));   // the list again, with the outcome
+//
+// It speaks the page's language (i18n.js pageTexts: a list of decks, the browser's), the server's
+// refusal by its code (errorText).
 
+import { errorText, pageLanguage, pageTexts } from "/static/i18n/i18n.js";
 import { authHeaders } from "/static/shared/client.js";
 
 export function uploadButton(el, auth, done) {
-  el.innerHTML = `<input type="file" accept=".zip" hidden>
-    <button class="secondary" title="the deck's .bundle.zip - texstage build writes it next to the PowerPoint file">Upload a deck</button>`;
+  const U = pageTexts().upload;
+  el.innerHTML = `<input type="file" accept=".zip" hidden><button class="secondary"></button>`;
   const input = el.querySelector("input");
   const button = el.querySelector("button");
+  button.title = U.title;
+  button.textContent = U.button;
   button.onclick = () => input.click();
   input.onchange = () => { if (input.files[0]) send(input.files[0]); };
   const page = el.closest(".page");
@@ -36,17 +42,18 @@ export function uploadButton(el, auth, done) {
 
   async function send(file) {
     button.disabled = true;
-    button.textContent = `Uploading ${file.name} (${(file.size / 1e6).toFixed(1)} MB) ...`;
+    const size = new Intl.NumberFormat(pageTexts().meta.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      .format(file.size / 1e6);
+    button.textContent = U.uploading(file.name, size);
     let message;
     try {
       const r = await fetch("/api/bundles", { method: "POST", body: file,
         headers: { ...authHeaders(auth), "Content-Type": "application/zip" } });
       const info = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(info.error || `the server answered ${r.status}`);
-      message = info.new ? `${info.name}: uploaded (${info.quizzes} quizzes, ${info.slides} slides)`
-        : `${info.name}: the server has it already`;
+      if (!r.ok) throw Object.assign(new Error(info.error || `HTTP ${r.status}`), { code: info.code });
+      message = info.new ? U.uploaded(info.name, info.quizzes, info.slides) : U.known(info.name);
     } catch (err) {
-      message = `${file.name} was not uploaded: ${err.message || err}`;
+      message = U.failed(file.name, errorText(pageLanguage(), err));
     }
     done(message);
   }

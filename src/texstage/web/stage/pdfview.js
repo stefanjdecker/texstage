@@ -23,8 +23,13 @@ export class PdfDeck {
   static async open(bundle, auth) {
     const r = await fetch(`/api/deck/${bundle}/pdf`, { headers: authHeaders(auth) });
     if (!r.ok) {
-      throw new Error(r.status === 404 ? "This build has no stage PDF: build the deck again (texstage build, without --no-stage)."
-        : `${r.status} ${await r.text()}`);
+      // the server's refusal by its code, for the window to say in its language (i18n.js errorText):
+      // a build without its stage PDF ("no-stage-pdf", also any 404 of an older server), no such deck
+      const body = await r.text().catch(() => "");
+      let info = null;
+      try { info = JSON.parse(body); } catch { /* a text */ }
+      throw Object.assign(new Error(info?.error || `${r.status} ${body}`.trim()),
+        { code: info?.code || (r.status === 404 ? "no-stage-pdf" : undefined) });
     }
     const data = new Uint8Array(await r.arrayBuffer());
     return new PdfDeck(await pdfjs.getDocument({ data, isEvalSupported: false }).promise);

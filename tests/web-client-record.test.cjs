@@ -10,6 +10,8 @@ const { webcrypto } = require('node:crypto');
 
 const web = path.join(__dirname, '../src/texstage/web');
 const source = (file) => fs.readFileSync(path.join(web, file), 'utf8');
+// the presenter window's texts, as presenter.js has them (an ES module: require(esm), Node 22.12+)
+const { texts } = require('../src/texstage/web/i18n/i18n.js');
 function moduleIn(context, file, names) {
   const code = source(file).replace(/^import .*$/gm, '').replace(/^export /gm, '');
   vm.runInContext(code + `\nObject.assign(globalThis, {${names.join(',')}});`, context);
@@ -171,7 +173,7 @@ function dialogContext() {
   let starts = 0;
   Object.assign(context, {
     document: {createElement: () => el, body: {append() {}}}, setInterval() { return 1; }, clearInterval() {},
-    rec: null, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key',
+    rec: null, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key', T: texts('en'),
     esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {}, pickScreen: () => screen.promise,
   });
   // Keep actual Recording.start: replacing only its side effects tells us whether it ran.

@@ -822,7 +822,7 @@ class Engine:
             raise GameError("invalid", "after: the number of the frame the page follows")
         boards = s.stage.setdefault("boards", [])
         if len(boards) >= BOARDS_MAX:
-            raise GameError("invalid", f"at most {BOARDS_MAX} whiteboard pages")
+            raise GameError("too-many-boards", f"at most {BOARDS_MAX} whiteboard pages")
         board = secrets.token_hex(4)
         boards.append({"id": board, "after": after, "kind": kind})
         s.last_active = now
@@ -947,11 +947,11 @@ class Engine:
         round starts, the phones show it, the projector shows its poll slide. Its id."""
         s = self.session(sid)
         if len(s.polls) >= POLLS_MAX:
-            raise GameError("invalid", f"at most {POLLS_MAX} polls in a game")
+            raise GameError("too-many-polls", f"at most {POLLS_MAX} polls in a game")
         try:
-            public, keys = make_poll(spec)
+            public, keys = make_poll(spec, self.bundle(s).language)
         except PollError as err:
-            raise GameError("invalid", str(err)) from None
+            raise GameError(err.code, str(err)) from None
         taken = set(self.quizzes(s))
         n = len(s.polls) + 1
         while f"poll-{n}" in taken:
@@ -1098,9 +1098,9 @@ class Engine:
         p, s = self._asker(pid)
         q = self._question(s, question)
         if q.player == pid:
-            raise GameError("invalid", "not for your own question")
+            raise GameError("qa-own", "not for your own question")
         if q.state != "open":
-            raise GameError("invalid", "this question is answered")
+            raise GameError("qa-answered", "this question is answered")
         if bool(on) == (pid in q.votes):
             return False
         if on:
@@ -1310,6 +1310,7 @@ class Engine:
         players = self._standings(s)
         return {
             "session": {"id": s.id, "pin": s.pin, "deck": s.deck, "name": b.name, "bundle": s.bundle,
+                        "language": b.language,
                         "base": f"/bundle/{s.bundle}/", "slide": s.slide, "finished": s.finished is not None,
                         "current": s.rounds[s.current].quiz if s.current else None,
                         "preparing": self._preparing(s, now),
@@ -1396,6 +1397,7 @@ class Engine:
         b = self.bundle(s)
         view = {
             "session": {"pin": s.pin, "name": b.name, "base": f"/bundle/{s.bundle}/",
+                        "language": b.language,                       # what the phone speaks (play.js)
                         "finished": s.finished is not None},
             "me": {"id": p.id, "nickname": p.nickname, "score": p.score, "rank": p.rank,
                    "players": len(s.active_players()), "streak": p.streak},

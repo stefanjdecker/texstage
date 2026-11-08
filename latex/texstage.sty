@@ -15,6 +15,8 @@
 %%  * Log marks for the build's checks: texquiz-check: page <n>, note, <kind> <id>.
 %%  * \texquiznotes (defined by the build): the present compile's notes, typeset for their
 %%    text, or (stage) the deck's own note pages, each a page of its own, for the presenter.
+%%  * The deck's language (de or en) and the slides' texts of texstage's packages in it:
+%%    \texstage_texts:nnn, \texstage_text:nn (section "language" below).
 \NeedsTeXFormat{LaTeX2e}[2023-06-01]
 \ProvidesExplPackage{texstage}{2026-10-10}{0.2.0}{The core of live content in Beamer decks}
 \RequirePackage{pdftexcmds}
@@ -53,6 +55,57 @@
   }
 \prg_new_conditional:Npnn \texstage_if_mode:n #1 { T , F , TF }
   { \str_if_eq:VnTF \g_texstage_mode_str {#1} { \prg_return_true: } { \prg_return_false: } }
+
+% ---------------------------------------------------------------- language
+% The deck's language: babel's (or polyglossia's) main one - \languagename when the document
+% begins, as the D record names it (english without either: the format's) - as the BCP 47 tag of
+% a language texstage speaks: de, else en (the build's language_tag in build/bundle.py, whose
+% LANGUAGES has the same babel names). The live views, the phones and the windows speak it
+% (src/texstage/web/i18n), and the slides' texts of texstage's packages are in it: a package
+% gives its texts per language,
+%   \texstage_texts:nnn { texquiz } { de } { join-title = Mitmachen , ... }
+% and \texstage_text:nn { texquiz } { join-title } is the one of the deck's language (English's
+% where that has none) - expandable, the text itself not expanded. Another language: its babel
+% names here and in build/bundle.py, and its texts in each package.
+\tl_new:N \g_texstage_language_tl
+\tl_gset:Nn \g_texstage_language_tl { en }
+\clist_const:Nn \c__texstage_de_names_clist
+  { de , german , ngerman , germanb , ngermanb , austrian , naustrian , swissgerman , nswissgerman }
+\str_new:N \l__texstage_language_str
+\seq_new:N \l__texstage_language_seq
+\cs_generate_variant:Nn \seq_set_split:Nnn { NnV }
+\cs_generate_variant:Nn \prop_gput_from_keyval:Nn { c }
+\cs_generate_variant:Nn \tl_gset:Nn { ce }
+\cs_new_protected:Npn \__texstage_set_language:
+  {
+    % ngerman, de-AT, german-austria: by its first part, in lower case
+    \str_set:Ne \l__texstage_language_str { \cs_if_exist_use:N \languagename }
+    \str_set:Ne \l__texstage_language_str { \str_lowercase:f { \l__texstage_language_str } }
+    \seq_set_split:NnV \l__texstage_language_seq { - } \l__texstage_language_str
+    \str_set:Ne \l__texstage_language_str { \seq_item:Nn \l__texstage_language_seq { 1 } }
+    \tl_gset:Nn \g_texstage_language_tl { en }
+    \clist_map_inline:Nn \c__texstage_de_names_clist
+      { \str_if_eq:VnT \l__texstage_language_str {##1} { \tl_gset:Nn \g_texstage_language_tl { de } } }
+  }
+\AtBeginDocument { \__texstage_set_language: }
+\cs_new_protected:Npn \texstage_texts:nnn #1#2#3
+  {
+    \prop_if_exist:cF { g__texstage_texts_#1_#2_prop } { \prop_new:c { g__texstage_texts_#1_#2_prop } }
+    \prop_gput_from_keyval:cn { g__texstage_texts_#1_#2_prop } {#3}
+  }
+\cs_new:Npn \texstage_text:nn #1#2
+  { \__texstage_text:nnV {#1} {#2} \g_texstage_language_tl }
+\cs_new:Npn \__texstage_text:nnn #1#2#3
+  {
+    \bool_lazy_and:nnTF
+      { \prop_if_exist_p:c { g__texstage_texts_#1_#3_prop } }
+      { \prop_if_in_p:cn { g__texstage_texts_#1_#3_prop } {#2} }
+      { \prop_item:cn { g__texstage_texts_#1_#3_prop } {#2} }
+      { \prop_item:cn { g__texstage_texts_#1_en_prop } {#2} }
+  }
+\cs_generate_variant:Nn \__texstage_text:nnn { nnV }
+% (the LaTeX2e name, for a package's \providecommand: \texstage@text{texactivity}{label})
+\cs_new:Npn \texstage@text #1#2 { \texstage_text:nn {#1} {#2} }
 \texstage_if_mode:nT { present }
   {
     \sys_if_engine_xetex:T { \msg_error:nn { texstage } { engine } }
@@ -187,7 +240,8 @@
 
 % The deck's language is babel's main language - or polyglossia's -, the one \languagename names
 % when the document begins (english without either: the format's); the build makes it deck.json's
-% "language" (ngerman: de), and the presenter and projector windows speak it.
+% "language" (ngerman: de), and the live views, the phones and texstage's windows speak it - as
+% the slides' texts do (section "language" above).
 \texstage_if_mode:nT { present }
   {
     \AtBeginDocument

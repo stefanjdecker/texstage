@@ -90,7 +90,7 @@ export class Client {
     else if (m.t === "bye") {
       this.loginMsg = null;
       this.ready = false;
-      this.rejectPending({ code: m.reason || "closed", message: m.message || "the session ended" });
+      this.rejectPending({ code: m.reason || "ended", message: m.message || "the session ended" });
       this.handlers.onBye(m);
     } else if (m.t === "error" && (m.re === undefined || m.re === null)) console.warn("texquiz:", m.message);
     else if (m.t !== "ok" && m.t !== "error" && m.t !== "pong") this.handlers.onEvent(m);
@@ -144,7 +144,7 @@ export class Client {
     const ws = this.ws;
     this.ws = null;
     ws?.close();
-    this.rejectPending({ code: "closed", message: "the connection was closed" });
+    this.rejectPending({ code: "disconnected", message: "the connection was closed" });
   }
 
   rejectPending(error) {
@@ -159,9 +159,15 @@ export function authHeaders(auth) {
   return auth && typeof auth === "object" ? { "X-Texquiz-Device": auth.device } : { "X-Texquiz-Key": auth };
 }
 
-// GET with the presenter key (host pages) or a device's token
+// GET with the presenter key (host pages) or a device's token. A refusal throws an Error as
+// web/i18n's errorText takes it: the API's code and words (its JSON), and the HTTP status.
 export async function hostFetch(path, auth) {
   const r = await fetch(path, { headers: authHeaders(auth) });
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  if (!r.ok) {
+    const body = await r.text();
+    let info = null;
+    try { info = JSON.parse(body); } catch { /* not JSON: a proxy's page */ }
+    throw Object.assign(new Error(info?.error || `${r.status} ${body}`.trim()), { status: r.status, code: info?.code });
+  }
   return r;
 }

@@ -126,50 +126,100 @@
 \tl_gset:Nn \g__tq_default_reveal_tl { slide }
 \tl_new:N \g__tq_reveal_tl
 \bool_new:N \g__tq_title_given_bool
-\tl_new:N \g__tq_default_title_tl
-\tl_gset:Nn \g__tq_default_title_tl { Quiz }
-\tl_new:N \g__tq_join_title_tl
-\tl_gset:Nn \g__tq_join_title_tl { Join~the~quiz }
 \tl_new:N \g__tq_join_url_tl
-\tl_new:N \g__tq_join_text_tl
-\tl_gset:Nn \g__tq_join_text_tl
-  { During~the~lecture,~join~with~your~phone~using~the~PIN~shown~on~this~slide. }
-\tl_new:N \g__tq_leaderboard_title_tl
-\tl_gset:Nn \g__tq_leaderboard_title_tl { Leaderboard }
-\tl_new:N \g__tq_podium_title_tl
-\tl_gset:Nn \g__tq_podium_title_tl { Final~standings }
-\tl_new:N \g__tq_handout_heading_tl
-\tl_gset:Nn \g__tq_handout_heading_tl { Live~quiz }
-\tl_new:N \g__tq_handout_text_tl
-\tl_gset:Nn \g__tq_handout_text_tl { This~question~is~asked~live~in~the~lecture. }
-\tl_new:N \g__tq_results_text_tl
-\tl_gset:Nn \g__tq_results_text_tl { The~results~are~shown~live~in~the~lecture. }
-\tl_new:N \g__tq_true_tl
-\tl_gset:Nn \g__tq_true_tl { True }
-\tl_new:N \g__tq_false_tl
-\tl_gset:Nn \g__tq_false_tl { False }
-\tl_new:N \g__tq_number_hint_tl
-\tl_gset:Nn \g__tq_number_hint_tl { Enter~a~number~on~your~phone. }
-\tl_new:N \g__tq_multiple_hint_tl
-\tl_gset:Nn \g__tq_multiple_hint_tl { Several~answers~can~be~correct. }
-\tl_new:N \g__tq_poll_hint_tl                       % a poll with several answers: none is right
-\tl_gset:Nn \g__tq_poll_hint_tl { Tick~all~that~apply. }
-\tl_new:N \g__tq_text_hint_tl
-\tl_gset:Nn \g__tq_text_hint_tl { Type~your~answer~on~your~phone. }
-\tl_new:N \g__tq_order_hint_tl
-\tl_gset:Nn \g__tq_order_hint_tl { Put~the~items~in~the~right~order~on~your~phone. }
-\tl_new:N \g__tq_sketch_hint_tl
-\tl_gset:Nn \g__tq_sketch_hint_tl { Draw~your~answer~on~your~phone. }
-\tl_new:N \g__tq_answer_label_tl
-\tl_gset:Nn \g__tq_answer_label_tl { Answer: }
-\tl_new:N \g__tq_accepted_label_tl
-\tl_gset:Nn \g__tq_accepted_label_tl { Accepted~answers: }
-\tl_new:N \g__tq_answer_title_tl
-\tl_gset:Nn \g__tq_answer_title_tl { Answer }
-\tl_new:N \g__tq_answer_heading_tl
-\tl_gset:Nn \g__tq_answer_heading_tl { Answer }
-\tl_new:N \g__tq_answer_text_tl
-\tl_gset:Nn \g__tq_answer_text_tl { The~answer~is~shown~in~the~lecture. }
+% The slides' texts - \quizsetup's text keys -, each in its variable, in the deck's language
+% (texstage.sty: section "language"): English or German, unless \quizsetup gives one (a course
+% theme, the author) - in the preamble or later. They are set when the document begins.
+\prop_const_from_keyval:Nn \c__tq_texts_prop
+  {
+    title = g__tq_default_title_tl ,
+    join-title = g__tq_join_title_tl ,
+    join-text = g__tq_join_text_tl ,
+    leaderboard-title = g__tq_leaderboard_title_tl ,
+    podium-title = g__tq_podium_title_tl ,
+    handout-heading = g__tq_handout_heading_tl ,
+    handout-text = g__tq_handout_text_tl ,
+    results-text = g__tq_results_text_tl ,
+    true-label = g__tq_true_tl ,
+    false-label = g__tq_false_tl ,
+    number-hint = g__tq_number_hint_tl ,
+    text-hint = g__tq_text_hint_tl ,
+    multiple-hint = g__tq_multiple_hint_tl ,
+    poll-hint = g__tq_poll_hint_tl ,                    % a poll with several answers: none is right
+    order-hint = g__tq_order_hint_tl ,
+    sketch-hint = g__tq_sketch_hint_tl ,
+    answer-label = g__tq_answer_label_tl ,
+    accepted-label = g__tq_accepted_label_tl ,
+    answer-title = g__tq_answer_title_tl ,
+    answer-heading = g__tq_answer_heading_tl ,
+    answer-text = g__tq_answer_text_tl ,
+  }
+\prop_map_inline:Nn \c__tq_texts_prop { \tl_new:c {#2} }
+\texstage_texts:nnn { texquiz } { en }
+  {
+    title = Quiz ,
+    join-title = Join~the~quiz ,
+    join-text = { During~the~lecture,~join~with~your~phone~using~the~PIN~shown~on~this~slide. } ,
+    leaderboard-title = Leaderboard ,
+    podium-title = Final~standings ,
+    handout-heading = Live~quiz ,
+    handout-text = This~question~is~asked~live~in~the~lecture. ,
+    results-text = The~results~are~shown~live~in~the~lecture. ,
+    true-label = True ,
+    false-label = False ,
+    number-hint = Enter~a~number~on~your~phone. ,
+    text-hint = Type~your~answer~on~your~phone. ,
+    multiple-hint = Several~answers~can~be~correct. ,
+    poll-hint = Tick~all~that~apply. ,
+    order-hint = Put~the~items~in~the~right~order~on~your~phone. ,
+    sketch-hint = Draw~your~answer~on~your~phone. ,
+    answer-label = Answer: ,
+    accepted-label = Accepted~answers: ,
+    answer-title = Answer ,
+    answer-heading = Answer ,
+    answer-text = The~answer~is~shown~in~the~lecture. ,
+  }
+\texstage_texts:nnn { texquiz } { de }
+  {
+    title = Quiz ,
+    join-title = Mitmachen ,
+    join-text = In~der~Vorlesung:~mit~dem~Handy~und~der~PIN~auf~dieser~Folie~teilnehmen. ,
+    leaderboard-title = Bestenliste ,
+    podium-title = Endstand ,
+    handout-heading = Live-Quiz ,
+    handout-text = Diese~Frage~wird~live~in~der~Vorlesung~gestellt. ,
+    results-text = Die~Ergebnisse~werden~live~in~der~Vorlesung~gezeigt. ,
+    true-label = Wahr ,
+    false-label = Falsch ,
+    number-hint = Geben~Sie~auf~Ihrem~Handy~eine~Zahl~ein. ,
+    text-hint = Tippen~Sie~Ihre~Antwort~auf~dem~Handy~ein. ,
+    multiple-hint = Mehrere~Antworten~können~richtig~sein. ,
+    poll-hint = Kreuzen~Sie~alles~Zutreffende~an. ,
+    order-hint = Bringen~Sie~die~Elemente~auf~dem~Handy~in~die~richtige~Reihenfolge. ,
+    sketch-hint = Zeichnen~Sie~Ihre~Antwort~auf~dem~Handy. ,
+    answer-label = Antwort: ,
+    accepted-label = Akzeptierte~Antworten: ,
+    answer-title = Antwort ,
+    answer-heading = Antwort ,
+    answer-text = Die~Antwort~gibt~es~in~der~Vorlesung. ,
+  }
+\seq_new:N \g__tq_texts_given_seq                  % the text keys \quizsetup set
+\str_new:N \l__tq_text_key_str
+\cs_new_protected:Npn \__tq_text_set:nn #1#2
+  {
+    \tl_gset:cn { \prop_item:Nn \c__tq_texts_prop {#1} } {#2}
+    \str_set:Nn \l__tq_text_key_str {#1}
+    \seq_gput_right:NV \g__tq_texts_given_seq \l__tq_text_key_str
+  }
+\AtBeginDocument
+  {
+    \prop_map_inline:Nn \c__tq_texts_prop
+      {
+        \str_set:Nn \l__tq_text_key_str {#1}
+        \seq_if_in:NVF \g__tq_texts_given_seq \l__tq_text_key_str
+          { \tl_gset:ce {#2} { \texstage_text:nn { texquiz } {#1} } }
+      }
+  }
 % for the LaTeX2e part (answer frames)
 \cs_new:Npn \texquiz@answertitle { \g__tq_answer_title_tl }
 \cs_new:Npn \texquiz@answerheading { \g__tq_answer_heading_tl }
@@ -208,28 +258,29 @@
     shuffle .bool_gset:N = \g__tq_default_shuffle_bool ,
     reveal .choices:nn = { slide , none }
       { \tl_gset:Ne \g__tq_default_reveal_tl { \l_keys_choice_tl } } ,
-    title .tl_gset:N = \g__tq_default_title_tl ,
-    join-title .tl_gset:N = \g__tq_join_title_tl ,
     join-url .tl_gset:N = \g__tq_join_url_tl ,
-    join-text .tl_gset:N = \g__tq_join_text_tl ,
-    leaderboard-title .tl_gset:N = \g__tq_leaderboard_title_tl ,
-    podium-title .tl_gset:N = \g__tq_podium_title_tl ,
-    handout-heading .tl_gset:N = \g__tq_handout_heading_tl ,
-    handout-text .tl_gset:N = \g__tq_handout_text_tl ,
-    results-text .tl_gset:N = \g__tq_results_text_tl ,
-    true-label .tl_gset:N = \g__tq_true_tl ,
-    false-label .tl_gset:N = \g__tq_false_tl ,
-    number-hint .tl_gset:N = \g__tq_number_hint_tl ,
-    text-hint .tl_gset:N = \g__tq_text_hint_tl ,
-    multiple-hint .tl_gset:N = \g__tq_multiple_hint_tl ,
-    poll-hint .tl_gset:N = \g__tq_poll_hint_tl ,
-    order-hint .tl_gset:N = \g__tq_order_hint_tl ,
-    sketch-hint .tl_gset:N = \g__tq_sketch_hint_tl ,
-    answer-label .tl_gset:N = \g__tq_answer_label_tl ,
-    accepted-label .tl_gset:N = \g__tq_accepted_label_tl ,
-    answer-title .tl_gset:N = \g__tq_answer_title_tl ,
-    answer-heading .tl_gset:N = \g__tq_answer_heading_tl ,
-    answer-text .tl_gset:N = \g__tq_answer_text_tl ,
+    % the texts (\c__tq_texts_prop): kept over the deck's language's
+    title .code:n = \__tq_text_set:nn { title } {#1} ,
+    join-title .code:n = \__tq_text_set:nn { join-title } {#1} ,
+    join-text .code:n = \__tq_text_set:nn { join-text } {#1} ,
+    leaderboard-title .code:n = \__tq_text_set:nn { leaderboard-title } {#1} ,
+    podium-title .code:n = \__tq_text_set:nn { podium-title } {#1} ,
+    handout-heading .code:n = \__tq_text_set:nn { handout-heading } {#1} ,
+    handout-text .code:n = \__tq_text_set:nn { handout-text } {#1} ,
+    results-text .code:n = \__tq_text_set:nn { results-text } {#1} ,
+    true-label .code:n = \__tq_text_set:nn { true-label } {#1} ,
+    false-label .code:n = \__tq_text_set:nn { false-label } {#1} ,
+    number-hint .code:n = \__tq_text_set:nn { number-hint } {#1} ,
+    text-hint .code:n = \__tq_text_set:nn { text-hint } {#1} ,
+    multiple-hint .code:n = \__tq_text_set:nn { multiple-hint } {#1} ,
+    poll-hint .code:n = \__tq_text_set:nn { poll-hint } {#1} ,
+    order-hint .code:n = \__tq_text_set:nn { order-hint } {#1} ,
+    sketch-hint .code:n = \__tq_text_set:nn { sketch-hint } {#1} ,
+    answer-label .code:n = \__tq_text_set:nn { answer-label } {#1} ,
+    accepted-label .code:n = \__tq_text_set:nn { accepted-label } {#1} ,
+    answer-title .code:n = \__tq_text_set:nn { answer-title } {#1} ,
+    answer-heading .code:n = \__tq_text_set:nn { answer-heading } {#1} ,
+    answer-text .code:n = \__tq_text_set:nn { answer-text } {#1} ,
     unknown .code:n =
       \__tq_general_error:n { Unknown~\iow_char:N\\quizsetup~key~'\l_keys_key_str'. }
   }

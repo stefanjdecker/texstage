@@ -10,7 +10,10 @@
 //   start(wasm)             Oxigraph, as the SPARQL engine starts it
 //   load(ox, seed)          the seed's @base and @prefix lines, which a text may use without
 //                           declaring them; the seed's triples are no part of anybody's graph
-//   evaluate(state, text)   -> {status: ok | syntax | error, error?, canonical?, rows?, summary?}
+//   evaluate(state, text, language)
+//                           -> {status: ok | syntax | error, error?, canonical?, rows?, summary?}
+//                              (error: where and why, in the deck's language - i18n's "engines" -,
+//                              Oxigraph's words after it)
 //
 // Turtle only - the parser of text/turtle (RDF 1.2's Turtle, as Oxigraph reads it), no TriG, no
 // JSON-LD. The same graph, the same canonical form: the SPARQL engine's for a CONSTRUCT's graph,
@@ -21,6 +24,7 @@
 // store are Oxigraph's values, section 8.7). A phone keyboard's typographic quotes - “Berlin”,
 // „Berlin“ - count as Turtle's, as the crowd graph takes them (server/activity.py, clean_term).
 
+import { texts } from "../i18n/i18n.js";
 import { bounded, cut, ROWS } from "./common.js";
 import { namespaces, prologue, rdfjsTerm, shorten, start } from "./sparql.js";
 
@@ -93,21 +97,22 @@ function show(state, t, blanks, predicate = false) {
 // columns 1 and 11: ...", "Parser error between line 3 column 7 and line 4 column 11: ..."
 const AT = /^Parser error (?:at line (\d+) (?:column (\d+)|between columns (\d+) and \d+)|between line (\d+) column (\d+) and line \d+ column \d+): (.*)$/;
 
-function failure(e, shift) {
+function failure(e, shift, W) {
   const text = String(e?.message ?? e).split("\n")[0];
   const at = AT.exec(text);
   if (!at) return { status: /^Parser error/.test(text) ? "syntax" : "error", error: text };
   const line = Math.max(1, Number(at[1] ?? at[4]) - shift);     // the student's line: the seed's are in front
-  return { status: "syntax", error: `line ${line}, column ${at[2] ?? at[3] ?? at[5]}: ${at[6]}` };
+  return { status: "syntax", error: W.at(line, at[2] ?? at[3] ?? at[5], at[6]) };
 }
 
-export function evaluate(state, text) {
+export function evaluate(state, text, language) {
+  const W = texts(language).engines;
   const { turtle, shift } = completed(state, text.replace(DOUBLE_QUOTES, '"').replace(SINGLE_QUOTES, "'"));
   let quads;
   try {
     quads = state.ox.parse(turtle, TURTLE);
   } catch (e) {
-    return failure(e, shift);
+    return failure(e, shift, W);
   }
   const seen = new Set();
   const triples = [];                                  // the graph, a set: in the order written, each once
@@ -118,8 +123,8 @@ export function evaluate(state, text) {
       triples.push(q);
     }
   }
-  if (!triples.length) return { status: "syntax", error: "no triples" };
-  if (triples.length > MAX_TRIPLES) return { status: "error", error: `more than ${MAX_TRIPLES} triples` };
+  if (!triples.length) return { status: "syntax", error: W.noTriples };
+  if (triples.length > MAX_TRIPLES) return { status: "error", error: W.tooManyTriples(MAX_TRIPLES) };
   const rows = triples.map((q) => `${rdfjsTerm(q.subject)} ${rdfjsTerm(q.predicate)} ${rdfjsTerm(q.object)}`).sort();
   const blanks = new Map();
   return { status: "ok", canonical: `graph\n${rows.join("\n")}`, rows,

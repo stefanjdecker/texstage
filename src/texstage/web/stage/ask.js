@@ -8,10 +8,16 @@
 //   await tell("A number of minutes, please.");
 //   const text = await askText("Target duration in minutes", "45");  // null: cancelled
 //   notice("All ink of this frame erased - ↶ or Ctrl+Z brings it back");  // fades by itself
+//
+// The texts are the caller's; the buttons a question does not name are OK and Cancel in the
+// page's language (i18n.js pageTexts: the open deck's, else the browser's).
+
+import { pageTexts } from "../i18n/i18n.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const words = () => pageTexts().dialog;
 
-function open(text, { yes = "OK", no = null, field = null } = {}) {
+function open(text, { yes = words().ok, no = null, field = null } = {}) {
   return new Promise((resolve) => {
     const before = document.activeElement;
     const el = document.createElement("div");
@@ -44,9 +50,9 @@ function open(text, { yes = "OK", no = null, field = null } = {}) {
   });
 }
 
-export const ask = (text, yes = "OK", no = "Cancel") => open(text, { yes, no });
+export const ask = (text, yes = words().ok, no = words().cancel) => open(text, { yes, no });
 export const tell = (text) => open(text);
-export const askText = (text, value = "", yes = "OK") => open(text, { yes, no: "Cancel", field: value });
+export const askText = (text, value = "", yes = words().ok) => open(text, { yes, no: words().cancel, field: value });
 
 export function notice(text) {
   let el = document.querySelector(".hint.note");

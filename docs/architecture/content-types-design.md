@@ -274,11 +274,17 @@ The core keeps a registry of the types and calls each one at these points:
   slide in the lecture.
 - `language` (since 2026-10-24) is the deck's, a BCP 47 tag: babel's main language as the present
   compile records it (`\languagename` in the `D` record - `ngerman` gives `de`; build/bundle.py,
-  `language_tag`). The live views on the slides speak it - the quiz's (`web/shared/live.js`,
-  `LANGUAGES`) and the types' boxes, which `Stage` gives it (`web/stage/activity.js`, `WORDS`):
-  German for a German deck, else English, also without the key (a deck built before). The phones
-  keep their own language (`navigator.language`); the presenter window's bars and panels stay
-  English.
+  `language_tag`). Everything the deck's audience and lecturer read speaks it, from the catalogs
+  in `web/i18n/` (`i18n.js`: `texts`, `errorText`): the live views on the slides - the quiz's
+  (`web/shared/live.js`) and the types' boxes, which `Stage` gives it (`web/stage/activity.js`) -,
+  the phones (the server's views name it: `session.language`; the join slide's address and QR
+  code too, `?lang=de`, so that the join form speaks it before the phone has joined), the
+  presenter, projector and host windows and the add-in, the polls typed in the lecture
+  (`server/polls.py`) and the slides' own texts (`latex/texstage.sty`, section "language"):
+  German for a German deck, else English, also without the key (a deck built before). A page
+  without a deck - the decks list, pairing a device, a phone's join form without `?lang=` -
+  speaks the browser's language. The server's refusals carry a code (the WebSocket's `error`,
+  the HTTP API's `code`), which the windows and phones say in their language.
 - `keys.json` becomes `{"format": 2, "deck": ..., "items": {"quiz": {...}}}`.
 - Format 1 stays readable: the server reads a format-1 slide's `phase`, `quiz`, `rects` as one
   `live` box of type quiz, and `quizzes` as `items.quiz` - every PPTX and bundle built so far

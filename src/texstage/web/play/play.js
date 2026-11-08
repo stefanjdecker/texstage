@@ -13,47 +13,19 @@
 // the lecturer takes questions, a second tab asks and upvotes them - its list comes with the
 // states only while the tab is open (qa.watch).
 
+import { browserLanguage, errorText, languageOf, markLanguage, supported, texts } from "/static/i18n/i18n.js";
 import { ActivityScreen } from "/static/play/activity.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
 import { PENS, SketchPad, sketchSVG } from "/static/shared/sketch.js";
 import { textHTML } from "/static/shared/text.js";
 
-const GERMAN = (navigator.language || "en").toLowerCase().startsWith("de");
-document.documentElement.lang = GERMAN ? "de" : "en";
-const T = GERMAN ? {
-  pin: "Spiel-PIN", nick: "Dein Spitzname", join: "Mitspielen", in: "Du bist dabei!", watch: "Schau nach vorne – gleich geht es los.",
-  ready: "Gleich geht's los!", send: "Abschicken", sent: "Antwort abgeschickt", waitOthers: "Warte auf die anderen …",
-  timesUp: "Die Zeit ist um", noAnswer: "Keine Antwort", correct: "Richtig!", wrong: "Leider falsch", partly: "Teilweise richtig",
-  thanks: "Danke!", points: "Punkte", streak: "Serie", rank: (r, n) => `Platz ${r} von ${n}`, paused: "Pausiert",
-  finished: "Spielende", yourRank: "Dein Platz", again: "Neu beitreten", gameOver: "Dieses Spiel ist vorbei.",
-  kicked: "Du wurdest aus dem Spiel entfernt.", offline: "Verbindung wird wiederhergestellt …", typeHere: "Deine Antwort",
-  several: "Mehrere Antworten können richtig sein", tickAll: "Alles Zutreffende ankreuzen",
-  orderHint: "In die richtige Reihenfolge bringen", practice: "Übungsrunde – ohne Punkte",
-  answerWas: "Richtige Antwort", up: "nach oben", down: "nach unten", bonus: "Serienbonus",
-  answer: "Antwort", questionPicture: "Die Frage, wie vorne gezeigt",
-  waitReveal: "Gleich kommt die Auflösung …", reading: "Lies die Frage – gleich kommen die Antworten.",
-  draw: "Zeichne mit dem Finger.", undo: "Rückgängig", clear: "Löschen", pens: ["Schwarz", "Rot", "Blau", "Grün"],
-  tooMuch: "Zu viel gezeichnet – nimm ein paar Striche zurück.", quizTab: "Quiz", qaTab: "Fragen",
-  ask: "Stell eine Frage – anonym.", yourQuestion: "Deine Frage", askSend: "Fragen", noQuestions: "Noch keine Fragen.",
-  yours: "deine", answered: "beantwortet", upvote: "Diese Frage unterstützen", asked: "Deine Frage ist da.",
-} : {
-  pin: "Game PIN", nick: "Your nickname", join: "Join", in: "You're in!", watch: "Watch the screen – it starts soon.",
-  ready: "Get ready!", send: "Submit", sent: "Answer sent", waitOthers: "Waiting for the others …",
-  timesUp: "Time's up", noAnswer: "No answer", correct: "Correct!", wrong: "Not quite", partly: "Partly right",
-  thanks: "Thanks!", points: "points", streak: "streak", rank: (r, n) => `Rank ${r} of ${n}`, paused: "Paused",
-  finished: "Game over", yourRank: "Your rank", again: "Join again", gameOver: "This game is over.",
-  kicked: "You have been removed from the game.", offline: "Reconnecting …", typeHere: "Your answer",
-  several: "Several answers can be correct", tickAll: "Tick all that apply",
-  orderHint: "Put them in the right order", practice: "Practice round – no points",
-  answerWas: "Right answer", up: "up", down: "down", bonus: "streak bonus",
-  answer: "Answer", questionPicture: "The question, as shown at the front",
-  waitReveal: "The answer comes next …", reading: "Read the question – the answers come next.",
-  draw: "Draw with your finger.", undo: "Undo", clear: "Clear", pens: ["black", "red", "blue", "green"],
-  tooMuch: "Too much drawn – undo a few strokes.", quizTab: "Quiz", qaTab: "Questions",
-  ask: "Ask a question – anonymously.", yourQuestion: "Your question", askSend: "Ask", noQuestions: "No questions yet.",
-  yours: "yours", answered: "answered", upvote: "Upvote this question", asked: "Your question is in.",
-};
+// The phone speaks its deck's language (i18n.js): the server's player view names it
+// (session.language). Before that - the join form, a reload's spinner - the language the join
+// slide's QR code names (/play?pin=...&lang=de), the one of the game this phone joined last, or
+// the browser's.
+let lang = "";
+let T = null;            // i18n's "phone" in lang
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -77,7 +49,27 @@ const PHONE_TYPES = { activity: ActivityScreen };
 let typeScreen = null;
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } })();
-const urlPin = new URLSearchParams(location.search).get("pin") || "";
+const query = new URLSearchParams(location.search);
+const urlPin = query.get("pin") || "";
+
+function speak(tag) {
+  // the phone's language: its texts, and what is drawn built again in them (screens, tabs, questions)
+  const next = languageOf(tag);
+  if (next === lang) return false;
+  lang = next;
+  T = texts(lang).phone;
+  markLanguage(lang);
+  screenKey = "";
+  listed = "";
+  $("#tabs").innerHTML = "";
+  $("#qa").innerHTML = "";
+  if (tab === "qa") askForm();
+  typeScreen?.destroy();
+  typeScreen = null;
+  return true;
+}
+speak(supported(query.get("lang")) || (!urlPin || urlPin === saved?.pin ? supported(saved?.language) : null)
+  || browserLanguage());
 
 const client = new Client({
   onStatus: (s) => {
@@ -85,7 +77,11 @@ const client = new Client({
     $("#offline").textContent = T.offline;
     if (s === "open" && tab === "qa") client.send({ t: "qa.watch", on: true }).catch(() => {});   // a new connection
   },
-  onState: (m) => { state = m; render(); },
+  onState: (m) => {
+    state = m;
+    if (speak(m.session?.language)) keepLanguage();
+    render();
+  },
   onBye: (m) => {
     forget();
     state = null;
@@ -94,7 +90,14 @@ const client = new Client({
 });
 
 function remember(pin, token, nickname) {
-  try { localStorage.setItem(STORE, JSON.stringify({ pin, token, nickname })); } catch { /* private mode */ }
+  try { localStorage.setItem(STORE, JSON.stringify({ pin, token, nickname, language: lang })); } catch { /* private mode */ }
+}
+function keepLanguage() {
+  // the deck's language with the player: a reload speaks it before the server's state comes
+  try {
+    const kept = JSON.parse(localStorage.getItem(STORE) || "null");
+    if (kept && kept.language !== lang) localStorage.setItem(STORE, JSON.stringify({ ...kept, language: lang }));
+  } catch { /* private mode */ }
 }
 function forget() {
   try { localStorage.removeItem(STORE); } catch { /* ignore */ }
@@ -103,7 +106,7 @@ function forget() {
 // ------------------------------------------------------------------ joining
 if (saved && saved.token && (!urlPin || urlPin === saved.pin)) {
   client.login({ t: "resume", token: saved.token }).catch(() => { forget(); joinForm(); });
-  app.innerHTML = '<div class="center"><div class="spinner"></div></div>';
+  app.innerHTML = `<div class="center"><div class="spinner" role="status" aria-label="${esc(T.connecting)}"></div></div>`;
 } else {
   joinForm();
 }
@@ -132,7 +135,7 @@ function joinForm() {
       client.relogin({ t: "resume", token: w.token });
       joinError = "";
     } catch (err) {
-      joinError = err.message || String(err);
+      joinError = errorText(lang, err);
       $("#err").textContent = joinError;
       button.disabled = false;
     }
@@ -203,7 +206,7 @@ function askForm() {
       $("#askerr").textContent = T.asked;
     } catch (err) {
       $("#askerr").className = "error";
-      $("#askerr").textContent = err.message;
+      $("#askerr").textContent = errorText(lang, err);
       $("#asksend").disabled = false;
     }
   });
@@ -246,7 +249,7 @@ function render() {
       screenKey = k;
       typeScreen?.destroy();
       app.innerHTML = "";
-      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state });
+      typeScreen = new PHONE_TYPES[typed]({ root: app, client, T, state, language: lang });
     }
     typeScreen.update(state);
     progress();
@@ -458,7 +461,7 @@ async function submit(r, answer) {
     if (navigator.vibrate) navigator.vibrate(30);
   } catch (err) {
     const el = $("#err");
-    if (el) el.textContent = err.message;
+    if (el) el.textContent = errorText(lang, err);
     app.querySelectorAll("button").forEach((b) => { b.disabled = false; });
     app.querySelectorAll(".answer").forEach((x) => x.classList.remove("dim"));
   }

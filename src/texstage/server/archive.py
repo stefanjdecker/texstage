@@ -45,11 +45,13 @@ REMUX_S = 3600                          # ffmpeg copies, it does not encode: min
 
 
 class ArchiveError(ValueError):
-    """What the archive does not take; status: the HTTP status to answer with."""
+    """What the archive does not take; status: the HTTP status to answer with, code: the window's
+    (web/i18n: errors) - a recording too large, or a part it does not take."""
 
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
         self.status = status
+        self.code = "recording-too-large" if status == 413 else "recording-part"
 
 
 def folder(data_dir: Path, s, make: bool = True) -> Path:

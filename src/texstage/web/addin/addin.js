@@ -34,7 +34,12 @@
 // slides): the slideshow starts there before the lecture, and it says when all is ready - the
 // game's PIN, the players. A join slide still prepares what is left: a slideshow started
 // later, or a file built before.
+//
+// It speaks the deck's language once its deck.json is there (i18n.js: "addin"; the slide's views
+// are live.js's), before that PowerPoint's (Office.context.displayLanguage) or the browser's; what
+// it reports to the server's log stays English.
 
+import { errorText, pageLanguage, pageTexts, supported, texts, usePageLanguage } from "/static/i18n/i18n.js";
 import { Client, hostFetch } from "/static/shared/client.js";
 import { Stage } from "/static/shared/live.js";
 
@@ -47,6 +52,17 @@ const SHOWN_WAIT_MS = 10000;               // preparing: a slide's add-in has dr
 const me = Math.random().toString(36).slice(2);
 const $ = (sel) => document.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const words = () => pageTexts().addin;      // in the page's language: the deck's, before it PowerPoint's
+const textOf = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : key);   // a phase's name, else itself
+
+function failure(key, ...args) {
+  // a failure the status bar shows in the page's language, and the server's log in English
+  const say = (A) => (typeof A[key] === "function" ? A[key](...args) : A[key]);
+  return Object.assign(new Error(say(texts("en").addin)), { shown: say(words()) });
+}
+
+// why the preparing stopped: at a slide PowerPoint did not go to, or the lecturer moved on
+const stopReason = (A, stopped) => (stopped.moved ? A.movedOn : A.stoppedAt(stopped.slide, stopped.error));
 
 let props = {};
 let key = null;
@@ -82,13 +98,14 @@ addEventListener("unhandledrejection", (e) => report("rejection", String(e.reaso
 
 Office.onReady(() => start().catch((err) => {
   report("start", String(err.message || err));
-  setup(`<span class="bad">${esc(err.message || err)}</span>`);
+  setup(`<span class="bad">${esc(err.shown || err.message || err)}</span>`);
 }));
 
 async function start() {
+  usePageLanguage(supported(Office.context?.displayLanguage));     // (none it speaks: the browser's)
   const settings = Office.context.document.settings;
   for (const k of ["server", "deck", "bundle", "quiz", "phase", "slideId", "key"]) props[k] = settings.get(k);
-  if (!props.bundle || !props.slideId) throw new Error("this object has no texstage properties");
+  if (!props.bundle || !props.slideId) throw failure("noProps");
   // the deck's instances tell each other which slides have been shown (preparing, below)
   channel = new BroadcastChannel(`texquiz:${props.bundle}`);
   channel.addEventListener("message", (e) => {
@@ -123,11 +140,12 @@ async function presenterKey() {
 
 async function loadDeck() {
   if (!key) {
-    status = "not paired with the quiz server";
+    status = words().unpaired;
     return setup(pairForm());
   }
   try {
     deck = await (await hostFetch(`/api/deck/${props.bundle}`, key)).json();
+    usePageLanguage(deck.language || "");        // (a deck built before 2026-10-24 names none: English)
   } catch (err) {
     const code = String(err.message).slice(0, 3);
     if (code === "403") {                          // try the next key: the file's, stored, the laptop's
@@ -138,20 +156,17 @@ async function loadDeck() {
         key = next;
         return loadDeck();
       }
-      status = props.key ? "the presenter key in this file is not the server's - build the deck again, or pair here"
-        : "the presenter key is not accepted";
+      status = props.key ? words().keyOld : words().keyRejected;
       key = null;
       return setup(pairForm());
     }
     if (code === "404" && await uploadBundle()) return loadDeck();
-    status = carriesBundle() ? "the quiz server did not take this deck (its log says why)"
-      : "the quiz server does not have this deck - its build hands it over: present on the laptop that built it, "
-        + "or build it for this server (or texstage publish it there)";
+    status = carriesBundle() ? words().refused : words().missing;
     setTimeout(loadDeck, 3000);
     return setup("");
   }
   slide = first() ? null : deck.slides.find((s) => s.id === props.slideId);
-  if (!slide && !first()) throw new Error(`slide ${props.slideId} is not in deck ${props.deck} (${props.bundle})`);
+  if (!slide && !first()) throw failure("notInDeck", props.slideId, props.deck, props.bundle);
   status = "";
   render();
   setup("");
@@ -241,7 +256,7 @@ async function prepare() {
   const todo = deck.slides.slice(from + 1).filter((s) => s.phase && !seen.has(s.id));
   if (!todo.length) {
     channel.removeEventListener("message", collect);
-    prepared = { done: 0, total: 0, stopped: "" };
+    prepared = { done: 0, total: 0, stopped: null };
     render();
     return;
   }
@@ -264,15 +279,15 @@ async function prepare() {
   });
   mark();
   client?.send({ t: "prepare", on: true }).catch(() => {});
-  let stopped = "";
+  let stopped = null;                    // why it stopped (stopReason)
   try {
     for (const s of todo) {
       const r = await goTo(s.id);
-      if (r.status !== "succeeded") { stopped = `slide ${s.id}: ${r.error ? r.error.message : r.status}`; break; }
+      if (r.status !== "succeeded") { stopped = { slide: s.id, error: r.error ? r.error.message : r.status }; break; }
       if (!await shownNow(s.id)) report("prepare", `slide ${s.id} did not report within ${SHOWN_WAIT_MS} ms`);
       done++;
       mark();
-      if (await currentSlide() !== s.id) { stopped = "the lecturer moved on"; break; }
+      if (await currentSlide() !== s.id) { stopped = { moved: true }; break; }
     }
   } finally {
     channel.removeEventListener("message", collect);
@@ -284,7 +299,7 @@ async function prepare() {
   if (!stopped) await goTo(props.slideId);
   prepared = { done, total: todo.length, stopped };
   render();
-  report("prepared", `${done} of ${todo.length} live slides${stopped ? ` - stopped: ${stopped}` : ""}`);
+  report("prepared", `${done} of ${todo.length} live slides${stopped ? ` - stopped: ${stopReason(texts("en").addin, stopped)}` : ""}`);
 }
 
 // While the live slides are prepared, every one of them (of this deck) is covered. Returns
@@ -295,7 +310,7 @@ function cover() {
   const on = Boolean(p && p.bundle === props.bundle && p.until > Date.now());
   const el = $("#prepare");
   if (on) {
-    const text = `Preparing the quiz slides …<small>${Number(p.done)} / ${Number(p.total)}</small>`;
+    const text = `${esc(words().preparing)}<small>${Number(p.done)} / ${Number(p.total)}</small>`;
     if (el.innerHTML !== text) el.innerHTML = text;
   }
   if (el.hidden === on) el.hidden = !on;
@@ -320,12 +335,12 @@ function connect() {
         status = "";
         setup("");
       } else {
-        slow = setTimeout(() => { status = "connecting to the quiz server …"; setup(""); }, 2000);
+        slow = setTimeout(() => { status = words().connecting; setup(""); }, 2000);
       }
     },
   });
   client.login({ t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle }).catch((err) => {
-    status = err.message;
+    status = errorText(pageLanguage(), err);
     setup("");
   });
 }
@@ -355,23 +370,23 @@ function renderFirst() {
   }
   const s = state?.session;
   const players = state?.players?.length ?? 0;
+  const A = words();
   let what = "";
   const more = [];
-  if (!deck) what = "Connecting to the quiz server …";
-  else if (view !== "read") what = "Start the slideshow here: this slide prepares the quiz slides.";
-  else if (!prepared) what = "Preparing the quiz slides …";
+  if (!deck) what = A.connectingFirst;
+  else if (view !== "read") what = A.startHere;
+  else if (!prepared) what = A.preparing;
   else if (prepared.stopped) {
-    what = `${prepared.done} of ${prepared.total} quiz slides prepared`;
-    more.push(`Stopped (${prepared.stopped}) - the join slide prepares the rest.`);
+    what = A.partly(prepared.done, prepared.total);
+    more.push(A.stopped(stopReason(A, prepared.stopped)));
   } else {
-    what = "Ready";
-    more.push(prepared.total ? `${prepared.total} quiz slides prepared.` : "The quiz slides were prepared already.");
+    what = A.ready;
+    more.push(prepared.total ? A.prepared(prepared.total) : A.already);
   }
   if (s && view === "read") {
-    more.push(`Game PIN ${s.pin.slice(0, 3)} ${s.pin.slice(3)} · ${players} ${players === 1 ? "player" : "players"} · `
-      + s.join.replace(/^https?:\/\//, "").replace(/\?pin=.*/, ""));
+    more.push(A.game(`${s.pin.slice(0, 3)} ${s.pin.slice(3)}`, players, s.join.replace(/^https?:\/\//, "").replace(/\?pin=.*/, "")));
   }
-  if (prepared && !prepared.stopped && view === "read") more.push("Go on to the first slide when the lecture starts.");
+  if (prepared && !prepared.stopped && view === "read") more.push(A.goOn);
   el.innerHTML = `<small>texstage</small><div class="name">${esc(deck?.name || props.deck)}</div>
     <div class="what">${esc(what)}</div>${more.map((m) => `<div class="more">${esc(m)}</div>`).join("")}`;
 }
@@ -388,9 +403,10 @@ function setup(extra) {
     return;
   }
   if (!problem) fineTimer = setTimeout(() => setup(""), fineUntil - Date.now());
-  const what = props.phase ? `${props.phase}${props.quiz ? ` · ${props.quiz}` : ""}` : "";
-  const server = deck ? '<span class="ok">● server</span>' : '<span class="bad">● server</span>';
-  el.innerHTML = `<b>texstage</b> · ${esc(what)} · ${server} · ${key ? '<span class="ok">paired</span>' : '<span class="bad">not paired</span>'}
+  const A = words();
+  const what = props.phase ? `${textOf(pageTexts().lecturer.phase, props.phase)}${props.quiz ? ` · ${props.quiz}` : ""}` : "";
+  const server = `<span class="${deck ? "ok" : "bad"}">● ${esc(A.server)}</span>`;
+  el.innerHTML = `<b>texstage</b> · ${esc(what)} · ${server} · ${key ? `<span class="ok">${esc(A.paired)}</span>` : `<span class="bad">${esc(A.notPaired)}</span>`}
     ${status ? `<div>${esc(status)}</div>` : ""}${extra || ""}`;
   el.hidden = false;
   const form = el.querySelector("form");
@@ -403,5 +419,6 @@ function setup(extra) {
 }
 
 function pairForm() {
-  return `<form><input type="password" placeholder="presenter key (texstage serve prints it)"><button>Pair</button></form>`;
+  const A = words();
+  return `<form><input type="password" placeholder="${esc(A.keyField)}"><button>${esc(A.pair)}</button></form>`;
 }

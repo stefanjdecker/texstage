@@ -11,7 +11,7 @@
 // the queries (or Turtle texts), a bar each, the reference's ticked (in the presenter window at
 // once, everywhere after the reveal), a shown cluster as a card with its query and its result
 // (codeWords: what a query is called, engine by engine). Both windows draw
-// what the class sees, in the deck's language (WORDS); the box lies under the ink, so the lecturer
+// what the class sees, in the deck's language (boxWords); the box lies under the ink, so the lecturer
 // writes on it. What the phones sent is set as text, never as HTML.
 //
 // The graph's positions are fractions of the box. The presenter window with the lease (the
@@ -24,6 +24,8 @@
 //   new Stage(el, {types: {activity: ActivityBox}, host: {role, read, agent}})
 //     read(msg)   a promise of the server's reply (the projector may read: activity.view)
 //     agent       the presenter window's ActivityAgent; none in the projector
+
+import { texts } from "../i18n/i18n.js";
 
 const FETCH_MS = 500;       // a picture at most this often
 const LAYOUT_MS = 500;      // positions sent at most this often
@@ -399,37 +401,11 @@ export function layoutGraph(nodes, edges, prev = new Map(), aspect = 1.6) {
   return sim.places();
 }
 
-// The box's words in the deck's language (deck.json's "language", which Stage gives the box): German
-// for a German deck, English for any other - the presenter window's panel keeps English, as all
-// its controls. A code activity's contributions are queries - Turtle texts and their graphs for
-// engine=turtle (code).
-const WORDS = {
-  en: {
-    code: {
-      query: { one: "query", many: "queries", waiting: "Waiting for the first queries …", none: "No queries.", reference: "the reference's result" },
-      turtle: { one: "text", many: "texts", waiting: "Waiting for the first graphs …", none: "No graphs.", reference: "the reference's graph" },
-    },
-    status: { syntax: "syntax error", error: "error", timeout: "ran too long", refused: "not run" },
-    yes: "yes", no: "no", result: "a result", graph: ["subject", "predicate", "object"],
-    rows: (n) => `${n} ${n === 1 ? "row" : "rows"}`, triples: (n) => `${n} ${n === 1 ? "triple" : "triples"}`,
-    students: (n) => `${n} ${n === 1 ? "student" : "students"}`, waiting: (n) => `${n} waiting`,
-    more: (n) => `and ${n} more`, others: "others", noTriplesYet: "Waiting for the first triples …", noTriples: "No triples.",
-  },
-  de: {
-    code: {
-      query: { one: "Anfrage", many: "Anfragen", waiting: "Warten auf die ersten Anfragen …", none: "Keine Anfragen.", reference: "das Ergebnis der Referenz" },
-      turtle: { one: "Text", many: "Texte", waiting: "Warten auf die ersten Graphen …", none: "Keine Graphen.", reference: "der Graph der Referenz" },
-    },
-    status: { syntax: "Syntaxfehler", error: "Fehler", timeout: "lief zu lange", refused: "nicht ausgeführt" },
-    yes: "ja", no: "nein", result: "ein Ergebnis", graph: ["Subjekt", "Prädikat", "Objekt"],
-    rows: (n) => `${n} ${n === 1 ? "Zeile" : "Zeilen"}`, triples: (n) => `${n} Tripel`,
-    students: (n) => `${n} ${n === 1 ? "Person" : "Personen"}`, waiting: (n) => `${n} ${n === 1 ? "wartet" : "warten"}`,
-    more: (n) => `und ${n} weitere`, others: "andere", noTriplesYet: "Warten auf die ersten Tripel …", noTriples: "Keine Tripel.",
-  },
-};
+// The box's words in the deck's language (deck.json's "language", which Stage gives the box, and the
+// presenter window its panel; i18n's "box"): German for a German deck, English for any other. A code
+// activity's contributions are queries - Turtle texts and their graphs for engine=turtle (code).
 export function boxWords(language) {
-  const tag = String(language || "").toLowerCase().split("-")[0];
-  return Object.prototype.hasOwnProperty.call(WORDS, tag) ? WORDS[tag] : WORDS.en;
+  return texts(language).box;
 }
 
 // what the windows call a code activity's contributions and results, in the deck's language
@@ -464,7 +440,7 @@ export class ActivityBox {
     this.id = id;
     this.item = item;
     this.host = host;
-    this.language = language;      // the deck's: the box's words (WORDS)
+    this.language = language;      // the deck's: the box's words (boxWords)
     this.words = boxWords(language);
     this.el = Object.assign(document.createElement("div"), { className: "tq-activity" });
     layer.append(this.el);

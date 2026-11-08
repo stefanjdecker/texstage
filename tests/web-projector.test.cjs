@@ -8,9 +8,11 @@ const vm = require('node:vm');
 
 const source = (file) => fs.readFileSync(path.join(__dirname, '../src/texstage/web', file), 'utf8')
   .replace(/^import .*$/gm, '').replace(/^export /gm, '');
+// the texts live.js and projector.js import (an ES module: require(esm), Node 22.12+)
+const { CATALOGS, errorText, pageLanguage, pageTexts, texts, usePageLanguage } = require('../src/texstage/web/i18n/i18n.js');
 
 function projector() {
-  const live = vm.createContext({});
+  const live = vm.createContext({CATALOGS, texts});
   vm.runInContext(source('shared/live.js') + '\nglobalThis.Stage = Stage;', live);
   const nodes = Object.fromEntries(['.tq-timer-text', '.tq-timer-sub', '.tq-ring']
     .map((key) => [key, {style: {}}]));
@@ -30,6 +32,7 @@ function projector() {
     hostFetch: async () => { throw new Error('offline'); },
     shownSlide: (deck, state) => deck.slides[state.slide || 0],
     inkKey: (slide) => slide.id, zoomOverlay() {},
+    errorText, pageLanguage, pageTexts, usePageLanguage,
   });
   vm.runInContext(source('stage/projector.js').replace(/^start\(\);$/m, '') + `
     globalThis.install = (display, clock) => {

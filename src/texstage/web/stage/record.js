@@ -12,6 +12,10 @@
 //   const screen = await pickScreen();        // the browser's dialog (needs the click, too)
 //   const rec = new Recording({auth, session, screen, mic, onChange});
 //   await rec.start();  rec.pause(); rec.resume(); rec.stop();
+//
+// What went wrong - start()'s rejection, rec.error once it failed - is {code, message}: the
+// server's refusal by its code, or the browser's recorder ("recorder"), for the presenter window
+// to say in its language (i18n.js errorText).
 
 import { authHeaders } from "/static/shared/client.js";
 
@@ -19,6 +23,9 @@ const TYPES = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "vide
 const PART_MS = 10000;
 const VIDEO_BPS = 2_500_000;          // slides change rarely: the encoder spends less most of the time
 const AUDIO_BPS = 128_000;
+
+// the server's refusal of a request (its JSON: {error, code}) as an error with its code
+const refusal = (r, info) => Object.assign(new Error(info?.error || `HTTP ${r.status}`), { code: info?.code });
 
 export function canRecord() {
   return Boolean(navigator.mediaDevices?.getDisplayMedia) && typeof MediaRecorder !== "undefined";
@@ -115,7 +122,7 @@ export class Recording {
   constructor({ auth, session, screen, mic = null, onChange = () => {} }) {
     Object.assign(this, { auth, session, screen, mic, onChange });
     this.state = "starting";   // recording, paused, stopping, saved, failed
-    this.error = "";
+    this.error = null;         // why it failed: {code, message}
     this.take = null;          // the server's name for it, and its file there
     this.file = null;
     this.folder = null;
@@ -156,7 +163,7 @@ export class Recording {
       headers: { ...authHeaders(this.auth), "Content-Type": "application/json" }, body: JSON.stringify({ ext }) });
     const info = await r.json().catch(() => ({}));
     signal?.throwIfAborted();
-    if (!r.ok) throw new Error(info.error || `the server answered ${r.status}`);
+    if (!r.ok) throw refusal(r, info);
     Object.assign(this, { take: info.take, file: info.file, folder: info.folder });
     const tracks = [...this.screen.getVideoTracks(), ...(this.mic?.stream?.getAudioTracks() || [])];
     this.recorder = new MediaRecorder(new MediaStream(tracks), { ...(type ? { mimeType: type } : {}),
@@ -167,7 +174,7 @@ export class Recording {
       this.send();
     };
     this.recorder.onstop = () => this.finish();
-    this.recorder.onerror = (e) => this.fail(`the browser stopped recording (${e.error?.message || "an error"})`);
+    this.recorder.onerror = (e) => this.fail({ code: "recorder", message: e.error?.message || "" });
     this.screen.getVideoTracks()[0]?.addEventListener("ended", () => this.stop());   // "Stop sharing"
     this.recorder.start(PART_MS);
     this.since = performance.now();
@@ -228,7 +235,7 @@ export class Recording {
         break;
       }
       if (r && r.status < 500) {
-        this.fail((await r.json().catch(() => ({}))).error || `the server answered ${r.status}`);
+        this.fail(refusal(r, await r.json().catch(() => ({}))));
         return;
       }
       await new Promise((resolve) => setTimeout(resolve, wait));
@@ -256,7 +263,7 @@ export class Recording {
         this.late = false;
         this.onChange(this);
       } else if (r && r.status !== 507 && r.status < 500) {
-        this.fail((await r.json().catch(() => ({}))).error || `the server answered ${r.status}`);
+        this.fail(refusal(r, await r.json().catch(() => ({}))));
       } else {
         this.late = true;           // the network, or the server's disk: again in a while
         this.onChange(this);
@@ -273,11 +280,11 @@ export class Recording {
     return new Promise((resolve) => this.waiting.push(resolve));
   }
 
-  fail(message) {
+  fail(error) {
     if (this.state === "failed") return;
     const recording = this.state === "recording" || this.state === "paused";
     this.state = "failed";
-    this.error = message;
+    this.error = error;
     this.ms = this.elapsed();
     this.since = null;
     if (recording) {

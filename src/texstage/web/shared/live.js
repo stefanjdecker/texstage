@@ -25,13 +25,14 @@
 // with a renderer each, given as `types` - {video: VideoBox} (stage/video.js) - with `host`, what
 // the window gives them (its role, send, the media files' addresses): see showTypes below.
 //
-// The live views speak the deck's language (deck.json's "language", the build's from babel's:
-// LANGUAGES below) - German for a German deck, else English -, and so do the types' boxes, which
-// get it; `labels`, a window's own texts, go over them.
+// The live views speak the deck's language (deck.json's "language", the build's from babel's; their
+// texts are i18n's "live" - German for a German deck, else English -, and so do the types' boxes,
+// which get it; `labels`, a window's own texts, go over them.
 //
 // Nothing here knows the right answer before the server reveals it: the host view has no
 // keys until then.
 
+import { CATALOGS, texts } from "../i18n/i18n.js";
 import { color, shapeSVG } from "./shapes.js";
 import { sketchSVG } from "./sketch.js";
 import { textHTML } from "./text.js";
@@ -163,7 +164,7 @@ export class Stage {
       <div class="tq-lobby-top">
         <div class="tq-lobby-text"><div class="tq-small">${esc(this.labels.joinAt)}</div><div class="tq-url">${esc(url)}</div>
           <div class="tq-small">${esc(this.labels.pin)}</div><div class="tq-pin">${esc(s.pin.slice(0, 3))}&thinsp;${esc(s.pin.slice(3))}</div></div>
-        <img class="tq-qr" src="${esc(s.qr)}" alt="QR code">
+        <img class="tq-qr" src="${esc(s.qr)}" alt="${esc(this.labels.qr)}">
       </div>
       <div class="tq-count">${players.length} ${esc(players.length === 1 ? this.labels.player : this.labels.players)}</div>
       <div class="tq-names">${names}</div>
@@ -548,34 +549,14 @@ function histogram(values, range, keys) {
     <span class="tq-hx">${i % every === 0 ? label(b.x) : ""}</span></div>`).join("")}</div>`;
 }
 
-export const LABELS = {
-  joinAt: "Join at", pin: "Game PIN", player: "player", players: "players", answer: "answer", answers: "answers",
-  correct: "correct", timesUp: "Time's up!", allAnswered: "All answers are in!", getReady: "Get ready", results: "Results",
-  leaderboard: "Leaderboard", noScores: "No scores yet", noAnswers: "No answers",
-  rightOrder: "in the right order", inPlace: "in place", pause: "Pause", continue: "Continue",
-  extend: "10 seconds more", skip: "Stop the question",
-  again: "Ask again (practice) - and the questions after it start anew",
-  reveal: "Show the answer",
-  audience: "Question from the audience", sketchHint: "Draw your answer on your phone.",
-};
-
-// The live views' texts in the languages they speak besides English, by BCP 47 tag (deck.json's
-// "language"); a German deck's as its slides and phones say it (texquiz-theme-dbis.sty, play.js)
-export const LANGUAGES = {
-  de: {
-    joinAt: "Mitmachen unter", pin: "Spiel-PIN", player: "Person", players: "Personen", answer: "Antwort", answers: "Antworten",
-    correct: "richtig", timesUp: "Die Zeit ist um!", allAnswered: "Alle Antworten sind da!", getReady: "Bereit?",
-    results: "Ergebnisse", leaderboard: "Bestenliste", noScores: "Noch keine Punkte", noAnswers: "Keine Antworten",
-    rightOrder: "in der richtigen Reihenfolge", inPlace: "richtig platziert", pause: "Pause", continue: "Weiter",
-    extend: "10 Sekunden mehr", skip: "Die Frage beenden",
-    again: "Noch einmal fragen (Übung) - und die Fragen danach beginnen von vorn",
-    reveal: "Die Antwort zeigen",
-    audience: "Frage aus dem Publikum", sketchHint: "Zeichnen Sie Ihre Antwort auf dem Handy.",
-  },
-};
+// The live views' texts (i18n's "live"): English's, and the other languages' by BCP 47 tag
+// (deck.json's "language")
+export const LABELS = CATALOGS.en.live;
+export const LANGUAGES = Object.fromEntries(Object.entries(CATALOGS).filter(([tag]) => tag !== "en")
+  .map(([tag, catalog]) => [tag, catalog.live]));
 
 // the texts for a deck's language: its own, English for any other - and for a deck built before
 // 2026-10-24, which names none
 export function liveLabels(language) {
-  return { ...LABELS, ...LANGUAGES[String(language || "").toLowerCase().split("-")[0]] };
+  return { ...texts(language).live };
 }

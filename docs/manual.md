@@ -541,7 +541,7 @@ This shortcut card is for the texstage browser presenter. PowerPoint uses its ow
 
 The screenshots were captured with texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. They are retained as illustrations in this 0.2.1.dev3 manual; the capture version is recorded separately from the manual version.
 
-All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English; the participant interface can use German according to browser language.
+All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.
 
 The source deck is [examples/manual/demo.tex](../examples/manual/demo.tex). It uses 240-second quiz rounds for capture and rehearsal. Replace the example local join address and choose a realistic round duration for teaching. Live session join information comes from the server's advertised address.
 
@@ -706,20 +706,20 @@ For delayed answers, give the quiz reveal=none, then write an answer=its-id fram
 
 ## Quiz display strings (1/2)
 
-These quizsetup keys replace visible static slide text. Values below are the generic English defaults, before a course theme is loaded. They do not configure the language of the phone application.
+These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
 
-| Setup key | Initial text |
-| --- | --- |
-| `join-title` | Join the quiz |
-| `join-text` | During the lecture, join with your phone using the PIN shown on this slide. |
-| `leaderboard-title` | Leaderboard |
-| `podium-title` | Final standings |
-| `handout-heading` | Live quiz |
-| `handout-text` | This question is asked live in the lecture. |
-| `results-text` | The results are shown live in the lecture. |
-| `answer-title` | Answer |
-| `answer-heading` | Answer |
-| `answer-text` | The answer is shown in the lecture. |
+| Setup key | English | German |
+| --- | --- | --- |
+| `join-title` | Join the quiz | Mitmachen |
+| `join-text` | During the lecture, join with your phone using the PIN shown on this slide. | In der Vorlesung: mit dem Handy und der PIN auf dieser Folie teilnehmen. |
+| `leaderboard-title` | Leaderboard | Bestenliste |
+| `podium-title` | Final standings | Endstand |
+| `handout-heading` | Live quiz | Live-Quiz |
+| `handout-text` | This question is asked live in the lecture. | Diese Frage wird live in der Vorlesung gestellt. |
+| `results-text` | The results are shown live in the lecture. | Die Ergebnisse werden live in der Vorlesung gezeigt. |
+| `answer-title` | Answer | Antwort |
+| `answer-heading` | Answer | Antwort |
+| `answer-text` | The answer is shown in the lecture. | Die Antwort gibt es in der Vorlesung. |
 
 ```
 \quizsetup{title=Question, true-label=Yes, false-label=No}
@@ -730,20 +730,20 @@ Use braces for values containing commas or paragraphs. Change the setup after lo
 
 ## Quiz display strings (2/2)
 
-These quizsetup keys replace visible static slide text. Values below are the generic English defaults, before a course theme is loaded. They do not configure the language of the phone application.
+These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
 
-| Setup key | Initial text |
-| --- | --- |
-| `true-label` | True |
-| `false-label` | False |
-| `number-hint` | Enter a number on your phone. |
-| `text-hint` | Type your answer on the phone. |
-| `multiple-hint` | Several answers can be correct. |
-| `poll-hint` | Tick all that apply. |
-| `order-hint` | Put the items in the right order on your phone. |
-| `sketch-hint` | Draw your answer on your phone. |
-| `answer-label` | Answer: |
-| `accepted-label` | Accepted answers: |
+| Setup key | English | German |
+| --- | --- | --- |
+| `true-label` | True | Wahr |
+| `false-label` | False | Falsch |
+| `number-hint` | Enter a number on your phone. | Geben Sie auf Ihrem Handy eine Zahl ein. |
+| `text-hint` | Type your answer on your phone. | Tippen Sie Ihre Antwort auf dem Handy ein. |
+| `multiple-hint` | Several answers can be correct. | Mehrere Antworten können richtig sein. |
+| `poll-hint` | Tick all that apply. | Kreuzen Sie alles Zutreffende an. |
+| `order-hint` | Put the items in the right order on your phone. | Bringen Sie die Elemente auf dem Handy in die richtige Reihenfolge. |
+| `sketch-hint` | Draw your answer on your phone. | Zeichnen Sie Ihre Antwort auf dem Handy. |
+| `answer-label` | Answer: | Antwort: |
+| `accepted-label` | Accepted answers: | Akzeptierte Antworten: |
 
 ```
 \quizsetup{title=Question, true-label=Yes, false-label=No}
@@ -915,12 +915,12 @@ Runnable examples and an isolated validation command are provided in [examples/r
 
 ## Activity labels and documentation helpers
 
-The activity label hooks are ordinary macros. Redefine them after loading texactivity to localize static slide text; they do not change the phone UI language.
+The activity label hooks are ordinary macros. By default they give the text of the deck's language, English or German; redefine them after loading texactivity for other wording. The phone UI follows the deck's language by itself.
 
 | Hook | Default and contract |
 | --- | --- |
-| `\texactivitylabel` | No arguments. Default: Live activity -- on your phones. |
-| `\texactivityreferencelabel` | No arguments. Default: Reference. Used above solution reference text. |
+| `\texactivitylabel` | No arguments. Default: Live activity -- on your phones (German: Live-Aktivität -- auf Ihren Handys). |
+| `\texactivityreferencelabel` | No arguments. Default: Reference (German: Referenz). Used above solution reference text. |
 
 ```
 \renewcommand{\texactivitylabel}{Live task -- use your phone}
@@ -946,6 +946,8 @@ These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are
 | `\texstage_savepos:, \texstage_lastx:, \texstage_lasty:` | Save the current position and read engine coordinates in scaled points. |
 | `\texstage_rect:nnnnn {id}{phase}{key}{width}{height}` | Records a rectangle at the current lower-left reference point. |
 | `\texstage_vmark:nnn {id}{phase}{key}` | Records a horizontal boundary across linewidth in vertical mode for a live region. |
+| `\texstage_texts:nnn {package}{language}{key = text, ...}` | Gives a package's slide texts in a language (en, de), in the preamble. A key a language lacks falls back to English. |
+| `\texstage_text:nn {package}{key}` | Expands to the text in the deck's language: Babel's main language at \begin{document}, de for German variants, else en. The text itself is not expanded. |
 
 Do not emit arbitrary records from a course deck. The Python build registry must understand the content type, its public metadata, private answer data, phone assets and rendering. Shipout and shrink corrections are coordinated by the core.
 
@@ -988,7 +990,7 @@ The [reference inventory](latex-reference-inventory.json) and [example build ins
 
 ## Deck language and live labels
 
-Texstage records the active Babel or Polyglossia language when LaTeX builds a deck. German variants such as ngerman select German labels in the presenter and projector live views; English and unsupported languages use English. The phone uses its browser language independently of the deck. Rebuild an existing bundle to capture its deck language.
+Texstage records the active Babel or Polyglossia language when LaTeX builds a deck, and everything the deck's audience and lecturer read follows it: the slides' static texts (the quizsetup defaults, the activity labels), the live views on the projector, the phones, the presenter and host windows, the PowerPoint add-in, and the polls typed during the lecture. German variants such as ngerman select German; English and unsupported languages use English. A phone that scans the join slide's code shows its join form in the deck's language, otherwise in its browser language until it has joined. Pages without a deck, such as the deck list and device pairing, use the browser language. Rebuild an existing bundle to capture its deck language.
 
 ```
 \documentclass{beamer}
@@ -996,4 +998,4 @@ Texstage records the active Babel or Polyglossia language when LaTeX builds a de
 \usepackage{texquiz}
 ```
 
-In a DBIS course, keep the language in the course dbis-style.sty setting. lecture-tools supplies the German activity heading and reference label. Private presenter activity controls remain English. Older bundles and TQZ records without a language field remain supported.
+In a DBIS course, keep the language in the course dbis-style.sty setting; the course theme's own quizsetup texts still win. Older bundles and TQZ records without a language field remain supported and use English.

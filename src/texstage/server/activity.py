@@ -192,7 +192,7 @@ def clean_term(text) -> str:
     elif text and text[0] in SINGLE_QUOTES:
         text = "".join("'" if c in SINGLE_QUOTES else c for c in text)
     if not 1 <= len(text) <= TERM_MAX or not norm_term(text):
-        raise Refused(f"every field has 1 to {TERM_MAX} characters")
+        raise Refused(f"every field has 1 to {TERM_MAX} characters", "field")
     return text
 
 
@@ -217,7 +217,7 @@ def clean_code(text, what: str = "a query") -> str:
     text = "".join(c for c in text if c in "\n\t" or not unicodedata.category(c).startswith("C"))
     text = "\n".join(line.rstrip() for line in text.split("\n")).strip("\n")
     if not text.strip() or len(text) > TEXT_MAX:
-        raise Refused(f"{what} has 1 to {TEXT_MAX} characters")
+        raise Refused(f"{what} has 1 to {TEXT_MAX} characters", "text")
     return text
 
 

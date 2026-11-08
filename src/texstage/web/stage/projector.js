@@ -9,8 +9,10 @@
 // in the hall (pen.js: under the presenter window's name, so its undo takes it); its keys go to the presenter window
 // (BroadcastChannel), so a clicker works whichever of the two has the focus. When the presenter
 // window opens another deck, this window follows in place: it stays full screen, and a screen
-// share or a recording of it goes on.
+// share or a recording of it goes on. It speaks the deck's language (i18n.js: its own few texts
+// are "projector", the slide's views are live.js's), before the deck the browser's.
 
+import { errorText, pageLanguage, pageTexts, usePageLanguage } from "/static/i18n/i18n.js";
 import { Client, hostFetch } from "/static/shared/client.js";
 import { Stage } from "/static/shared/live.js";
 import { InkBook, InkLayer, PointerLayer } from "/static/stage/ink.js";
@@ -21,7 +23,8 @@ import { ActivityBox } from "/static/stage/activity.js";
 
 const $ = (sel) => document.querySelector(sel);
 const KEY = "texquiz:presenter-key";
-const FULL = "Click for full screen";
+const words = () => pageTexts().projector;     // in the window's language: the deck's, before it the browser's
+const why = (err) => errorText(pageLanguage(), err);   // a refusal (hostFetch's: its code) in the window's language
 
 let bundle = new URLSearchParams(location.search).get("bundle");
 let key = null;
@@ -43,13 +46,15 @@ let idle = null;
 start();
 
 async function start() {
+  usePageLanguage(null);
+  document.title = words().title;
   key = (() => { try { return localStorage.getItem(KEY); } catch { return null; } })();
   if (!key) {
     try {
       key = (await (await fetch("/api/presenter-key")).json()).key || null;   // only on the server's machine
     } catch { key = null; }
   }
-  if (!key || !bundle) return hint("Open the projector from texstage's presenter window.", true);
+  if (!key || !bundle) return hint(words().open, true);
   new BroadcastChannel("texstage").onmessage = (e) => {
     if (e.data?.type === "deck" && typeof e.data.bundle === "string" && e.data.bundle !== bundle) load(e.data.bundle);
   };
@@ -67,12 +72,13 @@ async function load(b) {
     d = await (await hostFetch(`/api/deck/${encodeURIComponent(b)}`, key)).json();
     p = await PdfDeck.open(d.bundle, key);
   } catch (err) {
-    return hint(err.message || String(err), true);
+    return hint(why(err), true);
   }
   if (b !== bundle) return p.close();             // another deck came meanwhile
   pdf?.close();
   deck = d;
   pdf = p;
+  usePageLanguage(deck.language || "");           // (a deck built before 2026-10-24 names none: English)
   const aspect = deck.pdf.width / deck.pdf.height;
   document.documentElement.style.setProperty("--tq-aspect", String(aspect));
   document.title = `${deck.name} - texstage`;
@@ -109,7 +115,7 @@ async function load(b) {
   laser = new PointerLayer(aspect);
   box.append(ink.element, laser.element);
   new Pen(box, { book, laser, aspect, where: () => shown, raw: (m) => client.raw(m),
-    send: (m) => client.send(m).catch((err) => hint(err.message || String(err), false)) });
+    send: (m) => client.send(m).catch((err) => hint(why(err), false)) });
   linkable(box, { pdf: () => pdf, page: () => page, active: (e) => e.pointerType !== "pen",   // a pen writes
     at: (e) => {
       const r = box.getBoundingClientRect();
@@ -119,10 +125,10 @@ async function load(b) {
   try {
     await own.login({ t: "hello", role: "display", key, deck: deck.deck, bundle: deck.bundle });
   } catch (err) {
-    if (own === client) hint(err.message || String(err), true);
+    if (own === client) hint(why(err), true);
     return;
   }
-  hint(document.fullscreenElement ? "" : FULL, false);
+  hint(document.fullscreenElement ? "" : words().full, false);
 }
 
 function render() {
@@ -170,7 +176,7 @@ document.addEventListener("mousemove", () => {
   document.body.classList.remove("idle");
   clearTimeout(idle);
   idle = setTimeout(() => document.body.classList.add("idle"), 2000);
-  if (deck && !document.fullscreenElement) hint(FULL, false);
+  if (deck && !document.fullscreenElement) hint(words().full, false);
 });
 
 document.addEventListener("keydown", (e) => {

@@ -15,6 +15,9 @@ public part the phones get (texts where a deck's quizzes have pictures) and the 
 only the texts again, as the build keeps a quiz's LaTeX source) - and the game treats it like
 a quiz of the deck: the round cycle, the views, the results table. Its reveal is "auto": the
 results show as soon as the round closes, there is no reveal slide.
+
+Its title and a yes/no poll's answers are in the deck's language (WORDS - English for any
+other), as everything a deck's audience reads (web/i18n/i18n.js).
 """
 from __future__ import annotations
 
@@ -29,11 +32,22 @@ PROMPT_MAX = 300
 ANSWER_MAX = 120
 POLLS_MAX = 100                          # per game
 SCALE = 5
-TITLES = {"sketch": "Sketch"}
+# a poll's words in the languages texstage speaks (build/bundle.py, LANGUAGES): its title by kind
+# (poll: any other kind), a yes/no poll's answers
+WORDS = {
+    "en": {"poll": "Poll", "sketch": "Sketch", "yesno": ("Yes", "No")},
+    "de": {"poll": "Umfrage", "sketch": "Skizze", "yesno": ("Ja", "Nein")},
+}
 
 
 class PollError(ValueError):
-    """A poll the presenter window should not have sent (the message says why)."""
+    """A poll the presenter window should not have sent (the message says why); `code` is the
+    client's (game.py's GameError codes): "poll-question" for one a lecturer can send - without
+    the question it needs -, "invalid" for the rest."""
+
+    def __init__(self, message: str, code: str = "invalid"):
+        super().__init__(message)
+        self.code = code
 
 
 def clean(text, limit: int, lines: bool = False) -> str:
@@ -52,18 +66,20 @@ def clean(text, limit: int, lines: bool = False) -> str:
     return text
 
 
-def make_poll(spec) -> tuple[dict, dict]:
+def make_poll(spec, language: str = "en") -> tuple[dict, dict]:
     """(public, keys) of a poll from what the presenter window sends:
-    {kind, prompt?, answers? (choice: 2-6 texts, may be empty; yesno: 2), select?, time?}."""
+    {kind, prompt?, answers? (choice: 2-6 texts, may be empty; yesno: 2), select?, time?} - its
+    title and default answers in the deck's language (a Bundle's: en, de)."""
     if not isinstance(spec, dict) or spec.get("kind") not in KINDS:
         raise PollError(f"a poll is {', '.join(KINDS)}")
+    words = WORDS.get(language, WORDS["en"])
     kind = spec["kind"]
     prompt = clean(spec.get("prompt"), PROMPT_MAX, lines=True)
     time = spec.get("time", TIMES[kind])
     if isinstance(time, bool) or not isinstance(time, int) or not TIME_MIN <= time <= TIME_MAX:
         raise PollError(f"a poll runs {TIME_MIN} to {TIME_MAX} seconds")
     qtype = {"words": "open", "text": "open", "sketch": "sketch"}.get(kind, "poll")
-    public = {"type": qtype, "title": TITLES.get(kind, "Poll"), "time": time, "points": "none", "scored": False,
+    public = {"type": qtype, "title": words["sketch" if kind == "sketch" else "poll"], "time": time, "points": "none", "scored": False,
               "leaderboard": False, "reveal": "auto", "adhoc": kind, "prompt": {"text": prompt} if prompt else None}
     keys: dict = {"prompt": prompt}
     if qtype == "poll":
@@ -71,7 +87,7 @@ def make_poll(spec) -> tuple[dict, dict]:
         if kind == "scale":
             texts = [str(i) for i in range(1, SCALE + 1)]
         elif given is None:
-            texts = ["Yes", "No"] if kind == "yesno" else ["", "", "", ""]
+            texts = list(words["yesno"]) if kind == "yesno" else ["", "", "", ""]
         elif not isinstance(given, list) or not (len(given) == 2 if kind == "yesno" else 2 <= len(given) <= 6):
             raise PollError("yes/no has 2 answers, A-D 2 to 6")
         else:
@@ -86,7 +102,7 @@ def make_poll(spec) -> tuple[dict, dict]:
         public["open"] = {"display": "wordcloud", "max_chars": 24} if kind == "words" \
             else {"display": "list", "max_chars": 140}
     if not prompt and qtype != "poll":
-        raise PollError("this poll needs its question")
+        raise PollError("this poll needs its question", "poll-question")
     return public, keys
 
 

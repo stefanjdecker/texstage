@@ -6,7 +6,8 @@
 // and the window hands it the engine's compiled WebAssembly module and the seed.
 //
 //   {t: "init", engine, module, seed}            -> {t: "ready"} | {t: "failed", error}
-//   {t: "eval", id, text, reference?}             -> {t: "done", id, status, error?, key?, summary?}
+//   {t: "eval", id, text, reference?, language?}  -> {t: "done", id, status, error?, key?, summary?}
+//                                                    (error in the deck's language: the window's)
 // A reference's rows are kept: every later result's summary says how it compares (summary.diff).
 
 import { ENGINES, engineUrl } from "/static/engines/index.js";
@@ -32,7 +33,7 @@ self.onmessage = async ({ data }) => {
   if (data.t !== "eval") return;
   let out;
   try {
-    const r = engine.evaluate(state, data.text);
+    const r = engine.evaluate(state, data.text, data.language);
     out = { t: "done", id: data.id, status: r.status };
     if (r.error) out.error = r.error;
     if (r.status === "ok") {

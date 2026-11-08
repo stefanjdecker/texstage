@@ -8,35 +8,21 @@
 // a syntax error with the engine's message, after the reveal whether its result is the
 // reference's. Never the result itself. The screen owns its elements: what is being typed
 // survives the pushes. The words follow the engine: a Turtle text (engine=turtle) is valid or
-// not, its graph the reference's or not (words).
+// not, its graph the reference's or not (words) - in the deck's language, as all of the phone's.
 
-const GERMAN = (navigator.language || "en").toLowerCase().startsWith("de");
-const L = GERMAN ? {
-  add: "Hinzufügen", send: "Abschicken", mine: "Deine Beiträge", withdraw: "Zurückziehen",
-  of: (n, m) => `${n} von ${m}`, closed: "Die Aktivität ist geschlossen.", blocked: "Die Lehrperson hat Beiträge für dich gesperrt.",
-  waiting: "Abgeschickt - wartet auf den Rechner der Lehrperson …", ok: "Deine Anfrage läuft ✓",
-  syntax: "Syntaxfehler", error: "Fehler", timeout: "Die Anfrage lief zu lange.", refused: "Das wird nicht ausgeführt",
-  match: "Gleiches Ergebnis wie die Referenz ✓", differ: "Ein anderes Ergebnis als die Referenz", query: "Deine Anfrage",
-  sent: "Abgeschickt.", empty: "Noch nichts.",
-} : {
-  add: "Add", send: "Send", mine: "Yours", withdraw: "Withdraw",
-  of: (n, m) => `${n} of ${m}`, closed: "The activity is closed.", blocked: "The lecturer has closed contributions for you.",
-  waiting: "Sent - waiting for the lecturer's computer …", ok: "Your query runs ✓",
-  syntax: "Syntax error", error: "Error", timeout: "The query ran too long.", refused: "That is not run",
-  match: "The same result as the reference ✓", differ: "A different result than the reference", query: "Your query",
-  sent: "Sent.", empty: "Nothing yet.",
-};
-// a code activity's words where its engine's differ from a query's
-const ENGINE_WORDS = {
-  turtle: GERMAN ? {
-    ok: "Gültiges Turtle ✓", timeout: "Das Parsen dauerte zu lange.", refused: "Das wird nicht angenommen",
-    match: "Derselbe Graph wie die Referenz ✓", differ: "Ein anderer Graph als die Referenz", query: "Dein Turtle",
-  } : {
-    ok: "Valid Turtle ✓", timeout: "Parsing it took too long.", refused: "That is not taken",
-    match: "The same graph as the reference ✓", differ: "A different graph than the reference", query: "Your Turtle",
-  },
-};
-export const words = (engine) => ({ ...L, ...(ENGINE_WORDS[engine] || {}) });
+import { errorText, texts } from "../i18n/i18n.js";
+
+const ENGINES = ["turtle"];          // the engines whose words differ from a query's (i18n's "activity")
+// the server's refusals of a contribution (server/activity.py) in the screen's own words
+export const REFUSALS = { closed: "closed", blocked: "blocked", "too-fast": "tooFast", "too-many": "tooMany",
+  duplicate: "duplicate", field: "fillIn", text: "typeFirst" };
+
+// a code activity's words in a language: a query's, with its engine's where they differ
+export function words(engine, language) {
+  const all = texts(language).activity;
+  const base = Object.fromEntries(Object.entries(all).filter(([key]) => !ENGINES.includes(key)));
+  return { ...base, ...(ENGINES.includes(engine) ? all[engine] : {}) };
+}
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 // The token bar: a token goes in at the cursor - a word (SELECT, a, :Professor, ?name, dbr:Berlin)
@@ -56,13 +42,14 @@ export function insertToken(value, start, end, token) {
 }
 
 export class ActivityScreen {
-  constructor({ root, client, state }) {
+  constructor({ root, client, state, language }) {
     this.root = root;
     this.client = client;
     const a = state.activity;
     this.id = a.id;
     this.kind = a.input;
-    const L = this.L = words(a.engine);
+    this.language = language;                        // the deck's (play.js)
+    const L = this.L = words(a.engine, language);
     const prompt = a.prompt ? `<div class="card prompt"><img src="${esc(state.session.base + a.prompt.image)}"
       style="width:${(a.prompt.width * 1.4).toFixed(1)}px" alt=""></div>` : "";
     root.innerHTML = this.kind === "tuple"
@@ -95,7 +82,7 @@ export class ActivityScreen {
       root.querySelector("[data-role=mine]").addEventListener("click", (e) => {
         const b = e.target.closest("button[data-withdraw]");
         if (b) this.client.send({ t: "activity.withdraw", activity: this.id, contribution: b.dataset.withdraw })
-          .catch((err) => this.error(err.message));
+          .catch((err) => this.error(this.refusal(err)));
       });
     }
     this.listed = "";
@@ -115,6 +102,12 @@ export class ActivityScreen {
     this.root.querySelector("[data-role=error]").textContent = text || "";
   }
 
+  refusal(err) {
+    // what the server refused, in the screen's words or the phone's (i18n's errors)
+    const own = REFUSALS[err?.code];
+    return own ? this.L[own] : errorText(this.language, err);
+  }
+
   async submit() {
     const button = this.form.querySelector("button.main");
     button.disabled = true;
@@ -129,7 +122,7 @@ export class ActivityScreen {
         await this.client.send({ t: "activity.send", activity: this.id, text: this.text.value });
       }
     } catch (err) {
-      this.error(err.message || String(err));
+      this.error(this.refusal(err));
     } finally {
       button.disabled = false;
     }

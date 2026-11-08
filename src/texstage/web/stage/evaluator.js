@@ -6,10 +6,12 @@
 // never on this window's thread: a slide change must stay quick), each with a budget of 2 s: over
 // it the worker is terminated and a new one starts from the compiled module. The results go to
 // the server as data (activity.result): the key of the result's canonical form, its summary when
-// the server does not know the key yet, or what went wrong. Nothing of it runs in the server or on
-// the phones.
+// the server does not know the key yet, or what went wrong - in the deck's language, the window's
+// (i18n's pageLanguage), which the phones speak too. Nothing of it runs in the server or on the
+// phones.
 
 import { ENGINES, engineUrl } from "/static/engines/index.js";
+import { pageLanguage, pageTexts } from "/static/i18n/i18n.js";
 
 const BUDGET_MS = 2000;
 const WORKER = "/static/stage/evaluator-worker.js";
@@ -37,8 +39,8 @@ class Runner {
     this.worker?.terminate();
     this.worker = new Worker(WORKER, { type: "module" });
     this.ready = new Promise((resolve, reject) => {
-      this.worker.onmessage = ({ data }) => (data.t === "ready" ? resolve() : reject(new Error(data.error || "the engine did not start")));
-      this.worker.onerror = (e) => reject(new Error(e.message || "the worker failed"));
+      this.worker.onmessage = ({ data }) => (data.t === "ready" ? resolve() : reject(new Error(data.error || pageTexts().engines.notStarted)));
+      this.worker.onerror = (e) => reject(new Error(e.message || pageTexts().engines.workerFailed));
     });
     this.worker.postMessage({ t: "init", engine: this.spec.engine, module: this.module, seed: this.seed });
   }
@@ -54,7 +56,7 @@ class Runner {
           resolve(data);
         }
       };
-      this.worker.postMessage({ t: "eval", id, text, reference });
+      this.worker.postMessage({ t: "eval", id, text, reference, language: pageLanguage() });
     });
     if (result.status === "timeout") {
       this.start();                                    // a new worker from the compiled module ...
@@ -86,12 +88,12 @@ export class Evaluator {
     let r = this.runners.get(activity);
     if (r && r.spec.seed === spec.seed) return r;
     r?.destroy();
-    if (!Object.hasOwn(ENGINES, spec.engine)) throw new Error(`texstage runs no engine ${spec.engine}`);
+    if (!Object.hasOwn(ENGINES, spec.engine)) throw new Error(pageTexts().engines.noEngine(spec.engine));
     const wasm = engineUrl(spec.engine, "wasm");
     if (!this.modules.has(wasm)) this.modules.set(wasm, compile(wasm));
     const module = await this.modules.get(wasm);
     const res = await fetch(this.base + spec.seed);
-    if (!res.ok) throw new Error(`the seed ${spec.seed}: ${res.status}`);
+    if (!res.ok) throw new Error(pageTexts().engines.seed(spec.seed, res.status));
     r = new Runner(spec, module, await res.text());
     this.runners.set(activity, r);
     return r;

@@ -713,8 +713,9 @@ pages: reconnects by itself, resends a pending command with its id, keeps the se
   answers → the result (correct / partly / wrong / no answer, points, streak bonus, rank, the
   right answer as pictures) → the final rank and the top 3. The pictures are cropped to what is
   drawn (by the builder) and shown 1.4× their LaTeX size (about 18 px text). The token is kept
-  in localStorage: a reload or a lost connection resumes the player. Texts in English or German
-  (the phone's language).
+  in localStorage: a reload or a lost connection resumes the player. Texts in English or German:
+  the deck's language (the player view's `session.language`; before joining the one the join
+  slide's QR code names - `?lang=de` -, the last game's, or the browser's).
 - **Host console** (`/host`): pairs by itself on the server's machine (`/api/presenter-key`),
   else asks for the key once; lists the decks on the server (the build on disk; running games
   with PIN and players) → the game: PIN and join address, a **browser slide host** (the deck's

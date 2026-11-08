@@ -44,7 +44,9 @@ def manifest(server: str) -> str:
   <ProviderName>texstage</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="texstage ({name})"/>
-  <Description DefaultValue="Live quizzes on texstage slides with the quiz server {o}: lobby, questions, answers, leaderboard."/>
+  <Description DefaultValue="Live quizzes on texstage slides with the quiz server {o}: lobby, questions, answers, leaderboard.">
+    <Override Locale="de-DE" Value="Live-Quizze auf texstage-Folien mit dem Quiz-Server {o}: Lobby, Fragen, Antworten, Bestenliste."/>
+  </Description>
   <IconUrl DefaultValue="{o}/addin/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="{o}/addin/icon-64.png"/>
   <SupportUrl DefaultValue="{o}/host"/>

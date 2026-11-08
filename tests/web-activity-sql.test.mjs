@@ -123,3 +123,11 @@ test("a result against the reference's: the rows in both, missing, more", () => 
 test("a seed that does not run says so", () => {
   assert.throws(() => sql.load(SQL, "CREATE TABLE x ("), /^Error: the seed: /);
 });
+
+test("why a query is not run, in the deck's language (the presenter window's) - SQLite's words as they are", () => {
+  assert.equal(sql.evaluate(state, "SELECT 1; SELECT 2", "de").error, "nur eine Anweisung auf einmal");
+  assert.equal(sql.evaluate(state, "-- nothing", "de").error, "keine Anweisung");
+  assert.equal(sql.evaluate(state, "PRAGMA query_only = OFF", "de").error, "nur Anfragen werden ausgeführt: SELECT, VALUES oder WITH … SELECT");
+  assert.equal(sql.evaluate(state, "SELECT 1; SELECT 2", "fr").error, "one statement at a time");
+  assert.match(sql.evaluate(state, "SELEC name FROM professor", "de").error, /near "SELEC": syntax error/);
+});

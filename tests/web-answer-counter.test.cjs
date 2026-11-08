@@ -8,7 +8,9 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/texstage/web/shared/live.js'), 'utf8')
   .replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const context = vm.createContext({esc: String, pct: (n) => `${n * 100}%`, box: () => ''});
+// live.js's texts as it imports them (an ES module: require(esm), Node 22.12+)
+const { CATALOGS, texts } = require('../src/texstage/web/i18n/i18n.js');
+const context = vm.createContext({CATALOGS, texts, esc: String, pct: (n) => `${n * 100}%`, box: () => ''});
 vm.runInContext(source + '\nglobalThis.Stage = Stage;', context);
 
 function render({answered, awaiting, connected, players = 3, phase = 'open', results}, timer) {

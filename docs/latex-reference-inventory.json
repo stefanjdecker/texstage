@@ -25,7 +25,7 @@
     {
       "file": "latex/texactivity.sty",
       "scope": "runtime",
-      "sha256": "5a71fa9d1850ef7509a009dd6dd922e6d631ce4a9d8b40a8d8270cffac80dfac",
+      "sha256": "8f29117be99999c523b3c56a0e437e2c7fd0d3a29cc1172c825101ccf26398c6",
       "commands": [
         "TexactivityPrompt",
         "TexactivityReference",
@@ -64,7 +64,7 @@
     {
       "file": "latex/texquiz.sty",
       "scope": "runtime",
-      "sha256": "cf7c62135566589cd4f1fa3d158bc4c4de2456d2882b83a6f4c2dc9a391f50a7",
+      "sha256": "5ec973bfcf668312c0ede1d441679b423dcdc218c69ae5932def7d9824a19cd9",
       "commands": [
         "accept",
         "choice",
@@ -164,7 +164,7 @@
     {
       "file": "latex/texstage.sty",
       "scope": "runtime",
-      "sha256": "198368b4fb50f98ee105510eca17e2701d79362b7e1f459a46866425e723c66f",
+      "sha256": "3a4f3d24935f5d5c5c1a0ce5fcfe24131224837cc6a057b091f167b013f8e231",
       "commands": [
         "texquizmode",
         "texquiznotes",
@@ -186,6 +186,8 @@
         "texstage_savepos:",
         "texstage_ship_assets:",
         "texstage_stage_notes:",
+        "texstage_text:nn",
+        "texstage_texts:nnn",
         "texstage_vbox_set:Nnn",
         "texstage_vfill:",
         "texstage_vmark:nnn",

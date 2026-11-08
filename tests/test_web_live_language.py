@@ -3,7 +3,7 @@
 """The live views in the deck's language (web/shared/live.js, web/stage/activity.js), in Node: a
 German deck's quiz views and activity box in German, through the Stage of the presenter and
 projector windows; an English deck's - and one built before deck.json named its language - as
-they were; the presenter window's activity panel in English."""
+they were; the presenter window's activity panel in the language it is given."""
 from pathlib import Path
 import shutil
 import subprocess

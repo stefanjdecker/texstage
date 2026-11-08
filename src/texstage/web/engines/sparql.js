@@ -7,7 +7,10 @@
 //   start(wasm)             Oxigraph, from the window's compiled WebAssembly module
 //   load(ox, seed)          the seed (Turtle) in a store, and the prologue its @base and @prefix
 //                           lines give every query that does not declare them itself
-//   evaluate(state, text)   -> {status: ok | syntax | error | refused, error?, canonical?, rows?, summary?}
+//   evaluate(state, text, language)
+//                           -> {status: ok | syntax | error | refused, error?, canonical?, rows?, summary?}
+//                              (error: where and why, in the deck's language - i18n's "engines" -,
+//                              Oxigraph's words after it)
 //
 // The same result, the same canonical form: a SELECT's rows as a bag - their order does not count,
 // repeated rows do -, the columns in the order the query projects them, their names not; a value
@@ -20,6 +23,7 @@
 // (start, prologue, namespaces, rdfjsTerm, shorten): a Turtle text and a CONSTRUCT that give the
 // same graph have the same key.
 
+import { texts } from "../i18n/i18n.js";
 import { bounded, cut, ROWS } from "./common.js";
 
 export const NAME = "sparql";
@@ -123,26 +127,27 @@ function showRdfjs(state, t) {
 }
 
 // ------------------------------------------------------------------ evaluation
-function failure(e, shift) {
+function failure(e, shift, W) {
   const text = String(e?.message ?? e).split("\n")[0];
   const at = /^error at (\d+):(\d+): (.*)$/.exec(text);
-  if (at) return { status: "syntax", error: `line ${Math.max(1, Number(at[1]) - shift)}, column ${at[2]}: ${at[3]}` };
-  if (/^The service .* is not supported/.test(text)) return { status: "refused", error: "SERVICE (a query to another endpoint) is not run" };
+  if (at) return { status: "syntax", error: W.at(Math.max(1, Number(at[1]) - shift), at[2], at[3]) };
+  if (/^The service .* is not supported/.test(text)) return { status: "refused", error: W.service };
   return { status: "error", error: text };
 }
 
-export function evaluate(state, text) {
+export function evaluate(state, text, language) {
+  const W = texts(language).engines;
   const { query, shift } = completed(state, text);
   let json;
   try {
     json = JSON.parse(state.store.query(query, { results_format: JSON_RESULTS }));
   } catch (e) {
-    if (!/Not supported RDF format/.test(String(e?.message ?? e))) return failure(e, shift);
+    if (!/Not supported RDF format/.test(String(e?.message ?? e))) return failure(e, shift, W);
     let quads;                                           // a CONSTRUCT or DESCRIBE: its triples
     try {
       quads = state.store.query(query);
     } catch (e2) {
-      return failure(e2, shift);
+      return failure(e2, shift, W);
     }
     const rows = quads.map((q) => `${rdfjsTerm(q.subject)} ${rdfjsTerm(q.predicate)} ${rdfjsTerm(q.object)}`).sort();
     return { status: "ok", canonical: `graph\n${rows.join("\n")}`, rows,

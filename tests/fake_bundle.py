@@ -56,9 +56,10 @@ class FakeBundle:
 
 
 def make_bundle(folder: Path, deck: str = "test", quizzes: dict | None = None, time: int = 20,
-                reveal: dict | None = None, title: str = "Test deck", stage: bool = False) -> FakeBundle:
+                reveal: dict | None = None, title: str = "Test deck", stage: bool = False,
+                language: str | None = None) -> FakeBundle:
     """quizzes: id -> (type, public extras, keys), default QUIZZES; reveal: id -> 'none' for
-    quizzes answered on a later answer slide."""
+    quizzes answered on a later answer slide; language: deck.json's (none: as before 2026-10-24)."""
     quizzes = QUIZZES if quizzes is None else quizzes
     reveal = reveal or {}
     images = {f"slides/{hashlib.sha256(png(c)).hexdigest()[:16]}.png": png(c) for c in ("white", "grey")}
@@ -104,7 +105,7 @@ def make_bundle(folder: Path, deck: str = "test", quizzes: dict | None = None, t
     add("podium")
     add()
     deck_json = {"format": FORMAT, "deck": deck, "name": title, "image": {"width": 1920, "height": 1080},
-                 "slides": slides, "quizzes": deck_q}
+                 "slides": slides, "quizzes": deck_q, **({"language": language} if language is not None else {})}
     keys_json = {"format": FORMAT, "deck": deck, "quizzes": keys_q}
     files = {**images, phone_name: phone}
     pdf = f"%PDF-1.5\n% stage PDF of {title}\n%%EOF\n".encode() if stage else None

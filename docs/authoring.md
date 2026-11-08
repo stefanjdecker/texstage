@@ -127,7 +127,9 @@ one leaderboard per session, on its last scored quiz with `leaderboard=true`), `
 `handout-heading`, `handout-text`, `answer-title`, `answer-heading`, `answer-text`,
 `results-text`, `true-label`, `false-label`, `number-hint`, `text-hint`, `multiple-hint`,
 `poll-hint` (a poll with several answers: "Tick all that apply.", as on the phones),
-`order-hint`, `sketch-hint`, `answer-label`, `accepted-label` (e.g. for German slides).
+`order-hint`, `sketch-hint`, `answer-label`, `accepted-label`. Without them the texts are the
+deck's language's - English, or German for a German deck (babel's main language) -; a text
+given here wins in any language.
 
 Frames of their own: `\quizjoinframe` (lobby: QR code, PIN, players joining) and
 `\quizpodiumframe` (final standings), each optionally `[title=..., note={...}]`. They have no

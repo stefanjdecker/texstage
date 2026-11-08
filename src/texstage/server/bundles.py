@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from texstage.build.bundle import READS, bundle_id
+from texstage.build.bundle import LANGUAGES, READS, bundle_id
 from texstage.server import types as stage_types
 
 FILE = re.compile(r"^((slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(jpg|png))$")   # pictures, posters
@@ -75,6 +75,14 @@ class Bundle:
 
     def open_to(self, lecturer: str | None) -> bool:
         return lecturer is not None and (self.owners is None or lecturer in self.owners)
+
+    @property
+    def language(self) -> str:
+        """The deck's language as its windows and phones speak it (web/i18n/i18n.js): deck.json's
+        BCP 47 tag if texstage speaks it (build/bundle.py, LANGUAGES), else - another language, a
+        deck built before 2026-10-24 - English."""
+        tag = self.deck_json.get("language")
+        return tag if isinstance(tag, str) and tag in LANGUAGES else "en"
 
     def file(self, rel: str) -> Path | None:
         """A picture of the bundle (a slide, a phone picture, a video's poster) or a file a

@@ -8,6 +8,8 @@
 //   client.send({t: "answer", round, answer: {strokes: pad.encode()}});
 //   el.innerHTML = sketchSVG(strokes);                   // the gallery, the projector
 
+import { texts } from "../i18n/i18n.js";
+
 export const W = 1000;
 export const H = 750;
 export const PENS = ["#1d1d1f", "#e21b3c", "#1368ce", "#26890c"];
@@ -55,7 +57,8 @@ export function encode(strokes) {
   return null;
 }
 
-// a sketch as SVG markup
+// a sketch as SVG markup; label: its number ("#3"), for what a screen reader says of it - "Sketch #3",
+// in the page's language (<html lang>, which the page sets: i18n.js markLanguage)
 export function sketchSVG(strokes, label = "") {
   const lines = (strokes || []).map((s) => {
     const p = s.p.length > 2 ? s.p : [...s.p, ...s.p];                   // a dot: a line of no length
@@ -63,7 +66,9 @@ export function sketchSVG(strokes, label = "") {
     for (let i = 0; i < p.length; i += 2) pts.push(`${p[i]},${p[i + 1]}`);
     return `<polyline points="${pts.join(" ")}" stroke="${PENS[s.c || 0]}"/>`;
   }).join("");
-  return `<svg class="tq-sketch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">
+  const name = texts(globalThis.document?.documentElement?.lang).sketch.label(label)
+    .replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+  return `<svg class="tq-sketch" viewBox="0 0 ${W} ${H}" role="img" aria-label="${name}">
     <g fill="none" stroke-width="${WIDTH}" stroke-linecap="round" stroke-linejoin="round">${lines}</g></svg>`;
 }
 

@@ -7,7 +7,10 @@
 // and on a hosted server; the presenter window downloads it and keeps it in the lecture archive.
 //
 //   const bytes = await annotatedPdf(stagePdf, deck, boards, frames);   // frames: {key: [strokes]}
+//
+// Its title speaks the deck's language (i18n's "pdf").
 
+import { texts } from "/static/i18n/i18n.js";
 import { PDFDocument, rgb } from "/static/vendor/pdf-lib/pdf-lib.esm.min.js";
 import { HIGHLIGHT, strokeSvg } from "/static/stage/ink.js";
 import { inkKey, sequence } from "/static/stage/pdfview.js";
@@ -45,7 +48,7 @@ export async function annotatedPdf(stagePdf, deck, boards, frames) {
       }
     }
   }
-  out.setTitle(`${deck.name} - with the lecture's ink`);
+  out.setTitle(texts(deck.language || "").pdf.title(deck.name));
   out.setCreator("texstage");
   out.setProducer("texstage (pdf-lib)");
   return out.save();

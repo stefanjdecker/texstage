@@ -6,7 +6,9 @@
 //
 //   start(wasm)             sql.js, from the window's compiled WebAssembly module
 //   load(SQL, seed)         the seed run into a database of its own, which is read-only from then on
-//   evaluate(state, text)   -> {status: ok | syntax | error | refused, error?, canonical?, rows?, summary?}
+//   evaluate(state, text, language)
+//                           -> {status: ok | syntax | error | refused, error?, canonical?, rows?, summary?}
+//                              (error: why, in the deck's language - i18n's "engines" -, SQLite's words after it)
 //
 // A query is one statement - SELECT, VALUES or WITH ... SELECT -; anything else is refused, and the
 // database is read-only besides (PRAGMA query_only): no query changes what the next one sees. The
@@ -16,6 +18,7 @@
 // agree), a text as written, NULL, a blob by its bytes. A number and a text with the same digits
 // differ, as they do in SQL.
 
+import { texts } from "../i18n/i18n.js";
 import { bounded, cut, ROWS } from "./common.js";
 
 export const NAME = "sql";
@@ -89,15 +92,16 @@ function show(v) {
 }
 
 // ------------------------------------------------------------------ evaluation
-function failure(e) {
+function failure(e, W) {
   const text = String(e?.message ?? e).split("\n")[0];
-  if (/readonly database/.test(text)) return { status: "refused", error: "only queries are run - this one changes the data" };
+  if (/readonly database/.test(text)) return { status: "refused", error: W.changesData };
   if (/syntax error|incomplete input|unrecognized token/.test(text)) return { status: "syntax", error: text };
   return { status: "error", error: text };
 }
 
-export function evaluate(state, text) {
+export function evaluate(state, text, language) {
   const { db } = state;
+  const W = texts(language).engines;
   let statements = 0;
   try {
     for (const s of db.iterateStatements(text)) {
@@ -105,18 +109,18 @@ export function evaluate(state, text) {
       statements += 1;
     }
   } catch (e) {
-    return failure(e);
+    return failure(e, W);
   }
-  if (statements === 0) return { status: "syntax", error: "no statement" };
-  if (statements > 1) return { status: "refused", error: "one statement at a time" };
+  if (statements === 0) return { status: "syntax", error: W.noStatement };
+  if (statements > 1) return { status: "refused", error: W.oneStatement };
   if (!QUERY.test(text.replace(LEADING, ""))) {
-    return { status: "refused", error: "only queries are run: SELECT, VALUES or WITH ... SELECT" };
+    return { status: "refused", error: W.queriesOnly };
   }
   let stmt;
   try {
     stmt = db.prepare(text);
   } catch (e) {
-    return failure(e);
+    return failure(e, W);
   }
   try {
     const columns = stmt.getColumnNames();
@@ -132,7 +136,7 @@ export function evaluate(state, text) {
     return { status: "ok", canonical: `select\n${columns.length}\n${rows.join("\n")}`, rows,
       summary: bounded({ kind: "select", columns: columns.map(cut), count: rows.length, rows: shown }) };
   } catch (e) {
-    return failure(e);
+    return failure(e, W);
   } finally {
     stmt.free();
   }

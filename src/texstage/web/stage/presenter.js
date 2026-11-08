@@ -25,7 +25,13 @@
 // picture here as on the projector; Activities opens the panel - open, close, reveal, the crowd
 // graph's terms (merge, hide, approve, the minimum), the clusters (show one on the projector, hide,
 // block) -; the agent holds the lease to lay the graph out and to evaluate the queries.
+//
+// The window speaks the open deck's language (i18n.js; speak): its texts are i18n's "presenter",
+// "record" and "lecturer", its dates and numbers the language's (meta.locale), the server's
+// refusals its "errors". Before a deck - the presenter key, pairing a device, the deck page - and
+// back on the deck page it speaks the browser's.
 
+import { errorText, pageLanguage, usePageLanguage } from "/static/i18n/i18n.js";
 import { Client, authHeaders, hostFetch } from "/static/shared/client.js";
 import { Stage } from "/static/shared/live.js";
 import { sketchSVG } from "/static/shared/sketch.js";
@@ -44,7 +50,6 @@ import { Evaluator } from "/static/stage/evaluator.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;                  // 1 quiz, 2 quizzes
 const app = $("#app");
 const KEY = "texquiz:presenter-key";
 const DEVICE = "texstage:device-token";    // a paired presenter device's token (an iPad: no key)
@@ -89,6 +94,8 @@ let qaPanel = null;     // the audience's questions while their panel is open (M
 let gallery = null;     // a sketch question's drawings while their gallery is open (M6)
 let agent = null;       // the deck's live activities: the lease, the layout, the evaluation (activity.js)
 let actPanel = null;    // their panel while it is open
+let lang = "en";        // the window's language (speak): the open deck's, else the browser's
+let T = null;           // ... and all its texts (i18n.js texts): T.presenter, T.record, T.lecturer, T.errors
 const device = deviceId();
 const prefs = loadPrefs();
 const follow = new BroadcastChannel("texstage");   // the projector window follows when the deck changes
@@ -111,6 +118,7 @@ function savePrefs() {
 }
 
 async function start() {
+  speak(null);
   const pairing = new URLSearchParams(location.hash.slice(1)).get("pair");
   if (pairing) {
     history.replaceState(null, "", location.pathname + location.search);   // the code is used up
@@ -124,8 +132,43 @@ async function start() {
   } catch {
     const removed = typeof auth === "object";
     forget();
-    keyForm(removed ? "This device was removed in the presenter window - pair it again." : "This presenter key is not accepted.");
+    keyForm(removed ? T.presenter.removed : T.errors["bad-key"]);
   }
+}
+
+function speak(tag) {
+  // the window's language from now on - the open deck's (a tag; a deck built before 2026-10-24
+  // names none: English), or the browser's (null) -, and what the page's frame says in it
+  T = usePageLanguage(tag);
+  lang = pageLanguage();
+  $("#status").title = T.lecturer.connection;
+  $("#rtt").title = T.presenter.roundTrip;
+}
+
+// (functions, not constants: start() above runs before the module's constants below have values)
+function deckLanguage(d) {
+  return d?.language || "";                          // (usePageLanguage: undefined would be no deck)
+}
+
+function refusal(r, info) {
+  // a refusal of the HTTP API as errorText takes it: its code and its words (or the status)
+  return Object.assign(new Error(info?.error || `HTTP ${r.status}`), { code: info?.code });
+}
+
+function why(err) {
+  return errorText(lang, err);                       // what went wrong, in the window's language
+}
+
+function textOf(table, key) {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : key;   // a phase's name, else itself
+}
+
+function decimal(v) {
+  return new Intl.NumberFormat(T.meta.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v);
+}
+
+function hhmm(ms) {
+  return new Date(ms).toLocaleTimeString(T.meta.locale, { hour: "2-digit", minute: "2-digit" });
 }
 
 function stored(name) {
@@ -146,12 +189,13 @@ function forget() {
 }
 
 function keyForm(error = "") {
-  app.innerHTML = `<div class="page"><h1>Presenter key</h1>
-    <p>The key is in the server's data folder (<code>presenter-key</code>) and is printed when it starts.</p>
+  speak(null);
+  const L = T.lecturer, D = T.presenter.devices;
+  app.innerHTML = `<div class="page"><h1>${esc(L.key)}</h1>
+    <p>${L.keyWhere("<code>presenter-key</code>")}</p>
     <form class="field" id="keyform"><input id="key" type="password" autocomplete="off" required>
-    <button class="primary">Continue</button></form><div class="error">${esc(error)}</div>
-    <p>An iPad or a second computer is paired instead: in texstage on the laptop, choose <b>Devices</b>, then
-    <b>Pair a device</b>, and scan the code it shows.</p></div>`;
+    <button class="primary">${esc(L.go)}</button></form><div class="error">${esc(error)}</div>
+    <p>${T.presenter.pairInstead(`<b>${esc(D.button)}</b>`, `<b>${esc(D.pair)}</b>`)}</p></div>`;
   $("#keyform").addEventListener("submit", async (e) => {
     e.preventDefault();
     auth = $("#key").value.trim();
@@ -159,28 +203,32 @@ function keyForm(error = "") {
       await showDecks();
       try { localStorage.setItem(KEY, auth); } catch { /* private mode */ }
     } catch {
-      keyForm("This presenter key is not accepted.");
+      keyForm(T.errors["bad-key"]);
     }
   });
 }
 
 // ------------------------------------------------------------------ pairing this device (an iPad)
 async function pairThisDevice(token) {
-  const show = (html) => { app.innerHTML = `<div class="page"><h1>Pair this device</h1>${html}</div>`; };
+  const P = T.presenter.pair, D = T.presenter.devices;
+  const show = (html) => { app.innerHTML = `<div class="page"><h1>${esc(P.title)}</h1>${html}</div>`; };
   const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body) });
-  const again = "<p>Make a new code in the presenter window on the laptop: Devices, Pair a device.</p>";
-  show("<p>Asking the server ...</p>");
+  const again = `<p>${esc(P.again(D.button, D.pair))}</p>`;
+  show(`<p>${esc(P.asking)}</p>`);
   let r;
   try {
     r = await post("/api/pair/claim", { token, name: deviceName() });
   } catch {
-    return show(`<p class="error">The server cannot be reached.</p>${again}`);
+    return show(`<p class="error">${esc(P.unreachable)}</p>${again}`);
   }
-  if (!r.ok) return show(`<p class="error">${esc((await r.json().catch(() => ({}))).error || "This code does not work.")}</p>${again}`);
+  if (!r.ok) {
+    const info = await r.json().catch(() => ({}));
+    return show(`<p class="error">${esc(info.code || info.error ? errorText(lang, refusal(r, info)) : P.refused)}</p>${again}`);
+  }
   const { claim, code } = await r.json();
-  show(`<p>In the presenter window on the laptop, allow this device if it shows the same code:</p>
-    <div class="paircode">${esc(code)}</div><p>Waiting for the laptop ...</p>`);
+  show(`<p>${esc(P.compare)}</p>
+    <div class="paircode">${esc(code)}</div><p>${esc(P.waiting)}</p>`);
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     let w;
@@ -195,7 +243,7 @@ async function pairThisDevice(token) {
       return showDecks();
     }
     if (w.state !== "claimed") {
-      return show(`<p class="error">${w.state === "denied" ? "The laptop did not allow this device." : "The code expired."}</p>${again}`);
+      return show(`<p class="error">${esc(w.state === "denied" ? P.denied : P.expired)}</p>${again}`);
     }
   }
 }
@@ -203,10 +251,11 @@ async function pairThisDevice(token) {
 function deviceName() {
   // what the lecturer sees in the list of devices, e.g. "iPad · Safari"
   const ua = navigator.userAgent;
+  const P = T.presenter.pair;
   const what = /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "iPad"
-    : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "a device";
+    : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows" : /Mac/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : P.device;
   const browser = /EdgiOS|Edg\//.test(ua) ? "Edge" : /FxiOS|Firefox\//.test(ua) ? "Firefox" : /CriOS|Chrome\//.test(ua) ? "Chrome"
-    : /Safari\//.test(ua) ? "Safari" : "a browser";
+    : /Safari\//.test(ua) ? "Safari" : P.browser;
   return `${what} · ${browser}`;
 }
 
@@ -217,30 +266,31 @@ async function devicesDialog() {
   document.body.append(el);
   let poll = null;
   const close = () => { clearInterval(poll); el.remove(); };
+  const D = T.presenter.devices;
   const list = async () => {
     clearInterval(poll);
     const devices = await (await hostFetch("/api/devices", auth)).json();
-    const time = (ms) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    el.innerHTML = `<div class="box"><h2>Presenter devices</h2>
-      <p>An iPad or a second computer runs this presenter window too: it steps through the slides, writes and points.</p>
+    el.innerHTML = `<div class="box"><h2>${esc(D.title)}</h2>
+      <p>${esc(D.intro)}</p>
       <div class="devices">${devices.map((d) => `<div class="device"><span class="name">${esc(d.name)}</span>
-        <span class="meta">paired ${new Date(d.paired).toLocaleDateString()}${d.seen ? ` · seen ${time(d.seen)}` : ""}</span>
-        <button data-remove="${esc(d.id)}">Remove</button></div>`).join("") || '<p class="empty">No device is paired.</p>'}</div>
-      <div class="buttons"><button class="primary" id="pairnew">Pair a device</button><button class="secondary" id="closedlg">Close</button></div></div>`;
+        <span class="meta">${esc(D.paired(new Date(d.paired).toLocaleDateString(T.meta.locale)))}${d.seen ? ` · ${esc(D.seen(hhmm(d.seen)))}` : ""}</span>
+        <button data-remove="${esc(d.id)}">${esc(D.remove)}</button></div>`).join("") || `<p class="empty">${esc(D.none)}</p>`}</div>
+      <div class="buttons"><button class="primary" id="pairnew">${esc(D.pair)}</button>
+        <button class="secondary" id="closedlg">${esc(T.presenter.close)}</button></div></div>`;
     el.querySelector("#closedlg").onclick = close;
     el.querySelector("#pairnew").onclick = pairNew;
     el.querySelectorAll("[data-remove]").forEach((b) => b.onclick = async () => {
-      if (!(await ask("Remove this device? It stops presenting at once.", "Remove"))) return;
+      if (!(await ask(D.removeAsk, D.remove))) return;
       await fetch(`/api/devices/${encodeURIComponent(b.dataset.remove)}`, { method: "DELETE", headers: authHeaders(auth) });
       list();
     });
   };
   const pairNew = async () => {
     const offer = await (await fetch("/api/pair", { method: "POST", headers: authHeaders(auth) })).json();
-    el.innerHTML = `<div class="box"><h2>Pair a device</h2>
-      <p>Scan this code with the iPad's camera, or open the address in its browser - valid for two minutes, and once.</p>
+    el.innerHTML = `<div class="box"><h2>${esc(D.pair)}</h2>
+      <p>${esc(D.scan)}</p>
       <div class="qr">${offer.qr}</div><p class="url">${esc(offer.url)}</p><div id="claimed"></div>
-      <div class="buttons"><button class="secondary" id="back">Back</button></div></div>`;
+      <div class="buttons"><button class="secondary" id="back">${esc(D.back)}</button></div></div>`;
     el.querySelector("#back").onclick = list;
     poll = setInterval(async () => {
       const box = el.querySelector("#claimed");
@@ -253,9 +303,10 @@ async function devicesDialog() {
       }
       if (s.state === "claimed" && !box.dataset.asked) {
         box.dataset.asked = "1";
-        box.innerHTML = `<p><b>${esc(s.name)}</b> wants to present. Allow it only if it shows this code:</p>
+        box.innerHTML = `<p>${D.wants(`<b>${esc(s.name)}</b>`)}</p>
           <div class="paircode">${esc(s.code)}</div>
-          <div class="buttons"><button class="primary" id="allow">Allow</button><button class="secondary" id="deny">Deny</button></div>`;
+          <div class="buttons"><button class="primary" id="allow">${esc(D.allow)}</button>
+            <button class="secondary" id="deny">${esc(D.deny)}</button></div>`;
         const decide = async (allow) => {
           clearInterval(poll);
           await fetch(`/api/pair/${encodeURIComponent(offer.token)}`, { method: "POST",
@@ -266,7 +317,7 @@ async function devicesDialog() {
         box.querySelector("#deny").onclick = () => decide(false);
       } else if (s.state === "expired") {
         clearInterval(poll);
-        box.innerHTML = '<p class="error">The code expired - pair again.</p>';
+        box.innerHTML = `<p class="error">${esc(D.expired)}</p>`;
       }
     }, 1000);
   };
@@ -291,6 +342,7 @@ async function showDecks(resume = false, uploaded = "") {
     const d = decks.find((x) => x.bundle === last && x.stage);
     if (d) return openDeck(d);
   }
+  speak(null);                         // the deck page: the browser's language
   for (const id of ["deckname", "pin", "join", "actions"]) $(`#${id}`).textContent = "";
   $("#status").className = "status";
   state = null;
@@ -303,6 +355,7 @@ async function showDecks(resume = false, uploaded = "") {
 // moves or deletes it; cards can also be dragged onto a folder or onto a step of the path. Delete
 // deletes an uploaded deck; a build on this computer only leaves the list (its next build is back).
 function library(decks, folders, uploaded = "") {
+  const B = T.presenter.library, L = T.lecturer;
   let byId = new Map(folders.map((f) => [f.id, f]));
   const pathOf = (fid) => {                       // the folder and the folders it is in, from the top
     const out = [];
@@ -310,7 +363,7 @@ function library(decks, folders, uploaded = "") {
     return out;
   };
   const within = (fid, root) => pathOf(fid).some((f) => f.id === root);    // root itself, or inside it
-  const where = (fid) => pathOf(fid).map((f) => f.name).join(" › ") || "All decks";
+  const where = (fid) => pathOf(fid).map((f) => f.name).join(" › ") || B.all;
   const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
   const shown = (d) => d.label || d.name;
   let here = null;
@@ -319,53 +372,52 @@ function library(decks, folders, uploaded = "") {
   let query = "";
   let dragged = null;
   const laptop = typeof auth === "string";        // the presenter key (a paired device uploads nothing)
-  app.innerHTML = `<div class="page"><h1>Decks</h1>
-    <p>The decks of this quiz server (<code>texstage present &lt;deck&gt;</code> builds one if needed and opens it
-    here); a deck built now appears after a reload. Folders keep them in order: drag a deck onto a folder, or
-    use its ⋯.${laptop ? " A deck this server does not have: upload its"
-    + " <code>.bundle.zip</code> from the build folder, or drop it here." : ""}</p>
+  app.innerHTML = `<div class="page"><h1>${esc(L.decks)}</h1>
+    <p>${B.intro("<code>texstage present &lt;deck&gt;</code>")}${laptop ? ` ${L.upload("<code>.bundle.zip</code>")}` : ""}</p>
     ${laptop ? '<div class="uploadbar"><span id="upload"></span><span class="uploaded">' + esc(uploaded) + "</span></div>" : ""}
-    <div class="libbar"><nav class="crumbs" aria-label="folder"></nav>
-      <input type="search" class="libsearch" placeholder="Search all decks" aria-label="search all decks">
-      <select class="libsort" aria-label="order"><option value="name">By name</option>
-        <option value="newest">Newest first</option></select>
-      <button class="secondary" id="newfolder">New folder</button></div>
+    <div class="libbar"><nav class="crumbs" aria-label="${esc(B.path)}"></nav>
+      <input type="search" class="libsearch" placeholder="${esc(B.search)}" aria-label="${esc(B.searchLabel)}">
+      <select class="libsort" aria-label="${esc(B.order)}"><option value="name">${esc(B.byName)}</option>
+        <option value="newest">${esc(B.newest)}</option></select>
+      <button class="secondary" id="newfolder">${esc(B.newFolder)}</button></div>
     <div class="decks"></div></div>`;
   const list = app.querySelector(".decks");
   const crumbs = app.querySelector(".crumbs");
   const search = app.querySelector(".libsearch");
   const sort = app.querySelector(".libsort");
   sort.value = prefs.deckSort === "newest" ? "newest" : "name";
+  const built = (ms) => new Date(ms).toLocaleString(T.meta.locale);
 
   const folderCard = (f) => {
     const subs = folders.filter((g) => g.parent === f.id).length;
-    const parts = [subs ? count(subs, "folder", "folders") : "",
-      count(decks.filter((d) => d.folder === f.id).length, "deck", "decks"), query ? `in ${esc(where(f.parent))}` : ""];
+    const parts = [subs ? B.folders(subs) : "", B.decks(decks.filter((d) => d.folder === f.id).length),
+      query ? B.within(where(f.parent)) : ""];
     return `<div class="deckcard folder" draggable="true" data-folder="${esc(f.id)}" tabindex="0">
       <span class="ficon" aria-hidden="true"></span>
-      <div class="info"><div class="name">${esc(f.name)}</div><div class="meta">${parts.filter(Boolean).join(" · ")}</div></div>
-      <button class="more" data-more-folder="${esc(f.id)}" title="rename, move or delete the folder" aria-label="folder actions">⋯</button></div>`;
+      <div class="info"><div class="name">${esc(f.name)}</div><div class="meta">${esc(parts.filter(Boolean).join(" · "))}</div></div>
+      <button class="more" data-more-folder="${esc(f.id)}" title="${esc(B.folderMenu)}" aria-label="${esc(B.folderActions)}">⋯</button></div>`;
   };
   const deckCard = (d) => `<div class="deckcard" draggable="true" data-deck="${esc(d.deck)}">
       <div class="info"><div class="name">${esc(shown(d))}</div>
-      <div class="meta">${query && byId.has(d.folder) ? `in ${esc(where(d.folder))} · ` : ""}${d.label ? `${esc(d.name)} · ` : ""}${esc(d.deck)} · ${count(d.quizzes, "quiz", "quizzes")} · ${count(d.slides, "slide", "slides")} · built ${new Date(d.built).toLocaleString()}</div></div>
-      ${d.game ? `<span class="tag open">game ${esc(d.game.pin)} · ${count(d.game.players, "player", "players")}</span>` : ""}
-      ${d.stage ? `<button class="primary" data-present="${esc(d.bundle)}">Present</button>`
-    : '<span class="tag" title="built without it (--no-stage, or before 2026-10-10 without --stage): build it again">no stage PDF</span>'}
-      <button class="more" data-more-deck="${esc(d.bundle)}" title="rename, move or remove the deck" aria-label="deck actions">⋯</button></div>`;
+      <div class="meta">${esc([query && byId.has(d.folder) ? B.within(where(d.folder)) : "", d.label ? d.name : "", d.deck,
+    L.quizzes(d.quizzes), L.slides(d.slides), L.built(built(d.built))].filter(Boolean).join(" · "))}</div></div>
+      ${d.game ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
+      ${d.stage ? `<button class="primary" data-present="${esc(d.bundle)}">${esc(B.present)}</button>`
+    : `<span class="tag" title="${esc(B.noStageWhy)}">${esc(B.noStage)}</span>`}
+      <button class="more" data-more-deck="${esc(d.bundle)}" title="${esc(B.deckMenu)}" aria-label="${esc(B.deckActions)}">⋯</button></div>`;
 
   const render = () => {
     try { sessionStorage.setItem(FOLDER, here || ""); } catch { /* ignore */ }
     const q = query.trim().toLocaleLowerCase();
-    crumbs.innerHTML = [`<button class="crumb${here ? "" : " here"}" data-to="">All decks</button>`,
+    crumbs.innerHTML = [`<button class="crumb${here ? "" : " here"}" data-to="">${esc(B.all)}</button>`,
       ...pathOf(here).map((f) => `<button class="crumb${f.id === here ? " here" : ""}" data-to="${esc(f.id)}">${esc(f.name)}</button>`)]
       .join('<span class="sep">›</span>');
     const hit = (...texts) => texts.some((t) => String(t || "").toLocaleLowerCase().includes(q));
     const fs = folders.filter((f) => (q ? hit(f.name) : (f.parent || null) === here)).sort((a, b) => byName(a.name, b.name));
     const ds = decks.filter((d) => (q ? hit(d.label, d.name, d.deck) : (byId.has(d.folder) ? d.folder : null) === here))
       .sort((a, b) => (sort.value === "newest" ? b.built - a.built : byName(shown(a), shown(b))));
-    list.innerHTML = fs.map(folderCard).join("") + ds.map(deckCard).join("") || `<p class="empty">${q ? "No deck or folder matches."
-      : here ? "This folder is empty - drag a deck onto it, or use a deck's ⋯ and Move to." : "No decks on this server yet."}</p>`;
+    list.innerHTML = fs.map(folderCard).join("") + ds.map(deckCard).join("")
+      || `<p class="empty">${esc(q ? B.noMatch : here ? B.empty : L.noDecks)}</p>`;
   };
   const refresh = async () => {
     [decks, folders] = await Promise.all([hostFetch("/api/decks", auth).then((r) => r.json()), folderList()]);
@@ -377,7 +429,7 @@ function library(decks, folders, uploaded = "") {
     const r = await fetch(path, { method, body: body === undefined ? undefined : JSON.stringify(body),
       headers: { ...authHeaders(auth), "Content-Type": "application/json" } });
     const info = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(info.error || `the server answered ${r.status}`);
+    if (!r.ok) throw refusal(r, info);
     return info;
   };
   const act = async (job, done = "") => {         // a change, then the page as the server has it now
@@ -385,13 +437,13 @@ function library(decks, folders, uploaded = "") {
       await job();
       if (done) notice(done);
     } catch (err) {
-      await tell(`Not done: ${err.message || err}`);
+      await tell(B.notDone(why(err)));
     }
     await refresh();
   };
   const moveTo = (item, to) => act(() => (item.deck
     ? send("PATCH", `/api/decks/${encodeURIComponent(item.deck)}`, { folder: to })
-    : send("PATCH", `/api/folders/${encodeURIComponent(item.folder)}`, { parent: to })), `Moved to ${to ? byId.get(to)?.name : "All decks"}`);
+    : send("PATCH", `/api/folders/${encodeURIComponent(item.folder)}`, { parent: to })), B.moved(to ? byId.get(to)?.name : B.all));
   const menu = (button, entries) => {             // a small menu under a card's ⋯: [label, action]
     document.querySelector(".libmenu")?.remove();
     const el = document.createElement("div");
@@ -432,9 +484,9 @@ function library(decks, folders, uploaded = "") {
     const el = document.createElement("div");
     el.className = "dialog";
     el.innerHTML = `<div class="box"><h2>${esc(title)}</h2><div class="folderpick">
-      <button data-to="" ${now === null ? "disabled" : ""}>All decks</button>
+      <button data-to="" ${now === null ? "disabled" : ""}>${esc(B.all)}</button>
       ${rows.map(([f, depth]) => `<button data-to="${esc(f.id)}" style="padding-left:${12 + depth * 18}px" ${now === f.id ? "disabled" : ""}>${esc(f.name)}</button>`).join("")}
-      </div><div class="buttons"><button class="secondary" data-cancel>Cancel</button></div></div>`;
+      </div><div class="buttons"><button class="secondary" data-cancel>${esc(T.dialog.cancel)}</button></div></div>`;
     const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); finish(undefined); } };
     const finish = (to) => {
       document.removeEventListener("keydown", keys, true);
@@ -450,32 +502,30 @@ function library(decks, folders, uploaded = "") {
     document.body.append(el);
   });
   const deckMenu = (button, d) => menu(button, [
-    ["Rename …", async () => {
-      const name = await askText(`The name of "${shown(d)}" on this page (empty: its own, "${d.name}")`, shown(d), "Rename");
+    [B.rename, async () => {
+      const name = await askText(B.renameAsk(shown(d), d.name), shown(d), B.renameYes);
       if (name !== null) act(() => send("PATCH", `/api/decks/${encodeURIComponent(d.deck)}`, { label: name.trim() === d.name ? "" : name }));
     }],
-    ["Move to …", async () => {
-      const to = await chooseFolder(`Move "${shown(d)}" to`, { deck: d.deck });
+    [B.move, async () => {
+      const to = await chooseFolder(B.moveAsk(shown(d)), { deck: d.deck });
       if (to !== undefined) moveTo({ deck: d.deck }, to);
     }],
-    [d.uploaded ? "Delete …" : "Remove from the list …", async () => {
-      const question = d.uploaded
-        ? `Delete "${shown(d)}" from this server? Its uploaded builds are deleted; the results of its games stay in the archive.`
-        : `Remove "${shown(d)}" from the list? Its build folder stays on this computer - its next build brings it back.`;
-      if (await ask(question, d.uploaded ? "Delete" : "Remove"))
-        act(() => send("DELETE", `/api/decks/${encodeURIComponent(d.deck)}`), `${shown(d)}: ${d.uploaded ? "deleted" : "off the list"}`);
+    [d.uploaded ? B.delete : B.unlist, async () => {
+      const question = d.uploaded ? B.deleteAsk(shown(d)) : B.unlistAsk(shown(d));
+      if (await ask(question, d.uploaded ? B.deleteYes : B.unlistYes))
+        act(() => send("DELETE", `/api/decks/${encodeURIComponent(d.deck)}`), d.uploaded ? B.deleted(shown(d)) : B.unlisted(shown(d)));
     }]]);
   const folderMenu = (button, f) => menu(button, [
-    ["Rename …", async () => {
-      const name = await askText("The folder's name", f.name, "Rename");
+    [B.rename, async () => {
+      const name = await askText(B.folderName, f.name, B.renameYes);
       if (name !== null) act(() => send("PATCH", `/api/folders/${encodeURIComponent(f.id)}`, { name }));
     }],
-    ["Move to …", async () => {
-      const to = await chooseFolder(`Move the folder "${f.name}" to`, { folder: f.id });
+    [B.move, async () => {
+      const to = await chooseFolder(B.moveFolderAsk(f.name), { folder: f.id });
       if (to !== undefined) moveTo({ folder: f.id }, to);
     }],
-    ["Delete …", async () => {
-      if (await ask(`Delete the folder "${f.name}"? What it holds moves up one level - no deck is deleted.`, "Delete"))
+    [B.delete, async () => {
+      if (await ask(B.deleteFolderAsk(f.name), B.deleteYes))
         act(() => send("DELETE", `/api/folders/${encodeURIComponent(f.id)}`));
     }]]);
   const openFolder = (fid) => {
@@ -505,7 +555,7 @@ function library(decks, folders, uploaded = "") {
   search.addEventListener("input", () => { query = search.value.trim(); render(); });
   sort.addEventListener("change", () => { prefs.deckSort = sort.value; savePrefs(); render(); });
   app.querySelector("#newfolder").onclick = async () => {
-    const name = await askText(here ? `A new folder in "${byId.get(here)?.name}"` : "A new folder", "", "Create");
+    const name = await askText(here ? B.newFolderIn(byId.get(here)?.name) : B.newFolderAsk, "", B.create);
     if (name !== null && name.trim()) act(() => send("POST", "/api/folders", { name, parent: here }));
   };
   // dragging a card onto a folder, or onto a step of the path (a .bundle.zip dropped is an upload)
@@ -551,17 +601,19 @@ function library(decks, folders, uploaded = "") {
 }
 
 async function openDeck(d, chosen = false) {     // chosen: Present clicked (not a reload in the lecture)
-  app.innerHTML = `<div class="page"><p>Loading ${esc(d.name)} ...</p></div>`;
+  app.innerHTML = `<div class="page"><p>${esc(T.presenter.library.loading(d.name))}</p></div>`;
   try {
     deck = await (await hostFetch(`/api/deck/${d.bundle}`, auth)).json();
     pdf?.close();
     pdf = await PdfDeck.open(deck.bundle, auth);
   } catch (err) {
-    app.innerHTML = `<div class="page"><h1>${esc(d.name)}</h1><p class="error">${esc(err.message || err)}</p>
-      <p><button class="secondary" id="back">Decks</button></p></div>`;
+    app.innerHTML = `<div class="page"><h1>${esc(d.name)}</h1><p class="error">${esc(why(err))}</p>
+      <p><button class="secondary" id="back">${esc(T.lecturer.decks)}</button></p></div>`;
     $("#back").onclick = () => showDecks();
     return;
   }
+  speak(deckLanguage(deck));                      // from here on the deck's language
+  const P = T.presenter, O = P.tools, L = T.lecturer;
   try { sessionStorage.setItem(LAST, d.bundle); } catch { /* ignore */ }
   frames = framesOf(deck);
   items = sequence(deck, []);
@@ -569,51 +621,51 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   document.documentElement.style.setProperty("--tq-aspect", String(aspect));
   $("#deckname").textContent = deck.name;
   const laptop = typeof auth === "string";        // the presenter key: the projector and the devices are here
-  $("#actions").innerHTML = `${laptop ? `<button id="projector" title="open the projector window (on the second screen)">Projector</button>
-    <button id="devices" title="an iPad or a second computer as presenter">Devices</button>` : ""}
-    <button id="archive" title="the annotated PDF for the students, the lecture's archive">After the lecture</button>
-    <button id="csv">Results (CSV)</button><button id="newgame">New game</button><button id="decks">Decks</button>`;
+  $("#actions").innerHTML = `${laptop ? `<button id="projector" title="${esc(P.projectorTitle)}">${esc(P.projector)}</button>
+    <button id="devices" title="${esc(P.devices.buttonTitle)}">${esc(P.devices.button)}</button>` : ""}
+    <button id="archive" title="${esc(P.archiveTitle)}">${esc(P.archive)}</button>
+    <button id="csv">${esc(L.csv)}</button><button id="newgame">${esc(L.newGame)}</button><button id="decks">${esc(L.decks)}</button>`;
   app.innerHTML = `<div class="pgrid">
     <section class="current"><div class="fitbox" id="currentbox"><div id="stage"></div><button class="onscreen" id="onscreen" hidden></button></div></section>
-    <div class="split main" role="separator" tabindex="0" aria-label="room for the slide and for the notes"
-      title="drag: more room for the slide or for the notes (double click: as it was)"></div>
+    <div class="split main" role="separator" tabindex="0" aria-label="${esc(P.splitMain)}"
+      title="${esc(P.splitMainTitle)}"></div>
     <section class="side">
-      <div class="label">Next <span id="nextinfo"></span></div>
+      <div class="label">${esc(P.next)} <span id="nextinfo"></span></div>
       <div class="nextwrap"><div class="pagebox" id="nextbox"></div></div>
       <div class="split next" role="separator" tabindex="0" aria-orientation="horizontal"
-        aria-label="room for the next slide and for the notes"
-        title="drag: more room for the next slide or for the notes (double click: as it was)"></div>
-      <div class="label">Notes <span class="tools"><button id="notesmode"></button>
-        <button id="smaller" title="smaller text">A−</button><button id="larger" title="larger text">A+</button></span></div>
+        aria-label="${esc(P.splitNext)}"
+        title="${esc(P.splitNextTitle)}"></div>
+      <div class="label">${esc(P.notes)} <span class="tools"><button id="notesmode"></button>
+        <button id="smaller" title="${esc(P.smaller)}">A−</button><button id="larger" title="${esc(P.larger)}">A+</button></span></div>
       <div class="notes" id="notes"><div class="notewrap" id="notewrap"><div class="pagebox" id="notebox"></div></div>
         <div class="notetext" id="notetext"></div></div>
     </section>
     <footer class="toolbar" id="toolbar">
-      <span class="group"><button data-tool="auto" title="navigate - a pen draws all the same (Esc)">↖</button>
-        <button data-tool="pen" title="pen (P)">✎ Pen</button><button data-tool="highlighter" title="highlighter (H)">▮ Marker</button>
-        <button data-tool="eraser" title="eraser (E) - also the pen's eraser end">⌫ Eraser</button>
-        <button data-tool="pointer" title="laser pointer (L)">● Laser</button>
-        <button data-tool="zoom" title="zoom: drag a box over the slide (Z) - zoomed: the whole slide again">⌕ Zoom</button></span>
+      <span class="group"><button data-tool="auto" title="${esc(O.auto)}">↖</button>
+        <button data-tool="pen" title="${esc(O.penTitle)}">✎ ${esc(O.pen)}</button><button data-tool="highlighter" title="${esc(O.markerTitle)}">▮ ${esc(O.marker)}</button>
+        <button data-tool="eraser" title="${esc(O.eraserTitle)}">⌫ ${esc(O.eraser)}</button>
+        <button data-tool="pointer" title="${esc(O.laserTitle)}">● ${esc(O.laser)}</button>
+        <button data-tool="zoom" title="${esc(O.zoomTitle)}">⌕ ${esc(O.zoom)}</button></span>
       <span class="group" id="swatches"></span><span class="group" id="sizes"></span>
-      <span class="group"><button id="undo" title="undo (Ctrl+Z)">↶</button><button id="redo" title="redo (Ctrl+Y)">↷</button>
-        <button id="clear" title="erase all ink of this frame">Clear</button></span>
-      <span class="group"><button id="blank" title="a whiteboard page after this frame (N)">＋ Whiteboard</button>
-        <button id="gridpage" title="a whiteboard page with a grid (Shift+N)">＋ Grid</button></span>
-      <span class="group"><button id="pollbtn" title="ask a question now: yes/no, A-D, a scale, a word cloud, text or a sketch">▤ Poll</button>
-        <button id="qabtn" title="questions from the audience">？ Q&amp;A <span class="badge" id="qacount" hidden></span></button>
-        <button id="sketchbtn" title="the drawings of this sketch question" hidden>✎ Sketches <span class="badge" id="sketchcount"></span></button>
-        <button id="actbtn" title="the deck's live activities: open, close, reveal, moderate" hidden>◎ Activities <span class="badge" id="actcount" hidden></span></button></span>
+      <span class="group"><button id="undo" title="${esc(O.undo)}">↶</button><button id="redo" title="${esc(O.redo)}">↷</button>
+        <button id="clear" title="${esc(O.clearTitle)}">${esc(O.clear)}</button></span>
+      <span class="group"><button id="blank" title="${esc(O.boardTitle)}">＋ ${esc(O.board)}</button>
+        <button id="gridpage" title="${esc(O.gridTitle)}">＋ ${esc(O.grid)}</button></span>
+      <span class="group"><button id="pollbtn" title="${esc(O.pollTitle)}">▤ ${esc(O.poll)}</button>
+        <button id="qabtn" title="${esc(O.qaTitle)}">？ ${esc(O.qa)} <span class="badge" id="qacount" hidden></span></button>
+        <button id="sketchbtn" title="${esc(O.sketchesTitle)}" hidden>✎ ${esc(O.sketches)} <span class="badge" id="sketchcount"></span></button>
+        <button id="actbtn" title="${esc(O.activitiesTitle)}" hidden>◎ ${esc(O.activities)} <span class="badge" id="actcount" hidden></span></button></span>
     </footer>
     <footer class="bar">
-      <div class="clock"><button id="timer" title="start / pause the timer (T)"></button><span class="elapsed" id="elapsed">0:00</span>
-        <span class="target" id="target"></span><button id="reset" title="reset the timer">↺</button>
-        <button id="settarget" title="a target duration">⏱</button><span class="wall" id="wall"></span></div>
-      <div class="nav"><button id="prev" title="previous step (←, PageUp)">◀</button><span class="where" id="where"></span>
-        <button id="next" title="next step (→, PageDown, Space)">▶</button></div>
-      <div class="screens"><button data-screen="black" title="black projector (B)">Black</button>
-        <button data-screen="white" title="white projector (W)">White</button>
-        <button data-screen="freeze" title="the projector keeps this slide while you go on (F)">Freeze</button>
-        <button id="overview" title="all frames (G)">Overview</button></div>
+      <div class="clock"><button id="timer" title="${esc(P.timer)}"></button><span class="elapsed" id="elapsed">0:00</span>
+        <span class="target" id="target"></span><button id="reset" title="${esc(P.reset)}">↺</button>
+        <button id="settarget" title="${esc(P.target)}">⏱</button><span class="wall" id="wall"></span></div>
+      <div class="nav"><button id="prev" title="${esc(P.prev)}">◀</button><span class="where" id="where"></span>
+        <button id="next" title="${esc(P.nextStep)}">▶</button></div>
+      <div class="screens"><button data-screen="black" title="${esc(P.blackTitle)}">${esc(P.black)}</button>
+        <button data-screen="white" title="${esc(P.whiteTitle)}">${esc(P.white)}</button>
+        <button data-screen="freeze" title="${esc(P.freezeTitle)}">${esc(P.freeze)}</button>
+        <button id="overview" title="${esc(P.overviewTitle)}">${esc(P.overview)}</button></div>
     </footer></div>`;
   client?.close();
   client = new Client({
@@ -638,7 +690,8 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
       client.close();
       if (m.reason === "removed") {                // a device removed in the presenter window
         forget();
-        keyForm(m.message || "This device was removed.");
+        speak(null);
+        keyForm(T.presenter.removed);
       } else {
         showDecks().catch(() => keyForm());
       }
@@ -685,15 +738,14 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   channel.onmessage = (e) => {
     if (e.data?.type === "key") onKey(e.data);
     else if (e.data?.type === "video") {                // the projector's browser wants a click (video.js)
-      notice(e.data.click === "sound" ? "The projector plays the video without sound - click into the projector window once."
-        : "The projector waits for a click to play the video - click into the projector window once.");
+      notice(e.data.click === "sound" ? T.presenter.videoSound : T.presenter.videoStart);
     }
   };
   follow.postMessage({ type: "deck", bundle: deck.bundle });     // an open projector window: this deck now
   $("#prev").onclick = () => move(-1);
   $("#next").onclick = () => move(1);
   $("#timer").onclick = toggleTimer;
-  $("#reset").onclick = async () => { if (await ask("Reset the timer to 0:00?", "Reset")) send({ t: "timer", action: "reset" }); };
+  $("#reset").onclick = async () => { if (await ask(T.presenter.resetAsk, T.presenter.resetYes)) send({ t: "timer", action: "reset" }); };
   $("#settarget").onclick = setTarget;
   app.querySelectorAll("[data-screen]").forEach((b) => b.onclick = () => screen(b.dataset.screen));
   app.querySelectorAll("[data-tool]").forEach((b) => b.onclick = () => (b.dataset.tool === "zoom" ? zoomKey()
@@ -719,7 +771,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   $("#csv").onclick = downloadResults;
   $("#archive").onclick = archiveDialog;
   $("#newgame").onclick = async () => {
-    if (!(await ask("Start a new game? The players join again with a new PIN.", "New game"))) return;
+    if (!(await ask(T.lecturer.newGameAsk, T.lecturer.newGame))) return;
     await client.send({ t: "restart" }).catch(alertError);
   };
   $("#decks").onclick = () => {
@@ -748,11 +800,10 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
 async function newOrContinued(e) {
   // the deck's ink and whiteboard pages from before: a new presentation leaves them to the lecture
   // they belong to (in the archive), a continuation goes on with them (docs/texstage-design.md, 24)
-  const what = [e.frames ? `ink on ${count(e.frames, "frame", "frames")}` : "",
-    e.boards ? count(e.boards, "whiteboard page", "whiteboard pages") : ""].filter(Boolean).join(" and ");
-  const fresh = await ask(`The lecture of ${lectureTime(e.at)} left ${what}. Is this a new presentation, or does it `
-    + `continue that lecture?${e.open ? " A new presentation also starts a new game: the phones join with a new PIN." : ""}`,
-  "New presentation", "Continue that lecture");
+  const E = T.presenter.earlier;
+  const left = [e.frames ? E.ink(e.frames) : "", e.boards ? E.boards(e.boards) : ""].filter(Boolean);
+  const what = left.length > 1 ? E.both(...left) : left[0] || "";
+  const fresh = await ask([E.ask(lectureTime(e.at), what), e.open ? E.newGame : ""].filter(Boolean).join(" "), E.fresh, E.goOn);
   let r = null;
   if (fresh && e.open) r = await client.send({ t: "lecture.new" }).catch(alertError);
   else if (!fresh && !e.open) r = await client.send({ t: "lecture.continue", game: e.game }).catch(alertError);
@@ -760,10 +811,11 @@ async function newOrContinued(e) {
 }
 
 function lectureTime(ms) {
+  // when it was, as the question above says it: "of today, 10:15", "of 3 November, 10:15"
   const d = new Date(ms);
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (d.toDateString() === new Date().toDateString()) return `today, ${time}`;
-  return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}, ${time}`;
+  const E = T.presenter.earlier;
+  if (d.toDateString() === new Date().toDateString()) return E.today(hhmm(ms));
+  return E.on(d.toLocaleDateString(T.meta.locale, { day: "numeric", month: "long" }), hhmm(ms));
 }
 
 function inkAnew() {
@@ -786,7 +838,7 @@ function send(cmd) {
 }
 
 function alertError(err) {
-  if (err?.code !== "no-round") tell(err?.message || String(err));
+  if (err?.code !== "no-round") tell(why(err));
 }
 
 function inkError(err) {
@@ -802,8 +854,8 @@ function itemFor(id) {
 function update() {
   const s = state.session;
   agent?.update(state);
-  $("#pin").textContent = `PIN ${s.pin.slice(0, 3)} ${s.pin.slice(3)}`;
-  $("#join").textContent = `${count(s.players, "player", "players")} · ${s.join.replace(/\?pin=.*/, "")}`;   // cut short from the end
+  $("#pin").textContent = `${T.lecturer.pin} ${s.pin.slice(0, 3)} ${s.pin.slice(3)}`;
+  $("#join").textContent = `${T.lecturer.players(s.players)} · ${s.join.replace(/\?pin=.*/, "")}`;   // cut short from the end
   items = sequence(deck, state.stage?.boards);
   renderRec();
   const there = state.stage?.board ? `board:${state.stage.board}` : s.slide;   // what the server shows
@@ -835,23 +887,25 @@ function render() {
   ink.show(inkKey(overlay || current), view);
   laser.show(view);
   next.show(after);
-  $("#nextinfo").textContent = !after ? "· the end"
-    : after.board ? "· a whiteboard page" : `· frame ${after.frame}${after.phase ? ` · ${after.phase}` : ""}`;
+  const P = T.presenter;
+  const phase = (p) => textOf(T.lecturer.phase, p);
+  $("#nextinfo").textContent = `· ${!after ? P.end
+    : after.board ? P.aBoard : `${P.frame(after.frame)}${after.phase ? ` · ${phase(after.phase)}` : ""}`}`;
   if (typed) {
-    $("#where").textContent = `frame ${typed}_ (Enter)`;
+    $("#where").textContent = P.typing(typed);
   } else if (overlay) {
-    $("#where").textContent = `${overlay.overlay === "poll" ? "a poll" : "sketches"} on the projector - Esc or → : back to the slide`;
+    $("#where").textContent = overlay.overlay === "poll" ? P.pollShown : P.sketchesShown;
   } else if (current.board) {
-    $("#where").textContent = `whiteboard page after frame ${current.after}`;
+    $("#where").textContent = P.boardAfter(current.after);
   } else {
     const steps = new Set(deck.slides.filter((s) => s.frame === current.frame).map((s) => s.step)).size;
-    const live = current.phase ? ` · ${current.phase}${current.quiz ? ` ${current.quiz}` : ""}` : "";
-    $("#where").textContent = `frame ${current.frame} / ${frames.length}${steps > 1 ? ` · step ${current.step} / ${steps}` : ""}${live}`;
+    const live = current.phase ? ` · ${phase(current.phase)}${current.quiz ? ` ${current.quiz}` : ""}` : "";
+    $("#where").textContent = `${P.frameOf(current.frame, frames.length)}${steps > 1 ? ` · ${P.stepOf(current.step, steps)}` : ""}${live}`;
   }
   // the notes: the deck's note page, or its text
   const text = prefs.notes === "text";
-  $("#notesmode").textContent = text ? "Page" : "Text";
-  $("#notesmode").title = text ? "the note page as typeset" : "the notes as text you can enlarge";
+  $("#notesmode").textContent = text ? P.notesPage : P.notesText;
+  $("#notesmode").title = text ? P.notesPageTitle : P.notesTextTitle;
   $("#notewrap").hidden = text;
   $("#notetext").hidden = !text;
   note.show(text || current.board ? null : current);
@@ -859,22 +913,22 @@ function render() {
     const paragraphs = (current.notes || "").split("\n").filter(Boolean);
     $("#notetext").style.fontSize = `${prefs.size}px`;
     $("#notetext").innerHTML = paragraphs.map((p) => `<p>${esc(p)}</p>`).join("")
-      || `<p class="empty">${current.board ? "A whiteboard page." : "No notes."}</p>`;
+      || `<p class="empty">${esc(current.board ? P.boardNote : P.noNotes)}</p>`;
   } else if (current.board || !current.note) {
-    $("#notewrap").dataset.empty = current.board ? "A whiteboard page." : "No note page for this slide.";
+    $("#notewrap").dataset.empty = current.board ? P.boardNote : P.noNotePage;
   } else {
     delete $("#notewrap").dataset.empty;
   }
   // what the projector shows, if not just this
   const shown = shownSlide(deck, state);
-  const frozen = shown?.overlay ? `a ${shown.overlay === "poll" ? "poll" : "sketch board"}`
-    : shown?.board ? "a whiteboard page" : `frame ${shown ? shown.frame : "?"}`;
+  const frozen = shown?.overlay ? (shown.overlay === "poll" ? P.frozen.poll : P.frozen.sketches)
+    : shown?.board ? P.frozen.board : P.frozen.frame(shown ? shown.frame : "?");
   // (zoomed: a tap on it, Z or the Zoom button give the whole slide back - not Esc: in a
   // full-screen window Esc ends full screen, and an iPad has none)
   const zoomed = Boolean(view) && !["black", "white", "freeze"].includes(st.screen);
-  const away = st.screen === "black" ? "black" : st.screen === "white" ? "white"
-    : st.screen === "freeze" ? `frozen on ${frozen}` : zoomed ? `zoomed ×${(1 / view.h).toFixed(1)} - ⤢ tap: the whole slide` : "";
-  $("#onscreen").textContent = away ? `Projector: ${away}` : "";
+  const away = st.screen === "black" ? P.blackScreen : st.screen === "white" ? P.whiteScreen
+    : st.screen === "freeze" ? frozen : zoomed ? P.zoomed(decimal(1 / view.h)) : "";
+  $("#onscreen").textContent = away ? P.onscreen(away) : "";
   $("#onscreen").hidden = !away;
   $("#onscreen").disabled = !zoomed;
   $('[data-tool="zoom"]').classList.toggle("zoomed", Boolean(view));
@@ -966,8 +1020,9 @@ function renderTools() {
   const marker = tool === "highlighter";
   const colors = marker ? MARKERS : PENS;
   const chosen = marker ? prefs.marker : prefs.pen;
+  const O = T.presenter.tools;
   $("#swatches").innerHTML = colors.map((c) => `<button class="swatch${c === chosen ? " on" : ""}" data-color="${c}"
-    style="--c:${c}" title="${marker ? "highlighter" : "pen"} colour"></button>`).join("");
+    style="--c:${c}" title="${esc(marker ? O.markerColour : O.penColour)}"></button>`).join("");
   $("#swatches").querySelectorAll("[data-color]").forEach((b) => b.onclick = () => {
     prefs[marker ? "marker" : "pen"] = b.dataset.color;
     savePrefs();
@@ -975,7 +1030,7 @@ function renderTools() {
     else renderTools();
   });
   $("#sizes").innerHTML = Object.keys(SIZES).map((s) => `<button class="size${s === prefs.width ? " on" : ""}"
-    data-size="${s}" title="pen width">${s}</button>`).join("");
+    data-size="${s}" title="${esc(O.width)}">${s}</button>`).join("");
   $("#sizes").hidden = marker;
   $("#sizes").querySelectorAll("[data-size]").forEach((b) => b.onclick = () => {
     prefs.width = b.dataset.size;
@@ -1168,7 +1223,7 @@ async function inkAction(t) {
   if (!frame) return;
   const r = await client.send({ t, device, frame }).catch(inkError);
   if (r?.event) book.event(r.event);
-  if (t === "ink.clear" && r?.event) notice("All ink of this frame erased - ↶ or Ctrl+Z brings it back");   // no question
+  if (t === "ink.clear" && r?.event) notice(T.presenter.tools.cleared);   // no question
 }
 
 function pointerAt([x, y], type, t = performance.now()) {
@@ -1305,10 +1360,10 @@ function toggleTimer() {
 async function setTarget() {
   const t = state?.stage?.timer || {};
   const now = t.target ? String(Math.round(t.target / 60000)) : "";
-  const answer = await askText("Target duration in minutes (empty: none)", now);
+  const answer = await askText(T.presenter.targetAsk, now);
   if (answer === null) return;
   const minutes = Number(answer.replace(",", "."));
-  if (answer.trim() && !(minutes > 0)) return tell("A number of minutes, please.");
+  if (answer.trim() && !(minutes > 0)) return tell(T.presenter.targetNumber);
   send({ t: "timer", action: "target", seconds: answer.trim() ? Math.round(minutes * 60) : 0 });
 }
 
@@ -1331,12 +1386,12 @@ function tickClock() {
   const target = $("#target");
   if (t.target) {
     const left = t.target - ms;
-    target.textContent = left >= 0 ? `${clock(left)} left` : `${clock(-left)} over`;
+    target.textContent = left >= 0 ? T.presenter.left(clock(left)) : T.presenter.over(clock(-left));
     target.className = `target ${left < 0 ? "over" : left < 5 * 60000 ? "soon" : ""}`;
   } else {
     target.textContent = "";
   }
-  $("#wall").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  $("#wall").textContent = hhmm(Date.now());
 }
 
 function textSize(step) {
@@ -1357,14 +1412,14 @@ function openOverview() {
   const tiles = [];
   items.forEach((it, i) => {
     const after = items[i + 1];
-    if (it.board) tiles.push({ item: it, go: it, label: "page", key: idOf(it) });
+    if (it.board) tiles.push({ item: it, go: it, label: T.presenter.overviewPage, key: idOf(it) });
     else if (!after || after.board || after.frame !== it.frame) {
       tiles.push({ item: it, go: frames.find((f) => f.frame === it.frame).first, label: String(it.frame), key: String(it.frame) });
     }
   });
   const el = document.createElement("div");
   el.className = "overview";
-  el.innerHTML = `<div class="ovhead">Frames and whiteboard pages - click one, or type a frame's number and Enter; G or Esc closes</div>
+  el.innerHTML = `<div class="ovhead">${esc(T.presenter.overviewHead)}</div>
     <div class="ovgrid">${tiles.map((t) => `<button class="tile"><span class="num">${esc(t.label)}</span></button>`).join("")}</div>`;
   document.body.append(el);
   [...el.querySelectorAll(".tile")].forEach((b, i) => {
@@ -1406,7 +1461,7 @@ function openProjector() {
   projector = window.open(`/stage/projector?bundle=${encodeURIComponent(deck.bundle)}`, "texstage-projector",
     "popup,width=1280,height=720");
   if (!projector) {
-    tell("The browser blocked the projector window - allow pop-ups for this page.");
+    tell(T.presenter.popup);
     return;
   }
   placeOnOtherScreen(projector);
@@ -1439,15 +1494,7 @@ function save(blob, name) {
 }
 
 // ------------------------------------------------------------------ polls, questions, sketches (M6)
-const KINDS = [["yesno", "Yes / No"], ["choice", "A – F"], ["scale", "Scale 1–5"], ["words", "Word cloud"],
-  ["text", "Text"], ["sketch", "Sketch"]];
-const KIND_NOTES = {
-  yesno: "The phones answer Yes or No.",
-  scale: "The phones pick 1 to 5 - say in the question what 1 and 5 mean.",
-  words: "The phones type a word or two (24 characters); the projector shows a word cloud.",
-  text: "The phones type an answer (140 characters); the projector lists them.",
-  sketch: "The phones draw; Sketches shows the drawings, and you pick some for the projector.",
-};
+const KINDS = ["yesno", "choice", "scale", "words", "text", "sketch"];   // their names and notes: presenter.poll
 const TIMES = [10, 20, 30, 45, 60, 90, 120, 180, 300];
 const POLL_TIMES = { yesno: 30, choice: 30, scale: 30, words: 45, text: 90, sketch: 120 };
 
@@ -1486,20 +1533,21 @@ function pollDialog() {
   let choices = 4;                                    // answer fields, 2 to 6
   const texts = ["", "", "", "", "", ""];
   const asked = Object.entries(state.polls || {}).reverse();
-  el.innerHTML = `<div class="box wide"><h2>Ask a poll</h2>
-    <div class="kinds">${KINDS.map(([k, label]) => `<button data-kind="${k}">${label}</button>`).join("")}</div>
-    <label class="col">Question <textarea id="pollprompt" rows="3" maxlength="300"
-      placeholder="Type the question - formulas between $...$ (yes/no, A-F and the scale can do without: the slide asks)"></textarea></label>
+  const Q = T.presenter.poll;
+  el.innerHTML = `<div class="box wide"><h2>${esc(Q.title)}</h2>
+    <div class="kinds">${KINDS.map((k) => `<button data-kind="${k}">${esc(Q.kinds[k])}</button>`).join("")}</div>
+    <label class="col">${esc(Q.question)} <textarea id="pollprompt" rows="3" maxlength="300"
+      placeholder="${esc(Q.placeholder)}"></textarea></label>
     <div class="preview" id="pollpreview" hidden></div>
     <div id="pollanswers"></div>
-    <div class="buttons"><label>Time <select id="polltime">${TIMES.map((t) => `<option value="${t}">${t} s</option>`).join("")}</select></label>
-      <span class="spacer"></span><button class="primary" id="pollstart">Ask now</button>
-      <button class="secondary" id="closedlg">Cancel</button></div>
+    <div class="buttons"><label>${esc(Q.time)} <select id="polltime">${TIMES.map((t) => `<option value="${t}">${esc(Q.seconds(t))}</option>`).join("")}</select></label>
+      <span class="spacer"></span><button class="primary" id="pollstart">${esc(Q.start)}</button>
+      <button class="secondary" id="closedlg">${esc(T.dialog.cancel)}</button></div>
     <p class="error" id="pollerr"></p>
-    ${asked.length ? `<h3>Asked in this game</h3><div class="pollhist">${asked.map(([quiz, q]) => `<div class="device">
-      <span class="name">${esc(KINDS.find(([k]) => k === q.adhoc)?.[1] || q.adhoc)}</span>
-      <span class="meta">${esc((q.prompt?.text || "").slice(0, 60)) || "(the slide's question)"} · ${count(state.rounds?.[quiz]?.answered ?? 0, "answer", "answers")}</span>
-      <button data-show="${esc(quiz)}">Show</button></div>`).join("")}</div>` : ""}</div>`;
+    ${asked.length ? `<h3>${esc(Q.asked)}</h3><div class="pollhist">${asked.map(([quiz, q]) => `<div class="device">
+      <span class="name">${esc(textOf(Q.kinds, q.adhoc))}</span>
+      <span class="meta">${esc((q.prompt?.text || "").slice(0, 60) || Q.slides)} · ${esc(Q.answers(state.rounds?.[quiz]?.answered ?? 0))}</span>
+      <button data-show="${esc(quiz)}">${esc(Q.show)}</button></div>`).join("")}</div>` : ""}</div>`;
   document.body.append(el);
   const prompt = el.querySelector("#pollprompt");
   const time = el.querySelector("#polltime");
@@ -1513,13 +1561,13 @@ function pollDialog() {
     const box = el.querySelector("#pollanswers");
     el.querySelectorAll("[data-kind]").forEach((b) => b.classList.toggle("on", b.dataset.kind === kind));
     if (kind !== "choice") {
-      box.innerHTML = `<p>${esc(KIND_NOTES[kind])}</p>`;
+      box.innerHTML = `<p>${esc(Q.notes[kind])}</p>`;
       return;
     }
-    box.innerHTML = `<div class="buttons left">Answers ${[2, 3, 4, 5, 6].map((n) => `<button class="count${n === choices ? " on" : ""}"
-        data-count="${n}">${n}</button>`).join("")}<label class="check"><input type="checkbox" id="pollmulti"> several answers</label></div>
+    box.innerHTML = `<div class="buttons left">${esc(Q.count)} ${[2, 3, 4, 5, 6].map((n) => `<button class="count${n === choices ? " on" : ""}"
+        data-count="${n}">${n}</button>`).join("")}<label class="check"><input type="checkbox" id="pollmulti"> ${esc(Q.several)}</label></div>
       <div class="answerlist">${texts.slice(0, choices).map((t, i) => `<label><b>${String.fromCharCode(65 + i)}</b>
-        <input data-answer="${i}" maxlength="120" value="${esc(t)}" placeholder="optional - the letter alone, if the slide has the answers"></label>`).join("")}</div>`;
+        <input data-answer="${i}" maxlength="120" value="${esc(t)}" placeholder="${esc(Q.optional)}"></label>`).join("")}</div>`;
     box.querySelectorAll("[data-count]").forEach((b) => b.onclick = () => { choices = +b.dataset.count; answers(); });
     box.querySelectorAll("[data-answer]").forEach((input) => input.oninput = () => { texts[+input.dataset.answer] = input.value; });
   };
@@ -1547,7 +1595,7 @@ function pollDialog() {
       savePrefs();
       el.remove();
     } catch (err) {
-      el.querySelector("#pollerr").textContent = err.message || err;
+      el.querySelector("#pollerr").textContent = why(err);
     }
   };
   pick(kind);
@@ -1557,9 +1605,10 @@ function pollDialog() {
 function openQa() {
   qaPanel = document.createElement("aside");
   qaPanel.className = "qapanel";
-  qaPanel.innerHTML = `<div class="qahead"><h2>Questions</h2>
-      <label class="check" title="the phones get a tab to ask and upvote"><input type="checkbox" id="qaopen"> open for the phones</label>
-      <button class="secondary" id="qaclose" title="close the panel">✕</button></div>
+  const Q = T.presenter.qa;
+  qaPanel.innerHTML = `<div class="qahead"><h2>${esc(Q.title)}</h2>
+      <label class="check" title="${esc(Q.openTitle)}"><input type="checkbox" id="qaopen"> ${esc(Q.open)}</label>
+      <button class="secondary" id="qaclose" title="${esc(Q.closeTitle)}">✕</button></div>
     <div class="qabody" id="qabody"></div>`;
   document.body.append(qaPanel);
   qaPanel.querySelector("#qaopen").onchange = (e) => send({ t: "qa.open", on: e.target.checked });
@@ -1573,10 +1622,9 @@ function openQa() {
     else if (act === "hide") send({ t: "qa.show", question: null });
     else if (act === "done" || act === "open") send({ t: "qa.mark", question, state: act });
     else if (act === "delete") {
-      if (await ask("Delete this question?", "Delete")) send({ t: "qa.mark", question, state: "deleted" });
+      if (await ask(T.presenter.qa.deleteAsk, T.presenter.qa.delete)) send({ t: "qa.mark", question, state: "deleted" });
     } else if (act === "block") {
-      if (await ask("Block whoever asked this? Their question and their other open questions go, and they cannot "
-        + "ask any more in this game.", "Block")) send({ t: "qa.block", question });
+      if (await ask(T.presenter.qa.blockAsk, T.presenter.qa.block)) send({ t: "qa.block", question });
     }
   });
   qaPanel.listed = "";
@@ -1596,6 +1644,7 @@ function renderQa() {
   const key = JSON.stringify([qa, shown]);
   if (key === qaPanel.listed) return;
   qaPanel.listed = key;
+  const Q = T.presenter.qa;
   const item = (q) => `<div class="qaitem${q.id === shown ? " shown" : ""}${q.state === "done" ? " done" : ""}" data-q="${esc(q.id)}">
       <div class="qavotes">▲ ${q.votes}</div><div class="qatext">${textHTML(q.text, () => {
         if (qaPanel) {
@@ -1603,23 +1652,24 @@ function renderQa() {
           renderQa();
         }
       })}</div>
-      <div class="qaacts">${q.state === "done" ? '<button data-act="open">Reopen</button>'
-        : `${q.id === shown ? '<button data-act="hide" class="on">Hide</button>' : '<button data-act="show" title="on the projector, over the slide">Show</button>'}
-        <button data-act="done">Done</button>`}<button data-act="delete">Delete</button>
-        <button data-act="block" title="whoever asked it cannot ask any more">Block</button></div></div>`;
+      <div class="qaacts">${q.state === "done" ? `<button data-act="open">${esc(Q.reopen)}</button>`
+        : `${q.id === shown ? `<button data-act="hide" class="on">${esc(Q.hide)}</button>`
+          : `<button data-act="show" title="${esc(Q.showTitle)}">${esc(Q.show)}</button>`}
+        <button data-act="done">${esc(Q.done)}</button>`}<button data-act="delete">${esc(Q.delete)}</button>
+        <button data-act="block" title="${esc(Q.blockTitle)}">${esc(Q.block)}</button></div></div>`;
   const open = qa.questions.filter((q) => q.state === "open");
   const done = qa.questions.filter((q) => q.state === "done");
   qaPanel.querySelector("#qabody").innerHTML = `${open.map(item).join("")
-    || `<p class="empty">${qa.open ? "No questions yet." : "Questions are closed - open them, and the phones get a tab for them."}</p>`}
-    ${done.length ? `<h3>Answered</h3>${done.map(item).join("")}` : ""}`;
+    || `<p class="empty">${esc(qa.open ? Q.none : Q.closed)}</p>`}
+    ${done.length ? `<h3>${esc(Q.answered)}</h3>${done.map(item).join("")}` : ""}`;
 }
 
 // ------------------------------------------------------------------ live activities (activity.js)
 function openActivities() {
   actPanel = document.createElement("aside");
   actPanel.className = "qapanel actpanel";
-  actPanel.innerHTML = `<div class="qahead"><h2>Activities</h2><select id="actpick"></select>
-      <button class="secondary" id="actclose" title="close the panel">✕</button></div>
+  actPanel.innerHTML = `<div class="qahead"><h2>${esc(T.presenter.activity.title)}</h2><select id="actpick"></select>
+      <button class="secondary" id="actclose" title="${esc(T.presenter.activity.closeTitle)}">✕</button></div>
     <div class="qabody" id="actbody"></div>`;
   document.body.append(actPanel);
   actPanel.chosen = null;               // the activity shown here (the current one by default)
@@ -1647,7 +1697,7 @@ async function onActivityClick(e) {
   const term = b.closest("[data-term]")?.dataset;
   if (act === "open" || act === "close") send({ t: `activity.${act}`, activity });
   else if (act === "reveal") {
-    if (await ask("Reveal the reference's result - in every window, and on the phones whether theirs is the same?", "Reveal")) {
+    if (await ask(T.presenter.activity.revealAsk, T.presenter.activity.reveal)) {
       send({ t: "activity.reveal", activity });
     }
   } else if (act === "hide" || act === "unhide") {
@@ -1672,7 +1722,7 @@ async function onActivityClick(e) {
   else if (act === "unshow") send({ t: "activity.show", activity, cluster: null });
   else if (act === "hidec") send({ t: "activity.hide", activity, contribution: b.dataset.contribution, on: true });
   else if (act === "block") {
-    if (await ask("Block whoever sent this? Their contributions go, and they cannot send any more in this game.", "Block")) {
+    if (await ask(T.presenter.activity.blockAsk, T.presenter.activity.block)) {
       send({ t: "activity.block", activity, contribution: b.dataset.contribution });
     }
   }
@@ -1707,16 +1757,15 @@ function renderActivities() {
 
 function drawActivityPanel(id, item, st, pic) {
   const crowd = item.input === "tuple";
-  const words = codeWords(item);                         // queries - or Turtle texts
-  const phase = { ready: "not opened yet", open: "open - the phones send", closed: "closed" }[st.phase] || st.phase;
-  const head = `<div class="acthead"><b>${esc(phase)}</b> · ${count(st.students || 0, "student", "students")} ·
-      ${count(st.count || 0, "contribution", "contributions")}${st.waiting ? ` · ${st.waiting} waiting` : ""}
-    <div class="buttons left">${st.phase === "open" ? '<button data-act="close">Close</button>'
-      : '<button data-act="open" class="primary">Open</button>'}
-      ${crowd ? "" : `<button data-act="reveal"${st.revealed ? " disabled" : ""}>${st.revealed ? "Revealed" : "Reveal"}</button>`}</div>
-    ${crowd ? "" : `<p class="note">${agent?.evaluator?.failed ? `The ${words.many} cannot be evaluated here: ${esc(agent.evaluator.failed)}`
-      : agent?.leads() ? `This window evaluates the ${words.many} (${agent.evaluator?.done ?? 0} so far).`
-        : `Another presenter window evaluates the ${words.many} - or none: they wait.`}</p>`}</div>`;
+  const A = T.presenter.activity, W = T.box;
+  const words = codeWords(item, lang);                   // queries - or Turtle texts
+  const head = `<div class="acthead"><b>${esc(textOf(A.phase, st.phase))}</b> · ${esc(W.students(st.students || 0))} ·
+      ${esc(A.contributions(st.count || 0))}${st.waiting ? ` · ${esc(W.waiting(st.waiting))}` : ""}
+    <div class="buttons left">${st.phase === "open" ? `<button data-act="close">${esc(A.close)}</button>`
+      : `<button data-act="open" class="primary">${esc(A.open)}</button>`}
+      ${crowd ? "" : `<button data-act="reveal"${st.revealed ? " disabled" : ""}>${esc(st.revealed ? A.revealed : A.reveal)}</button>`}</div>
+    ${crowd ? "" : `<p class="note">${esc(agent?.evaluator?.failed ? A.failed(words.many, agent.evaluator.failed)
+      : agent?.leads() ? A.evaluates(words.many, agent.evaluator?.done ?? 0) : A.elsewhere(words.many))}</p>`}</div>`;
   const body = crowd ? crowdPanel(item, st, pic) : clusterPanel(words, pic);
   actPanel.querySelector("#actbody").innerHTML = head + body;
 }
@@ -1724,37 +1773,41 @@ function drawActivityPanel(id, item, st, pic) {
 function crowdPanel(item, st, pic) {
   const m = actPanel.merging;
   const terms = pic.terms || [];
+  const A = T.presenter.activity;
   const row = (t) => {
     const into = t.into ? ` <span class="meta">→ ${esc(terms.find((o) => o.key === t.into && o.role === t.role)?.label || t.into)}</span>` : "";
-    const acts = m ? (m.role === t.role && m.term !== t.key ? '<button data-act="into">← into this</button>' : "")
-      : `${t.into ? '<button data-act="unmerge">Unmerge</button>' : '<button data-act="merge" title="merge it into another term">Merge…</button>'}
-        ${t.hidden ? '<button data-act="unhide">Show</button>' : '<button data-act="hide">Hide</button>'}
-        ${item.review ? (t.approved ? '<button data-act="unapprove">Unapprove</button>' : '<button data-act="approve" class="primary">Approve</button>') : ""}`;
+    const acts = m ? (m.role === t.role && m.term !== t.key ? `<button data-act="into">${esc(A.into)}</button>` : "")
+      : `${t.into ? `<button data-act="unmerge">${esc(A.unmerge)}</button>`
+        : `<button data-act="merge" title="${esc(A.mergeTitle)}">${esc(A.merge)}</button>`}
+        ${t.hidden ? `<button data-act="unhide">${esc(A.show)}</button>` : `<button data-act="hide">${esc(A.hide)}</button>`}
+        ${item.review ? (t.approved ? `<button data-act="unapprove">${esc(A.unapprove)}</button>`
+          : `<button data-act="approve" class="primary">${esc(A.approve)}</button>`) : ""}`;
     return `<div class="actterm${t.hidden ? " hidden" : ""}" data-role="${esc(t.role)}" data-term="${esc(t.key)}">
-      <span class="n">${t.n}</span><span class="term">${esc(t.label)}${into}</span><span class="kind">${t.role === "label" ? "label" : "node"}</span>
+      <span class="n">${t.n}</span><span class="term">${esc(t.label)}${into}</span><span class="kind">${esc(t.role === "label" ? A.label : A.node)}</span>
       <span class="acts">${acts}</span></div>`;
   };
-  return `<div class="buttons left"><label>On the projector from <input id="actmin" type="number" min="1" max="1000" value="${st.min ?? 1}">
-      ${(st.min ?? 1) === 1 ? "student" : "students"} on</label></div>
-    ${m ? `<p class="note">Merge <b>${esc(m.term)}</b> into …  <button data-act="cancel">Cancel</button></p>` : ""}
-    ${pic.more ? `<p class="note">${pic.more} more nodes than the projector shows.</p>` : ""}
-    ${terms.map(row).join("") || '<p class="empty">No triples yet.</p>'}`;
+  return `<div class="buttons left"><label>${esc(A.from)} <input id="actmin" type="number" min="1" max="1000" value="${st.min ?? 1}">
+      ${esc(A.on(st.min ?? 1))}</label></div>
+    ${m ? `<p class="note">${A.mergeInto(`<b>${esc(m.term)}</b>`)}  <button data-act="cancel">${esc(T.dialog.cancel)}</button></p>` : ""}
+    ${pic.more ? `<p class="note">${esc(A.moreNodes(pic.more))}</p>` : ""}
+    ${terms.map(row).join("") || `<p class="empty">${esc(A.noTriples)}</p>`}`;
 }
 
 function clusterPanel(words, pic) {
-  const refs = (pic.refs || []).map((r, i) => r === null ? `reference ${i + 1}: not run yet`
-    : typeof r === "object" ? `reference ${i + 1} failed: ${r.failed}` : `reference ${i + 1}: ${r}`);
+  const A = T.presenter.activity;
+  const refs = (pic.refs || []).map((r, i) => r === null ? A.refPending(i + 1)
+    : typeof r === "object" ? A.refFailed(i + 1, r.failed) : A.refKey(i + 1, r));
   const shown = pic.shown?.key;
-  return `${refs.length ? `<p class="note">${refs.map(esc).join("<br>")}</p>` : '<p class="note">The deck gives no reference.</p>'}
+  return `${refs.length ? `<p class="note">${refs.map(esc).join("<br>")}</p>` : `<p class="note">${esc(A.noRef)}</p>`}
     ${pic.clusters.map((c) => `<div class="actcluster${c.reference ? " ref" : ""}${c.key === shown ? " shown" : ""}">
-      <div class="top"><b>${esc(resultLabel(c))}</b>${c.reference ? " ✓ the reference's" : ""} · ${count(c.n, "student", "students")}</div>
+      <div class="top"><b>${esc(resultLabel(c, lang))}</b>${c.reference ? ` ✓ ${esc(A.theReference)}` : ""} · ${esc(T.box.students(c.n))}</div>
       <pre>${esc(c.example)}</pre>${c.errors?.length ? `<div class="meta">${c.errors.map(esc).join("<br>")}</div>` : ""}
-      ${c.status === "ok" ? resultTable(c.summary, 4) : ""}
-      <div class="buttons left">${c.key === shown ? '<button data-act="unshow" class="on">Hide from the projector</button>'
-        : `<button data-act="show" data-key="${esc(c.key)}" title="its ${words.one} and result on the projector">Show</button>`}
-        <button data-act="hidec" data-contribution="${esc(c.contribution)}" title="this ${words.one} goes - the others of its cluster stay">Hide this ${words.one}</button>
-        <button data-act="block" data-contribution="${esc(c.contribution)}">Block</button></div></div>`).join("")
-    || `<p class="empty">No ${words.many} yet.</p>`}`;
+      ${c.status === "ok" ? resultTable(c.summary, 4, lang) : ""}
+      <div class="buttons left">${c.key === shown ? `<button data-act="unshow" class="on">${esc(A.unshow)}</button>`
+        : `<button data-act="show" data-key="${esc(c.key)}" title="${esc(A.showTitle(words.one))}">${esc(A.show)}</button>`}
+        <button data-act="hidec" data-contribution="${esc(c.contribution)}" title="${esc(A.hideOneTitle(words.one))}">${esc(A.hideOne(words.one))}</button>
+        <button data-act="block" data-contribution="${esc(c.contribution)}">${esc(A.block)}</button></div></div>`).join("")
+    || `<p class="empty">${esc(A.none(words.many))}</p>`}`;
 }
 
 function openGallery(quiz) {
@@ -1762,8 +1815,8 @@ function openGallery(quiz) {
   const el = document.createElement("div");
   el.className = "overview gallery";
   el.innerHTML = `<div class="ovhead galhead"><span class="galtitle" id="galtitle"></span>
-      <button class="primary" id="galshow"></button><button class="secondary" id="galhide">Back to the slide</button>
-      <button class="secondary" id="galclose">Close</button></div>
+      <button class="primary" id="galshow"></button><button class="secondary" id="galhide">${esc(T.presenter.gallery.back)}</button>
+      <button class="secondary" id="galclose">${esc(T.presenter.close)}</button></div>
     <div class="ovgrid galgrid" id="galgrid"></div>`;
   document.body.append(el);
   const shown = state.stage?.sketches;
@@ -1855,9 +1908,9 @@ function markGallery() {
     b.classList.toggle("on", at >= 0);
     b.querySelector(".pick").textContent = at >= 0 ? String(at + 1) : "";
   });
-  g.el.querySelector("#galshow").textContent = `Show on the projector (${g.selected.length})`;
+  g.el.querySelector("#galshow").textContent = T.presenter.gallery.show(g.selected.length);
   g.el.querySelector("#galshow").disabled = !g.selected.length;
-  g.el.querySelector("#galcount").textContent = ` · ${count(g.sketches.length, "sketch", "sketches")} - pick up to 12`;
+  g.el.querySelector("#galcount").textContent = ` · ${T.presenter.gallery.count(g.sketches.length)}`;
 }
 
 // ------------------------------------------------------------------ recording (M5)
@@ -1865,29 +1918,30 @@ function renderRec() {
   // in the top bar - never on the projector -: Record, or while it runs a red dot, the time, the
   // microphone's level, pause and stop; when it ends, whether it was saved
   const el = $("#rec");
+  const R = T.record;
   const open = Boolean(client && state?.session) && typeof auth === "string" && canRecord();
   const shape = rec ? `${rec.state}${rec.late ? " late" : ""}` : open ? "idle" : "";
-  if (el.dataset.shape !== shape) {
-    el.dataset.shape = shape;
+  if (el.dataset.shape !== `${shape}:${lang}`) {            // (the deck page, another deck: another language)
+    el.dataset.shape = `${shape}:${lang}`;
     el.className = `rec ${shape}`;
-    const late = rec?.late ? '<span class="reclate" title="the network or the server does not take the parts yet - they wait here">saving delayed</span>' : "";
+    const late = rec?.late ? `<span class="reclate" title="${esc(R.lateTitle)}">${esc(R.late)}</span>` : "";
     if (!rec) {
-      el.innerHTML = open ? '<button id="recbtn" title="record what the projector shows, with your voice">● Record</button>' : "";
+      el.innerHTML = open ? `<button id="recbtn" title="${esc(R.buttonTitle)}">● ${esc(R.button)}</button>` : "";
       if (open) $("#recbtn").onclick = recordDialog;
     } else if (rec.state === "recording" || rec.state === "paused") {
       const paused = rec.state === "paused";
       el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span>
-        ${rec.mic ? '<span class="meter" title="the microphone"><i id="reclevel"></i></span>' : '<span class="nosound">no sound</span>'}${late}
-        <button id="recpause" title="${paused ? "go on recording" : "pause the recording"}">${paused ? "● Resume" : "❚❚"}</button>
-        <button id="recstop" title="stop the recording">■</button>`;
+        ${rec.mic ? `<span class="meter" title="${esc(R.meter)}"><i id="reclevel"></i></span>` : `<span class="nosound">${esc(R.noSound)}</span>`}${late}
+        <button id="recpause" title="${esc(paused ? R.resumeTitle : R.pauseTitle)}">${paused ? `● ${esc(R.resume)}` : "❚❚"}</button>
+        <button id="recstop" title="${esc(R.stopTitle)}">■</button>`;
       $("#recpause").onclick = () => (paused ? rec.resume() : rec.pause());
-      $("#recstop").onclick = async () => { if (await ask("Stop the recording? Recording again makes a new file.", "Stop")) rec.stop(); };
+      $("#recstop").onclick = async () => { if (await ask(T.record.stopAsk, T.record.stop)) rec.stop(); };
     } else if (rec.state === "starting" || rec.state === "stopping") {
-      el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span><span>saving ...</span>${late}`;
+      el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span><span>${esc(R.saving)}</span>${late}`;
     } else {
       const saved = rec.state === "saved";
-      el.innerHTML = `<span class="${saved ? "recsaved" : "recfail"}">${saved ? "Recording saved" : `Recording stopped: ${esc(rec.error)}`}</span>
-        <button id="recok" title="${saved ? "After the lecture lists it" : ""}">OK</button>`;
+      el.innerHTML = `<span class="${saved ? "recsaved" : "recfail"}">${esc(saved ? R.saved : R.stopped(why(rec.error)))}</span>
+        <button id="recok" title="${saved ? esc(R.savedTitle) : ""}">${esc(R.ok)}</button>`;
       const done = rec;
       $("#recok").onclick = () => { rec = null; renderRec(); };
       if (saved) setTimeout(() => { if (rec === done) { rec = null; renderRec(); } }, 30000);
@@ -1909,25 +1963,25 @@ function tickRec() {
     return;
   }
   const time = $("#rectime");
-  if (time) time.textContent = `${rec.state === "paused" ? "paused " : ""}${clock(rec.elapsed())}`;
+  if (time) time.textContent = rec.state === "paused" ? T.record.paused(clock(rec.elapsed())) : clock(rec.elapsed());
   const level = $("#reclevel");
   if (level) level.style.width = `${Math.round((rec.state === "recording" ? rec.mic?.level() || 0 : 0) * 100)}%`;
-  el.title = rec.take ? `${rec.file} · ${(rec.saved / 1e6).toFixed(1)} MB on the server` : "";
+  el.title = rec.take ? T.record.onServer(rec.file, decimal(rec.saved / 1e6)) : "";
 }
 
 async function recordDialog() {
   if (rec?.active || !state?.session) return;
   const mic = new Microphone();                   // made in the click: its level meter may run
+  const R = T.record;
   const el = document.createElement("div");
   el.className = "dialog";
-  el.innerHTML = `<div class="box"><h2>Record the lecture</h2>
-    <p>A video of what the projector shows - slides, ink, pointer, quizzes - with your voice. It goes to the
-    server while it is recorded, into the lecture's archive (After the lecture).</p>
-    <label class="microw">Microphone <select id="micselect"></select></label>
-    <div class="meter large"><i id="miclevel"></i></div><p id="micstate">Asking for the microphone ...</p>
-    <p>Start opens the browser's dialog: choose the projector's screen, or the projector window.</p>
-    <div class="buttons"><button class="primary" id="recstart" disabled>Start recording</button>
-      <button class="secondary" id="closedlg">Cancel</button></div></div>`;
+  el.innerHTML = `<div class="box"><h2>${esc(R.title)}</h2>
+    <p>${esc(R.intro)}</p>
+    <label class="microw">${esc(R.microphone)} <select id="micselect"></select></label>
+    <div class="meter large"><i id="miclevel"></i></div><p id="micstate">${esc(R.asking)}</p>
+    <p>${esc(R.screen)}</p>
+    <div class="buttons"><button class="primary" id="recstart" disabled>${esc(R.start)}</button>
+      <button class="secondary" id="closedlg">${esc(T.dialog.cancel)}</button></div></div>`;
   document.body.append(el);
   const select = el.querySelector("#micselect");
   const startButton = el.querySelector("#recstart");
@@ -1951,20 +2005,19 @@ async function recordDialog() {
     sound = false;
     if (id === "none") {
       mic.release();
-      say("Recording without sound.");
+      say(R.silent);
       return true;
     }
     try {
       const stream = await mic.open(id);
       if (closed || request !== micRequest || !stream) return false;
       sound = true;
-      say("Speak: the bar shows what the microphone hears.");
+      say(R.speak);
     } catch (err) {
       if (closed || request !== micRequest) return false;
       mic.release();
       if (id && err.name === "OverconstrainedError") return openMic("");      // that one is gone: the default
-      say(`No microphone - ${err.name === "NotAllowedError" ? "the browser may not use it" : err.message || err.name}.
-        The recording would have no sound.`, true);
+      say(R.noMic(err.name === "NotAllowedError" ? R.notAllowed : err.message || err.name), true);
     }
     return true;
   };
@@ -1972,7 +2025,7 @@ async function recordDialog() {
     // the microphones by name, once the browser allowed one; before, only the default
     const named = (await microphones()).map((d) => [d.deviceId, d.label]);
     if (closed) return;
-    const options = [...(named.length ? named : [["", "the default microphone"]]), ["none", "no sound"]];
+    const options = [...(named.length ? named : [["", R.defaultMic]]), ["none", R.none]];
     select.innerHTML = options.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
     const want = sound ? (named.some(([v]) => v === prefs.mic) ? prefs.mic : mic.deviceId) : "none";
     select.value = options.some(([v]) => v === want) ? want : options[0][0];
@@ -1994,7 +2047,7 @@ async function recordDialog() {
     } catch (err) {
       if (closed) return;
       button.disabled = false;
-      return say(err.name === "NotAllowedError" ? "No screen was chosen - Start again." : `The browser cannot record the screen: ${err.message || err.name}`, true);
+      return say(err.name === "NotAllowedError" ? R.noScreen : R.cannot(err.message || err.name), true);
     }
     if (closed || !state?.session) {
       screen.getTracks().forEach((t) => t.stop());
@@ -2007,7 +2060,7 @@ async function recordDialog() {
       screen.getTracks().forEach((t) => t.stop());
       if (closed) return;
       button.disabled = false;
-      return say(`The recording did not start: ${err.message || err}`, true);
+      return say(R.notStarted(why(err)), true);
     }
     rec = r;
     remember(r);
@@ -2047,19 +2100,20 @@ async function listRecordings(box) {
   }
   if (!box.isConnected) return;
   const takes = [...found.values()];
+  const R = T.record;
   box.innerHTML = takes.map((t) => {
     const here = rec?.take === t.take && rec.active;
-    const what = here ? "being recorded" : !t.finished ? "unfinished" : t.remuxing ? "being finished" : "";
+    const what = here ? R.recording : !t.finished ? R.unfinished : t.remuxing ? R.finishing : "";
     const button = here || t.remuxing ? ""
-      : !t.finished ? `<button data-finish="${esc(t.take)}" title="it was not stopped in this window: keep what came">Finish</button>`
-        : `<button data-download="${esc(t.take)}">Download</button>`;
-    return `<div class="device"><span class="name">${esc(t.file)}</span><span class="meta">${(t.size / 1e6).toFixed(1)} MB${
-      what ? ` · ${what}` : ""}${t.folder ? ` · ${esc(t.folder)}` : ""}</span>${button}</div>`;
-  }).join("") || '<p class="empty">No recording.</p>';
+      : !t.finished ? `<button data-finish="${esc(t.take)}" title="${esc(R.finishTitle)}">${esc(R.finish)}</button>`
+        : `<button data-download="${esc(t.take)}">${esc(R.download)}</button>`;
+    return `<div class="device"><span class="name">${esc(t.file)}</span><span class="meta">${esc(R.size(decimal(t.size / 1e6)))}${
+      what ? ` · ${esc(what)}` : ""}${t.folder ? ` · ${esc(t.folder)}` : ""}</span>${button}</div>`;
+  }).join("") || `<p class="empty">${esc(R.noTakes)}</p>`;
   box.querySelectorAll("[data-download]").forEach((b) => b.onclick = async () => {
     const r = await fetch(`/api/recording/${b.dataset.download}/download`, { method: "POST", headers: authHeaders(auth) });
     const info = await r.json().catch(() => ({}));
-    if (!r.ok) return tell(info.error || String(r.status));
+    if (!r.ok) return tell(why(refusal(r, info)));
     const a = document.createElement("a");        // the server sends it as a download: the page stays
     a.href = info.url;
     a.click();
@@ -2076,15 +2130,15 @@ async function listRecordings(box) {
 // ------------------------------------------------------------------ after the lecture (M4)
 function archiveDialog() {
   const el = document.createElement("div");
+  const A = T.presenter.after;
   el.className = "dialog";
-  el.innerHTML = `<div class="box"><h2>After the lecture</h2>
-    <p>The annotated PDF: every frame as it was shown last, with your ink, and the whiteboard pages -
-    for the students. It is also kept in the lecture's archive on the server, with the quiz results.</p>
-    <div class="buttons"><button class="primary" id="makepdf">Make the PDF</button></div><p id="pdfstate"></p>
-    <p>The archive - the annotated PDF and the results - as one file:</p>
-    <div class="buttons"><button class="secondary" id="zip">Download the archive (ZIP)</button></div>
-    <h3>Recordings</h3><div class="recordings" id="recordings"><p class="empty">...</p></div>
-    <div class="buttons"><button class="secondary" id="closedlg">Close</button></div></div>`;
+  el.innerHTML = `<div class="box"><h2>${esc(A.title)}</h2>
+    <p>${esc(A.intro)}</p>
+    <div class="buttons"><button class="primary" id="makepdf">${esc(A.make)}</button></div><p id="pdfstate"></p>
+    <p>${esc(A.zipIntro)}</p>
+    <div class="buttons"><button class="secondary" id="zip">${esc(A.zip)}</button></div>
+    <h3>${esc(A.recordings)}</h3><div class="recordings" id="recordings"><p class="empty">...</p></div>
+    <div class="buttons"><button class="secondary" id="closedlg">${esc(T.presenter.close)}</button></div></div>`;
   document.body.append(el);
   listRecordings(el.querySelector("#recordings"));
   const say = (text, error = false) => { const p = el.querySelector("#pdfstate"); p.textContent = text; p.className = error ? "error" : ""; };
@@ -2093,21 +2147,22 @@ function archiveDialog() {
     const button = el.querySelector("#makepdf");
     button.disabled = true;
     try {
-      say("Collecting the ink ...");
+      say(A.collecting);
       const [stagePdf, ink] = await Promise.all([
         (await hostFetch(`/api/deck/${deck.bundle}/pdf`, auth)).arrayBuffer(),      // the browser has it already
         client.send({ t: "ink.all" })]);
-      say("Making the PDF ...");
+      say(A.making);
       const bytes = await annotatedPdf(stagePdf, deck, state.stage?.boards || [], ink.frames);
       const day = new Date().toISOString().slice(0, 10);
       save(new Blob([bytes], { type: "application/pdf" }), `${deck.deck}-${day}-annotated.pdf`);
-      say("Downloaded. Keeping it in the archive ...");
+      say(A.keeping);
       const r = await fetch(`/api/archive/${state.session.id}/annotated.pdf`, { method: "PUT",
         headers: { ...authHeaders(auth), "Content-Type": "application/pdf" }, body: bytes });
       const kept = await r.json().catch(() => ({}));
-      say(r.ok ? `Downloaded, and kept in the server's archive (${kept.folder}).` : `Downloaded; the archive did not take it: ${kept.error || r.status}`, !r.ok);
+      // (a refusal without its own code: the archive's - "The archive did not take it (...)")
+      say(r.ok ? A.kept(kept.folder) : A.notKept(why({ code: kept.code || "archive", message: kept.error || String(r.status) })), !r.ok);
     } catch (err) {
-      say(`The PDF failed: ${err.message || err}`, true);
+      say(A.failed(why(err)), true);
     } finally {
       button.disabled = false;
     }

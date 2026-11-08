@@ -107,6 +107,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from texstage import __version__
+from texstage.build.bundle import LANGUAGES
 from texstage.builds import build_folders
 from texstage.keys import load_presenter_key  # noqa: F401  (the server's key: texstage serve)
 from texstage.server import archive
@@ -169,6 +170,12 @@ class Static(StaticFiles):
 
 def now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def refuse(code: str, message: str, status: int, **more) -> JSONResponse:
+    """The HTTP API's refusal: its words for whoever reads the API (English, as the log), its code
+    for the windows, which say it in their deck's language (web/i18n, errors)."""
+    return JSONResponse({"error": message, "code": code, **more}, status_code=status)
 
 
 def rename(src: Path, dest: Path, tries: int = 6):
@@ -435,8 +442,11 @@ class Server:
                 if c.role in HOSTS and hosts:
                     if host_view is None:
                         host_view = self.engine.host_view(sid, now)
-                        host_view["session"]["join"] = f"{self.config.public_url}/play?pin={host_view['session']['pin']}"
-                        host_view["session"]["qr"] = f"/join/{host_view['session']['pin']}.svg"
+                        # the join slide's address and code name the deck's language: a phone's join
+                        # form speaks it before the phone has joined (play.js)
+                        session, lang = host_view["session"], f"lang={host_view['session']['language']}"
+                        session["join"] = f"{self.config.public_url}/play?pin={session['pin']}&{lang}"
+                        session["qr"] = f"/join/{session['pin']}.svg?{lang}"
                     c.push({"t": "state", "now": now, "role": c.role, **host_view})
                 elif (c.role == "player" and players
                       and (only is None or (c.player in only if isinstance(only, set) else c.player == only))
@@ -1008,7 +1018,7 @@ def create_app(config: ServerConfig) -> Starlette:
         local = (request.client is not None and request.client.host in LOOPBACK and name in LOOPBACK
                  and not any(h in request.headers for h in FORWARDED))
         if not local:
-            return JSONResponse({"error": "only on the machine the server runs on"}, status_code=403)
+            return refuse("local-only", "only on the machine the server runs on", 403)
         return JSONResponse({"key": config.presenter_key})
 
     def bundle_info(b) -> dict:
@@ -1019,10 +1029,10 @@ def create_app(config: ServerConfig) -> Starlette:
         of the bundle folder); it belongs to the lecturer whose key comes with it."""
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         bid = request.path_params["bundle"]
         if not re.fullmatch(r"[0-9a-f]{16}", bid):
-            return JSONResponse({"error": "not a bundle ID"}, status_code=404)
+            return refuse("unknown-bundle", "not a bundle ID", 404)
         if have(bid, lect):
             server.library.show(lect, server.bundles.bundles[bid].deck)    # uploaded again: listed again
             return JSONResponse(bundle_info(server.bundles.bundles[bid]) | {"new": False})
@@ -1033,7 +1043,7 @@ def create_app(config: ServerConfig) -> Starlette:
         or of the host page); its ID is the one its deck.json names."""
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         return await receive(request, lect, None)
 
     def have(bid: str, lect: str) -> bool:
@@ -1052,7 +1062,7 @@ def create_app(config: ServerConfig) -> Starlette:
                 async for chunk in request.stream():
                     size += len(chunk)
                     if size > BUNDLE_MAX:
-                        return JSONResponse({"error": "the bundle is too large"}, status_code=413)
+                        return refuse("too-large", "the bundle is too large", 413)
                     f.write(chunk)
             if bid is None:
                 bid = await asyncio.to_thread(zip_bundle_id, packed)
@@ -1065,7 +1075,7 @@ def create_app(config: ServerConfig) -> Starlette:
                 server.prune(target.parent)
             server.library.show(lect, b.deck)            # a deck taken off the list, uploaded again
         except BundleError as err:
-            return JSONResponse({"error": str(err)}, status_code=400)
+            return refuse("bad-bundle", str(err), 400)
         finally:
             packed.unlink(missing_ok=True)
         log.info("published by %s: %s %s (%s)", lect, b.deck, b.id, target)
@@ -1083,10 +1093,10 @@ def create_app(config: ServerConfig) -> Starlette:
         """POST: the addresses of the deck's video files for this window - {file: address}."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         b = server.bundles.get(request.path_params["bundle"])
         if b is None or not b.open_to(lect):
-            return JSONResponse({"error": "no such bundle"}, status_code=404)
+            return refuse("unknown-bundle", "no such bundle", 404)
         now = now_ms()
         return JSONResponse({name: server.media_ticket(b.id, name, now)
                              for name in stage_types.video.media(b.items.get("video", {}))
@@ -1107,8 +1117,12 @@ def create_app(config: ServerConfig) -> Starlette:
         pin = request.path_params["pin"]
         if not pin.isdigit() or len(pin) != 6:
             return PlainTextResponse("not found", status_code=404)
+        # the language the host view names (?lang=), if texstage speaks it - never looked up by
+        # the PIN: the code says nothing about whether a game has this PIN
+        lang = request.query_params.get("lang", "")
+        url = f"{config.public_url}/play?pin={pin}" + (f"&lang={lang}" if lang in LANGUAGES else "")
         buf = io.BytesIO()
-        segno.make_qr(f"{config.public_url}/play?pin={pin}", error="m").save(buf, kind="svg", scale=8, border=2)
+        segno.make_qr(url, error="m").save(buf, kind="svg", scale=8, border=2)
         return Response(buf.getvalue(), media_type="image/svg+xml")
 
     async def ws_endpoint(ws: WebSocket):
@@ -1152,7 +1166,7 @@ def create_app(config: ServerConfig) -> Starlette:
         """A one-time pairing code for the QR code in the presenter window (devices.py)."""
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         p = server.devices.offer(lect, now_ms())
         url = f"{config.public_url}/stage#pair={p.token}"          # in the fragment: never sent to a server
         qr = segno.make_qr(url, error="m").svg_inline(scale=6, border=2)
@@ -1161,7 +1175,7 @@ def create_app(config: ServerConfig) -> Starlette:
     async def pair_status(request: Request):
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         p = server.devices.status(lect, request.path_params["token"], now_ms())
         if p is None:
             return JSONResponse({"state": "expired"}, status_code=404)
@@ -1171,23 +1185,23 @@ def create_app(config: ServerConfig) -> Starlette:
         """The lecturer allows the device whose code matches - or does not."""
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         allow = (await small_json(request)).get("allow") is True
         p = server.devices.decide(lect, request.path_params["token"], allow, now_ms())
         if p is None:
-            return JSONResponse({"error": "no device is waiting for this code"}, status_code=404)
+            return refuse("pair-unknown", "no device is waiting for this code", 404)
         return JSONResponse({"state": p.state})
 
     async def pair_claim(request: Request):
         """The device that opened the QR code: it waits for the lecturer, with a code to compare."""
         addr, now = request.client.host if request.client else "", now_ms()
         if server.pair_attempts.blocked(addr, now):
-            return JSONResponse({"error": "too many unknown codes from this network - try again later"}, status_code=429)
+            return refuse("pair-too-many", "too many unknown codes from this network - try again later", 429)
         body = await small_json(request)
         p = server.devices.claim(body.get("token"), body.get("name"), now)
         if p is None:
             server.pair_attempts.failed(addr, now)
-            return JSONResponse({"error": "this pairing code is used or expired"}, status_code=404)
+            return refuse("pair-expired", "this pairing code is used or expired", 404)
         return JSONResponse({"claim": p.claim, "code": p.code})
 
     async def pair_wait(request: Request):
@@ -1200,13 +1214,13 @@ def create_app(config: ServerConfig) -> Starlette:
     async def devices_list(request: Request):
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         return JSONResponse(server.devices.list(lect))
 
     async def device_remove(request: Request):
         lect = lecturer(request, devices=False)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         return JSONResponse({"removed": server.remove_device(lect, request.path_params["device"])})
 
     def page(name: str, file: str = "index.html"):
@@ -1230,7 +1244,7 @@ def create_app(config: ServerConfig) -> Starlette:
         off the list stays off it until a newer build of it comes."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         server.bundles.scan()
         lib = server.library.view(lect)["decks"]
 
@@ -1273,7 +1287,7 @@ def create_app(config: ServerConfig) -> Starlette:
         return data
 
     def refused(err: LibraryError) -> JSONResponse:
-        return JSONResponse({"error": str(err)}, status_code=404 if err.missing else 400)
+        return refuse(err.code, str(err), 404 if err.missing else 400)
 
     def known_deck(lect: str, deck: str) -> bool:
         return any(b.deck == deck and b.open_to(lect) for b in server.bundles.current())
@@ -1282,7 +1296,7 @@ def create_app(config: ServerConfig) -> Starlette:
         """GET /api/folders: the lecturer's folders [{id, name, parent}]; POST: a new one {name, parent}."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         if request.method == "GET":
             return JSONResponse(server.library.folders(lect))
         try:
@@ -1297,7 +1311,7 @@ def create_app(config: ServerConfig) -> Starlette:
         DELETE: deletes it, its folders and decks move up to its parent."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         fid = request.path_params["folder"]
         try:
             if request.method == "DELETE":
@@ -1317,10 +1331,10 @@ def create_app(config: ServerConfig) -> Starlette:
         while it runs; one left over from an earlier lecture ends (its results stay in the archive)."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         deck = request.path_params["deck"]
         if not known_deck(lect, deck):
-            return JSONResponse({"error": "no such deck"}, status_code=404)
+            return refuse("no-deck", "no such deck", 404)
         if request.method == "PATCH":
             try:
                 data = await json_body(request)
@@ -1335,11 +1349,10 @@ def create_app(config: ServerConfig) -> Starlette:
             games = [s for s in server.engine.sessions.values()
                      if s.owner == lect and s.ended is None and s.bundle in ids]
             if any(now - s.last_active < server.engine.settings.stale_ms for s in games):
-                return JSONResponse({"error": "a game of this deck is running - delete it after the lecture"},
-                                    status_code=409)
+                return refuse("deck-running", "a game of this deck is running - delete it after the lecture", 409)
             folder = server.published.resolve() / lect / deck
             if any(not d.resolve().is_relative_to(folder) for d in mine):
-                return JSONResponse({"error": "uploaded build is outside its deck folder"}, status_code=400)
+                return refuse("invalid", "uploaded build is outside its deck folder", 400)
             for s in games:
                 server.engine.end(s.id, now)
             for d in mine:
@@ -1357,10 +1370,10 @@ def create_app(config: ServerConfig) -> Starlette:
     async def deck_json(request: Request):
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         b = server.bundles.get(request.path_params["bundle"])
         if b is None or not b.open_to(lect):
-            return JSONResponse({"error": "no such bundle"}, status_code=404)
+            return refuse("unknown-bundle", "no such bundle", 404)
         return JSONResponse(b.deck_json)
 
     async def deck_pdf(request: Request):
@@ -1368,11 +1381,11 @@ def create_app(config: ServerConfig) -> Starlette:
         only - not a picture name to guess (docs/texstage-design.md, section 3)."""
         lect = lecturer(request)
         if lect is None:
-            return JSONResponse({"error": "presenter key required"}, status_code=403)
+            return refuse("key-required", "presenter key required", 403)
         b = server.bundles.get(request.path_params["bundle"])
         path = b.stage_pdf() if b is not None and b.open_to(lect) else None
         if path is None:
-            return JSONResponse({"error": "no stage PDF for this bundle (build the deck again, without --no-stage)"}, status_code=404)
+            return refuse("no-stage-pdf", "no stage PDF for this bundle (build the deck again, without --no-stage)", 404)
         return FileResponse(path, media_type="application/pdf",
                             headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
@@ -1404,9 +1417,9 @@ def create_app(config: ServerConfig) -> Starlette:
         async for chunk in request.stream():
             data += chunk
             if len(data) > ARCHIVE_MAX:
-                return JSONResponse({"error": "the PDF is too large"}, status_code=413)
+                return refuse("too-large", "the PDF is too large", 413)
         if not data.startswith(b"%PDF-"):
-            return JSONResponse({"error": "not a PDF"}, status_code=400)
+            return refuse("not-pdf", "not a PDF", 400)
         folder = server.write_archive(s)
         tmp = folder / "annotated.pdf.tmp"
         tmp.write_bytes(bytes(data))
@@ -1450,7 +1463,7 @@ def create_app(config: ServerConfig) -> Starlette:
             t = server.recordings.start(archive.folder(config.data_dir, s), s.owner,
                                         (await small_json(request)).get("ext"), now_ms())
         except ArchiveError as err:
-            return JSONResponse({"error": str(err)}, status_code=err.status)
+            return refuse(err.code, str(err), err.status)
         log.info("recording %s started for %s (%s)", t.id, s.owner, t.folder)
         return JSONResponse(server.take_info(t), status_code=201)
 
@@ -1458,10 +1471,10 @@ def create_app(config: ServerConfig) -> Starlette:
         """(the recording named in the path, None) - or (None, the refusal): not the lecturer's."""
         lect = lecturer(request)
         if lect is None:
-            return None, JSONResponse({"error": "presenter key required"}, status_code=403)
+            return None, refuse("key-required", "presenter key required", 403)
         t = server.recordings.get(request.path_params["take"], lect)
         if t is None:
-            return None, JSONResponse({"error": "no such recording"}, status_code=404)
+            return None, refuse("no-recording", "no such recording", 404)
         return t, None
 
     async def recording_part(request: Request):
@@ -1473,15 +1486,14 @@ def create_app(config: ServerConfig) -> Starlette:
         async for chunk in request.stream():
             data += chunk
             if len(data) > archive.PART_MAX:
-                return JSONResponse({"error": "the part is too large"}, status_code=413)
+                return refuse("recording-too-large", "the part is too large", 413)
         try:
             n = server.recordings.add(t, request.path_params["part"], bytes(data))
         except ArchiveError as err:
-            return JSONResponse({"error": str(err), "next": t.parts}, status_code=err.status)
+            return refuse(err.code, str(err), err.status, next=t.parts)
         except OSError as err:
             log.error("recording %s: %s", t.id, err)
-            return JSONResponse({"error": f"the server cannot write the recording ({err.strerror or err})"},
-                                status_code=507)
+            return refuse("recording-write", f"the server cannot write the recording ({err.strerror or err})", 507)
         return JSONResponse({"next": n, "size": t.size})
 
     async def recording_done(request: Request):
@@ -1493,8 +1505,7 @@ def create_app(config: ServerConfig) -> Starlette:
         try:
             path = server.recordings.finish(t, now_ms())
         except OSError as err:
-            return JSONResponse({"error": f"the server cannot finish the recording ({err.strerror or err})"},
-                                status_code=507)
+            return refuse("recording-write", f"the server cannot finish the recording ({err.strerror or err})", 507)
         if path is None:
             return JSONResponse({"take": t.id, "file": None, "size": 0})      # nothing was recorded
         log.info("recording %s finished: %s, %d bytes", t.id, path, t.size)
@@ -1513,7 +1524,7 @@ def create_app(config: ServerConfig) -> Starlette:
         if refused:
             return refused
         if t.finished is None or t.id in server.recordings.remuxing or not t.file.exists():
-            return JSONResponse({"error": "the recording is not finished yet"}, status_code=409)
+            return refuse("recording-unfinished", "the recording is not finished yet", 409)
         return JSONResponse({"url": server.download(t.file, t.download_name(), now_ms())})
 
     async def download_file(request: Request):

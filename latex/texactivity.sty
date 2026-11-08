@@ -269,10 +269,15 @@
     \tl_if_empty:NF \g__ta_prompt_tl
       { \texstage_asset:nnnn { activity: \l__ta_id_tl } { prompt } { 7cm } { \g__ta_prompt_tl } }
   }
+% The box's words in the deck's language (texstage.sty: section "language").
+\texstage_texts:nnn { texactivity } { en }
+  { label = { Live~activity~--~on~your~phones } , reference = Reference }
+\texstage_texts:nnn { texactivity } { de }
+  { label = { Live-Aktivität~--~auf~Ihren~Handys } , reference = Referenz }
 \ExplSyntaxOff
 
-% The box's words, for a theme to change (the DBIS theme: German).
-\providecommand\texactivitylabel{Live activity -- on your phones}
-\providecommand\texactivityreferencelabel{Reference}
+% The box's words, for a theme to change (\renewcommand); by default the deck's language's.
+\providecommand\texactivitylabel{\texstage@text{texactivity}{label}}
+\providecommand\texactivityreferencelabel{\texstage@text{texactivity}{reference}}
 
 \endinput
