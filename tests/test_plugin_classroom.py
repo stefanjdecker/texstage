@@ -130,6 +130,7 @@ def test_broadcasts_reserve_loop_time_with_bounded_delay(monkeypatch, cost, dela
     monkeypatch.setattr('texstage.server.app.time.monotonic', lambda: clock[0])
     server = object.__new__(Server)
     server.engine = SimpleNamespace(sessions={'s': object()})
+    server.plugins = SimpleNamespace(defer_broadcast=lambda sid,now:False)
     server.plugin_dirty, server.plugin_push_after = set(), {}
     server.plugin_recipients = {}
     server.dirty, server.conns = set(), {}

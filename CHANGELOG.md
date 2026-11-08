@@ -2,6 +2,12 @@
 
 ## Unreleased — 0.2.1.dev7 candidate
 
+- Improve simultaneous plugin submissions with bounded durable commit batches,
+  immutable schema predicates and prepared-specification caching. Preserve
+  individual receipts, rollback, schema checks, worker limits and FULL durability.
+- Yield between batches and defer repeated audience projections for at most one
+  additional second while a burst is queued; presenter controls remain responsive.
+
 - Preserve revision 3–5 storage options and the actor-only update contract from
   main. Presenter-only counters in older actor-record plugins such as FD Lab do
   not trigger class-wide refreshes; explicit shared broadcast fields still do.

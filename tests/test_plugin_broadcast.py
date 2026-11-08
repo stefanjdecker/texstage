@@ -21,7 +21,8 @@ def server():
         player_view=lambda actor, now, questions: {"actor": actor})
     s.config = SimpleNamespace(public_url="https://example.test")
     s.conns = defaultdict(set)
-    s.plugins = SimpleNamespace(safe_views=lambda conns: {c: {"private_actor": c.player} for c in conns})
+    s.plugins = SimpleNamespace(safe_views=lambda conns: {c: {"private_actor": c.player} for c in conns},
+                                defer_broadcast=lambda sid,now:False)
     return s
 
 

@@ -14,6 +14,7 @@ from jsonschema import Draft202012Validator
 from packaging.version import InvalidVersion, Version
 
 from . import PluginError
+from .schema_fast import compile_predicate
 
 ID = r"[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+"
 QUALIFIED = re.compile(ID + r"\Z")
@@ -66,8 +67,8 @@ def resource_path(value: str) -> str:
 
 @lru_cache(maxsize=128)
 def _schema_validator(raw: bytes):
-    # Cache successful safety checks only. A validator's ValidationError can
-    # expose its schema, so retaining a validator would permit cache poisoning.
+    # Cache safety checks and private immutable predicates only. A validator's
+    # ValidationError exposes its schema; never retain such a validator.
     schema = json.loads(raw)
     def refs(node):
         if isinstance(node, dict):
@@ -83,40 +84,50 @@ def _schema_validator(raw: bytes):
         Draft202012Validator.check_schema(schema)
     except Exception as exc:
         raise PluginError(f"invalid JSON schema: {str(exc)[:500]}") from exc
-    return None
+    return compile_predicate(schema)
 
 
-def _validator(schema):
+def _checked_schema(schema):
     raw = canonical(schema)
     # Bound retained schema bytes as well as entry count. Large valid schemas
     # still work, but do not occupy the cache.
     if len(raw) > 64 * 1024:
-        _schema_validator.__wrapped__(raw)
+        fast = _schema_validator.__wrapped__(raw)
     else:
-        _schema_validator(raw)
+        fast = _schema_validator(raw)
+    return raw, fast
+
+
+def _validator(schema):
+    raw, _ = _checked_schema(schema)
     # Each instance validation owns a fresh snapshot, including errors exposed
     # through PluginError.__cause__. Never retain caller- or error-owned objects.
     return Draft202012Validator(json.loads(raw))
 
 
 def validate_schema(schema: dict):
-    _validator(schema)
+    _checked_schema(schema)
 
 
 def validate_json(schema: dict, value, *, label="value"):
-    validator = _validator(schema)
-    _validate_instance(validator, value, label)
+    raw, fast = _checked_schema(schema)
+    if fast is None or not fast(value):
+        _validate_instance(Draft202012Validator(json.loads(raw)), value, label)
 
 
 def validate_json_many(schema: dict, values, *, label="value"):
-    """One private schema snapshot for a synchronous batch; never cache it.
+    """Validate every value with immutable predicates or one private validator.
 
     Every instance is checked. Any failure aborts the batch and discards this
     validator, so an exception-owned schema cannot poison a later validation.
     """
-    validator = _validator(schema)
+    raw, fast = _checked_schema(schema)
+    validator = None
     for value in values:
-        _validate_instance(validator, value, label)
+        if fast is None or not fast(value):
+            if validator is None:
+                validator = Draft202012Validator(json.loads(raw))
+            _validate_instance(validator, value, label)
 
 
 def _validate_instance(validator, value, label):

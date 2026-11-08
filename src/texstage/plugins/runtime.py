@@ -3,8 +3,9 @@
 """Durable plugin state, receipts and evaluation jobs.
 
 The server authenticates a connection before calling this host. All commands,
-navigation and completions serialize on the host lock. Hooks run outside write
-transactions; revision compare-and-swap detects another process using the DB.
+navigation and completions serialize on the host lock. Ordinary hooks run outside
+write transactions; small participant batches hold one bounded write transaction
+and isolate each command with savepoints. Revision compare-and-swap guards writes.
 Jobs are the durable outbox: leasing and terminal delivery survive a restart.
 """
 from __future__ import annotations
@@ -33,6 +34,8 @@ MAX_RECORD_BYTES = 4096
 MAX_RECORD_READS = 32
 MAX_CACHED_RESULTS = 128
 MAX_CACHE_DELIVERIES = 32
+MAX_SPEC_CACHE_BYTES = 64 * 1024
+COMMAND_BATCH = 8
 
 
 class Runtime:
@@ -43,6 +46,7 @@ class Runtime:
         self.lock = threading.RLock()
         self.changes = {}
         self.outcomes = OrderedDict()
+        self.checked_specs = OrderedDict()
         self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
@@ -81,8 +85,25 @@ class Runtime:
             raise PluginError("plugin runtime changed: resume this session in its original environment", code="environment-changed")
         return row
 
+    def _spec(self, row):
+        raw = row["spec"]
+        # Retain only validated immutable bytes, never a hook- or caller-owned
+        # object. The exact stored text is the key, so another process changing
+        # the specification cannot reuse the earlier validation. Large items
+        # remain supported without occupying this cache (32 entries, each with
+        # at most 64 KiB of UTF-8 text).
+        if raw in self.checked_specs:
+            self.checked_specs.move_to_end(raw)
+            return json.loads(raw)
+        value = read_json(raw, limit=8 * 1024 * 1024)
+        if len(raw.encode("utf-8")) <= MAX_SPEC_CACHE_BYTES:
+            self.checked_specs[raw] = None
+            while len(self.checked_specs) > 32:
+                self.checked_specs.popitem(last=False)
+        return value
+
     def _ctx(self, row, *, actor=None, role="system", now=None, record_actor=None):
-        return {"item": read_json(row["spec"], limit=8 * 1024 * 1024), "epoch": row["epoch"], "revision": row["revision"],
+        return {"item": self._spec(row), "epoch": row["epoch"], "revision": row["revision"],
                 "actor": actor, "role": role, "timestamp": time.time() if now is None else now,
                 **self.records.context(row, actor=actor if role == "participant" else record_actor, role=role),
                 **self.points.context(row, actor=actor if role == "participant" else None)}
@@ -150,6 +171,37 @@ class Runtime:
     def _save_receipt(self, sid, actor, request, envelope_digest, receipt):
         self.db.execute("INSERT INTO receipts VALUES (?,?,?,?,?)",
                         (sid, actor, request, envelope_digest, canonical(receipt).decode()))
+
+    def command_batch(self, commands):
+        """Commit up to eight authenticated participant commands durably together.
+
+        Each entry is (session, actor, envelope, received_time). A domain or
+        validation error rolls back only that command. Results are returned
+        only after FULL-synchronous COMMIT; a storage failure returns no receipts.
+        This is host scheduling, not a provider API or a client batch protocol.
+        """
+        if not 1 <= len(commands) <= COMMAND_BATCH:
+            raise PluginError("invalid command batch size")
+        with self.lock:
+            before = {sid: None if actors is None else set(actors) for sid, actors in self.changes.items()}
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                replies = []
+                for sid, actor, envelope, received in commands:
+                    self.db.execute("SAVEPOINT plugin_command")
+                    try:
+                        reply = self.command(sid, actor, "participant", envelope, now=received)
+                    except PluginError as exc:
+                        self.db.execute("ROLLBACK TO plugin_command")
+                        reply = exc
+                    self.db.execute("RELEASE plugin_command")
+                    replies.append(reply)
+                self.db.execute("COMMIT")
+                return replies
+            except Exception:
+                self.db.execute("ROLLBACK")
+                self.changes = before
+                raise
 
     def command(self, sid, actor, role, envelope, *, now=None):
         received = time.time() if now is None else now
@@ -250,7 +302,8 @@ class Runtime:
         epoch = row["epoch"] + int(reset)
         revision = 0 if reset else row["revision"] + 1
         identity = (row["sid"], row["kind"], row["item"])
-        bindings = read_json(row["spec"], limit=8 * 1024 * 1024).get("evaluations", {})
+        bindings = self._spec(row).get("evaluations", {}) if any(
+            isinstance(e, dict) and e.get("kind") == "evaluate" for e in effects) else {}
         jobs, correlations, records = [], set(), {}
         for effect in effects:
             if not isinstance(effect, dict): raise PluginError("invalid effect")
@@ -280,7 +333,8 @@ class Runtime:
                 raise PluginError("unknown plugin effect")
         receipt = {"accepted": True, "epoch": epoch, "revision": revision,
                    "jobs": {e["correlation_id"]: jid for jid, e in jobs}}
-        self.db.execute("BEGIN IMMEDIATE")
+        batched = self.db.in_transaction
+        self.db.execute("SAVEPOINT plugin_transition" if batched else "BEGIN IMMEDIATE")
         try:
             # Account atomically for the slots this transition actually frees.
             # A full queue must still permit replacement of an actor's old job.
@@ -341,9 +395,14 @@ class Runtime:
                       (canonical({"status": "cancelled"}).decode(), *identity, epoch, effect["correlation_id"]))
             if request: self._save_receipt(row["sid"], actor, request, envelope_digest, receipt)
             if delivery: self.db.execute("UPDATE jobs SET delivered=1 WHERE id=?", (delivery,))
-            self.db.execute("COMMIT")
+            self.db.execute("RELEASE plugin_transition" if batched else "COMMIT")
         except Exception:
-            self.db.execute("ROLLBACK"); raise
+            if batched:
+                self.db.execute("ROLLBACK TO plugin_transition")
+                self.db.execute("RELEASE plugin_transition")
+            else:
+                self.db.execute("ROLLBACK")
+            raise
         spec = self.catalog.capability(row["kind"])[1]
         targeted = not reset and audience_actor is not None and spec.get("participant_updates") == "actor"
         if targeted and "broadcast_fields" in spec:

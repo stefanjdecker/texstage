@@ -553,6 +553,8 @@ class Server:
             start = time.monotonic()
             if start < self.plugin_push_after.get(sid, 0):
                 continue
+            if self.plugins.defer_broadcast(sid, start):
+                continue
             # Consume this generation before yielding. Any later mutation leaves
             # a new dirty marker. Views/membership are refreshed per bounded batch.
             self.plugin_dirty.discard(sid)
@@ -575,7 +577,8 @@ class Server:
             self.push(sid, hosts=False, only=None if who is True else who)
 
     async def start(self):
-        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher())]
+        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher()),
+                      asyncio.create_task(self.plugins.commands())]
 
     async def stop(self):
         for t in self.tasks:
@@ -684,7 +687,10 @@ class Server:
             elif conn.role is None:
                 raise GameError("hello-first", "say hello, join or resume first")
             elif isinstance(t, str) and t.startswith("plugin."):
-                reply = self.plugins.handle(conn, msg)
+                if t == "plugin.command" and conn.role == "player":
+                    reply = await self.plugins.submit(conn, msg, now / 1000)
+                else:
+                    reply = self.plugins.handle(conn, msg)
                 conn.send({"t": "ok", "re": mid, **reply})
             else:
                 key = (conn.role, conn.player or conn.session)

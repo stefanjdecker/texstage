@@ -257,6 +257,32 @@ broadcast dominates them. Providers without this declaration retain the original
 broadcast behavior. Global participant counts therefore belong in presenter
 views for an opted-in activity, not in each phone's live projection.
 
+## Durable participant command batches
+
+The server queues participant plugin commands with backpressure (64 queued
+entries, one outstanding request per WebSocket reader). It rechecks identity,
+session and bundle membership at execution, then processes at most eight saves
+per disk transaction. Every command retains its own schema and role checks,
+actor context, epoch/revision guards, queue/capacity checks and retry receipt.
+Savepoints isolate rejected commands from accepted neighbours. Receipts are sent
+only after SQLite WAL `synchronous=FULL` commits; a failed commit exposes no
+successful acknowledgement and exact retries remain safe after a restart.
+
+Unlike a single command, hooks within a batch may run while that bounded write
+transaction is open. Their deadlines and quarantine policy are unchanged.
+No provider gets database access through this mechanism. Navigation, presenter
+controls, evaluation replies and socket writers get event-loop turns between
+batches. During a burst, ordinary coalesced projections may defer for up to one
+additional second; sustained traffic cannot indefinitely suppress audience
+updates. Presenter controls retain their immediate lecturer projections.
+
+Schema validation has a fast acceptance path for a deliberately limited subset
+of Draft 2020-12. Safety checks still run before caching. Private predicates
+retain immutable constants only; unsupported keywords and failed checks use the
+ordinary validator and its isolated error schema. Every instance is checked.
+Prepared specifications similarly cache only checked immutable text, returning
+fresh objects to hooks. These optimizations do not change a provider contract.
+
 ## Deterministic successful-result reuse
 
 A revision-2 engine may declare `result_cache: "by-input"` when its outcome is a
