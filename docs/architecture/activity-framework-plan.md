@@ -374,6 +374,14 @@ same canonical text, byte for byte, under the same hash. So:
   pairs with texstage's.
 - **CI** as today - Ubuntu with Python 3.12 to 3.14, Windows with 3.14 -, the pool's tests on
   both; the container job installs from the lock, unchanged.
+- **Package 5, done (2026-11-09), before package 4:** `psutil>=7.2` and `pyoxigraph>=0.5.13,<0.6`
+  in `pyproject.toml` - below 0.6, since a new minor version of pyoxigraph may change what the
+  keys are made of -; the locks made again (psutil 7.2.2 and pyoxigraph 0.5.13, every other pin
+  as it was), `lock_dependencies.py --check` passes, the wheel carries `texstage.checks` and the
+  pool and requires both. Done first so that CI runs the pool's tests and the SPARQL and Turtle
+  checks' - and since packages 1 to 3, pushed without fresh locks, had failed CI's lock check.
+  lecture-tools' lock pairs with a texstage artifact (`requirements/texstage.json`), whose
+  requirements it takes: it changes when lecture-tools takes F1 (package 7).
 
 ### 4.8 Tests
 

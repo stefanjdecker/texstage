@@ -36,6 +36,8 @@ dependencies = [
   "starlette>=0.46",
   "uvicorn[standard]>=0.34",
   "segno>=1.6",
+  "psutil>=7.2",           # the checks' pool: workers' CPU time, memory, priority (BSD-3-Clause)
+  "pyoxigraph>=0.5.13,<0.6",   # the checks: SPARQL, Turtle - 0.6 may change what the keys are made of (MIT OR Apache-2.0)
 ]
 
 [project.optional-dependencies]

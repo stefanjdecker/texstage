@@ -324,6 +324,7 @@ picture while the presenter keeps navigating; *live* jumps the projector to the 
 | pdf-lib | MIT | annotated PDF |
 | KaTeX | MIT | math in non-LaTeX content |
 | Starlette, uvicorn, segno, lxml; Pillow; python-pptx | BSD; HPND; MIT | server, PPTX export (as today) |
+| psutil; pyoxigraph (2026-11-09, F1 of the activity framework) | BSD-3-Clause; MIT OR Apache-2.0 | the checks' pool of workers; the SPARQL and Turtle checks on the server |
 | **PyMuPDF** | **AGPL-3.0 or commercial** | build: `builder.py`, `raster.py`, `notes.py`; scripts `beamer2pptx.py`, `build-chapter.py`, `render-pages.py`; `tools/deck_baseline.py`; two test modules |
 
 PyMuPDF is the only conflict (replaced in M7: section 22). Replacement with **pypdfium2** (Apache-2.0/BSD): rendering maps to

@@ -1,5 +1,7 @@
 lxml>=5
 pillow>=11
+psutil>=7.2
+pyoxigraph>=0.5.13,<0.6
 pypdfium2>=5
 python-pptx>=1.0
 segno>=1.6
