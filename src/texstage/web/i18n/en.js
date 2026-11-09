@@ -87,6 +87,8 @@ export default {
     service: "SERVICE (a query to another endpoint) is not run",
     noTriples: "no triples",
     tooManyTriples: (n) => `more than ${n} triples`,
+    tooDeep: (n) => `nested more than ${n} levels deep`,
+    tooMuchMemory: "needs more memory than a check may use",
     notStarted: "the engine did not start",
     workerFailed: "the worker failed",
     noEngine: (name) => `texstage runs no engine ${name}`,

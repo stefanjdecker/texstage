@@ -179,6 +179,22 @@ same canonical text, byte for byte, under the same hash. So:
   3.49.1, pyoxigraph 0.5.13 against the WebAssembly build's 0.5.11. The fixtures compare status
   and position exactly and the words where both engines agree; a case that cannot be made equal
   stays in the fixtures with its reason, as LA's L0 listed its five (LA section 14).
+- **What package 2 found (2026-11-09):** every field compares equal - status, error, key,
+  canonical form, rows, summary - in 294 cases of 300; the versions made no difference, nor did
+  SQLite 3.45.3 (Python 3.13, near Ubuntu's 3.45.1). The six that differ are in
+  `tests/test_checks.py` (`KNOWN`): `SERVICE SILENT` refused (4.4); `load_extension` an error in
+  other words; a lone surrogate, which only a broken phone sends, U+FFFD on the server where
+  sql.js gave SQLite its three bytes; and parameters with and without names in one statement, an
+  error. The browser's SQL check changed with package 2 - a text with the keyword `PRAGMA` is
+  refused before anything is compiled (4.4) -, and the fixtures were made again from it. To get
+  there the port reads texts as
+  sql.js did - up to a NUL, through `TextDecoder`, which writes ill-formed bytes as U+FFFD and
+  drops a leading byte order mark -, gives SQLite the text up to a NUL, as sql.js's C string
+  did, finds empty statements by SQLite's tokenizer - a run of spaces that starts with one of
+  five and goes on with `\v`, a byte order mark a space, `/*` at the very end a slash -, and
+  runs a statement with parameters, `?` or `:name`, as sql.js did, each NULL: Python's sqlite3
+  wants values for them, a list for nameless ones, a mapping for named ones, and refuses both
+  kinds at once.
 
 ### 4.4 The pool, and the checks' safety
 
@@ -215,11 +231,20 @@ same canonical text, byte for byte, under the same hash. So:
   is the student's `error`.
 - **SQL** (`checks/sql.py`): the seed run into a database in memory, then
   `PRAGMA temp_store = MEMORY` - else a large sort spills to temporary files, past the cap (F0's
-  review) -, `PRAGMA query_only = ON`, an authorizer that refuses `ATTACH`, `DETACH` and
-  `PRAGMA`, extensions off; one statement only -
-  Python's sqlite3 refuses two with an error of its own, which the check reads as `refused`, as
-  sql.js's count does -, starting with `select`, `values` or `with` after its comments; more than
-  100,000 rows an `error`, as today (LA 8.8).
+  review) -, `PRAGMA query_only = ON`, extensions off; the statements found as sql.js's count
+  found them - split where SQLite splits them, each compiled behind `EXPLAIN` and none run -,
+  one only, starting with `select`, `values` or `with` after its comments; more than 100,000
+  rows an `error`, as today (LA 8.8). **Pragmas** (found in package 2): SQLite carries out many
+  of them as it compiles them - `query_only = OFF` among them, behind `EXPLAIN` too -, and
+  sql.js, which compiled every statement to count them, let a text make the database writable,
+  after which a `WITH ... DELETE` emptied it for every text after it, in the presenter window,
+  until it was reloaded. So both checks - the browser's (`namesPragma`, fixed in package 2) and
+  the server's (`names_pragma`) - refuse a text with the keyword `PRAGMA`, read as SQLite reads
+  it - not in a string, a quoted name, a comment or a parameter -, before anything is compiled;
+  and on the server an authorizer makes a `PRAGMA`, an `ATTACH` and a `DETACH` compile to nothing
+  besides, the second guard. While the query runs, the authorizer refuses `ATTACH` and `DETACH`;
+  a pragma's table-valued function - `pragma_table_info('t')` - reads as in sql.js, as SQLite
+  has them only for pragmas without effects.
 - **SPARQL** (`checks/sparql.py`): the seed's prologue completed as today (LA 8.6); `SERVICE`
   refused before the query runs - pyoxigraph 0.5.13 connects for it (Q1) -, by a small tokenizer
   that decodes the `\u` and `\U` escapes as SPARQL does, skips strings, IRIs and comments, and
@@ -228,6 +253,71 @@ same canonical text, byte for byte, under the same hash. So:
   (Q3) a `syntax` error, as an engine's own limit would be.
 - **Turtle** (`checks/turtle.py`): the quotes and the prologue as today (LA 8.9); more than 10,000
   triples an `error`; the nesting cap.
+- **What package 3 built (2026-11-09):** `server/pool.py` and `server/worker.py`, from F0's
+  prototype, with what the design adds to it. A worker sends back what the presenter window's
+  evaluator sent - status, error, key, summary -, and after the first reference that gave a
+  result, each summary's `diff` against it, as `evaluator-worker.js` added it; the rows stay in
+  the worker. A check stopped by the clock, or whose worker died, runs once more on a fresh
+  process - the spare, or a worker that has checked nothing yet -, then is `internal` and set
+  aside in the pool; a CPU overrun is the student's `timeout` at once; a memory overrun on two
+  fresh processes the student's `error` ("needs more memory than a check may use", in both
+  catalogs). (The review below changed the references, the prepares and much else.) The watchdog counts memory from what a worker held after its prepares, plus 1 GB;
+  SQLite's cap is the seed, 32 MB and 256 MB, set by the first SQL seed a worker loads, since the
+  cap only goes down; the hard stop is 2 GB of committed memory per worker in a job object on
+  Windows - which also ends a crashed worker without a dialog, and every worker when the server's
+  process is gone -, and 4 GB of address space on Linux. SPARQL and Turtle read their solutions
+  under the budget, every 16; what streams none - a `COUNT`, an `ORDER BY` - the watchdog ends. The
+  same text while it is checked is one job; a seed that does not load fails its activity, and so
+  does one whose preparing ends two workers; three workers in a row that die before they are
+  ready stop the pool from starting more. Processes start, and futures resolve, outside the lock.
+  `tests/test_pool.py` passes on Windows and on Linux (WSL's Ubuntu 24.04, Python 3.12.3, SQLite
+  3.45.1). That Linux run found three things in the checks: Python 3.12's `urljoin` drops the
+  empty fragment of a namespace `ns#`, which JavaScript's `URL` keeps (fixed); Python 3.12.3 took
+  `?2` for a named parameter (handled); and Debian's SQLite allows parameters up to `?250000`,
+  where sql.js's and Python's own stop at `?32766`, so SQLite's message differs (the test accepts
+  either). CI has neither psutil nor pyoxigraph until package 5: the pool's tests, and the SPARQL
+  and Turtle checks', skip there until then.
+- **What package 3's review found, and what changed (2026-11-09):** a critical review - an
+  independent reviewer with experiments, and mine - found thirteen faults, all confirmed:
+  - *Leading spaces:* the SQL check's patterns for SQLite's spaces backtracked exponentially - 26
+    spaces or newlines in front of a query took 6.6 s, which the pool would have made a `timeout`;
+    possessive now, 0.1 ms. Adversarial texts of 2,000 characters take under 30 ms in all three
+    checks.
+  - *References:* every process checked them at once, watched only by a 120 s backstop: one that
+    ran away held up every check of every activity for two minutes, then failed its activity.
+    Now one process - the spare, else one that waits - checks them first, each under 10 s of CPU
+    time: a runaway one is a `timeout`, one that ends its process `internal`, the next process goes
+    on with the ones after it, and the others load the seed only then. The seed's backstop counts
+    from when its loading begins, not from when it was queued.
+  - *Preparing again, dropping:* a prepare's answer did not say which prepare it answered - one
+    prepared again got the earlier one's outcomes, or failed with its error; prepares have
+    generations now. A check of a dropped activity whose worker died waited for ever, holding up
+    its student's other texts: it is `internal` now, and a student's text that no process can take
+    yet holds up none of theirs.
+  - *Breaking down:* a pool whose processes died before they were ready went on starting about
+    eight a second; a process that could not be started ended a thread and emptied the pool
+    unnoticed; two replies resolving one future could end a reader thread and lose its worker;
+    `budget_s=None` ended the watchdog. Now the broken pool starts none and fails what comes at
+    once; a failed start counts as an early death; futures are claimed under the lock and the
+    readers and the watchdog survive whatever one message or round raises; a budget is a number of
+    seconds, more than 0, at most 10.
+  - *Budgets and memory:* a budget bounded only the engine's part - the Python work after it, the
+    key above all (FNV-1a in Python, 9 MB a second), went uncounted, and `SELECT zeroblob(40000000)`
+    ended its worker. Now that work counts, and is quicker: JSON quoting, UTF-16 lengths and cuts
+    by regular expressions, the sort without a key unless a character beyond U+FFFF is among the
+    rows, a blob shown from its first 64 bytes; both texts stop themselves at 0.2 s. A worker that
+    ran out of memory itself - a job object's limit - made it the student's `error` at once: now the
+    worker ends and the text runs once more on a fresh process, as the design has it; pyoxigraph
+    ending its process at the hard stop stays `internal`.
+  - *Retries, closing, the rest:* without a spare a retry could wait for ever for a fresh process -
+    it takes any free one when no fresh one is to come; `close()` ended busy workers one after
+    another, 2 s each - now at once, waiting checks answered first; the CPU baseline was written
+    outside the lock, a log line inside it; workers outlived a killed server on Linux - they end
+    themselves now when their parent is gone.
+  - *Tests:* the lock's test could not fail - a mutant sending prepares under the lock passed it;
+    with a busy worker taking the 8 MB seed, the mutant fails now (1.26 s held). `tests/test_pool.py`
+    has 33 tests, one for each fault, about 25 s; it and `tests/test_checks.py` pass on Windows (five
+    runs in a row) and on Linux (three).
 
 ### 4.5 The activity type
 

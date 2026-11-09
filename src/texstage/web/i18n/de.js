@@ -75,6 +75,8 @@ export default {
     service: "SERVICE (eine Anfrage an einen anderen Endpunkt) wird nicht ausgeführt",
     noTriples: "keine Tripel",
     tooManyTriples: (n) => `mehr als ${n} Tripel`,
+    tooDeep: (n) => `mehr als ${n} Ebenen tief verschachtelt`,
+    tooMuchMemory: "braucht mehr Speicher, als eine Prüfung verwenden darf",
     notStarted: "die Engine ist nicht gestartet",
     workerFailed: "der Worker ist ausgefallen",
     noEngine: (name) => `texstage führt keine Engine ${name} aus`,

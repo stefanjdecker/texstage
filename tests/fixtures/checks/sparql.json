@@ -1,0 +1,1858 @@
+{
+ "made_by": "tests/fixtures/checks/make.mjs",
+ "engine": "sparql",
+ "seeds": {
+  "uni": "@base <http://data.rwth-aachen.de/resources/> .\n@prefix : <> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n:kant a :Professor ; :name \"Kant\" .\n:socrates a :Professor ; :name \"Socrates\" .\n:popper a :Professor ; :name \"Popper\" .\n:l1 :taughtBy :kant ; :title \"Foundations\" .\n:l2 :taughtBy :kant ; :title \"The Three Critiques\" .\n:l3 :taughtBy :socrates ; :title \"Ethics\" .\n",
+  "picnic": "@prefix : <https://example.org/picnic/> .\n:Alex :brings :apples .\n:Sam :brings :water .\n:Riley :brings :blanket .\n",
+  "types": "@prefix ex: <http://example.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\nex:a ex:n 7 ; ex:d 7.0 ; ex:f 7e0 ; ex:s \"7\" ; ex:b true ; ex:i \"03\"^^xsd:integer ; ex:l \"Kant\"@DE , \"Kant\"@en-GB .\nex:a ex:x [ ex:y \"blank\" ] .\nex:b ex:n -0.0 ; ex:s \"Ä\\\"\\\\\\n\\t\" ; ex:u \"𝔸\" , \"ﬀ\" , \"Zebra\" , \"zebra\" , \"é\" .\nex:c ex:long \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" ; ex:emoji \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\" ; ex:date \"2026-11-09\"^^xsd:date ; ex:neg -5 ; ex:big 12345678901234567890 .\n"
+ },
+ "cases": [
+  {
+   "seed": "uni",
+   "text": "SELECT ?name ?title WHERE { ?p a :Professor ; :name ?name . ?l :taughtBy ?p ; :title ?title . }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2ceeb2bd14c4f01e",
+    "canonical": "select\n2\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Socrates",
+       "Ethics"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?title ?name WHERE { ?l :title ?title ; :taughtBy ?p . ?p :name ?name }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "f65b1b9bcf734d46",
+    "canonical": "select\n2\n\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?title",
+      "?name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Ethics",
+       "Socrates"
+      ],
+      [
+       "The Three Critiques",
+       "Kant"
+      ],
+      [
+       "Foundations",
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "select ?name ?title where { ?p a :Professor ; :name ?name . ?l :taughtBy ?p ; :title ?title . } order by ?name",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2ceeb2bd14c4f01e",
+    "canonical": "select\n2\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?name WHERE { ?p a :Professor ; :name ?name }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "5e8262a8a6b17ec0",
+    "canonical": "select\n1\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Popper"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT DISTINCT ?p WHERE { ?l :taughtBy ?p }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "3a15356c60a23bd0",
+    "canonical": "select\n1\n<http://data.rwth-aachen.de/resources/kant>\n<http://data.rwth-aachen.de/resources/socrates>",
+    "rows": [
+     "<http://data.rwth-aachen.de/resources/kant>",
+     "<http://data.rwth-aachen.de/resources/socrates>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?p"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       ":socrates"
+      ],
+      [
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT * WHERE { ?s ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "dfd2814310baf0d4",
+    "canonical": "select\n3\n\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l3>\n\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l1>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/kant>\n\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/popper>\n\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/socrates>\n\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l2>\n<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/kant>\n<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/popper>\n<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/socrates>\n<http://data.rwth-aachen.de/resources/kant>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l1>\n<http://data.rwth-aachen.de/resources/kant>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l2>\n<http://data.rwth-aachen.de/resources/socrates>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l3>",
+    "rows": [
+     "\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l3>",
+     "\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l1>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/kant>",
+     "\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/popper>",
+     "\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/name>\t<http://data.rwth-aachen.de/resources/socrates>",
+     "\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\t<http://data.rwth-aachen.de/resources/title>\t<http://data.rwth-aachen.de/resources/l2>",
+     "<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/kant>",
+     "<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/popper>",
+     "<http://data.rwth-aachen.de/resources/Professor>\t<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>\t<http://data.rwth-aachen.de/resources/socrates>",
+     "<http://data.rwth-aachen.de/resources/kant>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l1>",
+     "<http://data.rwth-aachen.de/resources/kant>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l2>",
+     "<http://data.rwth-aachen.de/resources/socrates>\t<http://data.rwth-aachen.de/resources/taughtBy>\t<http://data.rwth-aachen.de/resources/l3>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 12,
+     "rows": [
+      [
+       "Ethics",
+       ":title",
+       ":l3"
+      ],
+      [
+       ":socrates",
+       ":taughtBy",
+       ":l3"
+      ],
+      [
+       "The Three Critiques",
+       ":title",
+       ":l2"
+      ],
+      [
+       ":kant",
+       ":taughtBy",
+       ":l2"
+      ],
+      [
+       "Foundations",
+       ":title",
+       ":l1"
+      ],
+      [
+       ":kant",
+       ":taughtBy",
+       ":l1"
+      ],
+      [
+       "Popper",
+       ":name",
+       ":popper"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":popper"
+      ],
+      [
+       "Socrates",
+       ":name",
+       ":socrates"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":socrates"
+      ],
+      [
+       "Kant",
+       ":name",
+       ":kant"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "387b22257026f804",
+    "canonical": "select\n1\n\"12\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+    "rows": [
+     "\"12\"^^<http://www.w3.org/2001/XMLSchema#integer>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?n"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "12"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?name ?title WHERE { ?p :name ?name . OPTIONAL { ?l :taughtBy ?p ; :title ?title } }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "9b61f79f36eb57fc",
+    "canonical": "select\n2\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\t-\n\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Foundations\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"The Three Critiques\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\t-",
+     "\"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>\t\"Ethics\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 4,
+     "rows": [
+      [
+       "Popper",
+       ""
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "PREFIX : <http://other.org/> SELECT ?s WHERE { ?s a :Professor }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "canonical": "select\n1\n",
+    "rows": [],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 12: expected IRI parsing failed"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 12: expected IRI parsing failed"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "ASK { :kant a :Professor }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "86182f43c74bc3c0",
+    "canonical": "ask\ntrue",
+    "rows": [
+     "true"
+    ],
+    "summary": {
+     "kind": "ask",
+     "boolean": true
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "ASK { :kant a :Lecture }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "4431d27eefbda1db",
+    "canonical": "ask\nfalse",
+    "rows": [
+     "false"
+    ],
+    "summary": {
+     "kind": "ask",
+     "boolean": false
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "CONSTRUCT { ?p :teaches ?l } WHERE { ?l :taughtBy ?p }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "8314d83f9fa48d40",
+    "canonical": "graph\n<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l1>\n<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l2>\n<http://data.rwth-aachen.de/resources/socrates> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l3>",
+    "rows": [
+     "<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l1>",
+     "<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l2>",
+     "<http://data.rwth-aachen.de/resources/socrates> <http://data.rwth-aachen.de/resources/teaches> <http://data.rwth-aachen.de/resources/l3>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       ":socrates",
+       ":teaches",
+       ":l3"
+      ],
+      [
+       ":kant",
+       ":teaches",
+       ":l2"
+      ],
+      [
+       ":kant",
+       ":teaches",
+       ":l1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "CONSTRUCT WHERE { ?s :name ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "b576eeb91df4ea4c",
+    "canonical": "graph\n<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/name> \"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://data.rwth-aachen.de/resources/popper> <http://data.rwth-aachen.de/resources/name> \"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://data.rwth-aachen.de/resources/socrates> <http://data.rwth-aachen.de/resources/name> \"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/name> \"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://data.rwth-aachen.de/resources/popper> <http://data.rwth-aachen.de/resources/name> \"Popper\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://data.rwth-aachen.de/resources/socrates> <http://data.rwth-aachen.de/resources/name> \"Socrates\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       ":popper",
+       ":name",
+       "Popper"
+      ],
+      [
+       ":socrates",
+       ":name",
+       "Socrates"
+      ],
+      [
+       ":kant",
+       ":name",
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "DESCRIBE :kant",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "501d43356c9fedf1",
+    "canonical": "graph\n<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/name> \"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://data.rwth-aachen.de/resources/kant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://data.rwth-aachen.de/resources/Professor>",
+    "rows": [
+     "<http://data.rwth-aachen.de/resources/kant> <http://data.rwth-aachen.de/resources/name> \"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://data.rwth-aachen.de/resources/kant> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://data.rwth-aachen.de/resources/Professor>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":kant",
+       ":name",
+       "Kant"
+      ],
+      [
+       ":kant",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":Professor"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELEC ?name WHERE { ?p :name ?name }",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 10: expected CONSTRUCT"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELEC ?name WHERE { ?p :name ?name }",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 10: expected CONSTRUCT"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?name WHERE {\n  ?p a :Professor ;\n     :name ?name\n  ?x }",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 4, column 7: expected one of BIND, [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?name WHERE {\n  ?p a :Professor ;\n     :name ?name\n  ?x }",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 4, Spalte 7: expected one of BIND, [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?x WHERE { ?x }",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 23: expected one of BIND, [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?x WHERE { ?x }",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 23: expected one of BIND, [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
+   "language": "en",
+   "result": {
+    "status": "refused",
+    "error": "SERVICE (a query to another endpoint) is not run"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
+   "language": "de",
+   "result": {
+    "status": "refused",
+    "error": "SERVICE (eine Anfrage an einen anderen Endpunkt) wird nicht ausgeführt"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT * WHERE { SERVICE SILENT <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "c3f465db97f32c13",
+    "canonical": "select\n3\n-\t-\t-",
+    "rows": [
+     "-\t-\t-"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "",
+       "",
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "INSERT DATA { :a :b :c }",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 10: expected CONSTRUCT"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "INSERT DATA { :a :b :c }",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 10: expected CONSTRUCT"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 1: expected [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 1: expected [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "# just a comment",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 17: expected [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "# just a comment",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 17: expected [_]"
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT ?service WHERE { ?service :name ?n }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "3a8407aab426f5fc",
+    "canonical": "select\n1\n<http://data.rwth-aachen.de/resources/kant>\n<http://data.rwth-aachen.de/resources/popper>\n<http://data.rwth-aachen.de/resources/socrates>",
+    "rows": [
+     "<http://data.rwth-aachen.de/resources/kant>",
+     "<http://data.rwth-aachen.de/resources/popper>",
+     "<http://data.rwth-aachen.de/resources/socrates>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?service"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       ":popper"
+      ],
+      [
+       ":socrates"
+      ],
+      [
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "uni",
+   "text": "SELECT * WHERE { ?s :name 'SERVICE' }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "canonical": "select\n1\n",
+    "rows": [],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": "SELECT ?person WHERE { ?person :brings :water . }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "e0f60434ae54a0e6",
+    "canonical": "select\n1\n<https://example.org/picnic/Sam>",
+    "rows": [
+     "<https://example.org/picnic/Sam>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?person"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":Sam"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": "SELECT ?who WHERE { ?who :brings :water }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "e0f60434ae54a0e6",
+    "canonical": "select\n1\n<https://example.org/picnic/Sam>",
+    "rows": [
+     "<https://example.org/picnic/Sam>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?who"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":Sam"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": "SELECT ?person ?thing WHERE { ?person :brings ?thing }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "db3e1acd909cda87",
+    "canonical": "select\n2\n<https://example.org/picnic/Alex>\t<https://example.org/picnic/apples>\n<https://example.org/picnic/Riley>\t<https://example.org/picnic/blanket>\n<https://example.org/picnic/Sam>\t<https://example.org/picnic/water>",
+    "rows": [
+     "<https://example.org/picnic/Alex>\t<https://example.org/picnic/apples>",
+     "<https://example.org/picnic/Riley>\t<https://example.org/picnic/blanket>",
+     "<https://example.org/picnic/Sam>\t<https://example.org/picnic/water>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?person",
+      "?thing"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       ":Riley",
+       ":blanket"
+      ],
+      [
+       ":Sam",
+       ":water"
+      ],
+      [
+       ":Alex",
+       ":apples"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": "SELECT ?person WHERE { ?person :brings :bread }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "canonical": "select\n1\n",
+    "rows": [],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?person"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?o WHERE { ex:a ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "f73b3cacadb60b95",
+    "canonical": "select\n1\n\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#double>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"@de\n\"Kant\"@en-gb\n\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>\n_:",
+    "rows": [
+     "\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#double>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"@de",
+     "\"Kant\"@en-gb",
+     "\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+     "_:"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       "_:b"
+      ],
+      [
+       "Kant@en-gb"
+      ],
+      [
+       "Kant@de"
+      ],
+      [
+       "3"
+      ],
+      [
+       "true"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?p ?o WHERE { ex:a ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "0d18ab16cbacba7e",
+    "canonical": "select\n2\n<http://example.org/b>\t\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>\n<http://example.org/d>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n<http://example.org/f>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#double>\n<http://example.org/i>\t\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/l>\t\"Kant\"@de\n<http://example.org/l>\t\"Kant\"@en-gb\n<http://example.org/n>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/s>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/x>\t_:",
+    "rows": [
+     "<http://example.org/b>\t\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+     "<http://example.org/d>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://example.org/f>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#double>",
+     "<http://example.org/i>\t\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/l>\t\"Kant\"@de",
+     "<http://example.org/l>\t\"Kant\"@en-gb",
+     "<http://example.org/n>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/s>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/x>\t_:"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?p",
+      "?o"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:f",
+       "7"
+      ],
+      [
+       "ex:d",
+       "7"
+      ],
+      [
+       "ex:n",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?o WHERE { ex:b ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "dd608522877c7f3f",
+    "canonical": "select\n1\n\"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"é\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"é\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 7,
+     "rows": [
+      [
+       "é"
+      ],
+      [
+       "zebra"
+      ],
+      [
+       "Zebra"
+      ],
+      [
+       "ﬀ"
+      ],
+      [
+       "𝔸"
+      ],
+      [
+       "Ä\"\\\n\t"
+      ],
+      [
+       "0"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?s ?p ?o WHERE { ?s ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "e65da9abd172b533",
+    "canonical": "select\n3\n<http://example.org/a>\t<http://example.org/b>\t\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>\n<http://example.org/a>\t<http://example.org/d>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n<http://example.org/a>\t<http://example.org/f>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#double>\n<http://example.org/a>\t<http://example.org/i>\t\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/a>\t<http://example.org/l>\t\"Kant\"@de\n<http://example.org/a>\t<http://example.org/l>\t\"Kant\"@en-gb\n<http://example.org/a>\t<http://example.org/n>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/a>\t<http://example.org/s>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/a>\t<http://example.org/x>\t_:\n<http://example.org/b>\t<http://example.org/n>\t\"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n<http://example.org/b>\t<http://example.org/s>\t\"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b>\t<http://example.org/u>\t\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b>\t<http://example.org/u>\t\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b>\t<http://example.org/u>\t\"é\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b>\t<http://example.org/u>\t\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b>\t<http://example.org/u>\t\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c>\t<http://example.org/big>\t\"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/c>\t<http://example.org/date>\t\"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>\n<http://example.org/c>\t<http://example.org/emoji>\t\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c>\t<http://example.org/long>\t\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c>\t<http://example.org/neg>\t\"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>\n_:\t<http://example.org/y>\t\"blank\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://example.org/a>\t<http://example.org/b>\t\"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+     "<http://example.org/a>\t<http://example.org/d>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://example.org/a>\t<http://example.org/f>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#double>",
+     "<http://example.org/a>\t<http://example.org/i>\t\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/a>\t<http://example.org/l>\t\"Kant\"@de",
+     "<http://example.org/a>\t<http://example.org/l>\t\"Kant\"@en-gb",
+     "<http://example.org/a>\t<http://example.org/n>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/a>\t<http://example.org/s>\t\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/a>\t<http://example.org/x>\t_:",
+     "<http://example.org/b>\t<http://example.org/n>\t\"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://example.org/b>\t<http://example.org/s>\t\"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b>\t<http://example.org/u>\t\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b>\t<http://example.org/u>\t\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b>\t<http://example.org/u>\t\"é\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b>\t<http://example.org/u>\t\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b>\t<http://example.org/u>\t\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c>\t<http://example.org/big>\t\"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/c>\t<http://example.org/date>\t\"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>",
+     "<http://example.org/c>\t<http://example.org/emoji>\t\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c>\t<http://example.org/long>\t\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c>\t<http://example.org/neg>\t\"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "_:\t<http://example.org/y>\t\"blank\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?s",
+      "?p",
+      "?o"
+     ],
+     "count": 22,
+     "rows": [
+      [
+       "ex:c",
+       "ex:big",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:neg",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:date",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:emoji",
+       "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\ud83d…"
+      ],
+      [
+       "ex:c",
+       "ex:long",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "é"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "Zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "ﬀ"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "𝔸"
+      ],
+      [
+       "ex:b",
+       "ex:s",
+       "Ä\"\\\n\t"
+      ],
+      [
+       "ex:b",
+       "ex:n",
+       "0"
+      ],
+      [
+       "_:b",
+       "ex:y",
+       "blank"
+      ],
+      [
+       "ex:a",
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:a",
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:a",
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:a",
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:a",
+       "ex:f",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?l WHERE { ex:a ex:l ?l }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "48421f37fa7cce92",
+    "canonical": "select\n1\n\"Kant\"@de\n\"Kant\"@en-gb",
+    "rows": [
+     "\"Kant\"@de",
+     "\"Kant\"@en-gb"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?l"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "Kant@en-gb"
+      ],
+      [
+       "Kant@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (LANG(?l) AS ?lang) WHERE { ex:a ex:l ?l }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "93c7090faa3f1f4e",
+    "canonical": "select\n1\n\"de\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"en-gb\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"de\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"en-gb\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?lang"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "en-gb"
+      ],
+      [
+       "de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (STR(?o) AS ?s) WHERE { ex:a ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "528e5ae72b5cbf0c",
+    "canonical": "select\n1\n\"3\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"true\"^^<http://www.w3.org/2001/XMLSchema#string>\n-",
+    "rows": [
+     "\"3\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"Kant\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"true\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "-"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       ""
+      ],
+      [
+       "Kant"
+      ],
+      [
+       "Kant"
+      ],
+      [
+       "3"
+      ],
+      [
+       "true"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (DATATYPE(?o) AS ?d) WHERE { ex:a ?p ?o FILTER isLiteral(?o) }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "67c664387e12ad7d",
+    "canonical": "select\n1\n<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>\n<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>\n<http://www.w3.org/2001/XMLSchema#boolean>\n<http://www.w3.org/2001/XMLSchema#decimal>\n<http://www.w3.org/2001/XMLSchema#double>\n<http://www.w3.org/2001/XMLSchema#integer>\n<http://www.w3.org/2001/XMLSchema#integer>\n<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>",
+     "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>",
+     "<http://www.w3.org/2001/XMLSchema#boolean>",
+     "<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://www.w3.org/2001/XMLSchema#double>",
+     "<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?d"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>"
+      ],
+      [
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>"
+      ],
+      [
+       "xsd:integer"
+      ],
+      [
+       "xsd:boolean"
+      ],
+      [
+       "xsd:string"
+      ],
+      [
+       "xsd:double"
+      ],
+      [
+       "xsd:decimal"
+      ],
+      [
+       "xsd:integer"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (1/3 AS ?x) (0.1 + 0.2 AS ?y) (1e-7 AS ?z) (2.0 AS ?w) {}",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "49be56be39878424",
+    "canonical": "select\n4\n\"0.333333333333333333\"^^<http://www.w3.org/2001/XMLSchema#decimal>\t\"0.3\"^^<http://www.w3.org/2001/XMLSchema#decimal>\t\"0.0000001\"^^<http://www.w3.org/2001/XMLSchema#double>\t\"2\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+    "rows": [
+     "\"0.333333333333333333\"^^<http://www.w3.org/2001/XMLSchema#decimal>\t\"0.3\"^^<http://www.w3.org/2001/XMLSchema#decimal>\t\"0.0000001\"^^<http://www.w3.org/2001/XMLSchema#double>\t\"2\"^^<http://www.w3.org/2001/XMLSchema#decimal>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x",
+      "?y",
+      "?z",
+      "?w"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "0.333333333333333333",
+       "0.3",
+       "0.0000001",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?x WHERE { VALUES ?x { 1 2 3 1 } }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "5292e3b59d617441",
+    "canonical": "select\n1\n\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"2\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+    "rows": [
+     "\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"1\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"2\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"3\"^^<http://www.w3.org/2001/XMLSchema#integer>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 4,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ],
+      [
+       "3"
+      ],
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?x ?y WHERE { OPTIONAL { ?x ex:nothing ?y } }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "aa9b82fc51a71a12",
+    "canonical": "select\n2\n-\t-",
+    "rows": [
+     "-\t-"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x",
+      "?y"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "",
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?b WHERE { ex:a ex:x ?b }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "264ba12b87b845e7",
+    "canonical": "select\n1\n_:",
+    "rows": [
+     "_:"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?b"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "_:b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?y WHERE { ex:a ex:x [ ex:y ?y ] }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "e5117a4a0f0570a4",
+    "canonical": "select\n1\n\"blank\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"blank\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?y"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "blank"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (SUM(?n) AS ?t) WHERE { ?s ex:n ?n }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "b7a1f96f26124639",
+    "canonical": "select\n1\n\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+    "rows": [
+     "\"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?t"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT (AVG(?n) AS ?t) WHERE { ?s ex:n ?n }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "1584f91239d2ffc6",
+    "canonical": "select\n1\n\"3.5\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+    "rows": [
+     "\"3.5\"^^<http://www.w3.org/2001/XMLSchema#decimal>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?t"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3.5"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?o WHERE { ex:b ex:u ?o } ORDER BY ?o",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "622f530a6918c616",
+    "canonical": "select\n1\n\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"é\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"é\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 5,
+     "rows": [
+      [
+       "Zebra"
+      ],
+      [
+       "zebra"
+      ],
+      [
+       "é"
+      ],
+      [
+       "ﬀ"
+      ],
+      [
+       "𝔸"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "87dd760490c0307c",
+    "canonical": "graph\n<http://example.org/a> <http://example.org/b> \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>\n<http://example.org/a> <http://example.org/d> \"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n<http://example.org/a> <http://example.org/f> \"7\"^^<http://www.w3.org/2001/XMLSchema#double>\n<http://example.org/a> <http://example.org/i> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/a> <http://example.org/l> \"Kant\"@de\n<http://example.org/a> <http://example.org/l> \"Kant\"@en-gb\n<http://example.org/a> <http://example.org/n> \"7\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/a> <http://example.org/s> \"7\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/a> <http://example.org/x> _:\n<http://example.org/b> <http://example.org/n> \"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>\n<http://example.org/b> <http://example.org/s> \"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b> <http://example.org/u> \"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b> <http://example.org/u> \"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b> <http://example.org/u> \"é\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b> <http://example.org/u> \"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/b> <http://example.org/u> \"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c> <http://example.org/big> \"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/c> <http://example.org/date> \"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>\n<http://example.org/c> <http://example.org/emoji> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c> <http://example.org/long> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c> <http://example.org/neg> \"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>\n_: <http://example.org/y> \"blank\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://example.org/a> <http://example.org/b> \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+     "<http://example.org/a> <http://example.org/d> \"7\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://example.org/a> <http://example.org/f> \"7\"^^<http://www.w3.org/2001/XMLSchema#double>",
+     "<http://example.org/a> <http://example.org/i> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/a> <http://example.org/l> \"Kant\"@de",
+     "<http://example.org/a> <http://example.org/l> \"Kant\"@en-gb",
+     "<http://example.org/a> <http://example.org/n> \"7\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/a> <http://example.org/s> \"7\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/a> <http://example.org/x> _:",
+     "<http://example.org/b> <http://example.org/n> \"0\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+     "<http://example.org/b> <http://example.org/s> \"Ä\\\"\\\\\\n\\t\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b> <http://example.org/u> \"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b> <http://example.org/u> \"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b> <http://example.org/u> \"é\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b> <http://example.org/u> \"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/b> <http://example.org/u> \"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c> <http://example.org/big> \"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/c> <http://example.org/date> \"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>",
+     "<http://example.org/c> <http://example.org/emoji> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c> <http://example.org/long> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c> <http://example.org/neg> \"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "_: <http://example.org/y> \"blank\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 22,
+     "rows": [
+      [
+       "ex:c",
+       "ex:big",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:neg",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:date",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:emoji",
+       "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\ud83d…"
+      ],
+      [
+       "ex:c",
+       "ex:long",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "é"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "Zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "ﬀ"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "𝔸"
+      ],
+      [
+       "ex:b",
+       "ex:s",
+       "Ä\"\\\n\t"
+      ],
+      [
+       "ex:b",
+       "ex:n",
+       "0"
+      ],
+      [
+       "_:b",
+       "ex:y",
+       "blank"
+      ],
+      [
+       "ex:a",
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:a",
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:a",
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:a",
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:a",
+       "ex:f",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "CONSTRUCT { ex:c ex:copy ?o } WHERE { ex:c ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "a5f5ed8a2935f86d",
+    "canonical": "graph\n<http://example.org/c> <http://example.org/copy> \"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/c> <http://example.org/copy> \"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://example.org/c> <http://example.org/copy> \"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>\n<http://example.org/c> <http://example.org/copy> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://example.org/c> <http://example.org/copy> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://example.org/c> <http://example.org/copy> \"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/c> <http://example.org/copy> \"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://example.org/c> <http://example.org/copy> \"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>",
+     "<http://example.org/c> <http://example.org/copy> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://example.org/c> <http://example.org/copy> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 5,
+     "rows": [
+      [
+       "ex:c",
+       "ex:copy",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\ud83d…"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?o WHERE { ex:c ?p ?o }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "187b965a343ecd50",
+    "canonical": "select\n1\n\"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>\n\"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>\n\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>\n\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"-5\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"12345678901234567890\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "\"2026-11-09\"^^<http://www.w3.org/2001/XMLSchema#date>",
+     "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 5,
+     "rows": [
+      [
+       "12345678901234567890"
+      ],
+      [
+       "-5"
+      ],
+      [
+       "2026-11-09"
+      ],
+      [
+       "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\ud83d…"
+      ],
+      [
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?x WHERE { BIND(\"\ud800\" AS ?x) }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "da17a0deef119487",
+    "canonical": "select\n1\n\"�\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"�\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "�"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?x WHERE { BIND(\"a\u0000b\" AS ?x) }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "95c3d37a768bc79c",
+    "canonical": "select\n1\n\"a\\u0000b\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"a\\u0000b\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "a\u0000b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "types",
+   "text": "SELECT ?x WHERE { BIND(\"﻿A\" AS ?x) }",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "3062044aa3c2e198",
+    "canonical": "select\n1\n\"﻿A\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "\"﻿A\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "﻿A"
+      ]
+     ]
+    }
+   }
+  }
+ ]
+}

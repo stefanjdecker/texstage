@@ -1,0 +1,1319 @@
+{
+ "made_by": "tests/fixtures/checks/make.mjs",
+ "engine": "turtle",
+ "seeds": {
+  "prefixes": "@prefix dbr: <http://dbpedia.org/resource/> .\n@prefix dbo: <http://dbpedia.org/ontology/> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\ndbr:Potsdam rdfs:label \"Potsdam\"@de .\n",
+  "base": "@base <http://example.org/base/> .\n@prefix : <ns#> .\n",
+  "picnic": "@prefix : <https://example.org/picnic/> .\n:Alex :brings :apples .\n:Sam :brings :water .\n:Riley :brings :blanket .\n",
+  "none": ""
+ },
+ "cases": [
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de , \"Berlino\"@it ;\n           dbo:populationTotal 3596999 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de , \"Berlino\"@it ; dbo:populationTotal 3596999 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de .\ndbr:Berlin rdfs:label \"Berlino\"@it .\ndbr:Berlin dbo:populationTotal 3596999 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@DE , \"Berlino\"@IT ; dbo:populationTotal \"3596999\"^^xsd:integer .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "<http://dbpedia.org/resource/Berlin> rdfs:label \"Berlin\"@de , \"Berlino\"@it ; dbo:populationTotal 3596999 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label “Berlin”@de , „Berlino“@it ; dbo:populationTotal 3596999 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlino\"@it"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label ‘Berlin’@de .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2cc03d78c00514af",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbo:populationTotal \"3596999\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "eaeb017bcee39bdd",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "\"3596999\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbo:populationTotal 3596999.0 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "70133c429adb22e9",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999.0\"^^<http://www.w3.org/2001/XMLSchema#decimal>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3596999.0\"^^<http://www.w3.org/2001/XMLSchema#decimal>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999.0"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbo:populationTotal 3.596999e6 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "c0e75deae2fd70dc",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3.596999e6\"^^<http://www.w3.org/2001/XMLSchema#double>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"3.596999e6\"^^<http://www.w3.org/2001/XMLSchema#double>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3.596999e6"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbo:populationTotal \"03596999\"^^xsd:integer .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "c28006f9722cec3e",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"03596999\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/ontology/populationTotal> \"03596999\"^^<http://www.w3.org/2001/XMLSchema#integer>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "03596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:flag true , false .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "6855baa0a3fd6c88",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/flag> \"false\"^^<http://www.w3.org/2001/XMLSchema#boolean>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/flag> \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/flag> \"false\"^^<http://www.w3.org/2001/XMLSchema#boolean>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/flag> \"true\"^^<http://www.w3.org/2001/XMLSchema#boolean>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:flag",
+       "true"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:flag",
+       "false"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:near [ rdfs:label \"a\" ] , [ rdfs:label \"a\" ] .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "59d84e153d31f8f9",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/near> _:\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/near> _:\n_: <http://www.w3.org/2000/01/rdf-schema#label> \"a\"^^<http://www.w3.org/2001/XMLSchema#string>\n_: <http://www.w3.org/2000/01/rdf-schema#label> \"a\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/near> _:",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/near> _:",
+     "_: <http://www.w3.org/2000/01/rdf-schema#label> \"a\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "_: <http://www.w3.org/2000/01/rdf-schema#label> \"a\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 4,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:near",
+       "_:b1"
+      ],
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"a\""
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:near",
+       "_:b2"
+      ],
+      [
+       "_:b2",
+       "rdfs:label",
+       "\"a\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:list ( 1 2 3 ) .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "6455e31fba84d2ac",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/list> _:\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"1\"^^<http://www.w3.org/2001/XMLSchema#integer>\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"2\"^^<http://www.w3.org/2001/XMLSchema#integer>\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:\n_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/list> _:",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"1\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"2\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#first> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> <http://www.w3.org/1999/02/22-rdf-syntax-ns#nil>",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:",
+     "_: <http://www.w3.org/1999/02/22-rdf-syntax-ns#rest> _:"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 7,
+     "rows": [
+      [
+       "_:b1",
+       "rdf:first",
+       "1"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:list",
+       "_:b1"
+      ],
+      [
+       "_:b2",
+       "rdf:first",
+       "2"
+      ],
+      [
+       "_:b1",
+       "rdf:rest",
+       "_:b2"
+      ],
+      [
+       "_:b3",
+       "rdf:first",
+       "3"
+      ],
+      [
+       "_:b2",
+       "rdf:rest",
+       "_:b3"
+      ],
+      [
+       "_:b3",
+       "rdf:rest",
+       "rdf:nil"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de . dbr:Berlin rdfs:label \"Berlin\"@de .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2cc03d78c00514af",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Berlin\"@de"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Potsdam rdfs:label \"Potsdam\"@de .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "a2fbd85e16499b5f",
+    "canonical": "graph\n<http://dbpedia.org/resource/Potsdam> <http://www.w3.org/2000/01/rdf-schema#label> \"Potsdam\"@de",
+    "rows": [
+     "<http://dbpedia.org/resource/Potsdam> <http://www.w3.org/2000/01/rdf-schema#label> \"Potsdam\"@de"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Potsdam",
+       "rdfs:label",
+       "\"Potsdam\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "_:x rdfs:label \"x\" . _:x rdfs:label \"y\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "aefbc58b768d6d2a",
+    "canonical": "graph\n_: <http://www.w3.org/2000/01/rdf-schema#label> \"x\"^^<http://www.w3.org/2001/XMLSchema#string>\n_: <http://www.w3.org/2000/01/rdf-schema#label> \"y\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "_: <http://www.w3.org/2000/01/rdf-schema#label> \"x\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "_: <http://www.w3.org/2000/01/rdf-schema#label> \"y\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"x\""
+      ],
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"y\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Ä\\\"\\\\\\n\"@de , \"𝔸\" , \"ﬀ\" , \"Zebra\" , \"zebra\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "97298338ad59a42e",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Ä\\\"\\\\\\n\"@de\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"zebra\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"Ä\\\"\\\\\\n\"@de",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"𝔸\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"ﬀ\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 5,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Ä\\\"\\\\\\n\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"𝔸\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"ﬀ\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Zebra\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"zebra\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:comment \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" , \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "0dc088864a3a775b",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#comment> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#comment> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#comment> \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"^^<http://www.w3.org/2001/XMLSchema#string>",
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#comment> \"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:comment",
+       "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:comment",
+       "\"😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀…"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"text\"@ar--rtl .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "2facc55aaffb2854",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"text\"@ar--rtl",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"text\"@ar--rtl"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"text\"@ar--rtl"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdf:type dbo:City .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "bc1deed597e664e5",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/City>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/City>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "a",
+       "dbo:City"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin a dbo:City .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "bc1deed597e664e5",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/City>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://dbpedia.org/ontology/City>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "a",
+       "dbo:City"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:p0 0 .\ndbr:Berlin dbr:p1 1 .\ndbr:Berlin dbr:p2 2 .\ndbr:Berlin dbr:p3 3 .\ndbr:Berlin dbr:p4 4 .\ndbr:Berlin dbr:p5 5 .\ndbr:Berlin dbr:p6 6 .\ndbr:Berlin dbr:p7 7 .\ndbr:Berlin dbr:p8 8 .\ndbr:Berlin dbr:p9 9 .\ndbr:Berlin dbr:p10 10 .\ndbr:Berlin dbr:p11 11 .\ndbr:Berlin dbr:p12 12 .\ndbr:Berlin dbr:p13 13 .\ndbr:Berlin dbr:p14 14 .\ndbr:Berlin dbr:p15 15 .\ndbr:Berlin dbr:p16 16 .\ndbr:Berlin dbr:p17 17 .\ndbr:Berlin dbr:p18 18 .\ndbr:Berlin dbr:p19 19 .\ndbr:Berlin dbr:p20 20 .\ndbr:Berlin dbr:p21 21 .\ndbr:Berlin dbr:p22 22 .\ndbr:Berlin dbr:p23 23 .\ndbr:Berlin dbr:p24 24 .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "b683214accde7a92",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p0> \"0\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p10> \"10\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p11> \"11\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p12> \"12\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p13> \"13\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p14> \"14\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p15> \"15\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p16> \"16\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p17> \"17\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p18> \"18\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p19> \"19\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p1> \"1\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p20> \"20\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p21> \"21\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p22> \"22\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p23> \"23\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p24> \"24\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p2> \"2\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p3> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p4> \"4\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p5> \"5\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p6> \"6\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p7> \"7\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p8> \"8\"^^<http://www.w3.org/2001/XMLSchema#integer>\n<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p9> \"9\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p0> \"0\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p10> \"10\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p11> \"11\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p12> \"12\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p13> \"13\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p14> \"14\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p15> \"15\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p16> \"16\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p17> \"17\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p18> \"18\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p19> \"19\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p1> \"1\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p20> \"20\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p21> \"21\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p22> \"22\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p23> \"23\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p24> \"24\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p2> \"2\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p3> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p4> \"4\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p5> \"5\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p6> \"6\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p7> \"7\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p8> \"8\"^^<http://www.w3.org/2001/XMLSchema#integer>",
+     "<http://dbpedia.org/resource/Berlin> <http://dbpedia.org/resource/p9> \"9\"^^<http://www.w3.org/2001/XMLSchema#integer>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 25,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:p0",
+       "0"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p1",
+       "1"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p2",
+       "2"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p3",
+       "3"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p4",
+       "4"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p5",
+       "5"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p6",
+       "6"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p7",
+       "7"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p8",
+       "8"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p9",
+       "9"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p10",
+       "10"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p11",
+       "11"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p12",
+       "12"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p13",
+       "13"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p14",
+       "14"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p15",
+       "15"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p16",
+       "16"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p17",
+       "17"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p18",
+       "18"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p19",
+       "19"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 31: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin\"@de",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 31: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin .",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 23: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"Berlin .",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 23: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "ex:Berlin a dbo:City .",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 1: The prefix ex: has not been declared"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "ex:Berlin a dbo:City .",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 1: The prefix ex: has not been declared"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"\"\"multi\nline\"\"\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "6a30fbad6aa88201",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"multi\\nline\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"multi\\nline\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"multi\\nline\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label\n  \"Berlin\n",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 2, column 3: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label\n  \"Berlin\n",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 2, Spalte 3: Unexpected end of file"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "# only a comment",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "no triples"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "# only a comment",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "keine Tripel"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "no triples"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "keine Tripel"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:p dbr:Q .\nfoo bar baz",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 2, column 1: foo is not a valid subject or graph name"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin dbr:p dbr:Q .\nfoo bar baz",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 2, Spalte 1: foo is not a valid subject or graph name"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "@prefix dbr: <http://other.org/> .\ndbr:X a dbr:Y .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "df4f5218ed9726e8",
+    "canonical": "graph\n<http://other.org/X> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://other.org/Y>",
+    "rows": [
+     "<http://other.org/X> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://other.org/Y>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://other.org/X>",
+       "a",
+       "<http://other.org/Y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "PREFIX dbr: <http://other.org/>\ndbr:X a dbr:Y .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "df4f5218ed9726e8",
+    "canonical": "graph\n<http://other.org/X> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://other.org/Y>",
+    "rows": [
+     "<http://other.org/X> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://other.org/Y>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://other.org/X>",
+       "a",
+       "<http://other.org/Y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"\ud800\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "705c50f8ced8e405",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"�\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"�\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"�\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "dbr:Berlin rdfs:label \"﻿Berlin\" .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "706ac15566469107",
+    "canonical": "graph\n<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"﻿Berlin\"^^<http://www.w3.org/2001/XMLSchema#string>",
+    "rows": [
+     "<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> \"﻿Berlin\"^^<http://www.w3.org/2001/XMLSchema#string>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"﻿Berlin\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "﻿dbr:Berlin rdfs:label \"B\" .",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 1: The prefix ﻿dbr: has not been declared"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": "﻿dbr:Berlin rdfs:label \"B\" .",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 1: The prefix ﻿dbr: has not been declared"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": {
+    "repeat": 10001,
+    "line": "dbr:s{i} dbr:p dbr:o ."
+   },
+   "language": "en",
+   "result": {
+    "status": "error",
+    "error": "more than 10000 triples"
+   }
+  },
+  {
+   "seed": "prefixes",
+   "text": {
+    "repeat": 10001,
+    "line": "dbr:s{i} dbr:p dbr:o ."
+   },
+   "language": "de",
+   "result": {
+    "status": "error",
+    "error": "mehr als 10000 Tripel"
+   }
+  },
+  {
+   "seed": "base",
+   "text": ":a :b :c .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "34cc8080ac5b85ba",
+    "canonical": "graph\n<http://example.org/base/ns#a> <http://example.org/base/ns#b> <http://example.org/base/ns#c>",
+    "rows": [
+     "<http://example.org/base/ns#a> <http://example.org/base/ns#b> <http://example.org/base/ns#c>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":a",
+       ":b",
+       ":c"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "base",
+   "text": "<rel> <p> <o> .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "e676c5bb0bed04a6",
+    "canonical": "graph\n<http://example.org/base/rel> <http://example.org/base/p> <http://example.org/base/o>",
+    "rows": [
+     "<http://example.org/base/rel> <http://example.org/base/p> <http://example.org/base/o>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://example.org/base/rel>",
+       "<http://example.org/base/p>",
+       "<http://example.org/base/o>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "base",
+   "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> .",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 11: No scheme found in an absolute IRI"
+   }
+  },
+  {
+   "seed": "base",
+   "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> .",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 11: No scheme found in an absolute IRI"
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": ":Sam :brings :bread .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "48329da18b682ca2",
+    "canonical": "graph\n<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/bread>",
+    "rows": [
+     "<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/bread>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":Sam",
+       ":brings",
+       ":bread"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": ":Sam :brings :bread , :water .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "d5296eb541762b18",
+    "canonical": "graph\n<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/bread>\n<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/water>",
+    "rows": [
+     "<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/bread>",
+     "<https://example.org/picnic/Sam> <https://example.org/picnic/brings> <https://example.org/picnic/water>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":Sam",
+       ":brings",
+       ":bread"
+      ],
+      [
+       ":Sam",
+       ":brings",
+       ":water"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": ":Sam :brings :bread",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 20: Unexpected end"
+   }
+  },
+  {
+   "seed": "picnic",
+   "text": ":Sam :brings :bread",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 20: Unexpected end"
+   }
+  },
+  {
+   "seed": "none",
+   "text": "<http://e.org/a> <http://e.org/b> <http://e.org/c> .",
+   "language": "en",
+   "result": {
+    "status": "ok",
+    "key": "c74c5e30d5dcae45",
+    "canonical": "graph\n<http://e.org/a> <http://e.org/b> <http://e.org/c>",
+    "rows": [
+     "<http://e.org/a> <http://e.org/b> <http://e.org/c>"
+    ],
+    "summary": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://e.org/a>",
+       "<http://e.org/b>",
+       "<http://e.org/c>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "seed": "none",
+   "text": "ex:a ex:b ex:c .",
+   "language": "en",
+   "result": {
+    "status": "syntax",
+    "error": "line 1, column 1: The prefix ex: has not been declared"
+   }
+  },
+  {
+   "seed": "none",
+   "text": "ex:a ex:b ex:c .",
+   "language": "de",
+   "result": {
+    "status": "syntax",
+    "error": "Zeile 1, Spalte 1: The prefix ex: has not been declared"
+   }
+  }
+ ]
+}
