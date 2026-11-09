@@ -179,10 +179,15 @@ same canonical text, byte for byte, under the same hash. So:
 
 - **Workers,** as AF 10.3 and AF 11 have them: started with the server (`spawn`), as many as the
   cores less two (at least one) unless `--workers` says otherwise, at a low priority, one spare. A
-  job is one distinct text of an activity. F1 needs no worker for normalizing: it merges identical
-  texts as today, and the kinds' `normalize` comes with F2.
+  job is one distinct text of an activity; each student's jobs wait in a queue of their own, and
+  the students take turns (in F0 another student's text waited one round, not three, behind one
+  student's 18 slow ones). F1 needs no worker for normalizing: it merges identical texts as today,
+  and the kinds' `normalize` comes with F2.
 - **The event loop never waits for a worker:** a thread per worker reads its pipe and hands each
-  result to the loop (`call_soon_threadsafe`).
+  result to the loop (`call_soon_threadsafe`). And the pool never blocks while it holds its lock:
+  each worker's messages - a prepare carries a whole seed - go out through an outbox with a
+  thread of its own, and a dead worker is joined, and psutil read, outside the lock; F0's first
+  pool did both under it (F0's review).
 - **A worker checks on a thread with a 64 MB stack:** on the default stack, pyoxigraph's SPARQL
   parser overflows at 800 nested groups and ends the process (F0, Q3 -
   [activity-framework-f0.md](activity-framework-f0.md)).
@@ -190,23 +195,32 @@ same canonical text, byte for byte, under the same hash. So:
   progress handler stops a query from inside; pyoxigraph is stopped between solutions or, where
   none comes, by ending its worker (Q2). The clock stays as a backstop at five times the budget. A
   text over its budget is a `timeout`, the student's.
+- **Texts that run into their budget can use up the pool:** in F0's runs with 3 % of them, 95 %
+  of the verdicts came within 8.0 s, with 5 % within 15.8 s - the budget is 3 s. Package 6
+  measures it on the laptop; if it holds there, F1 takes F2's short checks first
+  ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6).
 - **Retries:** a check whose worker died, or that the backstop stopped, runs once more on a fresh
   worker; failing again, it gets the status `internal`, and its text is not checked again in that
   activity (AF 11). F0 found a text that needs it: `ORDER BY` with two keys over mixed literals
   ends pyoxigraph 0.5.13's process (Q2).
 - **Memory:** SQLite's `hard_heap_limit`, set in the worker once its seeds are loaded, at what
-  they take plus an allowance F0 sets; for pyoxigraph the watchdog, every 50 ms; a job object on
-  Windows (through ctypes) and `RLIMIT_AS` on Linux as the hard stop. A text that runs over on a
-  fresh worker too is the student's `error`.
-- **SQL** (`checks/sql.py`): the seed run into a database in memory, then `PRAGMA query_only = ON`,
-  an authorizer that refuses `ATTACH`, `DETACH` and `PRAGMA`, extensions off; one statement only -
+  they take plus an allowance F0 sets; for pyoxigraph the watchdog, every 50 ms, on committed
+  memory - private bytes on Windows, as the job object counts it; a job object on Windows (through
+  ctypes) and `RLIMIT_AS` on Linux as the hard stop. A text that runs over on a fresh worker too
+  is the student's `error`.
+- **SQL** (`checks/sql.py`): the seed run into a database in memory, then
+  `PRAGMA temp_store = MEMORY` - else a large sort spills to temporary files, past the cap (F0's
+  review) -, `PRAGMA query_only = ON`, an authorizer that refuses `ATTACH`, `DETACH` and
+  `PRAGMA`, extensions off; one statement only -
   Python's sqlite3 refuses two with an error of its own, which the check reads as `refused`, as
   sql.js's count does -, starting with `select`, `values` or `with` after its comments; more than
   100,000 rows an `error`, as today (LA 8.8).
 - **SPARQL** (`checks/sparql.py`): the seed's prologue completed as today (LA 8.6); `SERVICE`
-  refused before the query runs, by a small tokenizer that decodes the `\u` and `\U` escapes as
-  SPARQL does and skips strings, IRIs and comments - kept even if Q1 shows that pyoxigraph never
-  connects; nesting beyond the cap (Q3) a `syntax` error, as an engine's own limit would be.
+  refused before the query runs - pyoxigraph 0.5.13 connects for it (Q1) -, by a small tokenizer
+  that decodes the `\u` and `\U` escapes as SPARQL does, skips strings, IRIs and comments, and
+  reads variables and prefixed names whole, so that `?service`, `:service`, `ex:Service` and a
+  prefix `service:` stay names (the spike's first check refused them); nesting beyond the cap
+  (Q3) a `syntax` error, as an engine's own limit would be.
 - **Turtle** (`checks/turtle.py`): the quotes and the prologue as today (LA 8.9); more than 10,000
   triples an `error`; the nesting cap.
 
@@ -237,6 +251,11 @@ same canonical text, byte for byte, under the same hash. So:
 - **Each phone's view finds its own entries in an index by player,** instead of going through
   all of the activity's (`server/activity.py:569`, `:580`): in F0, closing an activity with 1,000
   entries reached the last of 1,100 phones after 597 ms, over the budget of 0.5 s (Q7).
+- **The counts are kept as entries come and go,** instead of counting all of the activity's
+  contributions on every send (`_recount`, `server/activity.py:249-253`).
+- **Commits gathered, if package 6 asks for them:** one transaction per call stays, as today,
+  unless the load on the laptop brings acknowledgements near their budget - in F0, 95 % within
+  348 ms of 500 -; then F1 takes AF's commits every 50 ms (AF 10.2) ahead of F2.
 - **No table changes:** `contributions.status` takes one value more; results and references keep
   their keys (4.3).
 
@@ -264,11 +283,15 @@ same canonical text, byte for byte, under the same hash. So:
 ### 4.8 Tests
 
 - **`tests/test_checks.py`:** the golden fixtures (4.3); the refusals - `SERVICE` in every
-  spelling, `ATTACH`, two statements, an update; the limits - rows, triples, nesting.
+  spelling, `ATTACH`, two statements, an update; what must not be refused - `?service`,
+  `:service`, `ex:Service`, a prefix `service:`, `SERVICE` in a string or a comment; the limits -
+  rows, triples, nesting, on Linux too (the 64 MB stack); a sort beyond SQLite's cap that fails
+  without a temporary file.
 - **`tests/test_pool.py`:** a check; a CPU timeout from inside (SQL) and by ending the worker (a
   test engine that loops); a worker that dies, its one retry, then `internal`; memory over the
-  limit; the spare taking over; the priority; the job object on Windows (skipped elsewhere).
-  Budgets of 200 ms, so that the suite stays quick.
+  limit; the spare taking over; the priority; the job object on Windows (skipped elsewhere); the
+  students' turns; a seed of several MB prepared while workers die, without the pool's lock held
+  up. Budgets of 200 ms, so that the suite stays quick.
 - **`tests/test_activity.py`:** its scripted checks (`test_the_clusters`,
   `test_a_turtle_activity`) run with the pool and a test engine, and, unchanged, with
   `--checks browser`; a restart with entries waiting; references prepared at the game's start;
@@ -335,4 +358,6 @@ A proposal, to fit the semester:
 - **F1, packages 1 to 6:** from 2026-11-23, about three weeks, to the middle of December.
 - **Package 7:** the next lecture with an activity, before or after the Christmas break.
 - **Package 8:** right after it.
-- **F2's plan:** written when F0's report is in.
+- **F2's plan:** [activity-framework-plan-f2.md](activity-framework-plan-f2.md), written on
+  2026-11-09 ahead of F0's final report, at the lecturer's request; it changes with that report and
+  with F1.

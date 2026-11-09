@@ -50,6 +50,7 @@ type of its own and shares the timer, the points and the leaderboard. All of it 
 | The parts of an activity | called **steps**: the brainstorm said *stages*, but texstage already uses that word - the presenter window's role `stage`, the session's stage state, `web/stage/`, the stage PDF | proposed |
 | Defaults of a step | no points unless the deck gives them (`points=none`), no speed points (`speed` off); the reveal's setting is called `solution=`, since `reference=` names a file (sections 5.3, 14) | proposed |
 | Sizes on the phones | what a phone loads for a kind: up to 200 KB compressed without a word, a warning of the kit above that, a refusal above 1 MB; sent compressed; no limit in the windows (sections 7.3, 7.5, 15.1) | proposed |
+| Short checks first | every check gets 0.25 s of CPU time first; one that needs more while others wait goes to a second queue, which runs with the whole budget when the first is empty; the budget 1 s, not 2 - in F0, 3 % of texts running into their budget pushed 95 % of the verdicts to 8 s ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6; section 11) | proposed |
 
 This changes two of CT's principles (CT section 3) and keeps the others:
 
@@ -818,7 +819,9 @@ The semester runs: the lectures stay on `main`, and each stage is built on a bra
 `main` once its test of done has passed with the lecture's decks - as LA did (LA section 14).
 The riskiest part comes first: checking on the server, with today's kinds behind today's
 messages, before the core and the steps are built on it. Each stage has its test of done. F0
-and F1 are planned in detail in [activity-framework-plan.md](activity-framework-plan.md).
+and F1 are planned in detail in [activity-framework-plan.md](activity-framework-plan.md), F2 in
+[activity-framework-plan-f2.md](activity-framework-plan-f2.md); F0's report is
+[activity-framework-f0.md](activity-framework-f0.md).
 
 | | what | done when |
 |---|---|---|
