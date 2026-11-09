@@ -91,6 +91,72 @@ function show(v) {
   return cut(String(v));
 }
 
+// ------------------------------------------------------------------ the keyword PRAGMA
+// SQLite carries out many pragmas as it compiles them - PRAGMA query_only = OFF among them -, and
+// evaluate compiles every statement to count them: a text with the keyword PRAGMA is refused before
+// that, or it would make the database writable for every text after it (a WITH ... DELETE emptied it).
+// A word as SQLite reads the text: not in a string, a quoted name, a comment or a parameter
+// ($a(x;y) is one), a byte order mark where a token starts a space, and only up to a NUL, where
+// SQLite's text ends. The server's check reads it alike (texstage/checks/sql.py: names_pragma).
+const ID = /[A-Za-z0-9_$\u0080-\uffff]/;
+
+export function namesPragma(text) {
+  const nul = text.indexOf("\0");
+  const t = nul === -1 ? text : text.slice(0, nul);
+  const n = t.length;
+  let i = 0;
+  while (i < n) {
+    const c = t[i];
+    if ("$@:#".includes(c)) {                           // a parameter, with SQLite's (TCL's) a(...) and a::b
+      let j = i + 1;
+      let letters = 0;
+      while (j < n) {
+        if (ID.test(t[j])) {
+          j += 1;
+          letters += 1;
+        } else if (t[j] === "(" && letters) {
+          j += 1;
+          while (j < n && !" \t\n\v\f\r)".includes(t[j])) j += 1;
+          if (j < n && t[j] === ")") j += 1;
+          break;
+        } else if (t.startsWith("::", j)) {
+          j += 2;
+        } else {
+          break;
+        }
+      }
+      i = j;
+    } else if (c === "\ufeff") {
+      i += 1;
+    } else if (ID.test(c)) {                            // a name, a keyword, a number: one word
+      let j = i + 1;
+      while (j < n && ID.test(t[j])) j += 1;
+      if (/^pragma$/i.test(t.slice(i, j))) return true;
+      i = j;
+    } else if (c === "'" || c === '"' || c === "`") {
+      let j = i + 1;
+      for (;;) {
+        j = t.indexOf(c, j);
+        if (j === -1 || t[j + 1] !== c) break;
+        j += 2;                                          // a doubled quote inside
+      }
+      i = j === -1 ? n : j + 1;
+    } else if (c === "[") {
+      const j = t.indexOf("]", i + 1);
+      i = j === -1 ? n : j + 1;
+    } else if (t.startsWith("--", i)) {
+      const j = t.indexOf("\n", i);
+      i = j === -1 ? n : j + 1;
+    } else if (t.startsWith("/*", i)) {
+      const j = t.indexOf("*/", i + 2);
+      i = j === -1 ? n : j + 2;
+    } else {
+      i += 1;
+    }
+  }
+  return false;
+}
+
 // ------------------------------------------------------------------ evaluation
 function failure(e, W) {
   const text = String(e?.message ?? e).split("\n")[0];
@@ -102,6 +168,7 @@ function failure(e, W) {
 export function evaluate(state, text, language) {
   const { db } = state;
   const W = texts(language).engines;
+  if (namesPragma(text)) return { status: "refused", error: W.queriesOnly };
   let statements = 0;
   try {
     for (const s of db.iterateStatements(text)) {

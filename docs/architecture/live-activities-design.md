@@ -471,7 +471,14 @@ read-only (`PRAGMA query_only`).
 - **One query.** A student's text is one statement, `SELECT`, `VALUES` or `WITH ... SELECT`;
   more than one, or any other statement - `DELETE`, `DROP`, `PRAGMA`, `ATTACH`, `EXPLAIN` - is
   `refused`, and the read-only database refuses what slips through (`WITH ... DELETE`): no query
-  changes what the next one sees.
+  changes what the next one sees. *(2026-11-09)* It did not hold for pragmas: the engine compiles
+  every statement to count them, and SQLite carries out many pragmas as it compiles them, so
+  `PRAGMA query_only = OFF`, refused, had already made the database writable, and a
+  `WITH ... DELETE` after it emptied it for every text after it, until the presenter window was
+  reloaded. A text with the keyword `PRAGMA` - as SQLite reads it, not in a string, a quoted
+  name, a comment or a parameter - is now refused before anything is compiled (`namesPragma`;
+  found while porting the checks to the server, docs/architecture/activity-framework-plan.md,
+  4.4).
 - **The same result, the same cluster:** the rows as a bag, the columns in the order the query
   gives them, their names not - as for SPARQL (8.4). A number counts by its value: `7` and `7.0`
   alike, a fraction to 15 significant digits, so that `AVG(x)` and `SUM(x) / COUNT(*)` agree; a

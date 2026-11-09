@@ -85,6 +85,22 @@ test("only queries, one at a time, on data that no query changes", () => {
   assert.equal(run("-- the professors\nSELECT name FROM professor;").status, "ok", "a comment in front, a semicolon behind");
 });
 
+test("a pragma is refused before SQLite compiles it - compiled, it opened the database to the texts after it", () => {
+  for (const q of ["PRAGMA query_only = OFF", "\ufeffpragma query_only=0", "SELECT 1; PRAGMA query_only = OFF",
+    "EXPLAIN PRAGMA query_only = OFF", "/* c */PRAGMA case_sensitive_like = ON"]) {
+    assert.deepEqual(run(q), { status: "refused", error: "only queries are run: SELECT, VALUES or WITH ... SELECT" }, q);
+  }
+  assert.equal(run("WITH x AS (SELECT 1) DELETE FROM lecture").status, "refused");
+  assert.equal(run("SELECT COUNT(*) FROM lecture").summary.rows[0][0], "3");
+  assert.equal(run("SELECT 'a' LIKE 'A'").summary.rows[0][0], "1");
+  for (const q of ["SELECT 'PRAGMA'", 'SELECT 1 AS "pragma"', "SELECT 1 AS [pragma]", "SELECT 1 -- PRAGMA",
+    "SELECT :pragma", "SELECT $a(PRAGMA)", "SELECT * FROM pragma_table_info('lecture')", "SELECT x\ufeffPRAGMA",
+    "SELECT 1\u0000PRAGMA query_only = OFF"]) {
+    assert.equal(sql.namesPragma(q), false, q);
+  }
+  assert.equal(run("SELECT * FROM pragma_table_info('lecture')").status, "ok");
+});
+
 test("what went wrong: a syntax error, an unknown table or column, a runaway query", () => {
   const syntax = run("SELEC name FROM professor");
   assert.equal(syntax.status, "syntax");
