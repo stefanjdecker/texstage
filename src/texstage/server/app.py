@@ -154,6 +154,7 @@ mimetypes.add_type("text/javascript", ".mjs")      # PDF.js's modules (web/vendo
                                                     # may say text/plain, and browsers refuse that
 mimetypes.add_type("application/wasm", ".wasm")    # Oxigraph's engine (web/vendor/oxigraph): compiled as it comes
 EVALUATOR = "evaluator-worker.js"                   # a live activity's queries run there: no network (web/stage)
+SPIKE = os.environ.get("TEXSTAGE_SPIKE_POOL") is not None    # F0's spike (server/spike_checks.py): its timings
 
 
 class Static(StaticFiles):
@@ -437,6 +438,7 @@ class Server:
         if players and only is None and not asking:
             self.engine.due.pop(sid, None)            # every phone gets its state now
         host_view = None
+        t0, views = time.perf_counter(), 0            # F0's spike: how long the phones' views take
         for c in list(self.conns.get(sid, ())):
             try:
                 if c.role in HOSTS and hosts:
@@ -453,11 +455,14 @@ class Server:
                       and (not asking or c.qa)):
                     view = self.engine.player_view(c.player, now, questions=c.qa)
                     c.push({"t": "state", "now": now, "role": "player", **view})
+                    views += 1
             except GameError as err:
                 c.bye(err.code, str(err))
                 self.conns[sid].discard(c)
         if hosts:
             self.dirty.discard(sid)
+        if SPIKE and views > 100 and (spent := time.perf_counter() - t0) > 0.02:
+            log.warning("spike: a push to %d phones took %.0f ms", views, 1000 * spent)
 
     def _sweep(self):
         """Connections of sessions that ended: hosts move to the deck's new session, if there

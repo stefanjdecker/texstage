@@ -1,0 +1,59 @@
+{
+ "machine": {
+  "cores": 8,
+  "threads": 16
+ },
+ "runs": [
+  {
+   "run": "SPARQL, heavier seed, 1 %",
+   "repetition": 1,
+   "activity": "kg-big",
+   "runaway": 0.01,
+   "seconds": 167,
+   "joined_s": 30.1,
+   "fetch": [
+    1091,
+    0,
+    9,
+    7,
+    18,
+    69
+   ],
+   "open": [
+    1100,
+    359,
+    252
+   ],
+   "close": [
+    1100,
+    233,
+    157
+   ],
+   "ack": [
+    9,
+    304,
+    557,
+    1000
+   ],
+   "checked": [
+    12,
+    973,
+    4267,
+    1000
+   ],
+   "statuses": {
+    "ok": 873,
+    "syntax": 117,
+    "timeout": 10
+   },
+   "server_mb": 383,
+   "server_cpu_s": 17.2,
+   "workers": 7,
+   "workers_cpu_s": 2.6,
+   "worker_mb_max": 30,
+   "slow_pushes": 2,
+   "slowest_push_ms": 103,
+   "unchecked": 0
+  }
+ ]
+}

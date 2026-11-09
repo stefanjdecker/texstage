@@ -75,7 +75,8 @@ def _sql_prepare(seed: str, references: list[str]) -> dict:
     _SEEDS["bytes"] += con.execute("PRAGMA page_count").fetchone()[0] * con.execute("PRAGMA page_size").fetchone()[0]
     limit = _SEEDS["bytes"] + HEAP_BASE + HEAP_ALLOWANCE
     con.execute(f"PRAGMA hard_heap_limit = {limit}")      # before the authorizer refuses PRAGMA (AF 11)
-    con.execute("PRAGMA query_only = ON")
+    con.execute("PRAGMA temp_store = MEMORY")              # else a large sort spills to temporary files,
+    con.execute("PRAGMA query_only = ON")                  # past the cap (F0's review)
     con.set_authorizer(lambda action, *args: sqlite3.SQLITE_DENY if action in DENIED else sqlite3.SQLITE_OK)
     state = {"con": con, "heap_limit": limit}
     state["refs"] = [_sql_check(state, r, 10.0).get("key") for r in references]
@@ -120,6 +121,8 @@ def _sql_check(state: dict, text: str, budget_s: float) -> dict:
         if "readonly" in msg or "not authorized" in msg:
             return {"status": "refused", "key": "refused", "error": msg}
         return {"status": "error", "key": "error", "error": msg, "memory": "out of memory" in msg}
+    except MemoryError:                                   # SQLITE_NOMEM, as Python's sqlite3 raises it
+        return {"status": "error", "key": "error", "error": "out of memory", "memory": True}
     except sqlite3.Error as e:
         return {"status": "error", "key": "error", "error": _cut(e)}
     finally:
@@ -132,8 +135,14 @@ def _sql_check(state: dict, text: str, budget_s: float) -> dict:
 PREFIX_LINE = re.compile(r"^\s*@?prefix\s+([\w.-]*):\s*<([^>]*)>\s*\.?\s*$", re.I | re.M)
 BASE_LINE = re.compile(r"^\s*@?base\s+<([^>]*)>\s*\.?\s*$", re.I | re.M)
 ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{8})")
-TOKENS = re.compile(r"""'''.*?'''|\"\"\".*?\"\"\"|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|<[^<>"{}|^`\\\s]*>|#[^\n]*|[A-Za-z_]+""",
-                    re.S)
+# SPARQL's tokens, as far as a refusal of SERVICE needs them (SPARQL 1.1, section 19.8): strings, IRIs and
+# comments skipped; variables and prefixed names whole - ?service, :service, ex:Service and the prefix
+# service: are names, not the keyword; then words
+TOKENS = re.compile(r"""'''.*?'''|\"\"\".*?\"\"\"|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|<[^<>"{}|^`\\\s]*>|#[^\n]*"""
+                    r"""|[?$][\w·̀-ͯ‿-⁀]+"""
+                    r"""|(?:[^\W\d_][\w.\-·]*)?:[\w.\-:%\\]*"""
+                    r"""|[^\W\d_]\w*""", re.S)
+WORD = re.compile(r"[^\W\d_]\w*")
 QUOTES = str.maketrans({c: '"' for c in "“”„‟«»"} | {c: "'" for c in "‘’‚‛"})
 
 
@@ -143,10 +152,12 @@ def decoded(text: str) -> str:
 
 
 def names_service(text: str) -> bool:
-    """Whether SERVICE is a word of the query - outside strings, IRIs and comments, the escapes decoded."""
+    """Whether the keyword SERVICE is in the query - a word of its own, not a part of a string, an IRI, a
+    comment, a variable or a prefixed name - as written, or with its escapes decoded."""
     for t in (text, decoded(text)):
         for m in TOKENS.finditer(t):
-            if m.group(0).upper() == "SERVICE":
+            token = m.group(0)
+            if WORD.fullmatch(token) and token.upper() == "SERVICE":
                 return True
     return False
 

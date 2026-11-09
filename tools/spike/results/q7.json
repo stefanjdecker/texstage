@@ -1,0 +1,415 @@
+{
+ "machine": {
+  "cores": 8,
+  "threads": 16
+ },
+ "runs": [
+  {
+   "run": "SPARQL, 1 % runaway",
+   "repetition": 1,
+   "activity": "kg-rivers",
+   "runaway": 0.01,
+   "seconds": 167,
+   "joined_s": 30.0,
+   "fetch": [
+    1088,
+    0,
+    12,
+    5,
+    12,
+    175
+   ],
+   "open": [
+    1100,
+    343,
+    237
+   ],
+   "close": [
+    1100,
+    244,
+    179
+   ],
+   "ack": [
+    6,
+    32,
+    84,
+    1000
+   ],
+   "checked": [
+    8,
+    881,
+    3676,
+    1000
+   ],
+   "statuses": {
+    "ok": 873,
+    "syntax": 117,
+    "timeout": 10
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 16.7,
+   "worker_mb_max": 381,
+   "slow_pushes": 2,
+   "slowest_push_ms": 115,
+   "unchecked": 0
+  },
+  {
+   "run": "SPARQL, 1 % runaway",
+   "repetition": 2,
+   "activity": "kg-rivers",
+   "runaway": 0.01,
+   "seconds": 166,
+   "joined_s": 30.02,
+   "fetch": [
+    1093,
+    0,
+    7,
+    6,
+    14,
+    68
+   ],
+   "open": [
+    1100,
+    230,
+    155
+   ],
+   "close": [
+    1100,
+    195,
+    130
+   ],
+   "ack": [
+    3,
+    13,
+    42,
+    1000
+   ],
+   "checked": [
+    4,
+    529,
+    3423,
+    1000
+   ],
+   "statuses": {
+    "ok": 871,
+    "syntax": 119,
+    "timeout": 10
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 14.8,
+   "worker_mb_max": 381,
+   "slow_pushes": 2,
+   "slowest_push_ms": 64,
+   "unchecked": 0
+  },
+  {
+   "run": "SPARQL, 1 % runaway",
+   "repetition": 3,
+   "activity": "kg-rivers",
+   "runaway": 0.01,
+   "seconds": 166,
+   "joined_s": 30.18,
+   "fetch": [
+    1095,
+    0,
+    5,
+    5,
+    12,
+    91
+   ],
+   "open": [
+    1100,
+    295,
+    200
+   ],
+   "close": [
+    1100,
+    242,
+    167
+   ],
+   "ack": [
+    4,
+    17,
+    48,
+    1000
+   ],
+   "checked": [
+    5,
+    28,
+    2836,
+    1000
+   ],
+   "statuses": {
+    "ok": 880,
+    "syntax": 110,
+    "timeout": 10
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 14.6,
+   "worker_mb_max": 380,
+   "slow_pushes": 2,
+   "slowest_push_ms": 89,
+   "unchecked": 0
+  },
+  {
+   "run": "SPARQL, 3 % runaway",
+   "repetition": 1,
+   "activity": "kg-rivers",
+   "runaway": 0.03,
+   "seconds": 174,
+   "joined_s": 30.04,
+   "fetch": [
+    1099,
+    0,
+    1,
+    6,
+    15,
+    82
+   ],
+   "open": [
+    1100,
+    242,
+    168
+   ],
+   "close": [
+    1100,
+    221,
+    142
+   ],
+   "ack": [
+    4,
+    20,
+    34,
+    1000
+   ],
+   "checked": [
+    6,
+    7995,
+    10662,
+    1000
+   ],
+   "statuses": {
+    "ok": 856,
+    "syntax": 114,
+    "timeout": 30
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 17.0,
+   "worker_mb_max": 383,
+   "slow_pushes": 2,
+   "slowest_push_ms": 64,
+   "unchecked": 0
+  },
+  {
+   "run": "SPARQL, 5 % runaway",
+   "repetition": 1,
+   "activity": "kg-rivers",
+   "runaway": 0.05,
+   "seconds": 183,
+   "joined_s": 30.08,
+   "fetch": [
+    1097,
+    0,
+    3,
+    6,
+    16,
+    78
+   ],
+   "open": [
+    1100,
+    280,
+    204
+   ],
+   "close": [
+    1100,
+    207,
+    141
+   ],
+   "ack": [
+    22,
+    123,
+    159,
+    1000
+   ],
+   "checked": [
+    102,
+    15769,
+    19715,
+    1000
+   ],
+   "statuses": {
+    "ok": 844,
+    "syntax": 106,
+    "timeout": 50
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 19.0,
+   "worker_mb_max": 385,
+   "slow_pushes": 2,
+   "slowest_push_ms": 99,
+   "unchecked": 0
+  },
+  {
+   "run": "SPARQL, heavier seed, 1 %",
+   "repetition": 1,
+   "activity": "kg-big",
+   "runaway": 0.01,
+   "seconds": 166,
+   "joined_s": 30.06,
+   "fetch": [
+    1092,
+    0,
+    8,
+    6,
+    15,
+    89
+   ],
+   "open": [
+    1100,
+    309,
+    221
+   ],
+   "close": [
+    1100,
+    237,
+    171
+   ],
+   "ack": [
+    6,
+    73,
+    114,
+    1000
+   ],
+   "checked": [
+    8,
+    104,
+    2766,
+    1000
+   ],
+   "statuses": {
+    "ok": 869,
+    "syntax": 121,
+    "timeout": 10
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 16.2,
+   "worker_mb_max": 384,
+   "slow_pushes": 2,
+   "slowest_push_ms": 101,
+   "unchecked": 0
+  },
+  {
+   "run": "Turtle",
+   "repetition": 1,
+   "activity": "berlin-turtle",
+   "runaway": 0.0,
+   "seconds": 163,
+   "joined_s": 30.1,
+   "fetch": [
+    1095,
+    0,
+    5,
+    6,
+    15,
+    69
+   ],
+   "open": [
+    1100,
+    232,
+    159
+   ],
+   "close": [
+    1100,
+    181,
+    127
+   ],
+   "ack": [
+    3,
+    10,
+    45,
+    1000
+   ],
+   "checked": [
+    3,
+    14,
+    48,
+    1000
+   ],
+   "statuses": {
+    "ok": 815,
+    "syntax": 185
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 15.3,
+   "worker_mb_max": 382,
+   "slow_pushes": 2,
+   "slowest_push_ms": 67,
+   "unchecked": 0
+  },
+  {
+   "run": "SQL, 1 % runaway",
+   "repetition": 1,
+   "activity": "packing-sql",
+   "runaway": 0.01,
+   "seconds": 164,
+   "joined_s": 30.13,
+   "fetch": [
+    1082,
+    0,
+    18,
+    8,
+    25,
+    150
+   ],
+   "open": [
+    1100,
+    306,
+    209
+   ],
+   "close": [
+    1100,
+    233,
+    166
+   ],
+   "ack": [
+    6,
+    144,
+    227,
+    1000
+   ],
+   "checked": [
+    8,
+    274,
+    2580,
+    1000
+   ],
+   "statuses": {
+    "ok": 856,
+    "refused": 134,
+    "timeout": 10
+   },
+   "server_mb": 4,
+   "server_cpu_s": 0.0,
+   "workers": 8,
+   "workers_cpu_s": 39.1,
+   "worker_mb_max": 381,
+   "slow_pushes": 2,
+   "slowest_push_ms": 89,
+   "unchecked": 0
+  }
+ ]
+}

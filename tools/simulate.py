@@ -256,7 +256,7 @@ class Phone:
 
     async def get_file(self):
         try:
-            _, seconds = await http_get(self.url, Phone.fetch)
+            _, seconds = await asyncio.wait_for(http_get(self.url, Phone.fetch), 30)    # else it may hang
             Phone.fetches.append(seconds)
         except Exception as err:  # noqa: BLE001 - counted, not fatal
             Phone.fetch_failed.append(f"{type(err).__name__}: {err}"[:120])
@@ -363,11 +363,20 @@ def burst_texts(engine: str, reference: str, n: int, distinct: float, runaway: f
     """n texts for a burst: a share distinct (the reference with a LIMIT of its own), a share running
     into its budget (each its own), the rest a few common ones, right and wrong, again and again."""
     ref = reference.strip().rstrip(";")
-    common = [ref, " ".join(ref.split()), ref.replace("SELECT", "select", 1),
-              ref.replace("SELECT", "SELEC", 1),                          # a syntax error
-              re.sub(r"\?(\w+)", r"?\1x", ref, count=1)]                   # a variable misspelt: another result
+    if engine == "turtle":                                        # a graph: the same in other spellings, wrong
+        prefix = (re.search(r"([A-Za-z][\w-]*):", ref) or re.search("(x)", "x")).group(1)
+        common = [ref, " ".join(ref.split()), ref.rstrip(" .\n"),                 # the last one: a syntax error
+                  re.sub(r"\d+", lambda m: str(int(m.group(0)) + 1), ref, count=1)]    # another graph
+        distinct_texts = [f"{ref}\n{prefix}:extra{i} {prefix}:p {prefix}:o ." for i in range(round(n * distinct))]
+    else:
+        common = [ref, " ".join(ref.split()), ref.replace("SELECT", "select", 1),
+                  ref.replace("SELECT", "SELEC", 1),                      # a syntax error
+                  re.sub(r"\?(\w+)", r"?\1x", ref, count=1)]               # a variable misspelt: another result
+        if engine == "sparql":
+            common.append("SELECT * WHERE { ?s ?p ?o }")                  # everything: the whole seed
+        distinct_texts = [f"{ref} LIMIT {i + 1}" for i in range(round(n * distinct))]
     texts = [RUNAWAY[engine].format(k=i) for i in range(round(n * runaway))] if RUNAWAY.get(engine) else []
-    texts += [f"{ref} LIMIT {i + 1}" for i in range(round(n * distinct))]
+    texts += distinct_texts
     texts += [rng.choice(common) for _ in range(max(0, n - len(texts)))]
     rng.shuffle(texts)
     return texts[:n]
@@ -556,8 +565,9 @@ async def main():
             until = time.monotonic() + 120
             while len(Phone.fetches) + len(Phone.fetch_failed) < args.players and time.monotonic() < until:
                 await asyncio.sleep(0.1)
-            print(f"{args.fetch} loaded by {len(Phone.fetches)} phones ({len(Phone.fetch_failed)} failed): "
-                  f"{percentiles([round(1000 * s) for s in Phone.fetches])}", flush=True)
+            unfinished = args.players - len(Phone.fetches) - len(Phone.fetch_failed)
+            print(f"{args.fetch} loaded by {len(Phone.fetches)} phones ({len(Phone.fetch_failed)} failed, "
+                  f"{unfinished} unfinished): {percentiles([round(1000 * s) for s in Phone.fetches])}", flush=True)
             if Phone.fetch_failed:
                 print("  failures:", dict(Counter(Phone.fetch_failed).most_common(3)), flush=True)
         if args.activity:

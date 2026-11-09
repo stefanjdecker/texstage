@@ -4,14 +4,18 @@
 
 Workers are started with spawn at a low priority, one more waits as a spare. A job is one text; a
 worker checks it in a thread with a 64 MB stack (deep nesting, probe_engines.py Q3) under a CPU-time
-budget. A watchdog reads every busy worker's CPU time and memory (psutil) every 50 ms and ends a
-worker over its budget or its limit; the clock is a backstop at five times the budget. A job whose
-worker died runs once more on a fresh worker, then is `internal` (AF 11). On Windows each worker is
-in a job object with a memory limit, the system's hard stop.
+budget. A watchdog reads every worker's CPU time and memory (psutil) every 50 ms and ends a worker
+over its budget or its limit; the clock is a backstop at five times the budget. A job whose worker
+died runs once more on a fresh worker, then is `internal` (AF 11). On Windows each worker is in a job
+object with a memory limit, the system's hard stop. Jobs wait in a queue per owner - a student - and
+the owners take turns, so that one student's many texts do not hold up the others (AF 10.3).
+
+The pool never blocks while it holds its lock (F0's review): messages to a worker go through its
+outbox, which a thread of its own sends; a dead worker is joined, and psutil is read, outside it.
 
     pool = Pool(workers=4); pool.start()
-    pool.prepare("act", "sparql", seed_text, [reference])     # on every worker, the spare too
-    future = pool.submit("act", "sparql", text, budget_s=2.0)  # -> {status, key, ...}
+    pool.prepare("act", "sparql", seed_text, [reference])           # on every worker, the spare too
+    future = pool.submit("act", None, text, budget_s=2.0, owner="p1")  # -> {status, key, ...}
     pool.close()
 
 Run by itself it measures Q4 to Q6 on this machine: python tools/spike/pool.py [--workers N]
@@ -25,7 +29,7 @@ import json
 import multiprocessing as mp
 import os
 import platform
-import statistics
+import queue
 import sys
 import threading
 import time
@@ -46,6 +50,10 @@ def _worker(conn):
     budget), ("test", id, what, arg), ("exit",)."""
     sys.path.insert(0, str(HERE))
     import checks
+    try:
+        import pyoxigraph  # noqa: F401 - imported before "ready", so that ready means ready for SPARQL
+    except ImportError:
+        pass
 
     threading.stack_size(STACK)
     states: dict[str, tuple[str, dict]] = {}
@@ -148,10 +156,20 @@ class Worker:
         self.proc.start()
         child.close()
         self.pool, self.ready_s, self.job, self.ps = pool, None, None, None
-        self.lock = threading.Lock()
+        self.cpu0: float | None = None           # the process's CPU time when its job started (the watchdog's)
         self.ended_for: str | None = None
         self.prepared: set[str] = set()
+        self.prepare_times: dict[str, float] = {}
+        self.outbox: queue.Queue = queue.Queue()  # sent by its own thread: nobody blocks on a full pipe
+        threading.Thread(target=self.send_loop, daemon=True).start()
         threading.Thread(target=self.read, daemon=True).start()
+
+    def send_loop(self):
+        while (msg := self.outbox.get()) is not None:
+            try:
+                self.parent.send(msg)
+            except (OSError, EOFError, ValueError):
+                return
 
     def read(self):
         while True:
@@ -171,29 +189,24 @@ class Pool:
         self.spare_wanted, self.mem_mb = spare, mem_mb
         self.ctx = mp.get_context("spawn")
         self.lock = threading.RLock()
+        self.ready = threading.Condition(self.lock)
         self.workers: list[Worker] = []          # checking
         self.spares: list[Worker] = []
-        self.queue: collections.deque = collections.deque()
+        self.queues: collections.OrderedDict[str, collections.deque] = collections.OrderedDict()   # owner -> jobs
         self.jobs: dict[int, dict] = {}
         self.next_id = 0
         self.acts: dict[str, tuple] = {}         # act -> (engine, seed, refs): the spare and new workers too
         self.refs: dict[str, list] = {}          # act -> the references' keys, as a worker found them
         self.assign = _job_object(JOB_MEM_MB)
         self.events: list[dict] = []             # what the watchdog did, for the measurements
-        self.ready = threading.Condition(self.lock)
         self.closed = False
 
     # -- workers
-    def _spawn(self) -> Worker:
-        w = Worker(self.ctx, self)
-        return w
-
     def start(self, wait: bool = True):
         with self.lock:
-            for _ in range(self.n):
-                self.workers.append(self._spawn())
+            self.workers = [Worker(self.ctx, self) for _ in range(self.n)]
             if self.spare_wanted:
-                self.spares.append(self._spawn())
+                self.spares = [Worker(self.ctx, self)]
         threading.Thread(target=self.watch, daemon=True).start()
         if wait:
             self.wait_ready()
@@ -201,63 +214,58 @@ class Pool:
     def wait_ready(self, timeout: float = 60):
         end = time.monotonic() + timeout
         with self.lock:
-            while any(w.ready_s is None for w in self.workers + self.spares):
-                self.ready.wait(max(0.01, end - time.monotonic()))
+            while any(w.ready_s is None or not set(self.acts) <= w.prepared for w in self.workers + self.spares):
+                self.ready.wait(0.05)
                 if time.monotonic() > end:
                     raise TimeoutError("workers not ready")
 
     def received(self, w: Worker, msg):
         kind = msg[0]
+        if kind == "ready":                     # psutil and the job object outside the lock
+            ps = self.psutil.Process(msg[1])
+            try:
+                ps.nice(self.psutil.BELOW_NORMAL_PRIORITY_CLASS if sys.platform == "win32" else 10)
+            except Exception:  # noqa: BLE001
+                pass
+            in_job = self.assign(msg[1]) if self.assign else None
         with self.lock:
             if kind == "ready":
+                w.ps, w.in_job_object = ps, in_job
                 w.ready_s = time.perf_counter() - w.started
-                w.ps = self.psutil.Process(msg[1])
-                try:
-                    w.ps.nice(self.psutil.BELOW_NORMAL_PRIORITY_CLASS if sys.platform == "win32" else 10)
-                except Exception:  # noqa: BLE001
-                    pass
-                if self.assign:
-                    w.in_job_object = self.assign(msg[1])
                 for act, (engine, seed, refs) in self.acts.items():
-                    w.parent.send(("prepare", act, engine, seed, refs))
-                self.ready.notify_all()
-                self.dispatch()
+                    w.outbox.put(("prepare", act, engine, seed, refs))
             elif kind == "prepared":
                 w.prepared.add(msg[1])
-                w.prepare_s = msg[3]
+                w.prepare_times[msg[1]] = msg[3]
                 self.refs[msg[1]] = msg[2]
-                self.ready.notify_all()
-                self.dispatch()
             elif kind == "done":
                 job = self.jobs.pop(msg[1], None)
-                w.job = None
+                w.job, w.cpu0 = None, None
                 if job is not None:
-                    job["result"] = msg[2]
                     job["future"].set_result(msg[2] | {"worker": w.proc.pid, "tries": job["tries"],
                                                        "queued_s": job["started"] - job["queued"],
                                                        "check_s": time.perf_counter() - job["started"]})
-                self.dispatch()
+            self.ready.notify_all()
+            self.dispatch()
 
     def died(self, w: Worker):
+        w.proc.join(1)                           # outside the lock (F0's review)
+        w.outbox.put(None)
         with self.lock:
             if self.closed:
                 return
-            w.proc.join(1)
             why = w.ended_for or f"died (exit code {w.proc.exitcode})"
             self.events.append({"pid": w.proc.pid, "why": why, "at": time.perf_counter(),
-                                "cpu_s": getattr(w, "ended_cpu", None), "rss_mb": getattr(w, "ended_rss_mb", None)})
+                                "cpu_s": getattr(w, "ended_cpu", None), "mem_mb": getattr(w, "ended_mem_mb", None)})
             job = w.job
             if w in self.workers:
                 self.workers.remove(w)
-                if self.spares:                    # the spare takes its place at once
-                    self.workers.append(self.spares.pop())
-                else:
-                    self.workers.append(self._spawn())
+                self.workers.append(self.spares.pop() if self.spares else Worker(self.ctx, self))
                 if self.spare_wanted:
-                    self.spares.append(self._spawn())
+                    self.spares.append(Worker(self.ctx, self))
             elif w in self.spares:
                 self.spares.remove(w)
-                self.spares.append(self._spawn())
+                self.spares.append(Worker(self.ctx, self))
             if job is not None:
                 self.jobs.pop(job["id"], None)
                 outcome = None
@@ -270,98 +278,126 @@ class Pool:
                 if outcome is None:
                     job["tries"] += 1
                     self.jobs[job["id"]] = job
-                    self.queue.appendleft(job["id"])
+                    self._enqueue(job, front=True)
                 else:
                     job["future"].set_result(outcome | {"tries": job["tries"], "ended": why,
                                                         "check_s": time.perf_counter() - job["started"]})
+            self.ready.notify_all()
             self.dispatch()
 
     # -- work
     def prepare(self, act: str, engine: str, seed: str, refs: list[str] | None = None, timeout: float = 60):
-        """Every worker, the spare too, prepares the activity; returns the references' keys."""
+        """Every worker, the spare too, prepares the activity; its references' keys: self.refs[act]."""
         with self.lock:
             self.acts[act] = (engine, seed, refs or [])
             for w in self.workers + self.spares:
                 if w.ready_s is not None:
-                    w.parent.send(("prepare", act, engine, seed, refs or []))
+                    w.outbox.put(("prepare", act, engine, seed, refs or []))
             end = time.monotonic() + timeout
             while any(act not in w.prepared for w in self.workers + self.spares):
                 self.ready.wait(0.05)
                 if time.monotonic() > end:
                     raise TimeoutError("prepare")
 
-    def submit(self, act: str | None, engine: str | None, text, budget_s: float = 2.0, test: str | None = None):
+    def submit(self, act: str | None, engine: str | None, text, budget_s: float = 2.0, test: str | None = None,
+               owner: str | None = None) -> cf.Future:
         fut: cf.Future = cf.Future()
         with self.lock:
             self.next_id += 1
             jid = self.next_id
-            self.jobs[jid] = {"id": jid, "act": act, "text": text, "budget": budget_s, "test": test,
-                              "future": fut, "tries": 1, "queued": time.perf_counter(), "started": None}
-            self.queue.append(jid)
+            job = {"id": jid, "act": act, "text": text, "budget": budget_s, "test": test, "future": fut,
+                   "tries": 1, "queued": time.perf_counter(), "started": None, "owner": owner or f"job {jid}"}
+            self.jobs[jid] = job
+            self._enqueue(job)
             self.dispatch()
         return fut
 
+    def _enqueue(self, job: dict, front: bool = False):
+        q = self.queues.setdefault(job["owner"], collections.deque())
+        (q.appendleft if front else q.append)(job["id"])
+
+    def _next(self, free: list[Worker]):
+        """The next job and a free worker that can take it, the owners in turns."""
+        for owner in list(self.queues):
+            q = self.queues[owner]
+            while q and q[0] not in self.jobs:
+                q.popleft()
+            if not q:
+                del self.queues[owner]
+                continue
+            job = self.jobs[q[0]]
+            w = next((w for w in free if job["act"] is None or job["act"] in w.prepared), None)
+            if w is not None:
+                q.popleft()
+                if q:
+                    self.queues.move_to_end(owner)
+                else:
+                    del self.queues[owner]
+                return job, w
+        return None, None
+
     def dispatch(self):
         with self.lock:
-            idle = [w for w in self.workers if w.ready_s is not None and w.job is None]
-            while self.queue and idle:
-                jid = self.queue.popleft()
-                job = self.jobs.get(jid)
+            free = [w for w in self.workers if w.ready_s is not None and w.job is None and not w.ended_for]
+            while free:
+                job, w = self._next(free)
                 if job is None:
-                    continue
-                w = next((w for w in idle if job["act"] is None or job["act"] in w.prepared), None)
-                if w is None:
-                    self.queue.appendleft(jid)
                     return
-                idle.remove(w)
-                w.job, job["started"] = job, time.perf_counter()
-                w.cpu0 = sum(w.ps.cpu_times()[:2])
-                if job["test"]:
-                    w.parent.send(("test", jid, job["test"], job["text"]))
-                else:
-                    w.parent.send(("check", jid, job["act"], job["text"], job["budget"]))
+                free.remove(w)
+                w.job, w.cpu0, job["started"] = job, None, time.perf_counter()
+                w.outbox.put(("test", job["id"], job["test"], job["text"]) if job["test"] else
+                             ("check", job["id"], job["act"], job["text"], job["budget"]))
+
+    def queued(self) -> int:
+        with self.lock:
+            return sum(len(q) for q in self.queues.values())
 
     def watch(self):
-        """Every 50 ms: a busy worker over its CPU budget or the clock's backstop, or any worker over
-        its memory limit, is ended (AF 11)."""
+        """Every 50 ms: a busy worker over its CPU budget or the clock's backstop, or any worker over its
+        memory limit, is ended (AF 11). psutil is read, and workers are ended, outside the lock."""
         while not self.closed:
             time.sleep(WATCH_S)
             with self.lock:
-                for w in list(self.workers + self.spares):
-                    if w.ps is None or w.ended_for:
+                seen = [(w, w.job) for w in self.workers + self.spares if w.ps is not None and not w.ended_for]
+            ends = []
+            for w, job in seen:
+                try:
+                    mi = w.ps.memory_info()
+                    cpu = sum(w.ps.cpu_times()[:2])
+                except self.psutil.Error:
+                    continue
+                mem = getattr(mi, "private", mi.rss)          # committed memory, as the job object counts it
+                why = None
+                if mem > self.mem_mb * 2**20:
+                    why = "memory"
+                elif job is not None:
+                    if w.cpu0 is None:
+                        w.cpu0 = cpu                          # (the job's first 50 ms or less go uncounted)
+                    elif cpu - w.cpu0 > job["budget"] * 1.25 + 0.1:   # the engines stop themselves at the budget
+                        why = "cpu"
+                    if why is None and time.perf_counter() - job["started"] > job["budget"] * BACKSTOP:
+                        why = "clock"
+                if why:
+                    ends.append((w, job, why, cpu, mem))
+            for w, job, why, cpu, mem in ends:
+                with self.lock:
+                    if w.job is not job or w.ended_for:       # its job ended meanwhile
                         continue
-                    try:
-                        rss = w.ps.memory_info().rss
-                        cpu = sum(w.ps.cpu_times()[:2])
-                    except self.psutil.Error:
-                        continue
-                    why = None
-                    if rss > self.mem_mb * 2**20:
-                        why = "memory"
-                    elif w.job is not None:
-                        # the engines stop themselves at the budget; the pool only where they cannot
-                        if cpu - w.cpu0 > w.job["budget"] * 1.25 + 0.1:
-                            why = "cpu"
-                        elif time.perf_counter() - w.job["started"] > w.job["budget"] * BACKSTOP:
-                            why = "clock"
-                    if why:
-                        w.ended_for = why
-                        w.ended_cpu = cpu - getattr(w, "cpu0", cpu)
-                        w.ended_rss_mb = rss / 2**20
-                        try:
-                            w.proc.kill()
-                        except Exception:  # noqa: BLE001
-                            pass
+                    w.ended_for, w.ended_cpu = why, cpu - (w.cpu0 or cpu)
+                    w.ended_mem_mb = mem / 2**20
+                try:
+                    w.proc.kill()
+                except Exception:  # noqa: BLE001
+                    pass
 
     def close(self):
         with self.lock:
             self.closed = True
-            for w in self.workers + self.spares:
-                try:
-                    w.parent.send(("exit",))
-                except Exception:  # noqa: BLE001
-                    pass
-        for w in self.workers + self.spares:
+            everyone = self.workers + self.spares
+        for w in everyone:
+            w.outbox.put(("exit",))
+            w.outbox.put(None)
+        for w in everyone:
             w.proc.join(2)
             if w.proc.is_alive():
                 w.proc.kill()
@@ -391,20 +427,26 @@ def measure(workers: int) -> dict:
     pool.start()
     out["q4_start"] = {"workers": pool.n, "spare": 1, "all_ready_s": round(time.perf_counter() - t, 2),
                        "each_ready_s": sorted(round(w.ready_s, 2) for w in pool.workers + pool.spares),
+                       "pyoxigraph_imported_before_ready": True,
                        "in_job_object": all(getattr(w, "in_job_object", False) for w in pool.workers)
                        if pool.assign else "not Windows"}
     t = time.perf_counter()
     pool.prepare("kg", "sparql", seed, [ref])
+    sparql_s = time.perf_counter() - t
+    t = time.perf_counter()
     pool.prepare("sql", "sql", sql_seed, ["SELECT item FROM packing WHERE quantity = 6"])
-    out["q4_prepare"] = {"both_on_all_s": round(time.perf_counter() - t, 3),
-                         "sparql_each_ms": ms(max(getattr(w, "prepare_s", 0) for w in pool.workers))}
+    out["q4_prepare"] = {"sparql_on_all_ms": ms(sparql_s), "sql_on_all_ms": ms(time.perf_counter() - t),
+                         "sparql_on_one_max_ms": ms(max(w.prepare_times["kg"] for w in pool.workers)),
+                         "sql_on_one_max_ms": ms(max(w.prepare_times["sql"] for w in pool.workers))}
 
-    # round trips: a check that takes no time, idle and with all other workers busy
-    rt = [pool.submit("kg", None, ref).result(timeout=10) for _ in range(5)]   # warm
-    idle = []
+    # round trips: a check that takes no time, idle and with all other workers busy; how long submit holds
+    [pool.submit("kg", None, ref).result(timeout=10) for _ in range(5)]          # warm
+    idle, submits = [], []
     for _ in range(300):
         t = time.perf_counter()
-        pool.submit(None, None, 0, test="noop").result(timeout=10)
+        f = pool.submit(None, None, 0, test="noop")
+        submits.append(time.perf_counter() - t)
+        f.result(timeout=10)
         idle.append(time.perf_counter() - t)
     checks_idle = []
     for _ in range(100):
@@ -422,37 +464,45 @@ def measure(workers: int) -> dict:
     out["q4_round_trip_ms"] = {
         "noop_idle_p50": ms(pct(idle, 50)), "noop_idle_p95": ms(pct(idle, 95)),
         "kg_reference_check_p50": ms(pct(checks_idle, 50)), "kg_reference_check_p95": ms(pct(checks_idle, 95)),
-        "noop_others_busy_p50": ms(pct(loaded, 50)), "noop_others_busy_p95": ms(pct(loaded, 95))}
+        "noop_others_busy_p50": ms(pct(loaded, 50)), "noop_others_busy_p95": ms(pct(loaded, 95)),
+        "submit_call_max": ms(max(submits))}
 
     # a burst: 300 distinct SPARQL texts at once, the pool's throughput
     texts = [f"SELECT ?s WHERE {{ ?s ?p ?o }} LIMIT {i + 1}" for i in range(300)]
     t = time.perf_counter()
-    futs = [pool.submit("kg", None, x) for x in texts]
+    futs = [pool.submit("kg", None, x, owner=f"p{i}") for i, x in enumerate(texts)]
     lat = [f.result(timeout=60) for f in futs]
     out["q4_burst_300_distinct"] = {"all_done_s": round(time.perf_counter() - t, 3),
                                     "queued_p95_ms": ms(pct([r["queued_s"] for r in lat], 95))}
 
-    # ending and replacing a worker: a crash, then the next job
+    # turns: one owner's 18 slow jobs, then another owner's quick one - it waits for one job, not for 18
+    slow = [pool.submit(None, None, 0.5, test="spin", budget_s=5, owner="greedy") for _ in range(18)]
+    time.sleep(0.05)
+    t = time.perf_counter()
+    pool.submit(None, None, 0, test="noop", owner="other").result(timeout=30)
+    other = time.perf_counter() - t
+    [s.result(timeout=60) for s in slow]
+    out["q4_turns"] = {"other_owner_waited_ms": ms(other), "greedy_jobs": 18, "each_s": 0.5, "workers": pool.n}
+
+    # ending and replacing a worker: a crash, then the next job; the new spare ready, pyoxigraph imported
+    # and both activities prepared
     t = time.perf_counter()
     r = pool.submit(None, None, 0, test="crash").result(timeout=30)
     crash_s = time.perf_counter() - t
     t = time.perf_counter()
     pool.submit("kg", None, ref).result(timeout=30)
     after = time.perf_counter() - t
-    time.sleep(0.1)
     t = time.perf_counter()
     pool.wait_ready()
-    spare_back = time.perf_counter() - t
-    out["q4_crash"] = {"result": r["status"], "tries": r["tries"], "both_tries_s": round(crash_s, 2),
-                       "next_check_ms": ms(after), "new_spare_ready_after_s": round(spare_back, 2)}
+    out["q4_crash"] = {"result": r["status"], "tries": r["tries"], "both_tries_s": round(crash_s, 3),
+                       "next_check_ms": ms(after), "spare_back_and_prepared_s": round(time.perf_counter() - t, 2)}
 
     # Q5: budgets - SQL stops itself; a loop the engine cannot stop is ended by the watchdog
     runaway_sql = "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r) SELECT count(*) FROM r"
     sql_stops = [pool.submit("sql", None, runaway_sql).result(timeout=30) for _ in range(5)]
     spins = []
     for _ in range(5):
-        r = pool.submit(None, None, 30.0, test="spin", budget_s=2.0).result(timeout=60)
-        spins.append(r)
+        spins.append(pool.submit(None, None, 30.0, test="spin", budget_s=2.0).result(timeout=60))
         pool.wait_ready()
     sparql_runaway = "SELECT (COUNT(*) AS ?n) WHERE { ?a ?b ?c . ?d ?e ?f . ?g ?h ?i . ?j ?k ?l }"
     sparql_stops = []
@@ -469,9 +519,11 @@ def measure(workers: int) -> dict:
         "sparql_wall_s": [round(r["check_s"], 2) for r in sparql_stops],
         "watchdog_cpu_at_end_s": [round(e["cpu_s"], 2) for e in ended if e["cpu_s"] is not None]}
 
-    # Q6: memory - SQLite's own cap, the watchdog, the job object
-    big = "SELECT length(hex(zeroblob(400000000)))"
-    out["q6_sqlite_cap"] = pool.submit("sql", None, big).result(timeout=60)
+    # Q6: memory - SQLite's own cap (and no temporary files), the watchdog, the job object
+    out["q6_sqlite_cap_400mb_string"] = pool.submit("sql", None, "SELECT length(hex(zeroblob(400000000)))").result(60)
+    out["q6_sqlite_cap_600mb_sort"] = pool.submit(
+        "sql", None, "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r LIMIT 6000000) "
+                     "SELECT n, randomblob(100) AS b FROM r ORDER BY b", budget_s=10).result(60)
     r = pool.submit(None, None, 1300, test="alloc", budget_s=20).result(timeout=60)    # over the watchdog's 1 GB
     pool.wait_ready()
     out["q6_watchdog_1300mb"] = {k: r.get(k) for k in ("status", "error", "tries", "ended", "held_mb")}

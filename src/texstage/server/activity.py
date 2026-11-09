@@ -584,7 +584,7 @@ def player(call, t: str, msg: dict) -> dict | None:
     call.session.stage = {**call.session.stage, NAME: state}
     if CHECKER is not None and c.status == "waiting":       # F0's spike: checked on the server
         CHECKER.submit(call.session, aid, item, (call.keys.get(aid) or {}).get("reference") or [],
-                       c.input["text"])
+                       c.input["text"], owner=p.id)
     return {"contribution": cid}
 
 
