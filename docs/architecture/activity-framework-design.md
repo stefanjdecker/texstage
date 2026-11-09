@@ -374,8 +374,9 @@ phones (section 15.2).
 
 Every page gets a Content-Security-Policy - scripts and connections from the server only -, so
 that a kind's modules reach no network in fact, not by convention. Today only the evaluator's
-worker has one (`server/app.py:167`), and it goes with the evaluator; F1 fits the new one to
-today's pages (KaTeX's inline styles, for one).
+worker has one (`server/app.py:167`), and it goes with the evaluator in F1; F2 fits the new one to
+today's pages - KaTeX's inline styles, the add-in's Office.js - before the kinds' modules come
+([activity-framework-plan.md](activity-framework-plan.md), 4.12).
 
 A hint knows what the phone knows: the step's public item - its tokens, the seed's table and
 column names, its prefixes - and the student's text. "A parenthesis is not closed in line 2" and
@@ -816,13 +817,14 @@ The same program, as today (CT section 9):
 The semester runs: the lectures stay on `main`, and each stage is built on a branch and comes to
 `main` once its test of done has passed with the lecture's decks - as LA did (LA section 14).
 The riskiest part comes first: checking on the server, with today's kinds behind today's
-messages, before the core and the steps are built on it. Each stage has its test of done.
+messages, before the core and the steps are built on it. Each stage has its test of done. F0
+and F1 are planned in detail in [activity-framework-plan.md](activity-framework-plan.md).
 
 | | what | done when |
 |---|---|---|
 | F0 | a spike: an entry's way through a pool - stored, normalized and checked under its CPU-time budget and memory watchdog, its verdict, the pushes - with the `sql-query` and the `sparql-query` checkers, among them a runaway SPARQL query and a worker ended and replaced; pyoxigraph 0.5's `SERVICE` and whether it can stop a query from inside; `tools/simulate.py` with a burst, mostly distinct texts, the kinds' files over HTTP and 1,100 phones, run from a second machine; the presenter window timed | the budgets of 15.1 measured on the presentation laptop over Wi-Fi and through the tunnel; `SERVICE` off, or refused after decoding; Python kept, or the slow piece named |
-| F1 | today's four kinds checked on the server, behind today's `activity.*` messages and LaTeX: the pool, the safety of section 11, a restart that goes on, the pages' Content-Security-Policy | the KG lecture's decks run unchanged and give the same groups; the evaluator in the browser is gone; 1,000 phones within the budgets |
-| F2 | the core and the contract (API 0), cut from those four kinds: phases with reopening, entries, checks, groups, pictures, moderation, the panel, the phone's screen; the kit; the four as packages in `kinds/` (7.2, 17); `choice`, `number`, `text` | the four kinds and texstage's own pass the kit; the KG lecture's decks give the same groups as with F1 |
+| F1 | today's four kinds checked on the server, behind today's `activity.*` messages and LaTeX: the pool, the safety of section 11, a restart that goes on | the KG lecture's decks run unchanged and give the same groups; the evaluator in the browser is gone; 1,000 phones within the budgets |
+| F2 | the core and the contract (API 0), cut from those four kinds: phases with reopening, entries, checks, groups, pictures, moderation, the panel, the phone's screen; the kit; the four as packages in `kinds/` (7.2, 17); `choice`, `number`, `text`; the pages' Content-Security-Policy (7.3) | the four kinds and texstage's own pass the kit; the KG lecture's decks give the same groups as with F1 |
 | F3 | several steps and points - write-then-vote and write-see-fix first (5.1) -: `from=`, overlays, the vote's choices, the ledger shared with the quiz | write-then-vote and write-see-fix run by the clicker; the quiz's scores the same as before the ledger |
 | F4 | a kind of another subject, installed separately - functional dependencies, relational algebra or normal forms from the DBIS lectures; then the shared kinds move to texstage-plugins (7.2) | it needs no change of the core - or the contract changes; then the contract is called API 1 |
 | F5 | a dry run in a lecture, steps and all | the class used it; the archive has it |
