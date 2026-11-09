@@ -168,9 +168,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
     addresses = lan_addresses()
     public = plan.public_url if plan else (public_url or f"http://{addresses[0]}:{args.port}").rstrip("/")
     host = args.host or ("127.0.0.1" if plan else "0.0.0.0")    # through a tunnel, phones come from here
+    from texstage.server.game import Settings
+    most = getattr(args, "max_players", None)              # (cmd_present's options have none)
     config = ServerConfig(bundles=[Path(b) for b in args.bundles] or [Path.cwd()], data_dir=data,
                           public_url=public, presenter_key=args.key or load_presenter_key(data),
-                          owner=own_name(args.owner))
+                          owner=own_name(args.owner), settings=Settings(max_players=most) if most else Settings())
     app = create_app(config)
     server = app.state.server
     for b in sorted(server.bundles.bundles.values(), key=lambda b: (b.deck, str(b.path))):
@@ -562,6 +564,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--present", action="store_true",
                    help="open texstage's presenter window (/stage) in the browser once the server runs")
     s.add_argument("--log-level", default="warning")
+    s.add_argument("--max-players", type=int, help="phones a game takes at most (default 1000)")
     s.add_argument("--forwarded-allow-ips", default=None,
                    help="behind a reverse proxy: the proxy addresses whose X-Forwarded-* headers are trusted "
                         "(default 127.0.0.1 and ::1 - Caddy or cloudflared on this machine; '*' in Docker, "

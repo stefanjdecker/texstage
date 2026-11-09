@@ -1,0 +1,37 @@
+{
+ "machine": {
+  "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+  "system": "Windows-10-10.0.19045-SP0",
+  "cores": 8,
+  "threads": 16,
+  "python": "3.14.4",
+  "pyoxigraph": "0.5.13",
+  "sqlite": "3.50.4"
+ },
+ "q1": [
+  {
+   "form": "SERVICE",
+   "connections": 1,
+   "result": "OSError: Error 500 Internal Server Error returned by http://127.0.0.1:53721/sparql with payload:\n",
+   "seconds": 0.204
+  },
+  {
+   "form": "service (lower case)",
+   "connections": 1,
+   "result": "OSError: Error 500 Internal Server Error returned by http://127.0.0.1:53721/sparql with payload:\n",
+   "seconds": 0.202
+  },
+  {
+   "form": "\\u0053ERVICE (escaped)",
+   "connections": 0,
+   "result": "SyntaxError: error at 1:26: expected OPTIONAL",
+   "seconds": 0.201
+  },
+  {
+   "form": "SERVICE SILENT",
+   "connections": 1,
+   "result": "1 rows",
+   "seconds": 0.207
+  }
+ ]
+}

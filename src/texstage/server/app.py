@@ -520,10 +520,16 @@ class Server:
 
     async def start(self):
         self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher())]
+        if os.environ.get("TEXSTAGE_SPIKE_POOL") is not None:         # F0's spike (server/spike_checks.py)
+            from texstage.server import spike_checks
+            spike_checks.start(self, int(os.environ["TEXSTAGE_SPIKE_POOL"] or 0) or None)
 
     async def stop(self):
         for t in self.tasks:
             t.cancel()
+        if os.environ.get("TEXSTAGE_SPIKE_POOL") is not None:
+            from texstage.server import spike_checks
+            spike_checks.stop()
         self.store.close()
 
     # ------------------------------------------------------------ publishing

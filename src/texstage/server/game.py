@@ -915,6 +915,24 @@ class Engine:
         self._due(s.id, call.phones)
         return reply
 
+    def activity_checked(self, sid: str, aid: str, msg: dict, now: int) -> None:
+        """F0's spike (server/spike_checks.py): a check from the server's pool, applied as the
+        presenter window's result would be; the phones it concerns are due."""
+        s = self.sessions.get(sid)
+        if s is None:
+            return
+        kind = stage_types.TYPES["activity"]
+        call = self._call(s, kind, now, role="pool")
+        try:
+            kind.checked(call, aid, msg)
+        except stage_types.Refused as err:
+            import logging
+            logging.getLogger("texstage.spike").warning("a check not applied: %s", err)
+            return
+        self._save(s)
+        self._commit()
+        self._due(s.id, call.phones)
+
     def type_archive(self, sid: str, now: int) -> dict[str, str]:
         """The content types' files for the game's folder in the lecture archive: {name: text}."""
         s = self.session(sid)

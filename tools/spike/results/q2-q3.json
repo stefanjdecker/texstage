@@ -1,0 +1,494 @@
+{
+ "machine": {
+  "cpu": "Intel64 Family 6 Model 141 Stepping 1, GenuineIntel",
+  "system": "Windows-10-10.0.19045-SP0",
+  "cores": 8,
+  "threads": 16,
+  "python": "3.14.4",
+  "pyoxigraph": "0.5.13",
+  "sqlite": "3.50.4"
+ },
+ "q2": [
+  {
+   "case": "stream: 3-way cross product",
+   "first_cpu_s": 0.0,
+   "rows": 689500,
+   "stopped_between_solutions": true,
+   "cpu_s": 2.015625,
+   "wall_s": 2.374398999963887,
+   "peak_mb": 23,
+   "process_s": 2.83
+  },
+  {
+   "case": "ORDER BY: 2-way cross product",
+   "failed": 3221226505,
+   "stderr": "re\\src\\slice\\sort\\shared\\smallsort.rs:854:5:\nuser-provided comparison function does not correctly implement a total order\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+   "process_s": 0.76
+  },
+  {
+   "case": "ORDER BY: 3-way cross product",
+   "failed": 3221226505,
+   "stderr": "re\\src\\slice\\sort\\shared\\smallsort.rs:854:5:\nuser-provided comparison function does not correctly implement a total order\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+   "process_s": 2.63
+  },
+  {
+   "case": "COUNT: 3-way cross product",
+   "first_cpu_s": 0.40625,
+   "rows": 1,
+   "stopped_between_solutions": false,
+   "cpu_s": 0.40625,
+   "wall_s": 0.39847650000592694,
+   "peak_mb": 24,
+   "process_s": 0.86
+  },
+  {
+   "case": "COUNT: 4-way cross product",
+   "ended_after_s": 20.0,
+   "process_s": 20.02
+  },
+  {
+   "case": "DISTINCT: 3-way cross product",
+   "first_cpu_s": 0.0,
+   "rows": 29791,
+   "stopped_between_solutions": false,
+   "cpu_s": 0.78125,
+   "wall_s": 0.7839237000443973,
+   "peak_mb": 30,
+   "process_s": 1.33
+  }
+ ],
+ "q3": [
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 50,
+   "length": 165,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 100,
+   "length": 315,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 128,
+   "length": 399,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 129,
+   "length": 402,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 200,
+   "length": 615,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 256,
+   "length": 783,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 400,
+   "length": 1215,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 512,
+   "length": 1551,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 800,
+   "length": 2415,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 1000,
+   "length": 3015,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 2000,
+   "length": 6015,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "sparql: nested groups { { } }",
+   "depth": 5000,
+   "length": 15015,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 50,
+   "length": 128,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 100,
+   "length": 228,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 128,
+   "length": 284,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 129,
+   "length": 286,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 200,
+   "length": 428,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 256,
+   "length": 540,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 400,
+   "length": 828,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 512,
+   "length": 1052,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 800,
+   "length": 1628,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 1000,
+   "length": 2028,
+   "status": "ok"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 2000,
+   "length": 4028,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "sparql: nested parentheses",
+   "depth": 5000,
+   "length": 10028,
+   "status": "CRASH (exit code 0xc00000fd)"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 50,
+   "length": 136,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 100,
+   "length": 236,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 128,
+   "length": 292,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 129,
+   "length": 294,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 200,
+   "length": 436,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 256,
+   "length": 548,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 400,
+   "length": 836,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 512,
+   "length": 1060,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 800,
+   "length": 1636,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 1000,
+   "length": 2036,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 2000,
+   "length": 4036,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested collections",
+   "depth": 5000,
+   "length": 10036,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 50,
+   "length": 388,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 100,
+   "length": 738,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 128,
+   "length": 934,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 129,
+   "length": 941,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 200,
+   "length": 1438,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 256,
+   "length": 1830,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 400,
+   "length": 2838,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 512,
+   "length": 3622,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 800,
+   "length": 5638,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 1000,
+   "length": 7038,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 2000,
+   "length": 14038,
+   "status": "ok"
+  },
+  {
+   "form": "turtle: nested blank nodes",
+   "depth": 5000,
+   "length": 35038,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 50,
+   "length": 108,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 100,
+   "length": 208,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 128,
+   "length": 264,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 129,
+   "length": 266,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 200,
+   "length": 408,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 256,
+   "length": 520,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 400,
+   "length": 808,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 512,
+   "length": 1032,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 800,
+   "length": 1608,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 1000,
+   "length": 2008,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 2000,
+   "length": 4008,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested parentheses",
+   "depth": 5000,
+   "length": 10008,
+   "status": "ok"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 50,
+   "length": 458,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 100,
+   "length": 908,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 128,
+   "length": 1160,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 129,
+   "length": 1169,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 200,
+   "length": 1808,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 256,
+   "length": 2312,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 400,
+   "length": 3608,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 512,
+   "length": 4616,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 800,
+   "length": 7208,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 1000,
+   "length": 9008,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 2000,
+   "length": 18008,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  },
+  {
+   "form": "sql: nested subqueries",
+   "depth": 5000,
+   "length": 45008,
+   "status": "OperationalError: Expression tree is too large (maximum depth 1000)"
+  }
+ ]
+}

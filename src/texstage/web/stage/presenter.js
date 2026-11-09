@@ -951,10 +951,19 @@ function prefetch(i) {
   pdf.prefetch(jobs);
 }
 
+// F0's spike (docs/architecture/activity-framework-plan.md, 3.3): ?timing logs every slide change
+const TIMING = new URLSearchParams(location.search).has("timing");
+
 function go(item) {
   const id = idOf(item);
+  const t0 = TIMING ? performance.now() : 0;
   local = pending = id;
   render();
+  if (TIMING) {
+    const t1 = performance.now();
+    requestAnimationFrame(() => setTimeout(() => console.log(
+      `[timing] slide ${id}: render ${(t1 - t0).toFixed(1)} ms, painted ${(performance.now() - t0).toFixed(1)} ms`)));
+  }
   if (item.board) send({ t: "go", board: item.board });
   else send({ t: "slide", slide: item.id });
   startTimerOnce();

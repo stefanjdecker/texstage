@@ -75,6 +75,7 @@ ERROR_MAX = 300
 STATUSES = ("ok", "syntax", "error", "timeout", "refused")
 VIEW_KEYS = ("phase", "version", "layout", "students", "count", "waiting", "revealed", "min")
 KEY = re.compile(r"[0-9a-f]{16}")
+CHECKER = None          # F0's spike (server/spike_checks.py): the server checks, the presenter's window not
 
 
 @dataclass
@@ -308,6 +309,8 @@ def handle(call, t: str, msg: dict) -> dict | None:
     if t == "activity.open":
         _open(state, aid)
         call.phones = True
+        if CHECKER is not None and item["input"] == "code":     # F0's spike: seed and references ready
+            CHECKER.prepare(call.session, aid, item, (call.keys.get(aid) or {}).get("reference") or [])
     elif t == "activity.close":
         if st["phase"] == "open":
             st["phase"] = "closed"
@@ -429,6 +432,8 @@ def _work(call) -> dict:
     sid, book = call.session.id, call.book
     if not book.lease(sid, call.conn, call.now):
         return {"lease": False}
+    if CHECKER is not None:                     # the spike checks on the server: the lease is the layout's
+        return {"lease": True, "jobs": [], "references": {}, "known": {}, "engines": {}}
     state = _state(call.session.stage)
     jobs, refs, known, engines = [], {}, {}, {}
     for aid, item in call.items.items():
@@ -459,6 +464,29 @@ def _result(call, aid: str, item: dict, st: dict, shelf: Shelf, msg: dict) -> di
         raise Refused("a crowd graph has nothing to evaluate")
     if call.role != "stage" or not call.book.holds(sid, call.conn, call.now):
         raise Refused("another presenter window evaluates", "not-evaluator")
+    return _apply(call, aid, item, st, shelf, msg)
+
+
+def checked(call, aid: str, msg: dict) -> dict | None:
+    """F0's spike: a check from the server's pool (server/spike_checks.py), applied as the presenter
+    window's result would be - for a text ("text") or a reference ("reference")."""
+    item = _item(call, aid)
+    state = copy.deepcopy(_state(call.session.stage))
+    st = state["items"].setdefault(aid, _fresh(item))
+    shelf = call.book.shelf(call.session.id, aid)
+    if "text" in msg:
+        first = next((c for c in shelf.contributions.values()
+                      if c.status == "waiting" and c.input.get("text") == msg["text"]), None)
+        if first is None:
+            return {"stale": True}
+        msg = {**msg, "input": first.id}
+    reply = _apply(call, aid, item, st, shelf, msg)
+    call.session.stage = {**call.session.stage, NAME: state}
+    return reply
+
+
+def _apply(call, aid: str, item: dict, st: dict, shelf: Shelf, msg: dict) -> dict | None:
+    sid = call.session.id
     status = msg.get("status")
     if status not in STATUSES:
         raise Refused(f"status: one of {', '.join(STATUSES)}")
@@ -554,6 +582,9 @@ def player(call, t: str, msg: dict) -> dict | None:
     call.save(c)
     _recount(st, shelf)
     call.session.stage = {**call.session.stage, NAME: state}
+    if CHECKER is not None and c.status == "waiting":       # F0's spike: checked on the server
+        CHECKER.submit(call.session, aid, item, (call.keys.get(aid) or {}).get("reference") or [],
+                       c.input["text"])
     return {"contribution": cid}
 
 
