@@ -38,7 +38,7 @@ type of its own and shares the timer, the points and the leaderboard. All of it 
 | Where kinds live | the first ones in texstage-public, in `kinds/`, each a package of its own; after F4 the shared ones move to texstage-plugins and a subject's own to its repository; installed as texstage is, from source with locked requirements - on PyPI later, with texstage (section 7.2) | decided 2026-11-09 |
 | Steps first | write-then-vote and write-see-fix (F3); the clicker can run a whole activity, a vote's choices made without the lecturer (sections 5.1, 8.2) | decided 2026-11-09 |
 | Time and memory of a check | CPU time, not the clock's: a text over its budget is the student's `timeout`, a check the clock's backstop stops is `internal`; SQLite's own memory cap, a watchdog on every worker's memory, and the systems' hard limits where they have them (section 11) | decided 2026-11-09 |
-| Hints | JavaScript, no WebAssembly on the phones; their size limited leniently, by the sizes proposed below (section 7.3) | decided 2026-11-09 |
+| Hints | JavaScript, no WebAssembly on the phones; their size limited leniently, by the sizes below (section 7.3) | decided 2026-11-09 |
 | Polls | stay as they are: quiz rounds the lecturer asks on the spot (`server/polls.py`); back to them only if the vote step and polls come to duplicate code | decided 2026-11-09 |
 | Order of the work | first today's four kinds checked on the server, behind today's messages and LaTeX; then the core and the contract, cut from them; then steps - each stage on a branch until its test passes, the lectures on `main` meanwhile (section 18) | decided 2026-11-09 |
 | The contract's number | API 0 while it may still change; API 1 once a kind of another subject has checked it (F4) (sections 7.1, 7.2) | decided 2026-11-09 |
@@ -46,11 +46,11 @@ type of its own and shares the timer, the points and the leaderboard. All of it 
 | Reopening | the lecturer can open a closed step again; going back on the slides does not, as today (section 5.2) | decided 2026-11-09 |
 | The automatic vote | its choices are made once the earlier step's checks are in, at most 3 s after it closes; a choice shows its group's most frequent text in the kind's normalized form - comments gone -, never a text as one student typed it (section 5.1) | decided 2026-11-09 |
 | The word *kind* | kept: it clashes only inside the code - the page records' `G\|kind\|...`, the polls' kinds (`server/polls.py:28`, `choice` and `text` among them) -, where *stage* clashes in the windows and the protocol; the framework's code says *activity kind* (section 4) | decided 2026-11-09 |
-| Python or Rust | Python, designed for 1,000 and measured early on the real laptop; what the measurement shows to be slow moves to Rust, piece by piece (section 15.3) | proposed |
-| The parts of an activity | called **steps**: the brainstorm said *stages*, but texstage already uses that word - the presenter window's role `stage`, the session's stage state, `web/stage/`, the stage PDF | proposed |
-| Defaults of a step | no points unless the deck gives them (`points=none`), no speed points (`speed` off); the reveal's setting is called `solution=`, since `reference=` names a file (sections 5.3, 14) | proposed |
-| Sizes on the phones | what a phone loads for a kind: up to 200 KB compressed without a word, a warning of the kit above that, a refusal above 1 MB; sent compressed; no limit in the windows (sections 7.3, 7.5, 15.1) | proposed |
-| Short checks first | every check gets 0.25 s of CPU time first; one that needs more while others wait goes to a second queue, which runs with the whole budget when the first is empty; the budget 1 s, not 2 - in F0, 3 % of texts running into their budget pushed 95 % of the verdicts to 8 s ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6; section 11) | proposed |
+| Python or Rust | Python, designed for 1,000 and measured early on the real laptop; what the measurement shows to be slow moves to Rust, piece by piece (section 15.3) | decided 2026-11-09 |
+| The parts of an activity | called **steps**: the brainstorm said *stages*, but texstage already uses that word - the presenter window's role `stage`, the session's stage state, `web/stage/`, the stage PDF | decided 2026-11-09 |
+| Defaults of a step | no points unless the deck gives them (`points=none`), no speed points (`speed` off); the reveal's setting is called `solution=`, since `reference=` names a file (sections 5.3, 14) | decided 2026-11-09 |
+| Sizes on the phones | what a phone loads for a kind: up to 200 KB compressed without a word, a warning of the kit above that, a refusal above 1 MB; sent compressed; no limit in the windows (sections 7.3, 7.5, 15.1) | decided 2026-11-09 |
+| Short checks first | every check gets 0.25 s of CPU time first; one that needs more while others wait goes to a second queue, which runs with the whole budget when the first is empty; the budget 1 s, not 2 - in F0, 3 % of texts running into their budget pushed 95 % of the verdicts to 8 s ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6; section 11) | decided 2026-11-09 |
 
 This changes two of CT's principles (CT section 3) and keeps the others:
 
@@ -384,7 +384,7 @@ column names, its prefixes - and the student's text. "A parenthesis is not close
 "`Studnet` is not a table - `Student`?" are hints; whether a query is right is not one. A hint
 never stops a student from sending.
 
-The sizes are lenient (proposed, section 2). What a phone loads for a kind - its modules, what they
+The sizes are lenient (section 2). What a phone loads for a kind - its modules, what they
 import, its texts and styles - may take up to 200 KB compressed without a word; above that the
 kit warns, and above 1 MB it refuses the kind (7.5). For scale: texstage's own phone page is about
 45 KB compressed, and KaTeX, which a phone loads for a formula, about 80 KB; 200 KB leave room for
@@ -608,16 +608,18 @@ the texts are not.
   kind of core, so a budget lies far above what a right query needs: milliseconds against
   seconds. The pool reads every busy worker's CPU time with psutil (BSD-3-Clause, packages for
   Windows, macOS and Linux; a new dependency of the core). SQLite stops a query from inside (its
-  progress handler), and its worker goes on; where an engine cannot - pyoxigraph, unless F0 finds
-  a way -, the pool ends the worker, and the spare takes its place (10.3). A check over its budget
-  is a `timeout`, the student's. The clock stays as a backstop at five times the budget: a check
+  progress handler), and its worker goes on; pyoxigraph is stopped between solutions where its
+  results stream, and where they do not - its `Store.query` has no timeout (F0, Q2) -, the pool
+  ends the worker, and the spare takes its place (10.3). A check over its budget is a `timeout`,
+  the student's. The clock stays as a backstop at five times the budget: a check
   it stops is `internal`, as is one whose worker died for another reason.
 - **Once more, then never again:** an `internal` check runs once more, on a fresh worker; failing
   again, it stays `internal`, and its text is set aside for the step, so that no third worker
-  dies for it (6.3). Such texts exist: 800 nested braces, 1,615 characters and so within today's
-  limit of 2,000, end the whole process of pyoxigraph 0.3.22 with a stack overflow, where 100 do
-  not (tried 2026-11-09). So a kind also refuses what its parser chokes on before it parses -
-  nesting beyond a cap, say -, and the kit tests it (7.5).
+  dies for it (6.3). Such texts exist: in pyoxigraph 0.5.13, 800 nested groups overflow its
+  parser's stack and end the process - 512 parse, and today's limit of 2,000 characters allows
+  about 660 -, and `ORDER BY` with two keys over mixed literals ends it too (F0, Q2 and Q3). So
+  the checks run on a thread with a 64 MB stack, a kind refuses what its parser chokes on before
+  it parses - nesting beyond a cap -, and the kit tests it (7.5).
 - **Memory** (decided 2026-11-09): SQLite caps its own memory on every system with
   `PRAGMA hard_heap_limit`, which the kind sets in `prepare`, before its authorizer refuses
   `PRAGMA` (the SQLite 3.50.4 of the Python 3.14 that texstage is developed with has it). The cap
@@ -632,12 +634,14 @@ the texts are not.
   its message says so. The limits on a result's size stay as today (rows, triples: LA section 12).
 - **No network, no files:** the seed is in memory before any student's text runs; SQLite runs in
   memory, with an authorizer that allows reading and refuses `ATTACH`, `PRAGMA` and the like, and
-  without extensions. SPARQL needs more than today: pyoxigraph runs `SERVICE` over HTTP (0.3.22
-  tried to connect, 2026-11-09), while today's refusal is the WebAssembly build's own
-  (`web/engines/sparql.js:134`), behind the worker's CSP - and both go. So the kind switches
-  `SERVICE` off in the engine if pyoxigraph 0.5 lets it (F0 finds out), and else refuses it after
-  decoding the `\u` escapes, which SPARQL decodes before it parses: looking for the word in the
-  raw text is not enough. Each kind says how its engine is kept from the outside, and its
+  without extensions, its temporary storage in memory (else a large sort spills to files: F0, Q6).
+  SPARQL needs more than today: pyoxigraph runs `SERVICE` over HTTP - 0.5.13 connects, `SILENT`
+  hiding the failure, and its `Store.query` has no option to switch it off (F0, Q1) -, while
+  today's refusal is the WebAssembly build's own (`web/engines/sparql.js:134`), behind the
+  worker's CSP - and both go. So the kind refuses `SERVICE` before the query runs, by tokens
+  that read variables and prefixed names whole, after decoding the `\u` escapes, which SPARQL
+  decodes before it parses: looking for the word in the raw text is not enough, and finds
+  `?service` too. Each kind says how its engine is kept from the outside, and its
   fixtures show it to the kit (7.5). A hosted server can add a barrier of the system's, a
   firewall rule for its workers; a lecturer's laptop cannot be asked for one.
 - **Not in this design:** kinds that run students' programs - Python, JavaScript. They need a
@@ -816,7 +820,9 @@ The same program, as today (CT section 9):
 ## 18. Plan
 
 The semester runs: the lectures stay on `main`, and each stage is built on a branch and comes to
-`main` once its test of done has passed with the lecture's decks - as LA did (LA section 14).
+`main` once its test of done has passed with the lecture's decks - as LA did (LA section 14). The
+lectures themselves run lecture-tools' copy of texstage, so a stage reaches them when
+lecture-tools takes it (the plans' sections 2).
 The riskiest part comes first: checking on the server, with today's kinds behind today's
 messages, before the core and the steps are built on it. Each stage has its test of done. F0
 and F1 are planned in detail in [activity-framework-plan.md](activity-framework-plan.md), F2 in
@@ -836,13 +842,14 @@ and F1 are planned in detail in [activity-framework-plan.md](activity-framework-
 
 The first draft's seven - what a kind may do, where kinds live, which steps first, memory on
 macOS, timeout or internal, hints, polls - were decided on 2026-11-09 (section 2), and so were
-the six that close the gaps a critical review found the same day: the order of the work, API 0
-until F4, failed checks, reopening, the automatic vote, the word *kind*. Still open:
+the six that close the gaps a critical review found the same day - the order of the work, API 0
+until F4, failed checks, reopening, the automatic vote, the word *kind* - and, the same day, the
+last proposals: Python first, the name *step*, a step's defaults with `solution=`, the sizes on
+the phones, and short checks first. Every row of section 2 is decided. Whether pyoxigraph 0.5 can
+switch `SERVICE` off or stop a query from inside, F0 found out: it cannot (section 11). Still
+open:
 
-- **The proposals of section 2:** Python first; the name *step*; no points and no speed points
-  unless a deck asks for them; `solution=` for what the reveal shows; the sizes on the phones.
-- **To find out on the way:** whether pyoxigraph 0.5 can switch `SERVICE` off and stop a query
-  from inside (F0; if not, the kind refuses `SERVICE` after decoding, and the pool ends the
-  worker, section 11); how far a Mac's memory overshoots (11); whether texstage-plugins is
-  renamed when the kinds move there (after F4).
+- **To find out on the way:** how far a Mac's memory overshoots, and whether a budget holds on
+  efficient cores (section 11; F0, Q5); whether texstage-plugins is renamed when the kinds move
+  there (after F4).
 - **Not settled:** how long a server keeps games - their answers, entries and ledger (10.2).

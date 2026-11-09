@@ -25,9 +25,14 @@ to `src/texstage/` unless they name another folder; **LA** is
 
 - **Branches:** F0 on `f0-spike`, from `main`: a prototype that stays on its branch - what F1
   takes from it is written again, with tests. F1 on `f1-server-checks`.
-- **The lectures stay on `main`** until F1's packages 1 to 6 have passed (4.9) and the KG
-  lecture's decks run on the branch's server; then F1 comes to `main` with the browser's checks
-  still there, and they go once a lecture has run with both (packages 7 and 8).
+- **F1 comes to `main`** when its packages 1 to 6 have passed (4.9) and the KG lecture's decks run
+  on the branch's server, with the browser's checks still there; they go once a lecture has run
+  with both (packages 7 and 8).
+- **The lectures run lecture-tools' copy of texstage,** not texstage-public: each lecture's
+  `tools/` submodule is lecture-tools, installed with `pip install -e tools`. On 2026-11-09 the KG
+  lecture's stood at lecture-tools 6388b6b of 2026-10-21, 47 files of `src/texstage` apart from
+  texstage-public's. So F1 reaches a lecture when lecture-tools takes it - package 7's lecture
+  needs that first.
 - **Every package lands with its tests;** the whole suite passes on Windows and Linux, as CI runs
   it (`pytest`, the Node tests included, takes about six minutes on this PC).
 - **Measured on the presentation laptop,** with the presenter window and PowerPoint or the
@@ -311,7 +316,7 @@ same canonical text, byte for byte, under the same hash. So:
 | 4 | the activity type and the server (4.5), the modes (4.6), the options (4.7) | the activity tests pass in all three modes; the KG lecture's decks and the showcase run on the branch's server without a presenter window | 2-3 |
 | 5 | the dependencies and the locks (4.7) | `lock_dependencies.py --check` and CI pass | 0.5 |
 | 6 | the load on the laptop - F0's runs 2 and 3 - and what it finds | AF 15.1's budgets with 1,000 phones | 1-2 |
-| 7 | into `main`, with `--checks both` as the default; one lecture with an activity | the lecture's `checks-compare.csv` holds no difference left unexplained; then `server` becomes the default | - |
+| 7 | into `main`, with `--checks both` as the default; lecture-tools taking it; one lecture with an activity | the lecture's `checks-compare.csv` holds no difference left unexplained; then `server` becomes the default | - |
 | 8 | the browser's checks removed (4.10) | the suite passes; the docs and the manual say that the server checks | 1-2 |
 
 About eleven to sixteen working days, and the lecture of package 7 between them.

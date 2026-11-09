@@ -98,9 +98,9 @@ the run, a worker at most 30 MB (`tools/spike/results/q7-heavier.json`).
 - **The budgets hold on this machine but for the verdicts, once more than about 1 % of the texts
   run into their budget:** each holds a worker for its whole budget, and 30 of them hold the six
   workers for about 13 s; taking the students in turns cannot help when each is another student's.
-  F2's plan proposes short checks first
-  ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6; AF 2), and F1 takes them
-  if its runs on the laptop meet the same (the plan, 4.4).
+  Short checks first are decided (AF 2;
+  [activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.6), and F1 takes them if its
+  runs on the laptop meet the same (the plan, 4.4).
 - **A phase change is within its budget:** the close took 181 to 244 ms. The 597 ms of the first
   report came from a server that had run four games before (section 4). Of the time to the last
   phone, the server's own push to 1,100 phones took at most 115 ms; the rest is the network and the
@@ -121,8 +121,8 @@ the run, a worker at most 30 MB (`tools/spike/results/q7-heavier.json`).
 - **SQLite:** its temporary storage in memory (Q6).
 - **The pool on such a laptop:** the cores less two - six workers - and a spare; the students in
   turns; nothing blocking while it holds its lock; committed memory watched (Q4 to Q6).
-- **New:** texts that run into their budget can use up the pool - short checks first, proposed
-  (Q7).
+- **New:** texts that run into their budget can use up the pool - short checks first, decided on
+  2026-11-09 (Q7; AF 2).
 
 ## 4. What the review found, and what changed
 
