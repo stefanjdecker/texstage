@@ -11,8 +11,16 @@ read it from SQLite (7 and 7.0 alike, an integer beyond 2**53 rounded as a doubl
 significant digits), a text as sql.js read it (up to a NUL, an ill-formed byte as U+FFFD: _text), NULL, a
 blob by its bytes.
 
-    state = load(seed, heap_allowance=None)
+    state = load(seed, heap_allowance=None, image=None)
+    data = image(state, most)                       # the database as the seed left it, or None
     result = evaluate(state, text, language, budget_s=None)
+
+In the pool, one process runs the seed and every other loads a copy of the database that run left (image,
+load's image) - else a seed with random(), randomblob() or the time gives each process data of its own,
+and one query a result of its own on each (2026-11-10). A copy is the database alone: the seed's PRAGMA
+statements, which hold for their connection only, run again over it - on the first process too, which
+checks on a copy as well. A seed that made TEMP objects or attached a database has no copy: every
+process runs it.
 """
 from __future__ import annotations
 
@@ -95,9 +103,12 @@ def _find_heap():
     return None
 
 
-def load(seed: str, heap_allowance: int | None = None) -> dict:
-    """The seed run into a database of its own, read-only from then on. Its temporary storage is in memory,
-    as sql.js's was - else a large sort spills to files, past the heap's cap (F0).
+def load(seed: str, heap_allowance: int | None = None, image: bytes | None = None) -> dict:
+    """The seed run into a database of its own, read-only from then on - or, given image, the database
+    another run of the seed left (image()), the seed's PRAGMA statements run again over it. Its temporary
+    storage is in memory, as sql.js's was - else a large sort spills to files, past the heap's cap (F0) -,
+    set before the seed runs and once more after it, for a seed that set another: SQLite drops every TEMP
+    object as the setting changes, and set only after the seed it dropped the seed's (2026-11-10).
 
     heap_allowance, in a worker of the pool: SQLite's cap on its heap, which holds for all of a process's
     connections - at what SQLite holds once the seed is in, every other seed of the process with it,
@@ -112,11 +123,22 @@ def load(seed: str, heap_allowance: int | None = None) -> dict:
     try:
         con = sqlite3.connect(":memory:", check_same_thread=False, isolation_level=None)
         con.text_factory = _text
+        con.execute("PRAGMA temp_store = MEMORY")
+        size = None
         try:
-            con.executescript(seed)
+            if image is None:
+                con.executescript(seed)
+                size = _copyable(con)
+            else:
+                con.deserialize(image)
+                con.execute("SELECT count(*) FROM sqlite_master").fetchone()      # a database it is
+                pragmas = _pragmas(seed)
+                if pragmas:
+                    con.executescript("".join(s if s.endswith(";") else s + "\n;" for s in pragmas))
         except (sqlite3.Error, MemoryError) as e:
             con.close()
-            raise ValueError(f"the seed: {'out of memory' if isinstance(e, MemoryError) else e}") from None
+            what = "the seed" if image is None else "the copy of its database"
+            raise ValueError(f"{what}: {'out of memory' if isinstance(e, MemoryError) else e}") from None
         con.execute("PRAGMA temp_store = MEMORY")
         if heap_allowance and heap is None:
             row = con.execute("PRAGMA hard_heap_limit").fetchone()
@@ -129,7 +151,43 @@ def load(seed: str, heap_allowance: int | None = None) -> dict:
         if heap is not None:
             limit, used = heap
             limit(used() + HEAP_BASE + int(heap_allowance))
-    return {"con": con}
+    return {"con": con, "size": size}
+
+
+def _copyable(con: sqlite3.Connection) -> int | None:
+    """The database's size in bytes, when a copy of it is all the seed made - nothing in TEMP, no database
+    attached, which a copy of the main database would lack -, else None."""
+    if not hasattr(con, "serialize"):                   # Python's sqlite3 without SQLite's serialize API
+        return None
+    if con.execute("SELECT count(*) FROM temp.sqlite_master").fetchone()[0]:
+        return None
+    if any(row[1] not in ("main", "temp") for row in con.execute("PRAGMA database_list")):
+        return None
+    return con.execute("PRAGMA page_count").fetchone()[0] * con.execute("PRAGMA page_size").fetchone()[0]
+
+
+def image(state: dict, most: int) -> bytes | None:
+    """The database as the seed left it, for another process to load in the seed's place (load) - or None:
+    the seed made more than the database (_copyable), the database is larger than most bytes, or it cannot
+    be copied. The copy takes as much again while it is made: SQLite's cap is lifted meanwhile, and the
+    authorizer steps aside - SQLite reads PRAGMA page_count as it copies, which _compiling makes nothing."""
+    size = state.get("size")
+    if size is None or size > most:
+        return None
+    con: sqlite3.Connection = state["con"]
+    heap = _HEAP[0] if _HEAP else None
+    before = heap[0](-1) if heap is not None else None  # a negative cap reads it
+    if heap is not None:
+        heap[0](0)
+    con.set_authorizer(None)
+    try:
+        return con.serialize()
+    except (sqlite3.Error, MemoryError):
+        return None
+    finally:
+        con.set_authorizer(_compiling)
+        if heap is not None:
+            heap[0](before)
 
 
 def _idchar(c: str) -> bool:
@@ -213,6 +271,24 @@ def names_pragma(text: str) -> bool:
     by this check and by the browser's alike (web/engines/sql.js: namesPragma)."""
     return any(kind == "word" and text[i:j].isascii() and text[i:j].lower() == "pragma"
                for kind, i, j in _lex(text))
+
+
+def _first_word(statement: str) -> str:
+    """A statement's first word (_lex), in lower case - "" for none."""
+    for kind, i, j in _lex(statement):
+        return statement[i:j].lower() if kind == "word" and statement[i:j].isascii() else ""
+    return ""
+
+
+PRAGMA_ANYWHERE = re.compile("pragma", re.I | re.A)
+
+
+def _pragmas(seed: str) -> list[str]:
+    """The seed's PRAGMA statements, in their order - split only where the word is in the seed at all:
+    the split is Python's, 0.13 s a megabyte, where SQLite runs a seed of INSERTs in a fifth of that."""
+    if PRAGMA_ANYWHERE.search(seed) is None:
+        return []
+    return [s for s in statements(seed) if _first_word(s) == "pragma"]
 
 
 # ------------------------------------------------------------------ values

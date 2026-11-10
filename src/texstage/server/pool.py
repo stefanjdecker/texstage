@@ -15,7 +15,10 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
 - **Preparing** an activity: one process - the spare, else one that waits - loads its seed and checks its
   references first, each under its own budget of CPU time; a reference that runs away is a `timeout`,
   one that ends its process `internal`, and the next process goes on with the ones after it. Then every
-  other process loads the seed, and checks the reference the diffs count against. A seed that does not
+  other process loads the seed, and checks the reference the diffs count against. An SQL seed runs on
+  the first process alone: the database it leaves - up to IMAGE_MAX_MB - is what every other loads,
+  the next to go on with the references among them, and what the first checks on too; else a seed with
+  random() or the time gives each process data of its own (checks/sql.py: image). A seed that does not
   load fails its activity, as does one whose loading ends two processes. A process that cannot prepare
   what the first one did - the seed does not load there, or that reference gives no rows there - is
   ended, and a fresh one prepares it; when three could not, the activity fails, and the log and stats()
@@ -76,6 +79,8 @@ WATCH_S = 0.05                      # the watchdog's period
 BACKSTOP = 5                        # the clock's backstop, times the budget
 MEM_ALLOWANCE_MB = 1024             # what a check may take beyond what its worker holds prepared (F0, Q6)
 HEAP_ALLOWANCE_MB = 256             # SQLite's own cap for a text, beyond the seeds (F0, Q6)
+IMAGE_MAX_MB = 128                  # a seed's database copied to the other processes: at most, and at most a
+                                    # quarter of MEM_ALLOWANCE_MB - making the copy takes three times as much
 HARD_MB = 2048                      # the system's stop: the job object's per process; twice that, address space
 PREPARE_BACKSTOP_S = 120.0          # loading a seed that takes longer ends its process
 START_BACKSTOP_S = 60.0             # a process not ready by then is ended: it counts as an early death
@@ -129,7 +134,10 @@ class _Worker:
     def _send(self) -> None:
         while (msg := self.outbox.get()) is not None:
             try:
-                self.conn.send(msg)
+                if isinstance(msg, bytes):
+                    self.conn.send_bytes(msg)            # a database, after the prepare it belongs to
+                else:
+                    self.conn.send(msg)
             except (OSError, EOFError, ValueError):
                 return
 
@@ -137,6 +145,8 @@ class _Worker:
         while True:
             try:
                 msg = self.conn.recv()
+                if msg[0] == "image":                    # the database follows, as bytes of its own
+                    msg = (*msg, self.conn.recv_bytes())
             except (EOFError, OSError):
                 break
             except Exception:  # noqa: BLE001 - a message that does not read: the pipe is no good any more
@@ -166,7 +176,7 @@ class Pool:
     def __init__(self, workers: int | None = None, spare: bool = True, engines: dict | None = None,
                  mem_allowance_mb: float = MEM_ALLOWANCE_MB, heap_allowance_mb: float = HEAP_ALLOWANCE_MB,
                  hard_mb: float = HARD_MB, reference_budget_s: float = REFERENCE_BUDGET_S,
-                 prepare_backstop_s: float = PREPARE_BACKSTOP_S):
+                 prepare_backstop_s: float = PREPARE_BACKSTOP_S, image_max_mb: float = IMAGE_MAX_MB):
         import psutil
         self.psutil = psutil
         self.size = workers or max(1, (psutil.cpu_count(logical=False) or os.cpu_count() or 1) - 2)
@@ -174,6 +184,7 @@ class Pool:
         self.engines = dict(ENGINES if engines is None else engines)
         self.mem_allowance = int(mem_allowance_mb * 2**20)
         self.heap_allowance = int(heap_allowance_mb * 2**20)
+        self.image_max = int(min(image_max_mb * 2**20, self.mem_allowance / 4))
         self.reference_budget = reference_budget_s
         self.prepare_backstop = prepare_backstop_s
         self.options = {"imports": [ENGINES["sql"], ENGINES["sparql"], ENGINES["turtle"]],   # pyoxigraph too
@@ -296,7 +307,8 @@ class Pool:
             a = {"act": act, "gen": self.gens, "module": module, "seed": seed, "texts": refs,
                  "language": language, "options": {"heap_allowance": self.heap_allowance} if engine == "sql" else {},
                  "outcomes": [None] * len(refs), "rows_from": None, "phase": "lead", "lead": None, "deaths": 0,
-                 "loaded": False, "failed": None, "future": cf.Future()}       # loaded: on some process
+                 "loaded": False, "image": None, "failed": None,                # loaded: on some process
+                 "future": cf.Future()}
             fut = a["future"]
             self.acts[act] = a
             self.set_aside = {k for k in self.set_aside if k[0] != act}
@@ -376,15 +388,20 @@ class Pool:
             self._send_prepare(w, a, lead=True)
 
     def _send_prepare(self, w: _Worker, a: dict, lead: bool) -> None:
+        """The prepare - with the database the first process's run of the seed left, once there is one, or
+        to the first process the size of the one it may make."""
         refs = [[i, t] for i, t in enumerate(a["texts"]) if a["outcomes"][i] is None] if lead else []
         rows = None if a["rows_from"] is None else [a["rows_from"], a["texts"][a["rows_from"]]]
+        image = "follows" if a["image"] is not None else self.image_max if lead else None
         w.prepared.discard(a["act"])
         w.preparing[a["act"]] = a["gen"]
         w.outbox.put(("prepare", a["act"], a["gen"], a["module"], a["seed"], refs, rows, a["language"],
-                      self.reference_budget, a["options"]))
+                      self.reference_budget, a["options"], image))
+        if a["image"] is not None:
+            w.outbox.put(a["image"])
 
     def _spread(self, a: dict) -> None:
-        """The references checked: every other process loads the seed."""
+        """The references checked: every other process loads the seed - or the database it left."""
         for w in self.workers + self.spares:
             if w.ready and not w.ended_for and a["act"] not in w.prepared and w.preparing.get(a["act"]) != a["gen"]:
                 self._send_prepare(w, a, lead=False)
@@ -487,6 +504,11 @@ class Pool:
                         self._lead(a)
             elif kind == "loading":
                 w.unit = {"kind": "load", "act": msg[1], "gen": msg[2], "started": time.perf_counter()}
+            elif kind == "image":
+                _, act, gen, data = msg
+                a = self.acts.get(act)
+                if a is not None and a["gen"] == gen and a["phase"] == "lead" and a["lead"] is w:
+                    a["image"], a["loaded"] = data, True     # what every other process loads in the seed's place
             elif kind == "reference":
                 _, act, gen, i, reported = msg
                 w.unit = {"kind": "reference", "act": act, "gen": gen, "i": i, "reported": reported,

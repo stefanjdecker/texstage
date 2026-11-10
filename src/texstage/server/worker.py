@@ -9,8 +9,10 @@ once the server's process is gone (on Windows the job object ends it).
 
 What the pool sends and what the worker answers, through its pipe - in order, one at a time:
 
-    ("prepare", act, gen, module, seed, references, rows, language, budget, options)
+    ("prepare", act, gen, module, seed, references, rows, language, budget, options, image)
+      [+ the bytes of a database, when image is "follows"]
         -> ("loading", act, gen)                      it loads the seed
+           ("image", act, gen) + the bytes            the database the seed left, for the others
            ("reference", act, gen, i, reported)       it checks reference i
            ("referenced", act, gen, i, outcome, rows) - its outcome, and whether its rows are kept
            ("prepared", act, gen, error, seconds, here)   error: None, or why it is not prepared - the
@@ -20,6 +22,10 @@ What the pool sends and what the worker answers, through its pipe - in order, on
     ("drop", act)
     ("exit",)
 
+image: None, the seed is run; a number, to the first process: the seed is run, and the database it left -
+at most that many bytes, where the engine makes one (checks/sql.py: image) - goes back, and this process
+checks on a copy of it too, as every other will; "follows": such a database, in the seed's place. A
+database goes as bytes of its own (send_bytes), not pickled: a copy less on either side.
 references: [i, text] to check and report; rows: [i, text], the reference whose rows the diffs count
 against when another process found it - checked first, not reported; when it gives no rows here, the
 activity is not prepared here, since this process could not compare alike. An outcome is what the presenter
@@ -115,12 +121,24 @@ def _outcome(result: dict, reference_rows: list | None, end: float) -> dict:
 
 
 def _prepare(conn, states: dict, msg: tuple) -> None:
-    _, act, gen, name, seed, references, rows_ref, language, budget_s, options = msg
+    _, act, gen, name, seed, references, rows_ref, language, budget_s, options, image = msg
+    data = conn.recv_bytes() if image == "follows" else None
     conn.send(("loading", act, gen))
     t = time.perf_counter()
     try:
         module = importlib.import_module(name)
-        state = module.load(seed, **options)
+        state = module.load(seed, **options) if data is None else module.load(seed, image=data, **options)
+        data = None                                      # let go of before "prepared": the watchdog counts from it
+        if isinstance(image, int) and hasattr(module, "image") and (data := module.image(state, image)):
+            state = None                                 # the seed's own run goes first: one database at a time
+            try:
+                state = module.load(seed, image=data, **options)
+            except Exception:  # noqa: BLE001 - the copy does not load: every process runs the seed
+                data, state = None, module.load(seed, **options)
+            if data is not None:
+                conn.send(("image", act, gen))
+                conn.send_bytes(data)
+                data = None
     except Exception as e:  # noqa: BLE001 - a seed that does not load fails its activity
         states.pop(act, None)
         why = "the seed: out of memory" if isinstance(e, MemoryError) else str(e).split("\n")[0] or type(e).__name__

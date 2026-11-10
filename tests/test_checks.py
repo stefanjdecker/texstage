@@ -5,7 +5,8 @@
 form, rows and summary as the browser's engine gave them - byte for byte, so that a game that goes on
 across F1 keeps its keys and the class its groups (docs/architecture/activity-framework-plan.md, 4.3).
 A case that differs on purpose, or by the engines' versions, is in KNOWN with its reason. And the checks'
-words are the catalogs' (web/i18n)."""
+words are the catalogs' (web/i18n); their safety; and what keeps the pool's processes alike - a copy of
+an SQL database, a SPARQL seed's blank nodes numbered."""
 from __future__ import annotations
 
 import functools
@@ -279,6 +280,93 @@ def test_without_sqlites_own_function_the_first_seed_sets_the_cap_and_keeps_it()
         print(checks.evaluate("sql", big, "SELECT length(x) FROM t", "en")["status"])"""
     done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
     assert done.stdout.strip() == "ok", done.stdout + done.stderr
+
+
+# ------------------------------------------------------------------ alike on every process of the pool (2026-11-10)
+RANDOM_SEED = ("PRAGMA case_sensitive_like = ON; CREATE TABLE t (r INTEGER, b BLOB, at REAL, name TEXT);"
+               " WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n LIMIT 50) INSERT INTO t SELECT"
+               " random(), randomblob(8), julianday('now'), CASE i % 2 WHEN 0 THEN 'apple' ELSE 'Apple' END FROM n;")
+
+
+def test_a_copy_of_an_sql_database_checks_as_the_run_it_was_made_from():
+    """The pool's other processes load a copy of what the first one's run of the seed left: random(),
+    randomblob() and the time alike - and the seed's PRAGMA statements, which hold for their connection,
+    not its database: LIKE takes the case into account on the copy too. Read-only, as the run is."""
+    from texstage.checks import sql as engine
+    run = checks.load("sql", RANDOM_SEED)
+    copy = checks.load("sql", RANDOM_SEED, image=engine.image(run, 2**20))
+    for text in ["SELECT * FROM t", "SELECT count(*) FROM t WHERE name LIKE 'a%'"]:
+        assert sql(copy, text) == sql(run, text), text
+    assert sql(checks.load("sql", RANDOM_SEED), "SELECT * FROM t") != sql(run, "SELECT * FROM t")   # a run's own
+    assert sql(copy, "SELECT count(*) FROM t WHERE name LIKE 'a%'")[2] == "select\n1\nn:25"
+    assert sql(copy, "DELETE FROM t")[0] == "refused" and sql(copy, "SELECT count(*) FROM t")[2] == "select\n1\nn:50"
+    assert sql(copy, "PRAGMA query_only = OFF")[0] == "refused" and sql(copy, "DELETE FROM t")[0] == "refused"
+
+
+def test_a_seeds_temp_tables_are_there_for_the_texts():
+    """temp_store = MEMORY, set after the seed until 2026-11-10, dropped the seed's TEMP tables - SQLite drops
+    them as the setting changes -, which the browser kept. A seed that sets another storage loses them still:
+    the texts' storage is in memory."""
+    state = checks.load("sql", "CREATE TEMP TABLE w (x); INSERT INTO w VALUES (1), (2); CREATE TEMP VIEW v AS SELECT 3;")
+    assert sql(state, "SELECT count(*) FROM w")[2] == "select\n1\nn:2" and sql(state, "SELECT * FROM v")[2] == "select\n1\nn:3"
+    assert sql(state, "SELECT * FROM pragma_temp_store")[2] == "select\n1\nn:2"
+    state = checks.load("sql", "PRAGMA temp_store = FILE; CREATE TEMP TABLE w (x);")
+    assert sql(state, "SELECT * FROM pragma_temp_store")[2] == "select\n1\nn:2"
+
+
+@pytest.mark.parametrize("seed", [
+    "CREATE TEMP TABLE w (x); CREATE TABLE m (y);",
+    "CREATE TABLE m (y); CREATE TEMP VIEW v AS SELECT * FROM m;",
+    "ATTACH ':memory:' AS aux; CREATE TABLE aux.n (z); CREATE TABLE m (y);",
+])
+def test_a_seed_that_made_more_than_its_database_has_no_copy(seed):
+    """A copy of the main database would lack it: every process runs such a seed itself."""
+    from texstage.checks import sql as engine
+    assert engine.image(checks.load("sql", seed), 2**20) is None
+
+
+def test_a_database_larger_than_a_copy_may_be_has_none():
+    from texstage.checks import sql as engine
+    state = checks.load("sql", SQL_SEED)
+    assert engine.image(state, state["size"] - 1) is None and len(engine.image(state, state["size"])) == state["size"]
+
+
+def test_a_copy_is_made_past_sqlites_cap_and_the_cap_is_back_after():
+    """A database larger than what its cap leaves free: SQLite needs as much again for the copy, so the cap
+    is lifted while it is made - and is what it was after. In a process of its own, as the cap is the
+    process's."""
+    script = """if True:
+        from texstage import checks
+        from texstage.checks import sql
+        seed = "CREATE TABLE t (x); INSERT INTO t VALUES (zeroblob(40000000));"
+        run = checks.load("sql", seed, heap_allowance=4 * 2**20)
+        if sql._HEAP[0] is None:
+            print("no ctypes")
+            raise SystemExit
+        cap = sql._HEAP[0][0](-1)
+        data = sql.image(run, 2**30)
+        print(data is not None and len(data) > 40000000, sql._HEAP[0][0](-1) == cap)
+        del run
+        copy = checks.load("sql", seed, heap_allowance=4 * 2**20, image=data)
+        print(checks.evaluate("sql", copy, "SELECT length(x) FROM t", "en")["summary"]["rows"])"""
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
+    if done.stdout.strip() == "no ctypes":
+        pytest.skip("ctypes does not reach the SQLite Python runs on")
+    assert done.stdout.split("\n")[:2] == ["True True", "[['40000000']]"], done.stdout + done.stderr
+
+
+def test_a_sparql_seeds_blank_nodes_are_alike_in_every_load():
+    """pyoxigraph gives each blank node a random id as it reads it: ordered by them and cut by a LIMIT, a
+    result came out differently on the pool's processes - four keys in five (2026-11-10). Numbered in the
+    order the seed has them, they are alike in every load."""
+    pytest.importorskip("pyoxigraph")
+    seed = ("@prefix : <http://e.org/> .\n_:alice :name 'Alice' ; :knows _:bob . _:bob :name 'Bob' .\n"
+            "[ :name 'Dave' ] . [ :name 'Eve' ] . :x :list ( 1 2 3 ) . :y :name 'Yves' .\n")
+    queries = ["SELECT * WHERE { ?s ?p ?o } LIMIT 3", "SELECT ?n WHERE { ?p :name ?n } ORDER BY ?p LIMIT 2",
+               "SELECT (GROUP_CONCAT(?n) AS ?all) WHERE { ?p :name ?n }"]
+    keys = {tuple(checks.evaluate("sparql", checks.load("sparql", seed), q, "en")["key"] for q in queries)
+            for _ in range(8)}
+    assert len(keys) == 1
 
 
 @functools.cache

@@ -10,7 +10,8 @@ spare; a large seed sent to a busy worker, the pool's lock free all the while; c
 processes die or do not start. And what the second review found (2026-11-10): a prepare after a drop,
 checks made against an earlier prepare, a process that cannot prepare what another did, SQLite's own cap,
 retries on fresh processes, the queue left alone while no worker is free, a student's texts that wait,
-closing while a process starts, a lower address space. Budgets of 200 ms keep it quick. The test engine,
+closing while a process starts, a lower address space. Then the same data on every process: a seed's run
+on the first one, copied to the others. Budgets of 200 ms keep it quick. The test engine,
 tests/pool_engines.py, does what a text says."""
 from __future__ import annotations
 
@@ -275,6 +276,100 @@ def test_an_activity_no_other_process_can_prepare_fails_and_says_so(tmp_path, ca
             r = check(p, "f", "ok x")
             assert r["status"] == "internal" and r["error"].startswith("not prepared: preparing it ended 3")
         assert any("activity f failed after it was prepared" in m for m in caplog.messages)
+    finally:
+        p.close()
+
+
+# ------------------------------------------------------------------ the same data on every process (2026-11-10)
+RANDOM = ("PRAGMA case_sensitive_like = ON; CREATE TABLE t (r INTEGER, b BLOB, at REAL, name TEXT);"
+          " WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n LIMIT 50) INSERT INTO t SELECT"
+          " random(), randomblob(8), julianday('now'), CASE i % 2 WHEN 0 THEN 'apple' ELSE 'Apple' END FROM n;")
+
+
+def end_each_worker(p: Pool) -> None:
+    """Each worker ended in turn: the spare takes its place, and a fresh spare prepares what is prepared."""
+    for pid in sorted(pids(p)[0]):
+        psutil.Process(pid).kill()
+        end = time.monotonic() + 30
+        while pid in pids(p)[0] and time.monotonic() < end:
+            time.sleep(0.05)
+        assert p.wait_ready(60)
+
+
+def across(p: Pool, act: str, text: str, n: int = 20) -> list[dict]:
+    """The text, told apart by a number at its end, from n students at once: on every worker."""
+    rs = [f.result(30) for f in [p.submit(act, f"{text} {i}", owner=f"s{i}") for i in range(n)]]
+    assert len({r["worker"] for r in rs}) == len(pids(p)[0])
+    return rs
+
+
+def test_every_process_checks_on_the_data_of_the_first_ones_run():
+    """A seed that draws at random as it loads - SQL's random() - runs on the first process alone; every
+    other, the spare and those started later among them, loads what that run left (2026-11-10: each
+    process ran the seed, and one query had as many results as there were processes)."""
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        token = p.prepare("t", "test", "token seed", ["ok the reference"]).result(60)[0]["summary"]["token"]
+        assert p.wait_ready(60)
+        assert {r["summary"]["token"] for r in across(p, "t", "ok text")} == {token}
+        end_each_worker(p)
+        assert {r["summary"]["token"] for r in across(p, "t", "ok text")} == {token}
+    finally:
+        p.close()
+
+
+def test_the_process_that_goes_on_with_the_references_has_the_first_ones_data():
+    """The first process ends at a reference: the next goes on with the ones after it on the data the
+    first one's run left - not on a run of its own."""
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        outcomes = p.prepare("t", "test", "token seed", ["ok one", "crash", "ok three"]).result(60)
+        assert [o["status"] for o in outcomes] == ["ok", "internal", "ok"]
+        assert outcomes[0]["summary"]["token"] == outcomes[2]["summary"]["token"]
+    finally:
+        p.close()
+
+
+def test_an_sql_seed_with_random_and_the_time_gives_every_process_the_same_data():
+    """random(), randomblob() and julianday('now') in the seed: one query, one key - the reference's - on
+    every process, those started later too; and the seed's PRAGMA, which holds for its connection, not its
+    database: LIKE takes the case into account on every process (E8 of the second review)."""
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        reference = p.prepare("r", "sql", RANDOM, ["SELECT * FROM t"]).result(60)[0]
+        assert p.wait_ready(60)
+        for i in range(2):
+            if i:
+                end_each_worker(p)
+            rs = across(p, "r", f"SELECT * FROM t -- round {i}, student")
+            assert {r["key"] for r in rs} == {reference["key"]}
+            assert {tuple(r["summary"]["diff"].items()) for r in rs} == {(("common", 50), ("missing", 0), ("extra", 0))}
+            like = across(p, "r", f"SELECT count(*) FROM t WHERE name LIKE 'a%' -- round {i}, student")
+            assert {str(r["summary"]["rows"]) for r in like} == {"[['25']]"}
+        with p.lock:
+            assert len(p.acts["r"]["image"]) > 0
+    finally:
+        p.close()
+
+
+@pytest.mark.parametrize("what", ["temp", "size"])
+def test_a_seed_that_makes_more_than_its_database_or_a_larger_one_runs_on_every_process(what):
+    """No copy where it would lack what the seed made - a TEMP table here -, or past the size a copy may
+    have: every process runs the seed itself, as before."""
+    seed, text, kw = {
+        "temp": ("CREATE TEMP TABLE w (x); INSERT INTO w VALUES (1), (2);", "SELECT count(*) FROM w --", {}),
+        "size": (SQL_SEED, REFERENCE + " --", {"image_max_mb": 0.001})}[what]
+    p = Pool(workers=2, engines=ENGINES, **kw).start()
+    try:
+        p.prepare("s", "sql", seed).result(60)
+        assert p.wait_ready(60)
+        rs = across(p, "s", text)
+        assert {r["status"] for r in rs} == {"ok"} and len({r["key"] for r in rs}) == 1
+        with p.lock:
+            assert p.acts["s"]["image"] is None
     finally:
         p.close()
 

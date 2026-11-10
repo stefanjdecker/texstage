@@ -230,9 +230,11 @@ same canonical text, byte for byte, under the same hash. So:
   ctypes) and `RLIMIT_AS` on Linux as the hard stop. A text that runs over on a fresh worker too
   is the student's `error` - one that reaches SQLite's own cap at once (decided 2026-11-10, the
   second review below).
-- **SQL** (`checks/sql.py`): the seed run into a database in memory, then
+- **SQL** (`checks/sql.py`): the seed run into a database in memory, under
   `PRAGMA temp_store = MEMORY` - else a large sort spills to temporary files, past the cap (F0's
-  review) -, `PRAGMA query_only = ON`, extensions off; the statements found as sql.js's count
+  review) -, set before the seed and once more after it; then `PRAGMA query_only = ON`,
+  extensions off. In the pool one process runs the seed, the others load a copy of the database
+  it left (2026-11-10, below). The statements found as sql.js's count
   found them - split where SQLite splits them, each compiled behind `EXPLAIN` and none run -,
   one only, starting with `select`, `values` or `with` after its comments; more than 100,000
   rows an `error`, as today (LA 8.8). **Pragmas** (found in package 2): SQLite carries out many
@@ -251,7 +253,8 @@ same canonical text, byte for byte, under the same hash. So:
   that decodes the `\u` and `\U` escapes as SPARQL does, skips strings, IRIs and comments, and
   reads variables and prefixed names whole, so that `?service`, `:service`, `ex:Service` and a
   prefix `service:` stay names (the spike's first check refused them); nesting beyond the cap
-  (Q3) a `syntax` error, as an engine's own limit would be.
+  (Q3) a `syntax` error, as an engine's own limit would be. The seed's blank nodes numbered in
+  the order they come (2026-11-10, below).
 - **Turtle** (`checks/turtle.py`): the quotes and the prologue as today (LA 8.9); more than 10,000
   triples an `error`; the nesting cap.
 - **What package 3 built (2026-11-09):** `server/pool.py` and `server/worker.py`, from F0's
@@ -370,9 +373,40 @@ same canonical text, byte for byte, under the same hash. So:
     behaviour that was right but untested, and the Linux one stands for an experiment that failed
     there before. They and `tests/test_checks.py` pass on Windows (five runs in a row) and on Linux
     (three).
-  - *Found on the way, not changed:* a seed with `random()`, `randomblob()` or the time
-    (`datetime('now')`) gives each worker data of its own - the browser ran a seed once -, so one
-    text can get different keys on different workers (put to the user, 2026-11-10).
+  - *Found on the way:* a seed with `random()`, `randomblob()` or the time (`datetime('now')`)
+    gives each worker data of its own - the browser ran a seed once -, so one text can get
+    different keys on different workers (put to the user, 2026-11-10; fixed before the commit:
+    the next point).
+- **The same data on every process (2026-11-10):** the user chose to fix that before committing.
+  Every process ran an SQL seed, the browser one: with `random()` two workers gave one query two
+  keys (the review's E8), and a right answer could count as wrong on one process and right on
+  another. Now the first process alone runs it, and the database it leaves
+  (`Connection.serialize`) goes to the pool, which every other process loads in the seed's place
+  (`deserialize`) - the next to go on with the references, the spare, and every process started
+  later -; the first checks on such a copy too. A copy is the database alone, so the seed's
+  `PRAGMA` statements, which hold for their connection (`case_sensitive_like`), run again over it -
+  found by SQLite's tokens, read in Python, where the word is in the seed at all: a 4 MB seed of
+  `INSERT`s runs in 0.10 s, its copy loads in 0.04 s, and in 0.66 s with a `PRAGMA` in it.
+  A seed that leaves TEMP objects or an attached database has no copy, nor has a database beyond
+  128 MB or a quarter of the memory allowance - making a copy takes three times its size for a
+  moment -: every process runs such a seed, as before. The copy goes through the pipe as bytes of
+  its own, not pickled; while it is made the authorizer steps aside - SQLite reads
+  `PRAGMA page_count` as it copies, which the authorizer made nothing, so the first copy failed
+  unseen - and SQLite's cap is lifted. 36 MB took 21 ms to copy and 7 ms to load, and queries ran
+  on the copy as fast as on the run.
+  - *SPARQL too, which I had called unaffected:* pyoxigraph gives each blank node a random id as
+    it reads the seed, and their order decides `ORDER BY` and what a `LIMIT` takes after it -
+    `SELECT ?n WHERE { ?p :name ?n } ORDER BY ?p LIMIT 2` over blank nodes gave four keys in five
+    processes. The seed's blank nodes are numbered in the order they come now; the other queries
+    tried gave one key already, blank nodes being alike in the canonical form. Turtle compares
+    unordered graphs: unaffected.
+  - *Found on the way, and fixed:* the server's SQL check lost a seed's TEMP tables and views -
+    `temp_store = MEMORY` was set after the seed, and SQLite drops every TEMP object as the setting
+    changes; the browser kept them. It is set before the seed now, and once more after it.
+  - *Tests:* 13 new, 8 in `tests/test_checks.py` and 5 in `tests/test_pool.py` (53 now). All 13
+    fail against the code before: six by what they test - other keys or tokens on other processes,
+    the TEMP table gone -, seven for want of the new functions. Both files pass on Windows (three
+    runs in a row) and on Linux (three).
 
 ### 4.5 The activity type
 

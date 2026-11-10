@@ -117,7 +117,10 @@ archive's files.
   `tally`), `OPTIONS` (one schema for the activity and, from F3, its steps), `BUDGET_MS`. Where the
   four differ, the contract learns: `triples` has fields and `crowd`'s parts, `turtle-graph` a seed
   that is only a prologue, `sparql-query` and `turtle-graph` share a seed's prefixes, `sql-query`
-  hints from the seed's schema.
+  hints from the seed's schema. And `sql-query`'s `prepare` is not alike on every worker - a seed
+  with `random()` or the time -, so F1 runs it on the first worker only, and the others load a
+  copy of the database it left (`checks/sql.py`: `image()`, `load(image=)`; 2026-11-10): the
+  contract gets an optional copy of what a `prepare` made.
 - **An entry** is what the input sends: a text, the fields or a choice - one small typed object,
   not a dictionary that kinds read differently.
 - **A check is validated by the core** before it is stored: its status one of AF 6.3's, a key where

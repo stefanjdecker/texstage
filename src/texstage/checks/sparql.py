@@ -69,10 +69,29 @@ def namespaces(decls: list[dict]) -> list[tuple[str, str]]:
 
 
 def load(seed: str) -> dict:
+    """The seed's graph in a store of its own, its blank nodes numbered in the order they come: pyoxigraph
+    gives each a random id as it reads it, and the order of blank nodes - ORDER BY, and what a LIMIT
+    takes after it - differed from one process of the pool to the next (2026-11-10)."""
     store = ox.Store()
-    store.load(seed, format=ox.RdfFormat.TURTLE)
+    store.extend(_numbered(ox.parse(seed, format=ox.RdfFormat.TURTLE)))
     decls = prologue(seed)
     return {"store": store, "decls": decls, "prefixes": namespaces(decls)}
+
+
+def _numbered(quads) -> list:
+    ids: dict[str, ox.BlankNode] = {}
+
+    def term(t):
+        if isinstance(t, ox.BlankNode):
+            b = ids.get(t.value)
+            if b is None:
+                b = ids[t.value] = ox.BlankNode(f"{len(ids) + 1:x}")
+            return b
+        if isinstance(t, ox.Triple):
+            return ox.Triple(term(t.subject), t.predicate, term(t.object))
+        return t
+
+    return [ox.Quad(term(q.subject), q.predicate, term(q.object), q.graph_name) for q in quads]
 
 
 def _completed(state: dict, text: str) -> tuple[str, int]:
