@@ -1,8 +1,10 @@
 # texstage - the activity framework: F0 and F1 (plan)
 
-Status: 2026-11-09, the plan for the first two stages of
-[activity-framework-design.md](activity-framework-design.md) (here **AF**, section 18); nothing of
-it is built yet. F2 to F5 are planned once F0 has measured what they build on. File references are
+Status: 2026-11-10, the plan for the first two stages of
+[activity-framework-design.md](activity-framework-design.md) (here **AF**, section 18). F0's spike
+is built and measured on one machine, its runs on the presentation laptop are still to come; F1's
+packages 1 to 5 are built on `f1-server-checks` (4.9 and 5 say where it stands). F2 to F5 are
+planned once F0 has measured what they build on. File references are
 to `src/texstage/` unless they name another folder; **LA** is
 [live-activities-design.md](live-activities-design.md).
 
@@ -17,8 +19,9 @@ to `src/texstage/` unless they name another folder; **LA** is
   instead of the presenter's browser, with today's decks, today's messages and today's phones, and
   the same groups. Checking needs no presenter window any more: with PowerPoint presenting, the
   entries are checked too.
-- **For the lecturer:** nothing changes in LaTeX or on the slides. The phones say "being checked"
-  instead of "waiting for the lecturer's computer", and a text the server could not check says so.
+- **For the lecturer:** nothing changes in LaTeX or on the slides. Where the server checks, the
+  phones say "being checked" instead of "waiting for the lecturer's computer", and a text the
+  server could not check says so.
   Until a lecture has run with it, the browser can still check (4.6).
 
 ## 2. Ground rules
@@ -118,6 +121,10 @@ to `src/texstage/` unless they name another folder; **LA** is
   4. a quiz round right after, and slide changes in the presenter window throughout.
 - **Recorded:** AF 15.1's budgets; the server's and the workers' CPU and memory; the workers
   ended and replaced; the connections the tunnel dropped.
+- **Not run yet (2026-11-10):** F0's numbers are from one machine, the server and the phones on
+  it (its report says so). F1's packages 1 to 5 were built on those; the runs on the laptop come
+  with package 6, on F1's code, in one session (4.9) - what they find about the laptop, the Wi-Fi
+  and the tunnel changes F1 then, not before it.
 
 ### 3.5 What F0 decides
 
@@ -155,7 +162,7 @@ lease the crowd graph's layout needs (AF 13), and hands out no jobs.
 | the server | `server/app.py`, `server/game.py` | the pool started and stopped with the server; results pushed (4.5); the modes (4.6) |
 | options | `cli.py` | `--checks`, `--workers`, `--max-players`, on `serve` and on `present` (4.7) |
 | windows and phones | `web/stage/presenter.js`, `web/play/activity.js`, `web/i18n/en.js`, `de.js` | no evaluator unless the server asks for one; the new texts (4.5) |
-| the tools | `tools/simulate.py` | as F0 left it |
+| the tools | `tools/simulate.py`, `tools/load/` (new, package 6) | the simulator as F0 left it; the runs' bundle and their runner (4.9) |
 
 ### 4.3 The same keys as today
 
@@ -540,6 +547,39 @@ same canonical text, byte for byte, under the same hash. So:
   its verdict, a restart after 8 stale decks prepares none. And a presenter window on the showcase,
   its server in the server's mode, says "The server checks the queries." (for Turtle: "the texts")
   with reference 1's key, as soon as the panel opens on the deck's first slide.
+- **What the review of those fixes found, and what changed (package 5a, 2026-11-10):** the same
+  two reviewers again, on the fixes alone. Nothing that breaks a lecture whose pool works; six
+  faults where something else has failed already, each reproduced, all fixed ("Fix all six"):
+  - *A worker that ended before it took its pipe was never seen to die,* on Windows: its end of
+    the pipe waits in the server's process to be taken, so the pipe never ends. Where no worker
+    can start at all - a broken environment, a virus scanner -, the pool was never broken, the
+    panel went on saying that the server checks, and every text waited. This is the pool's
+    (package 3), and it undid the panel's note. The watchdog asks a process that is not ready
+    whether it has ended: the pool breaks within half a second.
+  - *An answer applied again repaired nothing* when the store had failed after the entry changed
+    in memory: nothing waited any more, so the retry did nothing - no push to the phone, "1
+    waiting" in the panel, the row waiting in the store. An answer that comes again saves, counts
+    and pushes the entries that have its outcome already; a result is saved before the shelf
+    takes it.
+  - *The three tries were gone within milliseconds* while the pool answered: every answer made a
+    round, and each round tried again. Each answer to apply again has its time now, a second
+    after its last try, and the server sets one wake-up for it.
+  - *A stale game's entries waited again at a restart, with nobody to check them:* the restart
+    turned them to waiting in every game, while only games not stale are prepared. Both are one
+    step now (`Engine.resume_checks`, in every mode): a stale game is left as it is.
+  - *An entry that could not be checked stayed so beside the same text's verdict:* a later final
+    outcome reaches the text's earlier entries that are not final too (`Shelf.unsure`).
+  - *On Linux a stop of the whole process group* still stores the text being checked as
+    `internal` - in two runs of three -, not set aside, and the next start checks it; "stays
+    waiting" above holds for Windows.
+
+  For these, and for the review's 14 mutants that passed the fixes' tests: 13 more tests, 12 in
+  `tests/test_activity.py` and one in `tests/test_pool.py` - the six faults above; a pool that
+  breaks during the lecture, said to the windows; a text set aside
+  that stays so after a restart; the counts after a restart; a deck built again; a failed
+  preparing pushed to a game that keeps its keys; a failed reference that is not the window's
+  again; `both`'s phone words; the limit of tries; the server's wake-up; a commit and a push that
+  fail. 39 mutants fail the tests now, and the review's own, where their code still exists.
 
 ### 4.6 Three modes, for the first lectures
 
@@ -602,11 +642,60 @@ same canonical text, byte for byte, under the same hash. So:
 | 3 | the pool (4.4), from F0's prototype, with its tests | `tests/test_pool.py` passes on Windows and Linux | 2-3 |
 | 4 | the activity type and the server (4.5), the modes (4.6), the options (4.7) | the activity tests pass in all three modes; the KG lecture's decks and the showcase run on the branch's server without a presenter window | 2-3 |
 | 5 | the dependencies and the locks (4.7) | `lock_dependencies.py --check` and CI pass | 0.5 |
-| 6 | the load on the laptop - F0's runs 2 and 3 - and what it finds | AF 15.1's budgets with 1,000 phones | 1-2 |
+| 5a | a critical review of what package 4's review changed - it changed the pool again (added 2026-11-10) | its faults reproduced and fixed | 0.5-1 |
+| 6 | the load on the laptop, with the phones from a second machine, over Wi-Fi and through the tunnel - F0's runs 1 to 4 (3.4), which were never run there, on F1's code - and what it finds | AF 15.1's budgets with 1,000 phones; F0's final report; whether commits are gathered (4.5) | 2 |
 | 7 | into `main`, with `--checks both` as the default; lecture-tools taking it; one lecture with an activity | the lecture's `checks-compare.csv` holds no difference left unexplained; then `server` becomes the default | - |
 | 8 | the browser's checks removed (4.10) | the suite passes; the docs and the manual say that the server checks | 1-2 |
 
 About eleven to sixteen working days, and the lecture of package 7 between them.
+
+**Where it stands (2026-11-10):** packages 1 to 5 are built and pushed (`f1-server-checks`,
+e5bc4bb), on 2026-11-09 and 2026-11-10. Three critical reviews - an independent reviewer with
+experiments, and the author's - found 13 and 11 faults in the pool and 9 in package 4, all fixed
+(4.4, 4.5). The table had no reviews: **each package from now on gets one before it is
+committed,** about a day with its fixes, and 5a is the one of package 4's fixes - done the same
+day: six faults in failure paths, fixed (4.5). What is left waits for hardware and a lecture, not
+for code: package 6 needs the laptop, a second machine and
+the tunnel on one day, package 7 a lecture with an activity (5).
+
+**Package 6, prepared (2026-11-10):** the branch has what the session needs. `tools/simulate.py`
+is F0's, with its burst (`--activity`, `--burst`, `--deadline`, `--runaway`, `--fetch`,
+`--join-within`); `tools/load/bundle.py` writes the runs' bundle - a SQL, a SPARQL, a heavier
+SPARQL and a Turtle activity, the lecture's own where its folder lies beside the repository, else
+stand-ins -; `tools/load/run.py` makes the runs - a fresh server with `--checks server` and a fresh
+data folder each, 1,100 phones, a burst of 1,000 entries within 10 s, 30 % distinct - and holds
+what the phones measured against AF 15.1's budgets. The session:
+
+1. Both machines: this branch and its environment (`docs/development.md`). The laptop lets the
+   port in (8471; Windows asks at the first start).
+2. The laptop: `python tools/load/run.py server <scratch>`; then the presenter window on
+   `http://localhost:8471/stage` with the deck "Load runs", and PowerPoint or the projector window,
+   as in a lecture - through all the runs, each of which has a server of its own (a window that
+   does not find the next server by itself is loaded again; not tried yet).
+3. The second machine, in the room's Wi-Fi: `python tools/load/run.py phones <scratch> --url
+   ws://<the laptop's address>:8471/ws`. It waits for each run's server by itself and says when a
+   run is done; then Enter on the laptop starts the next. Ten runs, about a quarter of an hour.
+4. The same through the tunnel: the laptop's side with `-- --tunnel <name>`, the phones' with
+   `-- --phone-url wss://<the tunnel's host>/ws`.
+5. By hand, as F0's report has it: the presenter window's slide changes (`?timing`) and the
+   projector's updates during a run; and a quiz round right after one (run 4 of 3.4), with the
+   showcase's deck and `tools/simulate.py` as for the quiz's load test.
+6. Both sides write `results-<side>.json` to their scratch folders; the phones' side prints the
+   table. Those numbers make F0's report final and decide what 4.5 left open: whether commits
+   are gathered.
+
+The dry run on one machine - server, workers and all 1,100 phones on it, 8 cores - says what the
+session has to look at, not what it will find: at 1 % of the texts running into their budget,
+verdicts came within 0.2 to 1.7 s for 95 % in the first runs (SQL, SPARQL, the heavier seed) and
+within 4.9 s in the worst of the repeats, Turtle's within 16 ms; at 3 and 5 % within 12 and 18 s,
+as on F0's spike (short checks first is F2's, 4.6 of its plan). Acknowledgements for 95 % ranged from 13 ms to 3.2 s between runs of the same kind, and an
+activity's opening and closing reached the last phone after 0.3 to 0.8 s - over their budgets in
+some runs. That is this machine, not F1: the spike's server, run in turns with F1's on the same
+day and bundle, acknowledged within 175 to 664 ms, F1's within 52 to 239 ms - on the day of F0's
+report the spike had 13 to 32 ms. The server's event loop was late by up to 0.7 s at the burst's
+peak with no single slow call - the store's saves and commits took 9 ms at most, a round of
+verdicts 10 ms -, while the simulator, one process playing every phone, competed for the same
+cores. Only phones on a second machine can tell the server's share.
 
 ### 4.10 What package 8 removes, and the docs
 
@@ -644,11 +733,17 @@ About eleven to sixteen working days, and the lecture of package 7 between them.
 
 ## 5. Calendar
 
-A proposal, to fit the semester:
+As it went, and what is left (2026-11-10; the first proposal had F0 until 2026-11-20 and F1's
+packages 1 to 6 from 2026-11-23 to the middle of December):
 
-- **F0:** 2026-11-10 to 2026-11-20, its runs on a day the laptop and a second machine are free.
-- **F1, packages 1 to 6:** from 2026-11-23, about three weeks, to the middle of December.
-- **Package 7:** the next lecture with an activity, before or after the Christmas break.
+- **F0's spike:** done on 2026-11-09, measured on one machine; its report is the interim one.
+- **F1, packages 1 to 5:** done on 2026-11-09 and 2026-11-10, with their reviews.
+- **Package 5a,** the review of package 4's fixes: done on 2026-11-10.
+- **Package 6 with F0's runs:** one session on a day the presentation laptop, a second machine
+  and the tunnel are free - the lecturer's to name. Everything after waits for it: F1 comes to
+  `main` only with its numbers (section 2).
+- **Package 7:** lecture-tools takes F1, then the next lecture with an activity after package 6,
+  before or after the Christmas break - the lecturer's to name too.
 - **Package 8:** right after it.
 - **F2's plan:** [activity-framework-plan-f2.md](activity-framework-plan-f2.md), written on
   2026-11-09 ahead of F0's final report, at the lecturer's request; it changes with that report and

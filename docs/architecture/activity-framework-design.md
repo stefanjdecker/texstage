@@ -1,6 +1,7 @@
 # texstage - the activity framework (design)
 
-Status: 2026-11-09, a design to refine - nothing of it is built yet. It comes from the
+Status: 2026-11-09, a design to refine; of its stages (section 18), F0's spike and F1's packages
+1 to 5 are built on their branches (2026-11-10), nothing of it is in `main` yet. It comes from the
 brainstorm of 2026-11-09, whose last open questions were decided the same day (section 2), was
 revised after a critical review the same day, and redesigns the live activities of October
 ([live-activities-design.md](live-activities-design.md), here **LA**): the server checks what
@@ -42,7 +43,7 @@ type of its own and shares the timer, the points and the leaderboard. All of it 
 | Polls | stay as they are: quiz rounds the lecturer asks on the spot (`server/polls.py`); back to them only if the vote step and polls come to duplicate code | decided 2026-11-09 |
 | Order of the work | first today's four kinds checked on the server, behind today's messages and LaTeX; then the core and the contract, cut from them; then steps - each stage on a branch until its test passes, the lectures on `main` meanwhile (section 18) | decided 2026-11-09 |
 | The contract's number | API 0 while it may still change; API 1 once a kind of another subject has checked it (F4) (sections 7.1, 7.2) | decided 2026-11-09 |
-| Failed checks | a check whose worker died, or that the clock stopped, runs once more on a fresh worker; failing again, it stays `internal` and its text is set aside for the step; memory is a text's fault only if it runs over on a fresh worker too (sections 6.3, 11) - except SQLite's own cap, which counts alike in every worker: a text that reaches it is the student's `error` at once (decided 2026-11-10) | decided 2026-11-09 |
+| Failed checks | a check whose worker died, or that the clock stopped, runs once more on a fresh worker; failing again, it stays `internal` and its text is set aside for the step; memory is a text's fault only if it runs over on a fresh worker too (sections 6.3, 11) - except SQLite's own cap, which counts alike in every worker: a text that reaches it is the student's `error` at once (decided 2026-11-10). A text set aside stays so when the server starts again - no third worker dies for it then either -, while every other `internal` entry is checked again; and a worker stopped from outside - Ctrl+Break, a stop of the whole process group - is not its text's doing: that sets no text aside (both decided 2026-11-10, after the review of F1's package 4) | decided 2026-11-09 |
 | Reopening | the lecturer can open a closed step again; going back on the slides does not, as today (section 5.2) | decided 2026-11-09 |
 | The automatic vote | its choices are made once the earlier step's checks are in, at most 3 s after it closes; a choice shows its group's most frequent text in the kind's normalized form - comments gone -, never a text as one student typed it (section 5.1) | decided 2026-11-09 |
 | The word *kind* | kept: it clashes only inside the code - the page records' `G\|kind\|...`, the polls' kinds (`server/polls.py:28`, `choice` and `text` among them) -, where *stage* clashes in the windows and the protocol; the framework's code says *activity kind* (section 4) | decided 2026-11-09 |
@@ -277,7 +278,10 @@ Unless the kind judges for itself, the core does: `correct` when the key is one 
 references' keys, else `incorrect`. An `internal` check is never graded: the entry counts as
 unchecked, the panel says how many are, and the core checks it once more, on a fresh worker;
 failing again, it stays `internal`, its text is set aside for the step - no third worker dies
-for it -, and its entries earn nothing (sections 11, 14).
+for it, after a restart of the server neither -, and its entries earn nothing (sections 11, 14).
+An `internal` check that is the server's doing - its pool broke, the step's preparing failed, a
+worker was stopped from outside - sets no text aside: the same text sent again is checked again,
+and so are such entries when the server starts again (10.2).
 
 ## 7. Kinds
 
@@ -549,7 +553,9 @@ what the views read, so that no view goes through the entries. Writes are gather
 every 50 ms in one transaction (SQLite in WAL mode, as the store is, `server/store.py:50-51`),
 not one transaction per call as the game's engine does today (`server/game.py`). A restarted
 server goes on where it stopped, as today (`server/store.py:5-6`): it rebuilds what is in memory
-from the tables, queues the entries still unchecked again, and the workers prepare again (10.3).
+from the tables, queues the entries still unchecked again - those that wait and those that are
+`internal`, but for the texts set aside (6.3), which the tables keep as such -, and the workers
+prepare again (10.3).
 
 Entries keep what students typed, the ledger how each did; both stay as long as their game, as
 the quiz's answers do. How long a server keeps games is not settled yet - for quizzes neither
@@ -615,7 +621,10 @@ the texts are not.
   it stops is `internal`, as is one whose worker died for another reason.
 - **Once more, then never again:** an `internal` check runs once more, on a fresh worker; failing
   again, it stays `internal`, and its text is set aside for the step, so that no third worker
-  dies for it (6.3). Such texts exist: in pyoxigraph 0.5.13, 800 nested groups overflow its
+  dies for it (6.3) - unless the worker was stopped from outside, as Ctrl+Break on Windows or a
+  stop of the whole process group stops it: its exit code says so, and that is not the text's
+  doing (F1's package 4: a server stopped that way had set the texts being checked aside). Texts
+  that end a worker exist: in pyoxigraph 0.5.13, 800 nested groups overflow its
   parser's stack and end the process - 512 parse, and today's limit of 2,000 characters allows
   about 660 -, and `ORDER BY` with two keys over mixed literals ends it too (F0, Q2 and Q3). So
   the checks run on a thread with a 64 MB stack, a kind refuses what its parser chokes on before
