@@ -44,6 +44,21 @@ def now_ms() -> int:
     return int(time.time() * 1000)
 
 
+_TLS: ssl.SSLContext | None = None
+
+
+def tls(url: str) -> ssl.SSLContext | None:
+    """The one TLS context of every simulated phone, for a wss:// or https:// address: making one reads
+    the system's certificates - 92 ms each on Windows -, which made the phones of one process queue at five
+    joins a second through a tunnel (package 6: it looked like the tunnel's doing)."""
+    global _TLS
+    if urllib.parse.urlsplit(url).scheme not in ("wss", "https"):
+        return None
+    if _TLS is None:
+        _TLS = ssl.create_default_context()
+    return _TLS
+
+
 # what simulated students send to a live activity: triples about the lecture (a node the
 # lecturer merges - :Decker, :StefanDecker -, the same triple in other case - other IRIs, other
 # nodes unless the deck says terms=loose -, typos; literals - a string as a phone's keyboard
@@ -150,6 +165,8 @@ class Phone:
     window = 4.0                                # answers come within this many seconds
     rtts: list[int] = []                        # all phones: answer sent -> "ok" (ms)
     drops: list[str] = []                       # all phones: connections lost (and taken up again)
+    refused: list[str] = []                     # all phones: joins the network refused (and tried again)
+    REFUSALS = 5                                # ... this often per phone, then the run fails
     references: dict[str, list[str]] = {}       # the deck's activities' references, if the bundle is given
     fetch: str | None = None                    # --fetch: a file every phone loads when it joins ...
     fetches: list[float] = []                   # ... and the seconds it took, all phones
@@ -173,13 +190,14 @@ class Phone:
         self.burst_text: str | None = None      # ... and what
         self.entry: dict | None = None          # ... and how it went
         self.fetched = False
+        self.refusals = 0
 
     async def run(self, stop: asyncio.Event):
         # as a phone's browser does (web/shared/client.js): a lost or closed connection is taken
         # up again with the token - until the server says bye (the game is over, the phone removed)
         while True:
             try:
-                async with websockets.connect(self.url, max_size=2**22) as ws:
+                async with websockets.connect(self.url, max_size=2**22, ssl=tls(self.url)) as ws:
                     self.ws = ws
                     first = {"t": "resume", "token": self.token} if self.token else \
                         {"t": "join", "pin": self.pin, "nickname": self.name}
@@ -197,9 +215,16 @@ class Phone:
                     if stopper in done or self.gone:
                         return
                     why = f"closed by the server, code {ws.close_code}"
-            except (websockets.ConnectionClosedError, OSError) as err:
-                if stop.is_set() or self.token is None:
+            except (websockets.ConnectionClosedError, websockets.InvalidStatus, OSError) as err:
+                if stop.is_set():
                     raise
+                if self.token is None:                       # not joined yet: refused on the way - a tunnel's
+                    self.refusals += 1                       # 502, Windows' short queue (WinError 1225) -; a
+                    if self.refusals > Phone.REFUSALS:       # phone's browser tries again, and so does this one
+                        raise
+                    Phone.refused.append(type(err).__name__ + ": " + str(err)[:60])
+                    await asyncio.sleep(1 + self.rng.random())
+                    continue
                 why = str(err)
             line = f"{time.strftime('%H:%M:%S')} {self.name}: connection lost ({why}) - taken up again"
             Phone.drops.append(line)
@@ -385,10 +410,10 @@ def burst_texts(engine: str, reference: str, n: int, distinct: float, runaway: f
 async def http_get(ws_url: str, path: str) -> tuple[int, float]:
     """GET path from the server ws_url names, as a phone's browser loads a file: (bytes, seconds)."""
     u = urllib.parse.urlsplit(ws_url)
-    tls = u.scheme in ("wss", "https")
+    secure = u.scheme in ("wss", "https")
     t = time.perf_counter()
-    reader, writer = await asyncio.open_connection(u.hostname, u.port or (443 if tls else 80),
-                                                   ssl=ssl.create_default_context() if tls else None)
+    reader, writer = await asyncio.open_connection(u.hostname, u.port or (443 if secure else 80),
+                                                   ssl=tls(ws_url))
     writer.write(f"GET {path} HTTP/1.1\r\nHost: {u.netloc}\r\nConnection: close\r\n\r\n".encode())
     await writer.drain()
     n = 0
@@ -420,7 +445,7 @@ async def drive_activity(args, deck: dict, key: str, phones: list, rng: random.R
     n = min(args.burst or len(phones), len(phones))
     texts = burst_texts(item["engine"], refs[0] if refs else "", n, args.distinct, args.runaway, rng)
     Phone.bursting = True
-    async with websockets.connect(args.url, max_size=2**22) as stage:
+    async with websockets.connect(args.url, max_size=2**22, ssl=tls(args.url)) as stage:
         await stage.send(json.dumps({"t": "hello", "role": "stage", "key": key, "deck": deck["deck"],
                                      "bundle": deck["bundle"], "id": "hello"}))
 
@@ -518,7 +543,7 @@ async def main():
     if not data.exists() and (Path.home() / ".texquiz").is_dir():
         data = Path.home() / ".texquiz"                    # the data folder's name until 2026-10-10
     key = args.key or (data / "presenter-key").read_text().strip()
-    async with websockets.connect(args.url, max_size=2**22) as host:
+    async with websockets.connect(args.url, max_size=2**22, ssl=tls(args.url)) as host:
         await host.send(json.dumps({"t": "hello", "role": "host", "key": key, "deck": deck["deck"],
                                     "bundle": deck["bundle"], "id": "hello"}))
         host_state: dict = {}
@@ -570,6 +595,9 @@ async def main():
                   f"{unfinished} unfinished): {percentiles([round(1000 * s) for s in Phone.fetches])}", flush=True)
             if Phone.fetch_failed:
                 print("  failures:", dict(Counter(Phone.fetch_failed).most_common(3)), flush=True)
+        if Phone.refused:
+            print(f"joins refused and tried again: {len(Phone.refused)} {dict(Counter(Phone.refused).most_common(3))}",
+                  flush=True)
         if args.activity:
             await drive_activity(args, deck, key, phones, rng)
             stop.set()

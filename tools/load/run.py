@@ -10,13 +10,17 @@ server's and its workers' CPU time and memory, the workers the pool ended.
 On one machine, the dry run:
 
     python tools/load/run.py local <scratch> [part of a run's name]
+    python tools/load/run.py local <scratch> --tunnel NAME --port <the tunnel's port> --key <a key of your own>
+
+(the second: the phones go out through the Cloudflare tunnel and come back - its way, though still this
+machine's phones; the servers are on the internet meanwhile, hence a key that is not this file's).
 
 For the session - the server on the presentation laptop, with the presenter window and PowerPoint or the
 projector window open, the phones from a second machine, once over the room's Wi-Fi, once through the
 tunnel - the same runs in the same order on both, with the same part of a name, if any:
 
     python tools/load/run.py server <scratch> [part] [-- more of texstage serve's options, e.g. --tunnel NAME]
-    python tools/load/run.py phones <scratch> --url ws://<laptop>:8471/ws [part] [-- --phone-url wss://<tunnel>/ws]
+    python tools/load/run.py phones <scratch> --url ws://<laptop>:8471/ws [part]      (or wss://<tunnel>/ws)
 
 The laptop's side starts a server per run and waits for Enter, pressed when the phones' side says the run
 is done; the phones' side waits for each new server by itself. Each side writes results-<side>.json to
@@ -57,6 +61,7 @@ RUNS = [  # (name, activity, share of texts running into their budget, repetitio
 ]
 LINES = {
     "joined_s": (r"phones joined in ([\d.]+) s", float),
+    "refused": (r"^joins refused and tried again: (\d+)", int),
     "fetch": (r"loaded by (\d+) phones \((\d+) failed, (\d+) unfinished\): median (\d+) ms, 95 % (\d+) ms, "
               r"max (\d+) ms", int),
     "open": (r"^open: (\d+) phones after (\d+) ms \(median (\d+) ms\)", int),
@@ -92,8 +97,9 @@ def runs(part: str) -> list[tuple[str, str, float, int]]:
 
 
 def status(base: str, timeout: float = 1.0) -> dict | None:
-    try:
-        with urllib.request.urlopen(f"{base}/api/status", timeout=timeout) as r:
+    try:                                                    # (named: Cloudflare refuses urllib's own name)
+        request = urllib.request.Request(f"{base}/api/status", headers={"User-Agent": "texstage-load-runs"})
+        with urllib.request.urlopen(request, timeout=timeout) as r:
             return json.loads(r.read())
     except (OSError, ValueError):
         return None
@@ -107,7 +113,9 @@ class Server:
         cmd = [PY, "-c", "import sys; from texstage.cli import main; sys.exit(main(sys.argv[1:]))",
                "serve", str(bundles), "--port", str(args.port), "--data", str(data), "--key", args.key,
                "--max-players", "1200", "--checks", args.checks, *args.more]
-        if local:
+        if args.tunnel:
+            cmd += ["--tunnel", args.tunnel]
+        elif local:
             cmd += ["--host", "127.0.0.1", "--no-tunnel"]
         if args.workers:
             cmd += ["--workers", str(args.workers)]
@@ -189,8 +197,8 @@ class Server:
 # ------------------------------------------------------------------ the phones' side
 def phones(bundle: Path, args, activity: str, runaway: float, n: int, log: Path, more: list[str]) -> dict:
     cmd = [PY, "-I", str(ROOT / "tools" / "simulate.py"), str(bundle), "--url", args.url, "--key", args.key,
-           "--players", str(args.players), "--join-within", str(args.join_within), "--fetch", FETCH,
-           "--activity", activity, "--burst", str(args.burst), "--within", "10", "--deadline", "--distinct", "0.3",
+           "--players", str(args.players), "--join-within", str(args.join_within),
+           *([] if args.no_fetch else ["--fetch", FETCH]), "--activity", activity, "--burst", str(args.burst), "--within", "10", "--deadline", "--distinct", "0.3",
            "--runaway", str(runaway), "--wait", "30", "--seed", str(n), *more]
     t = time.perf_counter()
     sim = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
@@ -227,13 +235,28 @@ def bundle(scratch: Path, stand_ins: bool) -> Path:
     return scratch / "bundles" / "load.bundle"
 
 
+def through_tunnel(server: Server, timeout: float = 90.0) -> str:
+    """The phones' address through the server's tunnel, once the tunnel leads to this very server."""
+    here = status(server.base)
+    public = here["join"].removesuffix("/play")
+    end, good = time.monotonic() + timeout, 0
+    while good < 12:                                        # steadily: an answer now and then is not enough
+        good = good + 1 if (status(public, 5.0) or {}).get("instance") == here["instance"] else 0
+        if time.monotonic() > end:
+            raise RuntimeError(f"the tunnel does not lead to this server steadily - see {server.log}")
+        time.sleep(0.25)
+    u = urllib.parse.urlsplit(public)
+    return f"{'wss' if u.scheme == 'https' else 'ws'}://{u.netloc}/ws"
+
+
 def local(args) -> int:
     path, results = bundle(args.scratch, args.stand_ins), []
     args.url = f"ws://127.0.0.1:{args.port}/ws"
     for n, (name, activity, runaway, i) in enumerate(runs(args.part), 1):
         server = Server(args.scratch / "bundles", args.scratch / f"data-{n}", args.scratch / f"server-{n}.log", args, True)
         try:                                                # (what follows -- is texstage serve's here)
-            run = phones(path, args, activity, runaway, n, args.scratch / f"simulate-{n}.log", [])
+            more = ["--phone-url", through_tunnel(server)] if args.tunnel else []
+            run = phones(path, args, activity, runaway, n, args.scratch / f"simulate-{n}.log", more)
         finally:
             usage = server.stop()
         results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **run, **usage})
@@ -296,7 +319,10 @@ def main() -> int:
     ap.add_argument("--players", type=int, default=1100)
     ap.add_argument("--burst", type=int, default=1000)
     ap.add_argument("--join-within", type=float, default=30.0, help="seconds in which the phones join (the plan: 120)")
+    ap.add_argument("--no-fetch", action="store_true", help="the phones load no file as they join")
     ap.add_argument("--stand-ins", action="store_true", help="the bundle's stand-ins, not the lecture's activities")
+    ap.add_argument("--tunnel", metavar="NAME", help="local, server: the servers run this Cloudflare tunnel (on the "
+                                                     "port its rules name); local: the phones come through it")
     args = ap.parse_args(argv)
     args.more = more
     args.scratch = args.scratch.resolve()

@@ -675,8 +675,9 @@ what the phones measured against AF 15.1's budgets. The session:
 3. The second machine, in the room's Wi-Fi: `python tools/load/run.py phones <scratch> --url
    ws://<the laptop's address>:8471/ws`. It waits for each run's server by itself and says when a
    run is done; then Enter on the laptop starts the next. Ten runs, about a quarter of an hour.
-4. The same through the tunnel: the laptop's side with `-- --tunnel <name>`, the phones' with
-   `-- --phone-url wss://<the tunnel's host>/ws`.
+4. The same through the tunnel: the laptop's side with `--tunnel <name> --port <the tunnel's>
+   --key <a key of its own>`, the phones' with `--url wss://<the tunnel's host>/ws --key <that
+   key>` (with a tunnel the server listens on the laptop only).
 5. By hand, as F0's report has it: the presenter window's slide changes (`?timing`) and the
    projector's updates during a run; and a quiz round right after one (run 4 of 3.4), with the
    showcase's deck and `tools/simulate.py` as for the quiz's load test.
@@ -696,6 +697,31 @@ report the spike had 13 to 32 ms. The server's event loop was late by up to 0.7 
 peak with no single slow call - the store's saves and commits took 9 ms at most, a round of
 verdicts 10 ms -, while the simulator, one process playing every phone, competed for the same
 cores. Only phones on a second machine can tell the server's share.
+
+**The laptop alone, and through its tunnel (2026-11-10, evening):** the machine these runs were on
+is a laptop itself, and with less else running on it the same ten runs held every budget at 1 %:
+acknowledgements for 95 % within 4 to 241 ms, verdicts within 6 ms to 1.8 s, an activity open and
+closed on the last phone after 0.2 to 0.3 s; at 3 and 5 % verdicts took 7 and 14 s.
+
+Then the phones went out through the laptop's Cloudflare tunnel and came back (`run.py local
+--tunnel`; the servers had a key of their own while they were on the internet): all 1,100 joined
+within their 30 s in each of the ten runs, none was refused, no connection was lost, and Cloudflare
+gave the 273 KB file from its cache - on 95 % of the phones within 0.6 to 3.5 s of 30.
+Acknowledgements for 95 % came within 34 to 316 ms, 660 ms in the run on the heavier seed;
+verdicts at 1 % within 35 ms to 2.3 s, at 3 and 5 % within 8 and 16 s; opening and closing
+reached the last phone after 0.2 to 0.6 s, three times of twenty just over the half second. So the
+tunnel's way holds 1,100 phones; what its numbers still carry is the simulator on the same cores.
+
+Two things the first tries through the tunnel taught, both the simulator's, not the tunnel's.
+Every simulated phone made a TLS context of its own, and its file's fetch another: 92 ms each on
+Windows, in one process - five joins a second, and with more the openings timed out (of 300
+phones joining within 30 s, 208 tries; with 1,100, the join stood still at 70). The phones share
+one context now. And a phone whose join the network refuses tries again, as a browser does - up
+to five times, counted in the report - where one refusal had ended the run.
+
+Still open for the session: the phones from a second machine over the room's Wi-Fi, which alone
+separates the server's share from the simulator's; the presenter window's slide changes and the
+projector's updates during a run; a quiz round right after one.
 
 ### 4.10 What package 8 removes, and the docs
 
