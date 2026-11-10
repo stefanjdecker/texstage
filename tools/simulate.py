@@ -30,8 +30,11 @@ import asyncio
 import json
 import random
 import re
+import ssl
 import statistics
 import time
+import urllib.parse
+from collections import Counter
 from pathlib import Path
 
 import websockets
@@ -148,6 +151,11 @@ class Phone:
     rtts: list[int] = []                        # all phones: answer sent -> "ok" (ms)
     drops: list[str] = []                       # all phones: connections lost (and taken up again)
     references: dict[str, list[str]] = {}       # the deck's activities' references, if the bundle is given
+    fetch: str | None = None                    # --fetch: a file every phone loads when it joins ...
+    fetches: list[float] = []                   # ... and the seconds it took, all phones
+    fetch_failed: list[str] = []
+    bursting = False                            # --activity: the phones send their burst entries only
+    entries: list[dict] = []                    # all phones' burst entries: sent, acknowledged, checked (ms)
 
     def __init__(self, url: str, pin: str, name: str, rng: random.Random):
         self.url, self.pin, self.name, self.rng = url, pin, name, rng
@@ -161,6 +169,10 @@ class Phone:
         self.token = None                       # from the welcome: a lost connection resumes with it
         self.gone = False                       # the server said bye
         self.ws = None
+        self.burst_at: float | None = None      # --activity: when this phone sends (time.monotonic) ...
+        self.burst_text: str | None = None      # ... and what
+        self.entry: dict | None = None          # ... and how it went
+        self.fetched = False
 
     async def run(self, stop: asyncio.Event):
         # as a phone's browser does (web/shared/client.js): a lost or closed connection is taken
@@ -172,6 +184,9 @@ class Phone:
                     first = {"t": "resume", "token": self.token} if self.token else \
                         {"t": "join", "pin": self.pin, "nickname": self.name}
                     await ws.send(json.dumps(first | {"id": "join"}))
+                    if Phone.fetch and not self.fetched:         # as a phone loads the kinds' files (AF 7.3)
+                        self.fetched = True
+                        asyncio.create_task(self.get_file())
                     reader = asyncio.create_task(self.read(ws))
                     stopper = asyncio.create_task(stop.wait())
                     done, _ = await asyncio.wait({reader, stopper}, return_when=asyncio.FIRST_COMPLETED)
@@ -202,9 +217,19 @@ class Phone:
                 self.gone = True
             if m["t"] == "ok" and m.get("re") in self.sent:
                 Phone.rtts.append(now_ms() - self.sent.pop(m["re"]))
+            e = self.entry
+            if e and m.get("re") == e["mid"]:
+                if m["t"] == "ok":
+                    e["ack"], e["cid"] = now_ms(), m.get("contribution")
+                elif m["t"] == "error":
+                    e["refused"] = m.get("code") or m.get("message")
             if m["t"] != "state":
                 continue
             self.state = m
+            mine = (m.get("activity") or {}).get("mine")
+            if e and e.get("cid") and "checked" not in e and isinstance(mine, dict) and mine.get("id") == e["cid"] \
+                    and mine.get("status") not in (None, "waiting"):
+                e["checked"], e["status"] = now_ms(), mine["status"]
             r = m.get("round")
             if r:
                 self.seen.setdefault(r["id"], now_ms())
@@ -229,8 +254,27 @@ class Phone:
         finally:
             self.busy.discard(act["id"])
 
+    async def get_file(self):
+        try:
+            _, seconds = await asyncio.wait_for(http_get(self.url, Phone.fetch), 30)    # else it may hang
+            Phone.fetches.append(seconds)
+        except Exception as err:  # noqa: BLE001 - counted, not fatal
+            Phone.fetch_failed.append(f"{type(err).__name__}: {err}"[:120])
+
     async def take_part(self, act: dict):
         rng, aid = self.rng, act["id"]
+        if Phone.bursting:                                     # --activity: one entry, at its time
+            self.acted.add(aid)
+            if self.burst_text is None or act["input"] != "code":
+                return
+            await asyncio.sleep(max(0.0, self.burst_at - time.monotonic()))
+            if self.open(aid):
+                self.n += 1
+                self.entry = {"mid": f"b{self.n}", "text": self.burst_text, "sent": now_ms()}
+                Phone.entries.append(self.entry)
+                await self.send({"t": "activity.send", "activity": aid, "id": self.entry["mid"],
+                                 "text": self.burst_text})
+            return
         if rng.random() < 0.1:                                 # some take no part
             self.acted.add(aid)
             return
@@ -304,6 +348,120 @@ def percentiles(values: list[int]) -> str:
     return f"median {pick(0.5)} ms, 95 % {pick(0.95)} ms, max {v[-1]} ms ({len(v)})"
 
 
+# ------------------------------------------------------------------ --activity: F0's runs
+# (docs/architecture/activity-framework-plan.md, 3.4): a burst of entries to one activity, timed
+RUNAWAY = {"sparql": "SELECT (COUNT(*) AS ?n{k}) WHERE {{ ?a ?b ?c . ?d ?e ?f . ?g ?h ?i . ?j ?x ?l }}",
+           "sql": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM r) SELECT count(*) FROM r WHERE n > {k}",
+           "turtle": None}
+
+
+def is_runaway(text: str) -> bool:
+    return text.startswith(("SELECT (COUNT(*) AS ?n", "WITH RECURSIVE r(n)"))
+
+
+def burst_texts(engine: str, reference: str, n: int, distinct: float, runaway: float, rng: random.Random) -> list[str]:
+    """n texts for a burst: a share distinct (the reference with a LIMIT of its own), a share running
+    into its budget (each its own), the rest a few common ones, right and wrong, again and again."""
+    ref = reference.strip().rstrip(";")
+    if engine == "turtle":                                        # a graph: the same in other spellings, wrong
+        prefix = (re.search(r"([A-Za-z][\w-]*):", ref) or re.search("(x)", "x")).group(1)
+        common = [ref, " ".join(ref.split()), ref.rstrip(" .\n"),                 # the last one: a syntax error
+                  re.sub(r"\d+", lambda m: str(int(m.group(0)) + 1), ref, count=1)]    # another graph
+        distinct_texts = [f"{ref}\n{prefix}:extra{i} {prefix}:p {prefix}:o ." for i in range(round(n * distinct))]
+    else:
+        common = [ref, " ".join(ref.split()), ref.replace("SELECT", "select", 1),
+                  ref.replace("SELECT", "SELEC", 1),                      # a syntax error
+                  re.sub(r"\?(\w+)", r"?\1x", ref, count=1)]               # a variable misspelt: another result
+        if engine == "sparql":
+            common.append("SELECT * WHERE { ?s ?p ?o }")                  # everything: the whole seed
+        distinct_texts = [f"{ref} LIMIT {i + 1}" for i in range(round(n * distinct))]
+    texts = [RUNAWAY[engine].format(k=i) for i in range(round(n * runaway))] if RUNAWAY.get(engine) else []
+    texts += distinct_texts
+    texts += [rng.choice(common) for _ in range(max(0, n - len(texts)))]
+    rng.shuffle(texts)
+    return texts[:n]
+
+
+async def http_get(ws_url: str, path: str) -> tuple[int, float]:
+    """GET path from the server ws_url names, as a phone's browser loads a file: (bytes, seconds)."""
+    u = urllib.parse.urlsplit(ws_url)
+    tls = u.scheme in ("wss", "https")
+    t = time.perf_counter()
+    reader, writer = await asyncio.open_connection(u.hostname, u.port or (443 if tls else 80),
+                                                   ssl=ssl.create_default_context() if tls else None)
+    writer.write(f"GET {path} HTTP/1.1\r\nHost: {u.netloc}\r\nConnection: close\r\n\r\n".encode())
+    await writer.drain()
+    n = 0
+    while chunk := await reader.read(1 << 16):
+        n += len(chunk)
+    writer.close()
+    return n, time.perf_counter() - t
+
+
+async def fanout(phones: list, done, sent: int, timeout: float = 30.0) -> tuple[int, int, int]:
+    """Until every phone's state says done(phone): the last one's and the median's lag in ms, and how many."""
+    seen: dict[int, int] = {}
+    end = time.monotonic() + timeout
+    while len(seen) < len(phones) and time.monotonic() < end:
+        t = now_ms()
+        for i, p in enumerate(phones):
+            if i not in seen and done(p):
+                seen[i] = t - sent
+        await asyncio.sleep(0.01)
+    lags = sorted(seen.values()) or [0]
+    return lags[-1], lags[len(lags) // 2], len(seen)
+
+
+async def drive_activity(args, deck: dict, key: str, phones: list, rng: random.Random):
+    """--activity: open it as a presenter window does, the phones send their burst, close it, report."""
+    aid = args.activity
+    item = deck["items"]["activity"][aid]
+    refs = Phone.references.get(aid) or []
+    n = min(args.burst or len(phones), len(phones))
+    texts = burst_texts(item["engine"], refs[0] if refs else "", n, args.distinct, args.runaway, rng)
+    Phone.bursting = True
+    async with websockets.connect(args.url, max_size=2**22) as stage:
+        await stage.send(json.dumps({"t": "hello", "role": "stage", "key": key, "deck": deck["deck"],
+                                     "bundle": deck["bundle"], "id": "hello"}))
+
+        async def drain():
+            async for text in stage:
+                m = json.loads(text)
+                if m["t"] == "error":
+                    print("stage error:", m)
+        reader = asyncio.create_task(drain())
+        await asyncio.sleep(0.5)
+        start = time.monotonic() + 1.0                      # every phone has seen the activity open by then
+        for p, text in zip(rng.sample(phones, n), texts):
+            u = rng.random()
+            p.burst_text = text
+            p.burst_at = start + args.within * (u ** (1 / 3) if args.deadline else u)
+        sent = now_ms()
+        await stage.send(json.dumps({"t": "activity.open", "activity": aid, "id": "open"}))
+        last, median, count = await fanout(phones, lambda p: (p.state.get("activity") or {}).get("phase") == "open", sent)
+        print(f"open: {count} phones after {last} ms (median {median} ms)", flush=True)
+        end = start + args.within + args.wait
+        while time.monotonic() < end:                      # the burst, then until every entry has its verdict
+            if time.monotonic() > start + args.within and \
+                    sum(1 for e in Phone.entries if "checked" in e or "refused" in e) >= n:
+                break
+            await asyncio.sleep(0.1)
+        sent = now_ms()
+        await stage.send(json.dumps({"t": "activity.close", "activity": aid, "id": "close"}))
+        last, median, count = await fanout(phones, lambda p: (p.state.get("activity") or {}).get("phase") != "open", sent)
+        print(f"close: {count} phones after {last} ms (median {median} ms)")
+        reader.cancel()
+    entries = Phone.entries
+    statuses = Counter(e.get("status") or (f"refused ({e['refused']})" if "refused" in e else "no verdict")
+                       for e in entries)
+    print(f"entries: {len(entries)} sent within {args.within} s ({'most at the end' if args.deadline else 'evenly'}); "
+          f"{len(set(texts))} distinct texts, {sum(1 for t in texts if is_runaway(t))} running into their budget")
+    print(f"acknowledged: {percentiles([e['ack'] - e['sent'] for e in entries if 'ack' in e])}")
+    print(f"checked - sent until the phone had its verdict: "
+          f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e])}")
+    print("statuses:", dict(statuses.most_common()))
+
+
 async def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("bundle", type=Path, nargs="?", help="the bundle folder (its deck.json gives the slides, its "
@@ -324,7 +482,21 @@ async def main():
                     help="seconds after which the host skips a question not everybody has answered")
     ap.add_argument("--answer-window", type=float, default=4.0,
                     help="phones answer within this many seconds (smaller: a harder burst)")
+    ap.add_argument("--activity", help="with the bundle: instead of the quiz, open this activity as a presenter "
+                                       "window does, let the phones send a burst, close it and report (F0's runs)")
+    ap.add_argument("--burst", type=int, help="with --activity: entries in the burst (default: one per phone)")
+    ap.add_argument("--within", type=float, default=10.0, help="with --activity: seconds the burst takes")
+    ap.add_argument("--deadline", action="store_true", help="with --activity: most entries in the last seconds")
+    ap.add_argument("--distinct", type=float, default=0.3, help="with --activity: the share of distinct texts")
+    ap.add_argument("--runaway", type=float, default=0.0,
+                    help="with --activity: the share of texts that run into their budget")
+    ap.add_argument("--wait", type=float, default=30.0,
+                    help="with --activity: seconds after the burst to wait for the last verdicts")
+    ap.add_argument("--fetch", help="a path every phone loads when it joins, e.g. /static/vendor/katex/katex.min.js")
+    ap.add_argument("--join-within", type=float, default=0.0,
+                    help="with the bundle: the phones join spread over this many seconds (default: all at once)")
     args = ap.parse_args()
+    Phone.fetch = args.fetch
     rng = random.Random(args.seed)
     Phone.window = args.answer_window
     Phone.references = deck_references(args.bundle)
@@ -372,7 +544,12 @@ async def main():
         stop = asyncio.Event()
         phones = [Phone(phone_url, pin, f"P{i:03d}", random.Random(rng.random())) for i in range(args.players)]
         t0 = time.perf_counter()
-        tasks = [asyncio.create_task(p.run(stop)) for p in phones]
+
+        async def later(p: Phone, delay: float):           # --join-within: as a class arrives
+            await asyncio.sleep(delay)
+            await p.run(stop)
+        tasks = [asyncio.create_task(later(p, rng.uniform(0, args.join_within)) if args.join_within else p.run(stop))
+                 for p in phones]
         report = time.monotonic() + 5
         while host_state.get("session", {}).get("connected", 0) < args.players:
             await asyncio.sleep(0.05)
@@ -383,7 +560,22 @@ async def main():
                 report = time.monotonic() + 5
                 print(f"  joining: {sum(1 for p in phones if p.state)} phones have a state, the host sees "
                       f"{host_state.get('session', {}).get('connected')} connected", flush=True)
-        print(f"game {pin}: {args.players} phones joined in {time.perf_counter() - t0:.2f} s")
+        print(f"game {pin}: {args.players} phones joined in {time.perf_counter() - t0:.2f} s", flush=True)
+        if args.fetch:
+            until = time.monotonic() + 120
+            while len(Phone.fetches) + len(Phone.fetch_failed) < args.players and time.monotonic() < until:
+                await asyncio.sleep(0.1)
+            unfinished = args.players - len(Phone.fetches) - len(Phone.fetch_failed)
+            print(f"{args.fetch} loaded by {len(Phone.fetches)} phones ({len(Phone.fetch_failed)} failed, "
+                  f"{unfinished} unfinished): {percentiles([round(1000 * s) for s in Phone.fetches])}", flush=True)
+            if Phone.fetch_failed:
+                print("  failures:", dict(Counter(Phone.fetch_failed).most_common(3)), flush=True)
+        if args.activity:
+            await drive_activity(args, deck, key, phones, rng)
+            stop.set()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            reader.cancel()
+            return
         fanout = []                                         # per slide: until the last phone had it
         for slide in deck["slides"]:
             phase, quiz = slide.get("phase"), slide.get("quiz")
