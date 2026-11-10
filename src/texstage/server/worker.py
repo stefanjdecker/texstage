@@ -3,7 +3,9 @@
 """A worker process of the pool (pool.py; docs/architecture/activity-framework-plan.md, F1, 4.4): it
 prepares activities and checks their texts with texstage.checks, one at a time, on a thread with a
 64 MB stack - pyoxigraph's parsers recurse, and 800 nested groups end a process with the default one
-(F0, Q3). It starts at a low priority, Ctrl+C is the server's, not its own; on Linux its address space
+(F0, Q3). It starts at a low priority, Ctrl+C - and on Windows Ctrl+Break - is the server's, not its own
+(the package 4 review: Ctrl+Break ended every worker before the server closed the pool, and the texts
+being checked came back internal); on Linux its address space
 is capped, the system's hard stop (on Windows the pool's job object is), and on Linux and macOS it ends
 once the server's process is gone (on Windows the job object ends it).
 
@@ -49,7 +51,9 @@ STACK = 64 * 2**20
 def main(conn, options: dict) -> None:
     """The worker process's entry (multiprocessing, spawn): its limits, then the thread that checks."""
     signal.signal(signal.SIGINT, signal.SIG_IGN)
-    if sys.platform == "win32":
+    if hasattr(signal, "SIGBREAK"):                     # Windows: the pool ends a worker with TerminateProcess
+        signal.signal(signal.SIGBREAK, signal.SIG_IGN)  # (kill), which no handler stops. Not SIGTERM elsewhere:
+    if sys.platform == "win32":                         # multiprocessing ends its daemons with it at exit
         import ctypes
         from ctypes import wintypes
         k32 = ctypes.WinDLL("kernel32")

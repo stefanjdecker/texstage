@@ -12,17 +12,24 @@ to the activity's picture, which the texstage windows draw - and runs nothing:
               lecturer merges a term into another, per role (node: the first and the last field;
               label: the ones between). The picture: the triples with at least `min` students, without hidden
               terms (with `review` only approved ones), the 40 nodes with the most students.
-    clusters  (input=code) a contribution is a query - or, engine=turtle, a graph in Turtle. The
-              presenter window with the lease (one at a time: activity.work) evaluates every
-              distinct text and sends its key - the hash of the result's canonical form - or its
-              status (syntax, error, timeout, refused); a student's latest query counts; the
-              picture: the queries grouped by key, the largest first, the reference's marked (in
-              the presenter window at once, everywhere after the reveal).
+    clusters  (input=code) a contribution is a query - or, engine=turtle, a graph in Turtle. Every
+              distinct text is checked, which gives its key - the hash of the result's canonical
+              form - or its status (syntax, error, timeout, refused; internal: the server could not
+              check it, never the student's fault): by the server's pool as the text comes
+              (checking.py, the mode server), or by the presenter window with the lease (one at a
+              time: activity.work; the mode browser, and both, where the pool checks too and the
+              differences are written down); a student's latest query counts; the picture: the
+              queries grouped by key, the largest first, the reference's marked (in the presenter
+              window at once, everywhere after the reveal).
+
+An `internal` check is never the text's doing - its error, which no phone sees, says why -, and the
+next start of the server checks it again (restarted), unless the pool set the text aside, since it
+ended two of its processes (its error begins SET_ASIDE): then the same text again is internal at once.
 
 State in the session (stage["activity"]): {"current": the activity the phones show, "items": {id:
-{phase: ready|open|closed, version (of the picture), layout, students, count, waiting, revealed,
-min, merges [[role, term, into]], hidden [term], approved [term] | shown (a cluster's key), refs
-[the references' keys]}}}; every window's view leaves out the lists and refs. An activity opens
+{phase: ready|open|closed, version (of the picture), layout, students, count, waiting, unchecked
+(internal), revealed, min, merges [[role, term, into]], hidden [term], approved [term] | shown (a
+cluster's key), refs [the references' keys]}}}; every window's view leaves out the lists and refs. An activity opens
 when its frame comes to the projector (open=auto) or by the lecturer, closes when the projector
 leaves the frame or by the lecturer; one is open at a time. Tables: contributions, results (one
 row per distinct result). The phones' view: the current activity while it is open or revealed -
@@ -72,8 +79,11 @@ JOBS = 20                           # inputs per activity.work
 LEASE_MS = 15_000
 SUMMARY_MAX = 12 * 1024
 ERROR_MAX = 300
-STATUSES = ("ok", "syntax", "error", "timeout", "refused")
-VIEW_KEYS = ("phase", "version", "layout", "students", "count", "waiting", "revealed", "min")
+STATUSES = ("ok", "syntax", "error", "timeout", "refused")    # what the presenter window's evaluator sends
+CHECKED = (*STATUSES, "internal")   # and the server's pool (checking.py): internal, never the student's fault
+UNCHECKED = ("waiting", "internal")  # in no cluster: not checked yet, or could not be (counted apart)
+SET_ASIDE = "set aside: "           # an internal check's error when the pool set its text aside: final
+VIEW_KEYS = ("phase", "version", "layout", "students", "count", "waiting", "unchecked", "revealed", "min")
 KEY = re.compile(r"[0-9a-f]{16}")
 
 
@@ -88,8 +98,12 @@ class Contribution:
     input: dict                     # {"fields": [...]} or {"text": ...}
     state: str = "in"               # in replaced withdrawn hidden
     key: str = ""                   # tuple: its terms' keys; query: its result's key ("" while it waits)
-    status: str = "ok"              # ok waiting syntax error timeout refused
+    status: str = "ok"              # ok waiting syntax error timeout refused internal
     error: str = ""
+
+    def again(self) -> bool:
+        """Whether a later check may give it a result: internal, and not set aside (SET_ASIDE)."""
+        return self.status == "internal" and not self.error.startswith(SET_ASIDE)
 
 
 @dataclass
@@ -110,21 +124,68 @@ ROWS = {Contribution: ("contributions", ["id", "session", "activity", "player", 
 
 @dataclass
 class Shelf:
-    """One activity's contributions and results in one game."""
+    """One activity's contributions and results in one game - and what is kept as contributions come and
+    change (add, change), so that a phone's view and a count do not go through all of them (F0's Q7:
+    closing an activity of 1,000 entries reached the last of 1,100 phones after 597 ms)."""
     contributions: dict[str, Contribution] = field(default_factory=dict)    # in the order they came
     results: dict[str, Result] = field(default_factory=dict)                # by key
     last: dict[str, int] = field(default_factory=dict)                      # player -> their last one's time
     cache: dict = field(default_factory=dict)                               # the pictures, by what they show
+    mine: dict[str, list[Contribution]] = field(default_factory=dict)       # player -> theirs, in that order
+    ins: Counter = field(default_factory=Counter)                           # player -> how many of theirs are in
+    count: int = 0                                                          # contributions in
+    waits: int = 0                                                          # ... of them waiting for their check
+    unchecked: int = 0                                                      # ... that could not be checked
+    waiting: dict[str, dict[str, Contribution]] = field(default_factory=dict)   # text -> those waiting with it
+    known: dict[str, Contribution] = field(default_factory=dict)            # text -> the first with a final check
+
+    def add(self, c: Contribution):
+        self.contributions[c.id] = c
+        self.mine.setdefault(c.player, []).append(c)
+        self._tally(c, 1)
+
+    def change(self, c: Contribution, **fields):
+        """A contribution's state, status, key or error changed: every count and index with it."""
+        self._tally(c, -1)
+        for name, value in fields.items():
+            setattr(c, name, value)
+        self._tally(c, 1)
+
+    def _tally(self, c: Contribution, n: int):
+        if c.state == "in":
+            self.count += n
+            self.ins[c.player] += n
+            if self.ins[c.player] <= 0:
+                del self.ins[c.player]
+            if c.status == "waiting":
+                self.waits += n
+            elif c.status == "internal":
+                self.unchecked += n
+        text = c.input.get("text")
+        if text is None:
+            return
+        if c.status == "waiting":
+            same = self.waiting.setdefault(text, {})
+            if n > 0:
+                same[c.id] = c
+            else:
+                same.pop(c.id, None)
+                if not same:
+                    del self.waiting[text]
+        elif n > 0 and not c.again():          # (an internal check that is not final is no known result)
+            self.known.setdefault(text, c)
 
 
 class Book:
-    """The activities' contributions and results of all games, the evaluating windows' leases
-    and the graphs' layouts (types.py: Book)."""
+    """The activities' contributions and results of all games, the evaluating windows' leases, the
+    graphs' layouts (types.py: Book) - and the server's checks, if it checks (checking.py; the engine
+    sets them)."""
 
     def __init__(self):
         self.shelves: dict[tuple[str, str], Shelf] = {}
         self.leases: dict[str, tuple[str, int]] = {}                       # session -> (connection, until)
         self.layouts: dict[tuple[str, str], dict] = {}                     # (session, activity) -> positions
+        self.checks = None                                                 # checking.Checks; None: the browser's
 
     def shelf(self, sid: str, aid: str) -> Shelf:
         return self.shelves.setdefault((sid, aid), Shelf())
@@ -132,7 +193,7 @@ class Book:
     def load(self, rows: list):
         for r in sorted(rows, key=lambda r: (r.created, getattr(r, "id", r.key))):
             if isinstance(r, Contribution):
-                self.shelf(r.session, r.activity).contributions[r.id] = r
+                self.shelf(r.session, r.activity).add(r)
             else:
                 self.shelf(r.session, r.activity).results[r.key] = r
 
@@ -223,7 +284,8 @@ def clean_code(text, what: str = "a query") -> str:
 
 # ------------------------------------------------------------------ state
 def _fresh(item: dict) -> dict:
-    st = {"phase": "ready", "version": 0, "layout": 0, "students": 0, "count": 0, "waiting": 0, "revealed": False}
+    st = {"phase": "ready", "version": 0, "layout": 0, "students": 0, "count": 0, "waiting": 0, "unchecked": 0,
+          "revealed": False}
     if item["input"] == "tuple":
         st |= {"min": item.get("min", 1), "merges": [], "hidden": [], "approved": []}
     else:
@@ -247,16 +309,32 @@ def _open(state: dict, aid: str):
 
 
 def _recount(st: dict, shelf: Shelf):
-    ins = [c for c in shelf.contributions.values() if c.state == "in"]
-    st["count"], st["students"] = len(ins), len({c.player for c in ins})
-    st["waiting"] = sum(1 for c in ins if c.status == "waiting")
+    """The counts as the shelf keeps them (Shelf.change): of those in, the ones that wait for their check,
+    and apart from them the ones that could not be checked (internal) - as the design's panel has them
+    (AF 13); the package 4 review: counted together, a pool that broke looked like a slow one."""
+    st["count"], st["students"] = shelf.count, len(shelf.ins)
+    st["waiting"], st["unchecked"] = shelf.waits, shelf.unchecked
     st["version"] += 1
+
+
+def _refs(st: dict, n: int) -> list[str | None]:
+    """The activity's n references as its state has them: a key, "!status: error", or None - not run yet."""
+    return ((st.get("refs") or []) + [None] * n)[:n]
 
 
 def _item(call, aid) -> dict:
     if not isinstance(aid, str) or aid not in call.items:
         raise Refused("no such activity in this deck")
     return call.items[aid]
+
+
+def failed_references(stage: dict) -> list[dict]:
+    """The references that failed in a game - the deck list says so (app.py), before the lecture too,
+    once a game of the deck has checked them: [{activity, reference (from 1), error}]."""
+    state = stage.get(NAME) or {}
+    return [{"activity": aid, "reference": i + 1, "error": r[1:]}
+            for aid, st in (state.get("items") or {}).items() for i, r in enumerate(st.get("refs") or [])
+            if isinstance(r, str) and r.startswith("!")]
 
 
 def view(stage: dict) -> dict | None:
@@ -317,7 +395,8 @@ def handle(call, t: str, msg: dict) -> dict | None:
         if crowd:
             raise Refused("a crowd graph has nothing to reveal")
         if not any(r and not r.startswith("!") for r in st["refs"]):
-            raise Refused("no reference result yet - the deck gives none, or the presenter window has not run it")
+            who = "the server has not checked it" if _mode(call) == "server" else "the presenter window has not run it"
+            raise Refused(f"no reference result yet - the deck gives none, or {who}")
         st["revealed"] = True
         st["version"] += 1
         call.phones = True
@@ -332,9 +411,9 @@ def handle(call, t: str, msg: dict) -> dict | None:
             raise Refused("no such contribution")
         p.muted = True
         call.save(p)
-        for o in shelf.contributions.values():
-            if o.player == p.id and o.state == "in":
-                o.state = "hidden"
+        for o in list(shelf.mine.get(p.id, ())):
+            if o.state == "in":
+                shelf.change(o, state="hidden")
                 call.save(o)
         _recount(st, shelf)
         call.phones = {p.id}
@@ -342,7 +421,7 @@ def handle(call, t: str, msg: dict) -> dict | None:
         c = shelf.contributions.get(msg.get("contribution"))
         if c is None or c.state not in ("in", "hidden"):
             raise Refused("no such contribution")
-        c.state = "hidden" if msg.get("on", True) else "in"
+        shelf.change(c, state="hidden" if msg.get("on", True) else "in")
         call.save(c)
         _recount(st, shelf)
     elif t == "activity.show":
@@ -420,15 +499,26 @@ def _layout(call, aid: str, st: dict, msg: dict):
     call.changed = False
 
 
-# ------------------------------------------------------------------ evaluation in the presenter's browser
+# ------------------------------------------------------------------ evaluation: in the presenter's browser, or on the server
+def _mode(call) -> str:
+    """Who checks this server's texts (checking.py, MODES): browser - the presenter window, as before F1."""
+    return call.book.checks.mode if call.book is not None and call.book.checks is not None else "browser"
+
+
 def _work(call) -> dict:
     """What the presenter window with the lease evaluates next: up to JOBS distinct waiting texts,
-    the references not run yet, the keys whose results the server has."""
+    the references not run yet - or that the server could not run (internal: its pool failed; the
+    package 4 review: else after a fallback to the browser's checks the activity was never revealed) -,
+    the keys whose results the server has. Where the server checks (the mode server), none: the lease
+    is the crowd graph's layout's only."""
     if call.role != "stage":
         raise Refused("only a presenter window evaluates", "read-only")
     sid, book = call.session.id, call.book
+    server = _mode(call) == "server"
     if not book.lease(sid, call.conn, call.now):
-        return {"lease": False}
+        return {"lease": False, "checks": "server"} if server else {"lease": False}
+    if server:
+        return {"lease": True, "checks": "server", "jobs": [], "references": {}, "known": {}, "engines": {}}
     state = _state(call.session.stage)
     jobs, refs, known, engines = [], {}, {}, {}
     for aid, item in call.items.items():
@@ -437,12 +527,13 @@ def _work(call) -> dict:
         st = state["items"].get(aid) or {}
         shelf = book.shelf(sid, aid)
         references = (call.keys.get(aid) or {}).get("reference") or []
-        if references and len(st.get("refs") or []) < len(references):
+        if any(r is None or r.startswith("!internal") for r in _refs(st, len(references))):
             refs[aid] = references
-        texts: dict[str, Contribution] = {}
-        for c in shelf.contributions.values():
-            if c.status == "waiting" and c.state in ("in", "hidden"):
-                texts.setdefault(c.input["text"], c)
+        texts = {}
+        for text, waiting in shelf.waiting.items():
+            c = next((c for c in waiting.values() if c.state in ("in", "hidden")), None)
+            if c is not None:
+                texts[text] = c
         for c in list(texts.values())[:max(0, JOBS - len(jobs))]:
             jobs.append({"activity": aid, "input": c.id, "text": c.input["text"]})
         if aid in refs or texts:
@@ -453,28 +544,101 @@ def _work(call) -> dict:
 
 def _result(call, aid: str, item: dict, st: dict, shelf: Shelf, msg: dict) -> dict | None:
     """A result from the presenter window with the lease: for an input (every waiting contribution
-    with its text), or for a reference."""
+    with its text), or for a reference - none where the server checks; in the mode both written down
+    for the pool's to be compared with (checking.py: compare)."""
     sid = call.session.id
     if item["input"] != "code":
         raise Refused("a crowd graph has nothing to evaluate")
+    mode = _mode(call)
+    if mode == "server":
+        raise Refused("the server checks the texts of this game", "not-evaluator")
     if call.role != "stage" or not call.book.holds(sid, call.conn, call.now):
         raise Refused("another presenter window evaluates", "not-evaluator")
-    status = msg.get("status")
-    if status not in STATUSES:
+    if msg.get("status") not in STATUSES:
         raise Refused(f"status: one of {', '.join(STATUSES)}")
+    if msg["status"] == "ok" and (not isinstance(msg.get("key"), str) or not KEY.fullmatch(msg["key"])):
+        raise Refused("key: 16 hexadecimal digits")
+    if "reference" in msg:
+        reply = _apply(call, aid, st, shelf, msg)
+        if mode == "both":
+            texts = (call.keys.get(aid) or {}).get("reference") or []
+            call.book.checks.compare(call.session, aid, f"reference {msg['reference'] + 1}", texts[msg["reference"]],
+                                     browser=msg)
+        return reply
+    first = shelf.contributions.get(msg.get("input"))
+    if first is None or first.status != "waiting":
+        return {"stale": True}                       # (withdrawn meanwhile, or evaluated already)
+    text = first.input["text"]
+    reply = _apply(call, aid, st, shelf, msg | {"text": text})
+    if mode == "both" and reply is None:
+        call.book.checks.compare(call.session, aid, "text", text, browser=msg)
+    return reply
+
+
+def checked(call, aid: str, msg: dict) -> dict | None:
+    """The server's check of a text - every contribution waiting with it - or of a reference ("reference":
+    its index), from the pool (checking.py, Engine.apply_checks), applied as the presenter window's
+    result is; a summary the shelf has no room for is left out, not the check."""
+    item = _item(call, aid)
+    if item["input"] != "code":
+        raise Refused("a crowd graph has nothing to check")
+    if msg.get("status") not in CHECKED:
+        raise Refused(f"status: one of {', '.join(CHECKED)}")
+    state = copy.deepcopy(_state(call.session.stage))
+    st = state["items"].setdefault(aid, _fresh(item))
+    shelf = call.book.shelf(call.session.id, aid)
+    reply = _apply(call, aid, st, shelf, msg, lenient=True)
+    call.session.stage = {**call.session.stage, NAME: state}
+    return reply
+
+
+def restarted(call) -> bool:
+    """The server started again (game.py: Engine): what could not be checked for the server's reasons -
+    internal, not set aside (Contribution.again) - waits again for the next checks: the pool's
+    (Engine.resume_checks), else the presenter window's. As the design has it (AF 10.2): a restarted
+    server queues the entries still unchecked again. Whether the game changed."""
+    state = copy.deepcopy(_state(call.session.stage))
+    changed = False
+    for aid, item in call.items.items():
+        shelf = call.book.shelves.get((call.session.id, aid))
+        if item["input"] != "code" or shelf is None:
+            continue
+        again = [c for c in shelf.contributions.values() if c.again()]
+        for c in again:
+            shelf.change(c, status="waiting", key="", error="")
+            call.save(c)
+        if again:
+            _recount(state["items"].setdefault(aid, _fresh(item)), shelf)
+            changed = True
+    if changed:
+        call.session.stage = {**call.session.stage, NAME: state}
+    return changed
+
+
+def _apply(call, aid: str, st: dict, shelf: Shelf, msg: dict, lenient: bool = False) -> dict | None:
+    """A check's outcome - status, key, error, summary - for a text (msg's "text": every contribution
+    waiting with it) or a reference (its "reference"). lenient, the server's: a summary over the size or
+    the activity's number of results is left out; the window's is refused."""
+    status = msg["status"]
     key = msg.get("key") if status == "ok" else status
     if status == "ok" and (not isinstance(key, str) or not KEY.fullmatch(key)):
         raise Refused("key: 16 hexadecimal digits")
     error = msg.get("error") if isinstance(msg.get("error"), str) else ""
+    if status == "internal" and msg.get("set_aside") is True and not error.startswith(SET_ASIDE):
+        error = SET_ASIDE + error                    # (the pool's: final - Contribution.again)
     summary = msg.get("summary")
     if status == "ok" and key not in shelf.results and isinstance(summary, dict):
+        why = None
         if len(json.dumps(summary)) > SUMMARY_MAX:
-            raise Refused(f"the summary has more than {SUMMARY_MAX // 1024} KB")
-        if len(shelf.results) >= RESULTS_MAX:
-            raise Refused(f"this activity has {RESULTS_MAX} different results already", "too-many")
-        r = Result(sid, aid, key, summary, call.now)
-        shelf.results[key] = r
-        call.save(r)
+            why = Refused(f"the summary has more than {SUMMARY_MAX // 1024} KB")
+        elif len(shelf.results) >= RESULTS_MAX:
+            why = Refused(f"this activity has {RESULTS_MAX} different results already", "too-many")
+        if why is not None and not lenient:
+            raise why
+        if why is None:
+            r = Result(call.session.id, aid, key, summary, call.now)
+            shelf.results[key] = r
+            call.save(r)
     if "reference" in msg:
         references = (call.keys.get(aid) or {}).get("reference") or []
         i = msg.get("reference")
@@ -485,15 +649,14 @@ def _result(call, aid: str, item: dict, st: dict, shelf: Shelf, msg: dict) -> di
         st["refs"] = refs
         st["version"] += 1
         return None
-    first = shelf.contributions.get(msg.get("input"))
-    if first is None or first.status != "waiting":
-        return {"stale": True}                       # (withdrawn meanwhile, or evaluated already)
+    waiting = list(shelf.waiting.get(msg.get("text"), {}).values())
+    if not waiting:
+        return {"stale": True}                       # (checked already: a known result, an earlier check)
     phones = set()
-    for c in shelf.contributions.values():
-        if c.status == "waiting" and c.input["text"] == first.input["text"]:
-            c.status, c.key, c.error = status, key, error[:ERROR_MAX] if status != "ok" else ""
-            call.save(c)
-            phones.add(c.player)
+    for c in waiting:
+        shelf.change(c, status=status, key=key, error=error[:ERROR_MAX] if status != "ok" else "")
+        call.save(c)
+        phones.add(c.player)
     _recount(st, shelf)
     call.phones = phones
     return None
@@ -511,12 +674,12 @@ def player(call, t: str, msg: dict) -> dict | None:
     if p.muted:
         raise Refused("the lecturer has closed contributions for you", "blocked")
     shelf = call.book.shelf(call.session.id, aid)
-    mine = [c for c in shelf.contributions.values() if c.player == p.id]
+    mine = shelf.mine.get(p.id, [])
     if t == "activity.withdraw":
         c = shelf.contributions.get(msg.get("contribution"))
         if c is None or c.player != p.id or c.state != "in":
             raise Refused("no such contribution of yours")
-        c.state = "withdrawn"
+        shelf.change(c, state="withdrawn")
         call.save(c)
         _recount(st, shelf)
         call.session.stage = {**call.session.stage, NAME: state}
@@ -540,20 +703,21 @@ def player(call, t: str, msg: dict) -> dict | None:
         c = Contribution(cid, call.session.id, aid, p.id, call.now, {"fields": fields}, key=key)
     else:
         text = clean_code(msg.get("text"), ENGINES.get(item.get("engine"), {}).get("text", "a query"))
-        for old in mine:
+        for old in list(mine):
             if old.state == "in":
-                old.state = "replaced"
+                shelf.change(old, state="replaced")
                 call.save(old)
-        done = next((o for o in shelf.contributions.values() if o.input.get("text") == text
-                     and o.status != "waiting"), None)       # the same text: its result is known
+        done = shelf.known.get(text)                 # the same text: its result is known
         c = Contribution(cid, call.session.id, aid, p.id, call.now, {"text": text},
                          key=done.key if done else "", status=done.status if done else "waiting",
                          error=done.error if done else "")
-    shelf.contributions[cid] = c
+    shelf.add(c)
     shelf.last[p.id] = call.now
     call.save(c)
     _recount(st, shelf)
     call.session.stage = {**call.session.stage, NAME: state}
+    if c.status == "waiting" and call.book.checks is not None:        # the server checks it (checking.py)
+        call.book.checks.submit(call.session.bundle, aid, c.input["text"], call.session.id, owner=p.id)
     return {"contribution": cid}
 
 
@@ -566,7 +730,8 @@ def player_view(call) -> dict | None:
         return None
     item, p = call.items[aid], call.player
     shelf = call.book.shelf(call.session.id, aid)
-    mine = [c for c in shelf.contributions.values() if c.player == p.id and c.state != "withdrawn"]
+    theirs = shelf.mine.get(p.id, [])
+    mine = [c for c in theirs if c.state != "withdrawn"]
     out = {"id": aid, "phase": st["phase"], "input": item["input"], "limit": item["limit"], "blocked": p.muted}
     if item.get("prompt"):
         out["prompt"] = item["prompt"]
@@ -576,12 +741,13 @@ def player_view(call) -> dict | None:
         out |= {"fields": item["fields"], "suggest": words, "used": len(mine),
                 "mine": [{"id": c.id, "fields": c.input["fields"]} for c in reversed(mine)]}
     else:                                   # (the engine: the phone's words - a query runs, a Turtle text is valid)
-        out |= {"engine": item.get("engine"), "tokens": item.get("tokens", []),
-                "used": sum(1 for c in shelf.contributions.values() if c.player == p.id)}
+        out |= {"engine": item.get("engine"), "tokens": item.get("tokens", []), "used": len(theirs)}
+        if _mode(call) == "server":                  # the phone's words: being checked, not waiting for the
+            out["checks"] = "server"                 # lecturer's computer (the package 4 review)
         latest = next((c for c in reversed(mine) if c.state in ("in", "hidden")), None)
         if latest is not None:
             last = {"id": latest.id, "text": latest.input["text"], "status": latest.status}
-            if latest.error:
+            if latest.error and latest.status != "internal":      # (why the server could not: not the phone's)
                 last["error"] = latest.error
             if st.get("revealed") and latest.status == "ok":
                 last["match"] = latest.key in st["refs"]
@@ -608,7 +774,8 @@ def picture(call, aid: str, role: str | None = None) -> dict:
         if item["input"] == "tuple":
             shelf.cache[key] = base | _crowd(item, st, shelf, role, layout)
         else:
-            shelf.cache[key] = base | _clustered(st, shelf, role)
+            n_refs = len((call.keys.get(aid) or {}).get("reference") or [])
+            shelf.cache[key] = base | _clustered(st, shelf, role, n_refs)
     return shelf.cache[key]
 
 
@@ -673,15 +840,18 @@ def _crowd(item: dict, st: dict, shelf: Shelf, role: str, layout: dict) -> dict:
 
 
 def _clusters(shelf: Shelf) -> dict[str, list[Contribution]]:
-    """The latest queries grouped by key (a status for what is not a result), not those that wait."""
+    """The latest queries grouped by key (a status for what is not a result), not those that wait or
+    that could not be checked (UNCHECKED)."""
     groups: dict[str, list[Contribution]] = {}
     for c in shelf.contributions.values():
-        if c.state == "in" and c.status != "waiting":
+        if c.state == "in" and c.status not in UNCHECKED:
             groups.setdefault(c.key if c.status == "ok" else c.status, []).append(c)
     return groups
 
 
-def _clustered(st: dict, shelf: Shelf, role: str) -> dict:
+def _clustered(st: dict, shelf: Shelf, role: str, n_refs: int = 0) -> dict:
+    """n_refs: the deck's references - the presenter window has each, None while it is not run yet (the
+    package 4 review: before, it said the deck gives none while the server prepared them)."""
     groups = _clusters(shelf)
     show_refs = role == "stage" or st.get("revealed")
     refs = set(st["refs"]) if show_refs else set()
@@ -708,7 +878,9 @@ def _clustered(st: dict, shelf: Shelf, role: str) -> dict:
     if st.get("shown") in groups:
         out["shown"] = entry(st["shown"], groups[st["shown"]])
     if role == "stage":
-        out["refs"] = [r if r is None or not r.startswith("!") else {"failed": r[1:]} for r in st["refs"]]
+        out["unchecked"] = st.get("unchecked", 0)
+        out["refs"] = [r if r is None or not r.startswith("!") else {"failed": r[1:]}
+                       for r in (_refs(st, n_refs) if n_refs else st["refs"])]
     return out
 
 

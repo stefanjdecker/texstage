@@ -11,7 +11,9 @@ processes die or do not start. And what the second review found (2026-11-10): a 
 checks made against an earlier prepare, a process that cannot prepare what another did, SQLite's own cap,
 retries on fresh processes, the queue left alone while no worker is free, a student's texts that wait,
 closing while a process starts, a lower address space. Then the same data on every process: a seed's run
-on the first one, copied to the others. Budgets of 200 ms keep it quick. The test engine,
+on the first one, copied to the others. And what package 4's review found: a text set aside says so, one
+whose processes were stopped from outside is not set aside, and the workers leave Ctrl+C and Ctrl+Break to
+the server. Budgets of 200 ms keep it quick. The test engine,
 tests/pool_engines.py, does what a text says."""
 from __future__ import annotations
 
@@ -451,6 +453,61 @@ def test_a_check_whose_worker_dies_runs_once_more_on_another_process_then_is_int
     again = check(pool, "test", "crash")
     assert (again["status"], again["tries"]) == ("internal", 0)              # no third worker dies for it
     assert len(ended(pool)) == n + 2
+    assert r["set_aside"] is True and again["set_aside"] is True             # the server keeps it so
+
+
+def stop_from_outside(pid: int) -> None:
+    """A worker ended as Ctrl+Break ends it on Windows, or a stop of the whole process group elsewhere
+    (systemd's SIGTERM): the exit code says so (pool.STOPPED)."""
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        k32.OpenProcess.restype = wintypes.HANDLE
+        k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        k32.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        k32.CloseHandle.argtypes = [wintypes.HANDLE]
+        handle = k32.OpenProcess(0x0001, False, pid)                         # PROCESS_TERMINATE
+        assert handle, ctypes.get_last_error()
+        k32.TerminateProcess(handle, 0xC000013A)                             # STATUS_CONTROL_C_EXIT
+        k32.CloseHandle(handle)
+    else:
+        os.kill(pid, 15)                                                    # SIGTERM
+
+
+def checking(p: Pool, text: str, other_than: int | None = None, timeout: float = 30) -> int:
+    """The pid of the process that checks the text - another than other_than."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        with p.lock:
+            for w in p.workers + p.spares:
+                if w.job is not None and w.job["text"] == text and w.pid != other_than:
+                    return w.pid
+        time.sleep(0.01)
+    raise AssertionError(f"nobody checks {text!r}")
+
+
+def test_a_check_whose_processes_are_stopped_from_outside_is_internal_and_not_set_aside(pool):
+    """Ctrl+Break on Windows, a stop of the process group elsewhere, ends the workers without their text's
+    doing (the package 4 review: the text came back internal and set aside, and stayed so): it runs once
+    more, and stopped again it is internal - not set aside, so that sent again it is checked again."""
+    text = "sleep 2 #stopped"
+    fut = pool.submit("test", text)
+    first = checking(pool, text)
+    stop_from_outside(first)
+    stop_from_outside(checking(pool, text, other_than=first))
+    r = fut.result(60)
+    assert (r["status"], r["tries"]) == ("internal", 2) and "set_aside" not in r
+    assert pool.wait_ready(60)
+    assert check(pool, "test", text)["status"] == "ok"                      # checked again, not set aside
+
+
+def test_the_workers_leave_ctrl_c_and_ctrl_break_to_the_server(pool):
+    """Ctrl+C - and on Windows Ctrl+Break - reach every process of the console: the server's to answer,
+    which closes the pool (the package 4 review: Ctrl+Break ended the workers first). SIGTERM is not
+    ignored: multiprocessing ends its daemons with it as the server's process exits."""
+    ignored = check(pool, "test", "signals")["summary"]["ignored"]
+    assert ignored == (["SIGINT", "SIGBREAK"] if sys.platform == "win32" else ["SIGINT"])
 
 
 def test_a_check_whose_worker_dies_once_is_checked_on_a_fresh_process(pool, tmp_path):

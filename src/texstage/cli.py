@@ -168,9 +168,12 @@ def cmd_serve(args: argparse.Namespace) -> int:
     addresses = lan_addresses()
     public = plan.public_url if plan else (public_url or f"http://{addresses[0]}:{args.port}").rstrip("/")
     host = args.host or ("127.0.0.1" if plan else "0.0.0.0")    # through a tunnel, phones come from here
+    from texstage.server.game import Settings
+    most = getattr(args, "max_players", None)
     config = ServerConfig(bundles=[Path(b) for b in args.bundles] or [Path.cwd()], data_dir=data,
                           public_url=public, presenter_key=args.key or load_presenter_key(data),
-                          owner=own_name(args.owner))
+                          owner=own_name(args.owner), settings=Settings(max_players=most) if most else Settings(),
+                          checks=getattr(args, "checks", None) or "browser", workers=getattr(args, "workers", None))
     app = create_app(config)
     server = app.state.server
     for b in sorted(server.bundles.bundles.values(), key=lambda b: (b.deck, str(b.path))):
@@ -185,6 +188,10 @@ def cmd_serve(args: argparse.Namespace) -> int:
     others = [n for n in server.lecturers.names() if n != config.owner]
     if others:
         print(f"  lecturers with keys of their own: {', '.join(others)} (texstage lecturer list)")
+    if config.checks != "browser":
+        print(f"  the server checks the activities' texts (--checks {config.checks}"
+              + (": the presenter window's results count, the differences go to checks-compare.csv)"
+                 if config.checks == "both" else ")"))
     if plan:
         kept = "remembered - --no-tunnel serves without it" if not args.tunnel else "remembered for the next start"
         print(f"  through the Cloudflare tunnel {name} ({kept}); PowerPoint and the host page use "
@@ -303,6 +310,18 @@ def server_up(port: int) -> bool:
         return False
 
 
+def server_checks(port: int) -> str | None:
+    """Who checks the activities' texts of the server that answers on this machine's port (its
+    /api/status), or None."""
+    import json
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://localhost:{port}/api/status", timeout=1.5) as r:
+            return json.loads(r.read()).get("checks") or "browser"
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
 def open_file(path: Path):
     """A file in the program the system opens it with (the PowerPoint file: PowerPoint)."""
     import os
@@ -343,12 +362,17 @@ def cmd_present(args: argparse.Namespace) -> int:
     opener = (lambda: open_file(pptx)) if args.powerpoint else (lambda: webbrowser.open(url))
     if server_up(args.port):                                 # it finds the build by itself (builds.json)
         print(f"texstage present: the quiz server on this machine runs already - {pptx if args.powerpoint else url}")
+        mode = server_checks(args.port) if args.checks or args.workers or args.max_players else None
+        if mode is not None and ((args.checks and args.checks != mode) or args.workers or args.max_players):
+            print(f"  it checks with --checks {mode}: --checks, --workers and --max-players are for a server "
+                  "that present starts")                 # (the package 4 review: they went unsaid)
         opener()
         return 0
     return cmd_serve(argparse.Namespace(
         bundles=[str(out), *more], host=args.host, port=args.port, public_url=args.public_url, tunnel=args.tunnel,
         no_tunnel=args.no_tunnel, data=args.data, key=None, owner=None, show_key=False, present=False,
-        opener=opener, log_level=args.log_level, forwarded_allow_ips=None))
+        opener=opener, log_level=args.log_level, forwarded_allow_ips=None, checks=args.checks,
+        workers=args.workers, max_players=args.max_players))
 
 
 def own_name(name: str | None) -> str:
@@ -562,6 +586,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--present", action="store_true",
                    help="open texstage's presenter window (/stage) in the browser once the server runs")
     s.add_argument("--log-level", default="warning")
+    checks_options(s)
     s.add_argument("--forwarded-allow-ips", default=None,
                    help="behind a reverse proxy: the proxy addresses whose X-Forwarded-* headers are trusted "
                         "(default 127.0.0.1 and ::1 - Caddy or cloudflared on this machine; '*' in Docker, "
@@ -625,7 +650,27 @@ def present_options(parser: argparse.ArgumentParser):
     t.add_argument("--no-tunnel", action="store_true", help="starting the server: without the remembered tunnel")
     parser.add_argument("--data", help=f"the quiz server's data folder (default ~/{DEFAULT_DATA.name})")
     parser.add_argument("--log-level", default="warning")
+    checks_options(parser, "starting the server: ")
     parser.set_defaults(func=cmd_present)
+
+
+def _positive(text: str) -> int:
+    n = int(text)
+    if n < 1:
+        raise argparse.ArgumentTypeError("at least 1")
+    return n
+
+
+def checks_options(parser: argparse.ArgumentParser, starting: str = "") -> None:
+    """Who checks the live activities' texts, on serve - and on present, for the server it starts
+    (docs/architecture/activity-framework-plan.md, 4.6 and 4.7)."""
+    parser.add_argument("--checks", choices=["server", "browser", "both"], default=None,
+                        help=f"{starting}who checks the live activities' queries: the server's worker processes, the "
+                             "presenter window (default, as before), or both - the window's results count, and every "
+                             "difference goes to checks-compare.csv in the game's archive folder")
+    parser.add_argument("--workers", type=_positive,
+                        help=f"{starting}the worker processes that check on the server (default: the cores less two)")
+    parser.add_argument("--max-players", type=_positive, help=f"{starting}phones a game takes at most (default 1000)")
 
 
 if __name__ == "__main__":

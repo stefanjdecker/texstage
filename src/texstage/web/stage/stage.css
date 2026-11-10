@@ -76,6 +76,7 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .deckcard .meta { color: var(--muted); font-size: 13px; }
 .tag { font-size: 12px; border-radius: 99px; padding: 2px 9px; background: #2c2c36; color: var(--muted); white-space: nowrap; }
 .tag.open { background: #4a3d00; color: #ffd75e; }
+.tag.bad { background: #4a1616; color: #ff9b9b; }
 .empty { color: var(--muted); }
 .uploadbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .uploadbar .uploaded { color: var(--muted); font-size: 13px; }
@@ -333,6 +334,7 @@ body.projector.idle .tq-onlink { cursor: none; }
 .actpanel button.on { background: var(--warn); color: #000; border-color: var(--warn); }
 .actpanel button:disabled { opacity: .5; }
 .actpanel .note { margin: 0; color: var(--muted); font-size: 13px; }
+.actpanel .note.bad { color: #ff9b9b; }     /* the server cannot check an activity's texts */
 .actpanel input[type=number] { width: 64px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; font: inherit; }
 .actterm { display: grid; grid-template-columns: 34px 1fr auto; gap: 4px 8px; align-items: center; padding: 6px 8px;
   border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }

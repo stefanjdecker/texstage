@@ -726,7 +726,7 @@ export class ActivityAgent {
     this.waiting = 0;
     this.sent = new Map();         // activity -> the positions last sent (JSON)
     this.due = new Map();          // activity -> {at, timer}
-    this.jobs = null;              // (reply) => the evaluator takes the work (L4)
+    this.jobs = null;              // (reply) => the evaluator takes the work (L4) - none where the server checks
     this.timer = setInterval(() => this.renew(), RENEW_MS);
   }
 

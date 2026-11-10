@@ -32,6 +32,7 @@ export default {
     yes: "yes", no: "no", result: "a result", graph: ["subject", "predicate", "object"],
     rows: (n) => `${n} ${n === 1 ? "row" : "rows"}`, triples: (n) => `${n} ${n === 1 ? "triple" : "triples"}`,
     students: (n) => `${n} ${n === 1 ? "student" : "students"}`, waiting: (n) => `${n} waiting`,
+    unchecked: (n) => `${n} could not be checked`,
     more: (n) => `and ${n} more`, others: "others", noTriplesYet: "Waiting for the first triples …", noTriples: "No triples.",
   },
 
@@ -60,8 +61,9 @@ export default {
   activity: {
     add: "Add", send: "Send", mine: "Yours", withdraw: "Withdraw",
     of: (n, m) => `${n} of ${m}`, closed: "The activity is closed.", blocked: "The lecturer has closed contributions for you.",
-    waiting: "Sent - waiting for the lecturer's computer …", ok: "Your query runs ✓",
+    waiting: "Sent - waiting for the lecturer's computer …", checking: "Sent - being checked …", ok: "Your query runs ✓",
     syntax: "Syntax error", error: "Error", timeout: "The query ran too long.", refused: "That is not run",
+    internal: "This could not be checked - not your fault.",
     match: "The same result as the reference ✓", differ: "A different result than the reference", query: "Your query",
     sent: "Sent.", empty: "Nothing yet.",
     // what the server refuses (server/activity.py's codes)
@@ -222,6 +224,8 @@ export default {
       folderMenu: "rename, move or delete the folder", folderActions: "folder actions",
       deckMenu: "rename, move or remove the deck", deckActions: "deck actions",
       present: "Present", noStage: "no stage PDF",
+      refsFail: (n) => (n === 1 ? "a reference fails" : `${n} references fail`),
+      refFailed: (activity, i, why) => `${activity}, reference ${i}: ${why}`,
       noStageWhy: "built without it (--no-stage, or before 2026-10-10 without --stage): build it again",
       noMatch: "No deck or folder matches.",
       empty: "This folder is empty - drag a deck onto it, or use a deck's ⋯ and Move to.",
@@ -339,6 +343,8 @@ export default {
       failed: (many, why) => `The ${many} cannot be evaluated here: ${why}`,
       evaluates: (many, n) => `This window evaluates the ${many} (${n} so far).`,
       elsewhere: (many) => `Another presenter window evaluates the ${many} - or none: they wait.`,
+      server: (many) => `The server checks the ${many}.`,
+      serverFailed: (many, why) => `The server cannot check the ${many}: ${why}`,
       into: "← into this", unmerge: "Unmerge", merge: "Merge…", mergeTitle: "merge it into another term",
       show: "Show", hide: "Hide", approve: "Approve", unapprove: "Unapprove", label: "label", node: "node",
       from: "On the projector from", on: (n) => `${n === 1 ? "student" : "students"} on`,

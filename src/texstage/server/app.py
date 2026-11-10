@@ -114,6 +114,7 @@ from texstage.server import archive
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
 from texstage.server.bundles import BundleError, BundleStore, holds, load_bundle
+from texstage.server.checking import AGAIN_S, MODES, Checks
 from texstage.server.devices import PAIR_MS, Devices
 from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
@@ -293,6 +294,9 @@ class ServerConfig:
     presenter_key: str                   # the server's own lecturer's key (<data>/presenter-key)
     settings: Settings = field(default_factory=Settings)
     owner: str = "local"                 # that lecturer's name; more in <data>/lecturers.json
+    checks: str = "browser"              # who checks the activities' texts (checking.py, MODES): server, browser, both
+    workers: int | None = None           # the server's pool: its worker processes (default: the cores less two)
+    pool: dict = field(default_factory=dict)     # (the tests': the pool's engines and budgets)
 
 
 class Conn:
@@ -405,7 +409,15 @@ class Server:
         self.pair_attempts = Attempts(*WRONG_PAIRINGS)
         self.publishing = asyncio.Lock()
         self.store = Store(config.data_dir / "texquiz.sqlite3")   # its name since 0.1: the games, archives
-        self.engine = Engine(self.bundles, self.store, config.settings)
+        if config.checks not in MODES:
+            raise ValueError(f"checks: one of {', '.join(MODES)}, not {config.checks!r}")
+        self.checks = None if config.checks == "browser" else Checks(config.checks, workers=config.workers,
+                                                                     **config.pool)
+        if self.checks is not None:                  # (the mode both: the differences, in the game's archive folder)
+            self.checks.compare_file = lambda s: archive.folder(config.data_dir, s) / "checks-compare.csv"
+        self.checks_due = False
+        self.loop: asyncio.AbstractEventLoop | None = None
+        self.engine = Engine(self.bundles, self.store, config.settings, checks=self.checks)
         self.recordings = Recordings(config.data_dir / "archive")      # texstage (archive.py)
         self.downloads: dict[str, tuple[Path, str, int]] = {}         # ticket -> file, its name, valid until
         self.media: dict[str, tuple[str, str, int]] = {}              # ticket -> bundle ID, relative video file, valid until
@@ -520,10 +532,41 @@ class Server:
 
     async def start(self):
         self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher())]
+        if self.checks is not None:                  # the pool starts; the open games' decks are prepared, and
+            self.loop = asyncio.get_running_loop()   # what still waits is checked (Engine.resume_checks)
+            self.checks.start(wake=self._wake_checks)
+            self.engine.resume_checks(now_ms())
+            log.info("checks: the server checks the activities' texts (%s)", self.checks.mode)
+
+    def _wake_checks(self):
+        """From the pool's threads - or a while after a round with answers to apply again (_checked):
+        answers wait, and the event loop takes them once, however many came."""
+        if not self.checks_due and self.loop is not None:
+            self.checks_due = True
+            self.loop.call_soon_threadsafe(self._checked)
+
+    def _checked(self):
+        """On the event loop: the pool's answers applied (Engine.apply_checks); the phones they concern get
+        their state now, the windows soon. An answer the engine could not apply comes again in a while
+        (checking.py: again)."""
+        self.checks_due = False
+        try:
+            for sid in self.engine.apply_checks(now_ms()):
+                self.dirty.add(sid)
+        except Exception:                            # a bug must not stop the checks
+            log.exception("applying the checks failed")
+        try:
+            self.push_due()
+        except Exception:
+            log.exception("pushing the checks failed")
+        if self.checks.later and self.loop is not None:
+            self.loop.call_later(AGAIN_S, self._wake_checks)
 
     async def stop(self):
         for t in self.tasks:
             t.cancel()
+        if self.checks is not None:                  # (what still waits is checked after the next start)
+            await asyncio.to_thread(self.checks.close)
         self.store.close()
 
     # ------------------------------------------------------------ publishing
@@ -1007,7 +1050,7 @@ def create_app(config: ServerConfig) -> Starlette:
     async def status(request: Request):
         return JSONResponse({"server": "texstage", "version": __version__, "join": f"{config.public_url}/play",
                              "instance": server.instance, "bundles": len(server.bundles.bundles),
-                             "games": len(server.engine.sessions)})
+                             "games": len(server.engine.sessions), "checks": config.checks})
 
     async def presenter_key(request: Request):
         # Only to the machine itself, asked as localhost: not through a proxy (behind Caddy
@@ -1271,6 +1314,7 @@ def create_app(config: ServerConfig) -> Starlette:
                         "complete": b.complete(), "stage": b.stage_pdf() is not None,
                         "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id}
                         if s and s.bundle == b.id else None,
+                        "failing": stage_types.activity.failed_references(s.stage) if s and s.bundle == b.id else [],
                         "folder": entry.get("folder"), "label": entry.get("label"),
                         "uploaded": bool(uploaded_builds(lect, b.deck))})   # deleting deletes them
         out.sort(key=lambda d: (d["name"].casefold(), -d["built"]))

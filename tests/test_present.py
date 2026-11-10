@@ -68,6 +68,24 @@ def test_when_a_deck_needs_a_build(tmp_path):
     assert cli.needs_build(deck, out, ignore=("slides.tex",)) is None   # a chapter's: written from its frames
 
 
+def test_present_on_a_server_that_runs_says_its_checks_options_are_for_a_server_it_starts(tmp_path, monkeypatch,
+                                                                                          opened, capsys):
+    """--checks (and --workers, --max-players) while a server runs that checks otherwise: present says which
+    mode the running one has, and that those options are for a server it starts (the package 4 review: they
+    went unsaid)."""
+    tex, out, fb = built(tmp_path)
+    monkeypatch.setattr(cli, "server_up", lambda port: True)
+    monkeypatch.setattr(cli, "server_checks", lambda port: "browser")
+    monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("the build is up to date"))
+    monkeypatch.setattr(cli, "cmd_serve", lambda args: pytest.fail("a server runs already"))
+    assert cli.main(["present", str(tex), "--checks", "server"]) == 0
+    assert "it checks with --checks browser: --checks, --workers and --max-players" in capsys.readouterr().out
+    assert cli.main(["present", str(tex), "--checks", "browser"]) == 0
+    assert "--checks" not in capsys.readouterr().out
+    assert cli.main(["present", str(tex), "--workers", "2"]) == 0
+    assert "it checks with --checks browser" in capsys.readouterr().out
+
+
 def test_present_on_the_server_that_runs(tmp_path, monkeypatch, opened):
     tex, out, fb = built(tmp_path)
     monkeypatch.setattr(cli, "server_up", lambda port: True)

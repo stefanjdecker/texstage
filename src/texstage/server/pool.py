@@ -37,8 +37,10 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
   more on a fresh process - the spare, or a worker that has checked nothing yet: it waits for one that is
   being started, or replaced, or still prepares its activity, and takes the next free process only with
   none to come -; failing again it is `internal`, and its text is set aside: submitted again, it is
-  `internal` at once. A check whose activity is gone meanwhile is `internal` too. A process not ready
-  within a minute is ended.
+  `internal` at once. Both outcomes say `set_aside: True`; no other `internal` does - a check whose
+  activity is gone meanwhile, one of a broken pool or of an activity not prepared, one whose process was
+  stopped from outside (STOPPED: Ctrl+Break, a stop of the whole process group) -, since those are not
+  the text's doing. A process not ready within a minute is ended.
 - **Memory:** SQLite's own cap (checks/sql.py, heap_allowance) - a text that reaches it is the student's
   `error` at once, and its worker goes on: SQLite counts alike in every process -; the watchdog, every
   50 ms, ends a worker whose committed memory is more than an allowance above what it held after its
@@ -62,6 +64,7 @@ import logging
 import multiprocessing as mp
 import os
 import queue
+import signal
 import sys
 import threading
 import time
@@ -86,6 +89,9 @@ PREPARE_BACKSTOP_S = 120.0          # loading a seed that takes longer ends its 
 START_BACKSTOP_S = 60.0             # a process not ready by then is ended: it counts as an early death
 EARLY_DEATHS = 3                    # processes in a row that die before they are ready: the pool is broken
 SEED_DEATHS = 2                     # processes a seed's loading ends: its activity fails
+# A worker stopped from outside - Windows' console closed or Ctrl+Break'd, a stop of the whole process group
+# (systemd's SIGTERM, a terminal's SIGHUP) - is not its text's doing: such a death sets no text aside.
+STOPPED = {0xC000013A, *(-getattr(signal, n) for n in ("SIGTERM", "SIGHUP", "SIGINT") if hasattr(signal, n))}
 
 
 def _resolved(value: dict) -> cf.Future:
@@ -321,8 +327,8 @@ class Pool:
     def submit(self, act: str, text: str, owner: str | None = None, budget_s: float = BUDGET_S,
                language: str | None = None) -> cf.Future:
         """A text to check: the future, its outcome - the status (ok, syntax, error, refused, timeout,
-        internal), the error, for a result its key and summary; besides, how many tries, the CPU time,
-        the waiting and checking times and the processes it ran on."""
+        internal), the error, for a result its key and summary, set_aside for a text the pool sets aside;
+        besides, how many tries, the CPU time, the waiting and checking times and the processes it ran on."""
         if isinstance(budget_s, bool) or not isinstance(budget_s, (int, float)) or not 0 < budget_s <= BUDGET_MAX_S:
             raise ValueError(f"budget_s: more than 0 and at most {BUDGET_MAX_S} seconds, not {budget_s!r}")
         with self.lock:
@@ -335,7 +341,8 @@ class Pool:
                 why = "not prepared" + (f": {a['failed']}" if a else "")
                 return _resolved({"status": "internal", "error": why, "tries": 0})
             if (act, text) in self.set_aside:
-                return _resolved({"status": "internal", "error": "set aside: it failed twice", "tries": 0})
+                return _resolved({"status": "internal", "error": "set aside: it failed twice", "tries": 0,
+                                  "set_aside": True})
             job = self.inflight.get((act, text))
             if job is not None:
                 return job["future"]
@@ -598,6 +605,7 @@ class Pool:
                 why = f"did not start ({w.start_error})"
             else:
                 why = f"died (exit code {w.proc.exitcode})"
+            stopped = not w.ended_for and w.pid is not None and w.proc.exitcode in STOPPED
             self.events.append({"worker": w.pid, "why": why, "at": time.time()})
             logs.append(f"checks: worker {w.pid} ended: {why}")
             if not w.ready:
@@ -626,7 +634,7 @@ class Pool:
                     if a is None:
                         outcome = {"status": "internal", "error": "dropped"}
                     else:
-                        outcome = None if stale else self._after(job, why)
+                        outcome = None if stale else self._after(job, why, stopped)
                     if outcome is None and self._retryable(job):
                         self._retry(job)
                     else:
@@ -657,16 +665,21 @@ class Pool:
         for a in self.acts.values():
             self._claim(a, resolve, exc=RuntimeError(why))
 
-    def _after(self, job: dict, why: str) -> dict | None:
-        """What a check comes to whose worker the pool lost: None, once more."""
+    def _after(self, job: dict, why: str, stopped: bool = False) -> dict | None:
+        """What a check comes to whose worker the pool lost: None, once more. Failing again, it is
+        `internal` and set aside - its outcome says so (set_aside), and the server keeps it so (activity.py)
+        -, unless its process was stopped from outside (STOPPED): then it is not the text's doing, and the
+        next start of the server checks it again."""
         if why == "cpu":
             return {"status": "timeout"}
         if job["tries"] < 2:
             return None
         if why == "memory":
             return {"status": "error", "error": Words(job["language"]).tooMuchMemory}
+        if stopped:
+            return {"status": "internal", "error": why}
         self.set_aside.add((job["act"], job["text"]))
-        return {"status": "internal", "error": why}
+        return {"status": "internal", "error": why, "set_aside": True}
 
     def _retryable(self, job: dict) -> bool:
         a = self.acts.get(job["act"])

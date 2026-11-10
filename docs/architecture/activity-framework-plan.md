@@ -151,6 +151,7 @@ lease the crowd graph's layout needs (AF 13), and hands out no jobs.
 | the checks | `checks/` (new): `common.py`, `sql.py`, `sparql.py`, `turtle.py` | the three engines of `web/engines/` in Python, with the same status, canonical form, key and summary (4.3), and their safety (4.4) |
 | the pool | `server/pool.py`, `server/worker.py` (new) | the worker processes, the queue, the budgets, the watchdogs, the retries (4.4) |
 | the activity type | `server/activity.py` | texts sent to the pool, results applied, references prepared, restarts (4.5) |
+| between them | `server/checking.py` (new, package 4) | the pool's answers to the engine on the event loop, the modes, `both`'s differences (4.5, 4.6) |
 | the server | `server/app.py`, `server/game.py` | the pool started and stopped with the server; results pushed (4.5); the modes (4.6) |
 | options | `cli.py` | `--checks`, `--workers`, `--max-players`, on `serve` and on `present` (4.7) |
 | windows and phones | `web/stage/presenter.js`, `web/play/activity.js`, `web/i18n/en.js`, `de.js` | no evaluator unless the server asks for one; the new texts (4.5) |
@@ -427,11 +428,15 @@ same canonical text, byte for byte, under the same hash. So:
 - **`activity.work` stays** for the layout's lease: in the server's mode its reply hands out no
   jobs and says `checks: "server"`, and `presenter.js` makes no `Evaluator`
   (`web/stage/presenter.js:705`); `activity.result` is refused in that mode.
-- **Statuses:** today's five (`server/activity.py:75`) and `internal`; `waiting` now means "being
-  checked". The phone's texts change in English and German - `waiting` becomes "Sent - being
-  checked …" (`web/i18n/en.js:63`), and `internal` gets words: "This could not be checked - not
-  your fault." The box and the panel count `internal` with the waiting ones, as unchecked; the
-  panel's note on which window evaluates goes.
+- **Statuses:** today's five (`server/activity.py:75`) and `internal`. The phone's texts change in
+  English and German: where the server checks, `waiting` says "Sent - being checked …"
+  (`web/i18n/en.js:63`) - in the browser's mode and in `both`, as before, "Sent - waiting for the
+  lecturer's computer …"; the phone's view says which (`checks: "server"`) -, and `internal` gets
+  words: "This could not be checked - not your fault." The panel counts `internal` apart from the
+  waiting ones, as the design's panel does (AF 13), and in the server's mode its note says that the
+  server checks, or why it cannot. (Package 4's review changed this rule, which had the box and the
+  panel count `internal` with the waiting ones and dropped the note: a pool that broke looked like a
+  slow one.)
 - **Each phone's view finds its own entries in an index by player,** instead of going through
   all of the activity's (`server/activity.py:569`, `:580`): in F0, closing an activity with 1,000
   entries reached the last of 1,100 phones after 597 ms, over the budget of 0.5 s (Q7).
@@ -441,7 +446,100 @@ same canonical text, byte for byte, under the same hash. So:
   unless the load on the laptop brings acknowledgements near their budget - in F0, 95 % within
   348 ms of 500 -; then F1 takes AF's commits every 50 ms (AF 10.2) ahead of F2.
 - **No table changes:** `contributions.status` takes one value more; results and references keep
-  their keys (4.3).
+  their keys (4.3). An older texstage on the same data folder - lecture-tools' until package 7 -
+  takes `internal` for a result, though: its windows show such entries as a group "internal". A
+  game with them is best not played on with it.
+- **What package 4 built (2026-11-10):** `server/checking.py` between the pool and the engine: the
+  pool answers on its own threads, and its answers wait in an inbox until the event loop applies
+  them, all that came at once, with one commit (`Engine.apply_checks`). In the pool an activity is
+  its build and its id, prepared once for every game of that build when a game starts and after a
+  restart, and dropped when the build's last game ends; a text goes to the pool as it comes, one
+  job per distinct text, whichever games wait for it. Its outcome is applied as the window's result
+  was (`_apply`, shared) - a summary over the limits is left out, not the check -; `internal` counts
+  with the waiting ones and forms no cluster, and the phone says "This could not be checked - not
+  your fault." without the server's reasons. In the server's mode `activity.work` gives the lease
+  and no jobs and says `checks: "server"`, also without the lease, the presenter window makes no
+  evaluator - elsewhere it makes one on the first reply that gives it the lease -, and
+  `activity.result` is refused; in `both` the window's
+  results count and every difference of status or key - for texts and for references - is a row of
+  `checks-compare.csv`: the time, the activity, what (a text, reference 1 ...), the text, and each
+  side's status, key and error. Each phone's entries are found by player, and the counts and the
+  waiting texts are kept as entries change (`Shelf.change`), not counted again. The deck list says
+  which references of a running game fail; `/api/status` names the mode. `--checks`, `--workers` and
+  `--max-players` are on `serve` and `present`; `browser` stays the default until package 7.
+  `tests/test_activity.py` has 7 new tests, with a pool of one worker - the references as the game
+  starts, the texts as they come, `internal`, a failing reference in the deck list, a restart with
+  texts waiting, `both`'s differences, and over WebSockets a phone's verdict with no window
+  evaluating -; its 9 earlier ones pass unchanged in the browser's mode; a Node test has the phone's
+  new words. The showcase's three code activities and the KG lecture's three, in its decks built on
+  this machine, ran on the branch's server with no presenter window: after the reveal the reference
+  matches, another query is `ok` and not the reference's, a syntax error is `syntax`. And
+  `texstage serve --checks server` started its workers through `spawn`, and a phone's verdict came
+  2 ms after its query. Not done: commits gathered (package 6 decides), the manual (package 8).
+- **What package 4's review found, and what changed (2026-11-10):** before package 4 was committed,
+  the user asked for a critical review of it - an independent reviewer with experiments, and mine.
+  Nine faults, each reproduced but for three points read from the code, all fixed ("Fix all
+  nine"), one by changing the rule on `internal` above:
+  - *A failure to check stuck to the text:* the known result of a text took `internal` too, so the
+    same text from anyone else got it at once and never reached the pool, and a restart sent only
+    the waiting texts again - also where the failure was the server's: a pool that broke, a seed
+    the pool could not load. After a fallback to `--checks browser` the window did not run the
+    references the pool had failed either, so the activity could not be revealed. Now `internal` is
+    final only where the pool set the text aside, for ending two of its processes (its outcome says
+    `set_aside`; the error kept begins "set aside: "), so a later identical text goes to the pool
+    again; a restart makes every other `internal` entry wait again, for the pool or the window (AF
+    10.2: a restarted server queues the entries still unchecked again); a build whose preparing
+    fails gives its references `internal`, not `error`; and the window runs a reference that is not
+    run yet or `internal`.
+  - *Ctrl+Break on Windows* reached every process of the console: the workers, which left only
+    Ctrl+C to the server, died at once, the check's retry died too, and the text was committed
+    `internal`, set aside, while the server shut down. The workers ignore Ctrl+Break now (not
+    SIGTERM: multiprocessing ends its daemons with it as the server's process exits), and a death
+    whose exit code says it was stopped from outside - Ctrl+Break or a closed console on Windows,
+    SIGTERM, SIGHUP or SIGINT elsewhere, as systemd stops the whole group - sets no text aside.
+  - *The panel said nothing true in the server's mode:* a pool that broke showed as texts waiting
+    (6 of 6), the note was hidden, and before the window's first `activity.work` it said that
+    another window evaluates; while the server prepared, it said that the deck gives no reference.
+    The host view now says who checks and why the server cannot for an activity (`checks: {mode,
+    failing}`); the panel says "The server checks the queries." or why it cannot, counts what could
+    not be checked apart from what waits, and has each reference not run yet as such.
+  - *Every restart prepared the decks of all games never ended* - a game ends when its deck is
+    opened again -, on every process, held until the server stopped: 8 decks of a semester's weeks,
+    with seeds of 1.5 MB, took 7.8 s after a restart, ahead of this lecture's, and each worker held
+    238 MB instead of 125. A restart skips games idle for longer than 6 hours now - a text sent to
+    one prepares its deck -, and opening a stale game's deck lets go of the old build only once the
+    new game is there (it had dropped the build and prepared it again).
+  - *The tests missed real faults:* five mutants passed them all - no one job for the same text in
+    two games, the build let go of while another game ran, a summary over the limits, no commit,
+    no drop -, and a push that never came hung the WebSocket tests (starlette's receive waits for
+    ever). They fail now, as does each fix undone; the WebSocket tests wait 30 s at most.
+  - *A restart with `--checks server` overwrote a game's reference keys* - against 4.11, a game the
+    browser's checks began keeps its keys -: where the engines' keys differ, a revealed match turned
+    into none. The pool's outcomes fill only references not run yet or failed.
+  - *One answer that failed to apply stranded its round:* the inbox was emptied first, and an error
+    of the store's or the engine's lost the round's other answers, whose texts waited until a
+    restart. Each answer is applied on its own; one that fails comes again with the next round, a
+    second later, three times at most.
+  - *The browser's mode looked different:* the phone said "being checked" where only the presenter
+    window checks; now only where the server does. (The deck list's failing references show in
+    every mode, as meant.)
+  - *Claims:* the bullet above said that the window makes its evaluator only once it is given jobs;
+    `texstage present --checks` went unsaid while a server ran - it says now which mode that server
+    has, and that the options are for a server it starts; 4.8 wanted the scripted tests run with the
+    pool (4.8 now says what is).
+
+  New tests: 9 in `tests/test_activity.py` (what the server could not check, after a restart and
+  after a fallback to the browser's checks; references not run yet; two games of one build; a
+  summary over the limits; a text being checked as the server stops; stale games; a game's keys
+  kept; an answer applied again), 2 and an assertion in `tests/test_pool.py` (a text set aside says
+  so; processes stopped from outside; the signals the workers leave to the server), 1 in
+  `tests/test_present.py`, the words of both modes in `web-activity-phone.test.mjs`. 25 mutants -
+  the fixes undone one at a time, and the eight of the review - fail them. The review's own
+  experiments, run again on the fixed code, show none of the faults: no text stays `internal` after
+  a restart or a fallback, a Ctrl+Break leaves the text being checked waiting and the restart pushes
+  its verdict, a restart after 8 stale decks prepares none. And a presenter window on the showcase,
+  its server in the server's mode, says "The server checks the queries." (for Turtle: "the texts")
+  with reference 1's key, as soon as the panel opens on the deck's first slide.
 
 ### 4.6 Three modes, for the first lectures
 
@@ -485,10 +583,12 @@ same canonical text, byte for byte, under the same hash. So:
   students' turns; a seed of several MB prepared while workers die, without the pool's lock held
   up. Budgets of 200 ms, so that the suite stays quick.
 - **`tests/test_activity.py`:** its scripted checks (`test_the_clusters`,
-  `test_a_turtle_activity`) run with the pool and a test engine, and, unchanged, with
-  `--checks browser`; a restart with entries waiting; references prepared at the game's start;
-  `both` writing a difference; over WebSockets, `activity.work` giving the lease and no jobs, and
-  the phones getting their verdicts without a presenter window.
+  `test_a_turtle_activity`) unchanged with `--checks browser`, and the same checked by the pool in
+  tests of their own - with the real engines, and a test engine where a text must crash or sleep
+  (as built: the scripted ones script the presenter window's results, which the pool replaces); a
+  restart with entries waiting; references prepared at the game's start; `both` writing a
+  difference; over WebSockets, `activity.work` giving the lease and no jobs, and the phones getting
+  their verdicts without a presenter window. And what package 4's review found (4.5).
 - **Node:** `web-activity-phone.test.mjs` with the new texts and `internal`; `web-i18n.test.mjs`
   finds words for every new code. The engines' tests stay until package 8.
 - **The load:** F0's runs 2 and 3 on F1's code (package 6).

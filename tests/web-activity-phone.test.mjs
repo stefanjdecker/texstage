@@ -3,7 +3,8 @@
 // A code activity on the phone (web/play/activity.js), in Node: what its screen says, engine by
 // engine - a Turtle text is valid or not, a graph the reference's or not; a query's words as they
 // were -, in the deck's language (play.js gives it; never the phone's own), the server's refusals
-// in its words, and the token bar's insertion at the cursor: a word with spaces around it, the
+// in its words, a text being checked or one that could not be (internal: no reasons shown), and
+// the token bar's insertion at the cursor: a word with spaces around it, the
 // start of one (?, _:, dbr:) with a space before it only, a sign (:, ., ", @, ^^) as it is.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -93,6 +94,27 @@ test("the screen says it: valid Turtle, a syntax error at its line, the same gra
   const g = screen(de, { engine: "turtle" });
   g.update({ mine: { id: "c1", text: "x", status: "ok", match: false } });
   assert.match(g.el("[data-role=state]").innerHTML, /Gültiges Turtle ✓.*Ein anderer Graph als die Referenz/s);
+});
+
+test("the screen says a text is being checked - and that one could not be, never with the server's reasons", () => {
+  // where the server checks (checks: "server") it is being checked; else it waits for the lecturer's
+  // computer, as before F1 (the package 4 review: the server's words showed in the browser's mode too)
+  const q = screen(en, { engine: "sparql" });
+  q.update({ checks: "server", mine: { id: "c1", text: "SELECT * {}", status: "waiting" } });
+  assert.equal(q.el("[data-role=state]").innerHTML, "<p>Sent - being checked …</p>");
+  q.update({ mine: { id: "c1", text: "SELECT * {}", status: "waiting" } });
+  assert.equal(q.el("[data-role=state]").innerHTML, "<p>Sent - waiting for the lecturer&#39;s computer …</p>");
+  q.update({ checks: "server", mine: { id: "c1", text: "SELECT * {}", status: "internal" } });
+  assert.equal(q.el("[data-role=state]").innerHTML, "<p>This could not be checked - not your fault.</p>");
+  q.update({ checks: "server", mine: { id: "c1", text: "SELECT * {}", status: "internal", error: "died (exit code 3)" } });
+  assert.equal(q.el("[data-role=state]").innerHTML, "<p>This could not be checked - not your fault.</p>");
+  const g = screen(de, { engine: "turtle" });
+  g.update({ checks: "server", mine: { id: "c1", text: "x", status: "internal" } });
+  assert.equal(g.el("[data-role=state]").innerHTML, "<p>Das ließ sich nicht prüfen – nicht Ihre Schuld.</p>");
+  g.update({ checks: "server", mine: { id: "c1", text: "x", status: "waiting" } });
+  assert.equal(g.el("[data-role=state]").innerHTML, "<p>Abgeschickt – wird geprüft …</p>");
+  g.update({ mine: { id: "c1", text: "x", status: "waiting" } });
+  assert.equal(g.el("[data-role=state]").innerHTML, "<p>Abgeschickt – wartet auf den Rechner der Lehrperson …</p>");
 });
 
 test("the token bar inserts at the cursor: words with spaces, a sign as it is", () => {

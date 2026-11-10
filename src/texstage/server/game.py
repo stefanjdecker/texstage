@@ -40,6 +40,7 @@ draw; the projector shows the sketches the lecturer picks), and questions from t
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 import unicodedata
 from collections import Counter
@@ -52,6 +53,8 @@ from texstage.server.ink import InkBook, Stroke, check_frame
 from texstage.server.polls import POLLS_MAX, PollError, make_poll, poll_quiz
 from texstage.server.qa import Asked
 from texstage.server.scoring import InvalidAnswer, judge, normalize_text, speed_points, streak_bonus, validate
+
+log = logging.getLogger("texstage.checks")
 
 NICK_MAX = 20
 CHOICE_TYPES = ("single", "truefalse", "multiple", "poll")
@@ -179,10 +182,13 @@ def clean_nickname(nickname) -> str:
 
 
 class Engine:
-    def __init__(self, bundles, store=None, settings: Settings | None = None):
+    def __init__(self, bundles, store=None, settings: Settings | None = None, checks=None):
         self.bundles = bundles               # .get(bundle id) -> Bundle | None
         self.store = store
         self.settings = settings or Settings()
+        self.checks = checks                 # the server's checks of activities (checking.py); None: the browser's
+        if checks is not None:
+            checks.bundles = bundles
         self.sessions: dict[str, Session] = {}
         self.players: dict[str, Player] = {}
         self.tokens: dict[str, str] = {}     # token hash -> player id
@@ -190,6 +196,8 @@ class Engine:
         # the content types' larger data of all games (types.py: Book), and the games whose phones
         # get their state again after a type's change (all: True, or these player ids; take_due)
         self.books = {name: kind.Book() for name, kind in stage_types.TYPES.items() if hasattr(kind, "Book")}
+        for book in self.books.values():
+            book.checks = checks
         self.due: dict[str, set | bool] = {}
         if store is not None:
             for s in store.load():
@@ -201,6 +209,25 @@ class Engine:
             for name, book in self.books.items():
                 book.load([row for cls in getattr(stage_types.TYPES[name], "ROWS", {})
                            for row in store.load_rows(cls, list(self.sessions))])
+            self._restarted()
+
+    def _restarted(self):
+        """The content types' part as the server starts again (activity.py: restarted - what could not be
+        checked for the server's reasons waits again, for the next checks)."""
+        changed = False
+        for s in list(self.sessions.values()):
+            for kind in stage_types.TYPES.values():
+                if not hasattr(kind, "restarted"):
+                    continue
+                try:
+                    call = self._call(s, kind, s.last_active)
+                except GameError:                        # (its deck is not on this server any more)
+                    continue
+                if kind.restarted(call):
+                    self._save(s)
+                    changed = True
+        if changed:
+            self._commit()
 
     # ------------------------------------------------------------ bookkeeping
     def _register(self, s: Session):
@@ -260,7 +287,7 @@ class Engine:
         b = self.bundles.get(bundle_id)
         if b is None or b.deck != deck:
             raise GameError("unknown-bundle", f"deck {deck}, bundle {bundle_id} is not on this server")
-        last = None
+        last, ended = None, set()
         for s in list(self.sessions.values()):
             if s.deck == deck and s.owner == owner and s.ended is None:
                 fresh = now - s.last_active < self.settings.stale_ms
@@ -271,8 +298,11 @@ class Engine:
                     return s
                 if fresh:
                     last = s                         # a rebuild in the lecture: the timer goes on
-                self._end(s, now)
+                self._end(s, now, release=False)
+                ended.add(s.bundle)
         s = self._create(b, now, owner, last)
+        for bid in ended:                            # after the new game: a build it plays on stays prepared
+            self._release(bid)                       # (the package 4 review: it was dropped, then prepared again)
         self._commit()
         return s
 
@@ -292,9 +322,11 @@ class Engine:
         self._save(s)
         if same:
             self._save(*self.ink.move(last.id, s.id))
+        if self._check_deck(s, b, now):
+            self._save(s)
         return s
 
-    def _end(self, s: Session, now: int):
+    def _end(self, s: Session, now: int, release: bool = True):
         s.ended = now
         self._save(s)
         del self.sessions[s.id]
@@ -305,6 +337,128 @@ class Engine:
         for book in self.books.values():
             book.forget(s.id)
         self.due.pop(s.id, None)
+        if release:
+            self._release(s.bundle)
+
+    def _release(self, bundle_id: str):
+        """The build's last game ended: the pool lets go of its activities."""
+        if self.checks is not None and not any(o.bundle == bundle_id for o in self.sessions.values()):
+            self.checks.release(bundle_id)
+
+    # ------------------------------------------------------------ the server's checks (checking.py)
+    def _check_deck(self, s: Session, b: Bundle, now: int) -> bool:
+        """A game of a deck whose activities the server checks: every process of the pool prepares the
+        build's code activities - once for all games of it -, and the references' outcomes are the
+        game's at once if they are known, else when they come (apply_checks). Whether the game changed."""
+        if self.checks is None:
+            return False
+        self.checks.prepare(b)
+        changed = False
+        for aid in b.items.get("activity") or {}:
+            outcomes = self.checks.references(b.id, aid)
+            if outcomes is not None:
+                changed = self._references(s, aid, outcomes, now) or changed
+        return changed
+
+    def _references(self, s: Session, aid: str, outcomes: list[dict], now: int) -> bool:
+        """The pool's outcomes of an activity's references in a game: its st["refs"], as the presenter
+        window's results were - a key the game has stays, though (plan 4.11: a game that the browser's
+        checks began keeps its keys, and its students' match them; the package 4 review: a restart with
+        --checks server overwrote them) -; in the mode both compared with those only. Whether the game
+        changed."""
+        kind = stage_types.TYPES["activity"]
+        try:
+            call = self._call(s, kind, now, role="pool")
+        except GameError:
+            return False
+        texts = (call.keys.get(aid) or {}).get("reference") or []
+        have = (((s.stage.get("activity") or {}).get("items") or {}).get(aid) or {}).get("refs") or []
+        changed = False
+        for i, outcome in enumerate(outcomes[:len(texts)]):
+            if self.checks.mode == "both":
+                self.checks.compare(s, aid, f"reference {i + 1}", texts[i], server=outcome)
+                continue
+            if i < len(have) and have[i] is not None and not have[i].startswith("!"):
+                continue
+            try:
+                kind.checked(call, aid, {"reference": i, **outcome})
+                changed = True
+            except stage_types.Refused as err:
+                log.warning("checks: reference %d of %s in game %s not applied: %s", i + 1, aid, s.id, err)
+        return changed
+
+    def apply_checks(self, now: int) -> set[str]:
+        """What the pool answered since (checking.py: answers), applied to the games it is for - their
+        texts' contributions and the references, as the presenter window's results were, the phones they
+        concern due; in the mode both compared with the window's only. The games that changed, for the
+        server to push their windows."""
+        if self.checks is None:
+            return set()
+        changed: set[str] = set()
+        for answer in self.checks.answers():
+            try:
+                self._apply_answer(answer, now, changed)
+            except Exception:  # noqa: BLE001 - not the answer's: the engine's own error, or the store's
+                log.exception("checks: an answer of %s not applied", answer[2])
+                self.checks.again(answer)                # with the next round (the package 4 review)
+        if changed:
+            try:
+                self._commit()
+            except Exception:  # noqa: BLE001 - the store: what is applied stays, and the next commit takes it
+                log.exception("checks: the store did not commit")
+        return changed
+
+    def _apply_answer(self, answer: tuple, now: int, changed: set[str]) -> None:
+        kind = stage_types.TYPES["activity"]
+        if answer[0] == "references":
+            _, bundle, aid, outcomes, failed = answer
+            for s in [s for s in self.sessions.values() if s.bundle == bundle]:
+                if self._references(s, aid, outcomes, now):
+                    self._save(s)
+                    changed.add(s.id)
+                elif failed:
+                    changed.add(s.id)                    # (no reference to show it: the windows say why - host_view)
+            return
+        _, bundle, aid, text, outcome, games = answer
+        for sid in games:
+            s = self.sessions.get(sid)
+            if s is None or s.bundle != bundle:
+                continue
+            if self.checks.mode == "both":
+                self.checks.compare(s, aid, "text", text, server=outcome)
+                continue
+            try:
+                call = self._call(s, kind, now, role="pool")
+                kind.checked(call, aid, {"text": text, **outcome})
+            except (GameError, stage_types.Refused) as err:
+                log.warning("checks: a text of %s in game %s not applied: %s", aid, sid, err)
+                continue
+            self._save(s)
+            self._due(s.id, call.phones)
+            changed.add(s.id)
+
+    def resume_checks(self, now: int) -> None:
+        """The server (re)started: every open game's deck prepared again, and the texts that still wait -
+        sent before the restart, or while the presenter window checked them, or that could not be checked
+        then (activity.py: restarted) - go to the pool. Not a stale game's: an earlier lecture's, whose
+        deck makes a new game when it is opened again - and then prepared (the package 4 review: every
+        deck of a semester was prepared again on every process, and held). A text sent to it prepares it."""
+        if self.checks is None:
+            return
+        book = self.books.get("activity")
+        for s in list(self.sessions.values()):
+            b = self.bundles.get(s.bundle)
+            if b is None or now - s.last_active >= self.settings.stale_ms:
+                continue
+            if self._check_deck(s, b, now):
+                self._save(s)
+            for aid, item in (b.items.get("activity") or {}).items():
+                if item.get("input") != "code" or book is None:
+                    continue
+                for text, waiting in list(book.shelf(s.id, aid).waiting.items()):
+                    first = next(iter(waiting.values()))
+                    self.checks.submit(s.bundle, aid, text, s.id, owner=first.player)
+        self._commit()
 
     def end(self, sid: str, now: int):
         """Ends a game (its deck is deleted): what a new game of the deck would do with it - its
@@ -1321,7 +1475,15 @@ class Engine:
             "stage": self._stage_view(s),
             "polls": {quiz: entry["public"] for quiz, entry in s.polls.items()},
             "qa": {"open": bool(s.stage.get("qa")), "questions": self._qa_view(s)},
+            "checks": self._checks_view(s),
         }
+
+    def _checks_view(self, s: Session) -> dict:
+        """Who checks the activities' texts (checking.py: MODES) - and, where the server does, why it cannot
+        for some of the game's activities: {mode, failing: {activity: why}} (the presenter window's panel)."""
+        if self.checks is None:
+            return {"mode": "browser"}
+        return {"mode": self.checks.mode, "failing": self.checks.problems(s.bundle)}
 
     def results_table(self, sid: str) -> list[list]:
         """The game as a table (the host's CSV export): a row per player in rank order; per

@@ -12,6 +12,7 @@
     alloconce path mb the same if the file is there, which it takes away
     raise             the engine fails: the text's error
     limits            the worker's address space (Linux)
+    signals           the signals the worker ignores (SIGINT, SIGBREAK, SIGTERM)
     flaky dir n...    the engine fails the n-th time the text is checked, counted over every process
 
 A seed "fail ..." does not load, "crash" ends the worker that loads it, "slow s" takes s seconds, and
@@ -103,6 +104,11 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
         import resource
         return {"status": "ok", "canonical": "limits", "rows": [], "summary": {
             "kind": "test", "address_space": resource.getrlimit(resource.RLIMIT_AS)[0]}}
+    elif what == "signals":                              # those the worker leaves to the server
+        import signal
+        names = [n for n in ("SIGINT", "SIGBREAK", "SIGTERM") if hasattr(signal, n)]
+        return {"status": "ok", "canonical": "signals", "rows": [], "summary": {
+            "kind": "test", "ignored": [n for n in names if signal.getsignal(getattr(signal, n)) == signal.SIG_IGN]}}
     token = {"token": state["token"]} if "token" in state else {}
     return {"status": "ok", "canonical": "\n".join(["test", state["seed"], text, *token.values()]), "rows": [text],
             "summary": {"kind": "test", "seed": state["seed"], "text": text} | token}

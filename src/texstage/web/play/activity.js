@@ -4,9 +4,11 @@
 // screen while the activity is open - or revealed - and no quiz round is. A tuple: its fields,
 // each offering the deck's suggestions and the terms the projector shows, and below the
 // student's own triples, each to be withdrawn. A query: a text field without autocorrection,
-// the token bar (a tap inserts at the cursor), and the state of the latest query - waiting, runs,
-// a syntax error with the engine's message, after the reveal whether its result is the
-// reference's. Never the result itself. The screen owns its elements: what is being typed
+// the token bar (a tap inserts at the cursor), and the state of the latest query - being checked
+// (where the server checks: checks "server"; else waiting for the lecturer's computer), runs, a
+// syntax error with the engine's message, could not be checked (internal: never the student's
+// fault, and no message), after the reveal whether its result is the reference's.
+// Never the result itself. The screen owns its elements: what is being typed
 // survives the pushes. The words follow the engine: a Turtle text (engine=turtle) is valid or
 // not, its graph the reference's or not (words) - in the deck's language, as all of the phone's.
 
@@ -137,7 +139,7 @@ export class ActivityScreen {
     if (closed) this.error(a.blocked ? L.blocked : L.closed);
     else if ([L.blocked, L.closed].includes(this.root.querySelector("[data-role=error]").textContent)) this.error("");
     this.root.querySelectorAll("[data-role=used]").forEach((el) => { el.textContent = `(${L.of(a.used, a.limit)})`; });
-    const key = JSON.stringify([a.suggest, a.mine, a.phase]);
+    const key = JSON.stringify([a.suggest, a.mine, a.phase, a.checks]);
     if (key === this.listed) return;
     this.listed = key;
     if (this.kind === "tuple") {
@@ -152,7 +154,8 @@ export class ActivityScreen {
     box.hidden = !m;
     if (!m) return;
     if (!this.text.value && m.text) this.text.value = m.text;          // (a reload: the query as sent)
-    const word = { waiting: L.waiting, ok: L.ok, timeout: L.timeout }[m.status];
+    const waiting = a.checks === "server" ? L.checking : L.waiting;        // the server's checks, or the lecturer's computer
+    const word = { waiting, ok: L.ok, timeout: L.timeout, internal: L.internal }[m.status];
     const said = word || `${L[m.status] || m.status}${m.error ? `: ${m.error}` : ""}`;
     const verdict = m.match === undefined ? "" : `<p class="${m.match ? "good" : "bad"}">${esc(m.match ? L.match : L.differ)}</p>`;
     box.className = `card actstate ${m.status}`;

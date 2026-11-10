@@ -402,6 +402,8 @@ function library(decks, folders, uploaded = "") {
       <div class="meta">${esc([query && byId.has(d.folder) ? B.within(where(d.folder)) : "", d.label ? d.name : "", d.deck,
     L.quizzes(d.quizzes), L.slides(d.slides), L.built(built(d.built))].filter(Boolean).join(" · "))}</div></div>
       ${d.game ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
+      ${d.failing?.length ? `<span class="tag bad" title="${esc(d.failing.map((f) => B.refFailed(f.activity, f.reference, f.error))
+    .join("\n"))}">${esc(B.refsFail(d.failing.length))}</span>` : ""}
       ${d.stage ? `<button class="primary" data-present="${esc(d.bundle)}">${esc(B.present)}</button>`
     : `<span class="tag" title="${esc(B.noStageWhy)}">${esc(B.noStage)}</span>`}
       <button class="more" data-more-deck="${esc(d.bundle)}" title="${esc(B.deckMenu)}" aria-label="${esc(B.deckActions)}">⋯</button></div>`;
@@ -701,10 +703,14 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   agent?.destroy();
   agent = deck.items?.activity ? new ActivityAgent({ send: (msg) => client.send(msg) }) : null;
   if (agent && Object.values(deck.items.activity).some((a) => a.input === "code")) {
-    // the queries are evaluated here while this window has the lease (evaluator.js)
-    const evaluator = new Evaluator({ send: (msg) => client.send(msg), base: `/bundle/${deck.bundle}/` });
-    agent.evaluator = evaluator;
-    agent.jobs = (work) => evaluator.take(work).then((any) => { if (any) setTimeout(() => agent?.renew(), 50); });
+    // the queries are evaluated here while this window has the lease (evaluator.js) - unless the
+    // server checks them (activity.work: checks "server"), and then this window makes no evaluator
+    const own = agent;
+    own.jobs = (work) => {
+      if (work.checks === "server") return;
+      own.evaluator ??= new Evaluator({ send: (msg) => client.send(msg), base: `/bundle/${deck.bundle}/` });
+      own.evaluator.take(work).then((any) => { if (any) setTimeout(() => agent?.renew(), 50); });
+    };
   }
   stage = new Stage($("#stage"), { send: (cmd) => client.send(cmd).catch(alertError), controls: true, surface: new PdfSurface(pdf),
     sketches: (quiz, players) => client.send({ t: "sketch.get", quiz, players }).then((r) => r.sketches),
@@ -1739,7 +1745,8 @@ function renderActivities() {
   pick.value = actPanel.chosen;
   const id = actPanel.chosen;
   const st = acts.items?.[id] || { phase: "ready", version: 0, count: 0, students: 0 };
-  const want = `${id}:${st.version}:${JSON.stringify(actPanel.merging)}`;      // (not the layout: no positions here)
+  const checks = state?.checks || {};                     // who checks, and why the server cannot (host view)
+  const want = `${id}:${st.version}:${JSON.stringify(actPanel.merging)}:${checks.mode}:${checks.failing?.[id] || ""}`;
   if (want === actPanel.seen || actPanel.loading) return;
   actPanel.loading = true;
   client.send({ t: "activity.view", activity: id }).then((r) => {
@@ -1759,13 +1766,20 @@ function drawActivityPanel(id, item, st, pic) {
   const crowd = item.input === "tuple";
   const A = T.presenter.activity, W = T.box;
   const words = codeWords(item, lang);                   // queries - or Turtle texts
-  const head = `<div class="acthead"><b>${esc(textOf(A.phase, st.phase))}</b> · ${esc(W.students(st.students || 0))} ·
-      ${esc(A.contributions(st.count || 0))}${st.waiting ? ` · ${esc(W.waiting(st.waiting))}` : ""}
+  // who checks them, from the host view (the package 4 review: from activity.work, before its first
+  // reply the panel said another window evaluates; and a pool that broke said nothing)
+  const checks = state?.checks || { mode: "browser" };
+  const failing = checks.failing?.[id];
+  const note = crowd ? "" : checks.mode === "server" ? (failing ? A.serverFailed(words.many, failing) : A.server(words.many))
+    : agent?.evaluator?.failed ? A.failed(words.many, agent.evaluator.failed)
+      : agent?.leads() ? A.evaluates(words.many, agent.evaluator?.done ?? 0) : A.elsewhere(words.many);
+  const counts = [W.students(st.students || 0), A.contributions(st.count || 0), st.waiting ? W.waiting(st.waiting) : "",
+    st.unchecked ? W.unchecked(st.unchecked) : ""].filter(Boolean).map(esc).join(" · ");
+  const head = `<div class="acthead"><b>${esc(textOf(A.phase, st.phase))}</b> · ${counts}
     <div class="buttons left">${st.phase === "open" ? `<button data-act="close">${esc(A.close)}</button>`
       : `<button data-act="open" class="primary">${esc(A.open)}</button>`}
       ${crowd ? "" : `<button data-act="reveal"${st.revealed ? " disabled" : ""}>${esc(st.revealed ? A.revealed : A.reveal)}</button>`}</div>
-    ${crowd ? "" : `<p class="note">${esc(agent?.evaluator?.failed ? A.failed(words.many, agent.evaluator.failed)
-      : agent?.leads() ? A.evaluates(words.many, agent.evaluator?.done ?? 0) : A.elsewhere(words.many))}</p>`}</div>`;
+    ${note ? `<p class="note${failing && checks.mode === "server" ? " bad" : ""}">${esc(note)}</p>` : ""}</div>`;
   const body = crowd ? crowdPanel(item, st, pic) : clusterPanel(words, pic);
   actPanel.querySelector("#actbody").innerHTML = head + body;
 }
