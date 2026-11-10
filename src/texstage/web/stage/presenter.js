@@ -957,10 +957,21 @@ function prefetch(i) {
   pdf.prefetch(jobs);
 }
 
+// /stage?timing logs every slide change to the console: how long this window took to render it, and
+// until it was painted - the design's budget is 100 ms, also with 1,000 phones in the game (AF 15.1; from
+// F0's spike, for the load runs: tools/load/run.py)
+const TIMING = new URLSearchParams(location.search).has("timing");
+
 function go(item) {
   const id = idOf(item);
+  const t0 = TIMING ? performance.now() : 0;
   local = pending = id;
   render();
+  if (TIMING) {
+    const t1 = performance.now();
+    requestAnimationFrame(() => setTimeout(() => console.log(
+      `[timing] slide ${id}: render ${(t1 - t0).toFixed(1)} ms, painted ${(performance.now() - t0).toFixed(1)} ms`)));
+  }
   if (item.board) send({ t: "go", board: item.board });
   else send({ t: "slide", slide: item.id });
   startTimerOnce();

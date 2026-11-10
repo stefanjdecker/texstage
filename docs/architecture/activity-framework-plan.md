@@ -680,7 +680,10 @@ what the phones measured against AF 15.1's budgets. The session:
    key>` (with a tunnel the server listens on the laptop only).
 5. By hand, as F0's report has it: the presenter window's slide changes (`?timing`) and the
    projector's updates during a run; and a quiz round right after one (run 4 of 3.4), with the
-   showcase's deck and `tools/simulate.py` as for the quiz's load test.
+   showcase's deck and `tools/simulate.py` as for the quiz's load test. The window goes to the
+   activity's slide only once the run has opened the activity: an activity opens when its frame
+   comes to the projector, and phones that find it open while they join answer before the burst
+   is set.
 6. Both sides write `results-<side>.json` to their scratch folders; the phones' side prints the
    table. Those numbers make F0's report final and decide what 4.5 left open: whether commits
    are gathered.
@@ -719,9 +722,37 @@ phones joining within 30 s, 208 tries; with 1,100, the join stood still at 70). 
 one context now. And a phone whose join the network refuses tries again, as a browser does - up
 to five times, counted in the report - where one refusal had ended the run.
 
+**The by-hand parts, on the laptop alone (2026-11-10, evening):** step 5 of the session, as far
+as one machine can show it.
+
+*Quiz rounds.* The showcase deck's quiz slides with 1,000 simulated phones on a server that checks
+the texts itself, once on a fresh server and once right after a burst of 1,000 SQL answers on the
+same one (run 4 of 3.4): a slide reached the last phone after 223 and 252 ms in the median, 354
+and 486 ms for 95 %, 613 ms at most (26 slides each); an answer was accepted within 48 and 29 ms
+for 95 %, 282 ms at most (8,730 and 8,710 answers). No worker ended, and the servers' logs have no
+error. The simulator had to learn the deck's format for it (`tools/simulate.py`): in a format-2
+deck a slide's quiz box is its phase and quiz, and a slide with the standings has no round of its
+own - the walk had found no quiz, and then waited for one on the standings.
+
+*The presenter window.* `?timing` is in `web/stage/presenter.js` now, as on F0's spike: each slide
+change writes its render's time to the console. With the window on the game of a load run - 1,100
+phones joining within 30 s, then 1,000 SQL answers within 10 s, 1 % running into their budget - a
+slide change rendered in 0.4 to 1.5 ms (2.7 ms the first, 21 ms once in some 150), and the
+window's main thread had no task over 50 ms during the join and the burst but one, of 58 ms, when
+the activity's box drew its first picture. On the activity's slide the box took a new picture
+every 500 ms: 22 in the burst's ten seconds, two a second where AF 15.1 allows four - and the
+same, 100 in 50 s, when about 1,000 answers came in over a minute. The runs with the window on
+them were as those without: opened and closed on the last phone after 0.2 to 0.3 s,
+acknowledgements for 95 % within 22 and 345 ms, verdicts within 64 and 399 ms.
+
+What that does not show: the window ran in a browser pane that was not on a screen, so the times
+until a slide was painted - 20 to 990 ms in the console - are the hidden pane's, not the
+window's; and the box was the presenter window's, which draws the projector's picture with the
+same code - no projector window on a second screen, no PowerPoint.
+
 Still open for the session: the phones from a second machine over the room's Wi-Fi, which alone
-separates the server's share from the simulator's; the presenter window's slide changes and the
-projector's updates during a run; a quiz round right after one.
+separates the server's share from the simulator's; and a look at the windows on their screens -
+the painted times, the projector window or PowerPoint - during one run.
 
 ### 4.10 What package 8 removes, and the docs
 

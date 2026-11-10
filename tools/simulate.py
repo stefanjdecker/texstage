@@ -539,6 +539,10 @@ async def main():
         print(f"connections lost and taken up again: {len(Phone.drops)}")
         return
     deck = json.loads((args.bundle / "deck.json").read_text(encoding="utf-8"))
+    for slide in deck["slides"]:                           # a format-2 deck: a slide's quiz box is its phase and quiz
+        box = next((x for x in slide.get("live", []) if x.get("type") == "quiz"), None)
+        if box is not None and "phase" not in slide:       # (as server/bundles.py reads it; package 6: without
+            slide["phase"], slide["quiz"] = box.get("phase"), box.get("item")   # this the host walked no slide)
     data = Path.home() / ".texstage"
     if not data.exists() and (Path.home() / ".texquiz").is_dir():
         data = Path.home() / ".texquiz"                    # the data folder's name until 2026-10-10
@@ -611,6 +615,10 @@ async def main():
                 continue
             sent = now_ms()
             await host.send(json.dumps({"t": "slide", "slide": slide["id"], "id": f"s{slide['id']}"}))
+            if not quiz and phase != "podium":             # a format-2 leaderboard: the standings, no round of
+                await asyncio.sleep(args.pause)             # its own to wait for (package 6: the walk stood still)
+                print(f"{phase:11} (the standings)")
+                continue
             if phase == "question":
                 target = None                               # the round itself (its get-ready screen)
             elif phase == "podium":
