@@ -16,25 +16,33 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
   references first, each under its own budget of CPU time; a reference that runs away is a `timeout`,
   one that ends its process `internal`, and the next process goes on with the ones after it. Then every
   other process loads the seed, and checks the reference the diffs count against. A seed that does not
-  load fails its activity, as does one whose loading ends two processes. Preparing again replaces what
-  was prepared: each prepare has a generation, and what an older one answers is set aside.
+  load fails its activity, as does one whose loading ends two processes. A process that cannot prepare
+  what the first one did - the seed does not load there, or that reference gives no rows there - is
+  ended, and a fresh one prepares it; when three could not, the activity fails, and the log and stats()
+  say so. Preparing again replaces what was prepared: each prepare has a generation of the pool's, never
+  given twice - after a drop neither -, what an older one answers is set aside, and a check made against
+  it runs again.
 - **A job** is one text of a prepared activity; the same text, while it is being checked, gets the same
   future. Each owner - a student - has a queue of their own, and the owners take turns; a text that no
-  process can take yet does not hold up the owner's others.
+  process can take yet does not hold up the owner's others. While no worker is free, only a retry can
+  go - to the spare -, and the queue is not walked.
 - **Budgets** of CPU time, 2 s by default, at most 10: SQLite stops a query from inside, SPARQL and
   Turtle stop between solutions, and the Python work after the engine counts too; where nothing stops a
   check, the watchdog ends the worker. Either way the text is a `timeout`, the student's. The clock is a
   backstop at five times the budget.
 - **Once more, then never again:** a check whose worker died, or that the backstop stopped, runs once
-  more on a fresh process - the spare, or a worker that has checked nothing yet; with none to come, the
-  next free one -; failing again it is `internal`, and its text is set aside: submitted again, it is
-  `internal` at once. A check whose activity is gone meanwhile is `internal` too.
-- **Memory:** SQLite's own cap (checks/sql.py, heap_allowance); the watchdog, every 50 ms, ends a worker
-  whose committed memory is more than an allowance above what it held after its prepares; a job object
-  on Windows and an address space on Linux as the systems' hard stop. A text that runs out of memory -
-  over the watchdog's limit, or inside the worker - runs once more on a fresh process; doing it again is
-  the student's `error`, and its message says so. pyoxigraph ending its process at the hard stop is a
-  death like any other: `internal`.
+  more on a fresh process - the spare, or a worker that has checked nothing yet: it waits for one that is
+  being started, or replaced, or still prepares its activity, and takes the next free process only with
+  none to come -; failing again it is `internal`, and its text is set aside: submitted again, it is
+  `internal` at once. A check whose activity is gone meanwhile is `internal` too. A process not ready
+  within a minute is ended.
+- **Memory:** SQLite's own cap (checks/sql.py, heap_allowance) - a text that reaches it is the student's
+  `error` at once, and its worker goes on: SQLite counts alike in every process -; the watchdog, every
+  50 ms, ends a worker whose committed memory is more than an allowance above what it held after its
+  prepares; a job object on Windows and an address space on Linux as the systems' hard stop. A text that
+  runs out of memory otherwise - over the watchdog's limit, or Python's in the worker - runs once more on
+  a fresh process; doing it again is the student's `error`, and its message says so. pyoxigraph ending
+  its process at the hard stop is a death like any other: `internal`.
 - **Broken:** three processes in a row that die before they are ready, or cannot be started at all,
   break the pool: it starts no more, and what is submitted or prepared then fails at once.
 - **Nothing blocks while the pool holds its lock:** a worker's messages go out through its outbox, which
@@ -70,6 +78,7 @@ MEM_ALLOWANCE_MB = 1024             # what a check may take beyond what its work
 HEAP_ALLOWANCE_MB = 256             # SQLite's own cap for a text, beyond the seeds (F0, Q6)
 HARD_MB = 2048                      # the system's stop: the job object's per process; twice that, address space
 PREPARE_BACKSTOP_S = 120.0          # loading a seed that takes longer ends its process
+START_BACKSTOP_S = 60.0             # a process not ready by then is ended: it counts as an early death
 EARLY_DEATHS = 3                    # processes in a row that die before they are ready: the pool is broken
 SEED_DEATHS = 2                     # processes a seed's loading ends: its activity fails
 
@@ -92,6 +101,7 @@ class _Worker:
     def __init__(self, pool: Pool):
         self.pool = pool
         self.conn = self.proc = self.pid = None
+        self.started_at: float | None = None
         self.start_error = ""
         self.ready = False
         self.ps = None                      # psutil.Process, once it is ready
@@ -112,7 +122,7 @@ class _Worker:
             self.proc.start()
         finally:
             child.close()
-        self.pid = self.proc.pid
+        self.pid, self.started_at = self.proc.pid, time.perf_counter()
         threading.Thread(target=self._send, daemon=True, name=f"texstage-pool-send-{self.pid}").start()
         threading.Thread(target=self._read, daemon=True, name=f"texstage-pool-read-{self.pid}").start()
 
@@ -181,8 +191,11 @@ class Pool:
         self.queues: collections.OrderedDict[str, collections.deque] = collections.OrderedDict()   # owner -> ids
         self.events: collections.deque = collections.deque(maxlen=200)   # the processes the pool lost, and why
         self.next_id = 0
+        self.gens = 0                       # the prepares' generations: the pool's, never given twice
+        self.retry_ids: set[int] = set()    # queued jobs that run once more
         self.early_deaths = 0
         self.spawning = 0                   # replacements decided, not started yet
+        self.starting = 0                   # processes being started
         self.broken: str | None = None
         self.started = self.closed = False
 
@@ -233,10 +246,15 @@ class Pool:
             self.jobs.clear()
             self.inflight.clear()
             self.queues.clear()
+            self.retry_ids.clear()
             for a in self.acts.values():
                 self._claim(a, resolve, exc=RuntimeError("the pool closed"))
             self.changed.notify_all()
         self._settle(resolve)
+        with self.lock:                                  # a process being started: it gets its pid, to be
+            end = time.monotonic() + 5                   # ended below - else _spawn ends it as it starts
+            while self.starting and time.monotonic() < end:
+                self.changed.wait(0.05)
         for w in everyone:
             if w.pid is None:
                 continue
@@ -274,10 +292,11 @@ class Pool:
             if old is not None:
                 self._claim(old, resolve, exc=cf.CancelledError())
             refs = list(references)
-            a = {"act": act, "gen": old["gen"] + 1 if old else 1, "module": module, "seed": seed, "texts": refs,
+            self.gens += 1
+            a = {"act": act, "gen": self.gens, "module": module, "seed": seed, "texts": refs,
                  "language": language, "options": {"heap_allowance": self.heap_allowance} if engine == "sql" else {},
                  "outcomes": [None] * len(refs), "rows_from": None, "phase": "lead", "lead": None, "deaths": 0,
-                 "failed": None, "future": cf.Future()}
+                 "loaded": False, "failed": None, "future": cf.Future()}       # loaded: on some process
             fut = a["future"]
             self.acts[act] = a
             self.set_aside = {k for k in self.set_aside if k[0] != act}
@@ -311,7 +330,7 @@ class Pool:
             self.next_id += 1
             job = {"id": self.next_id, "act": act, "text": text, "owner": owner or f"#{self.next_id}",
                    "budget": float(budget_s), "language": language, "future": cf.Future(), "tries": 1,
-                   "queued": time.perf_counter(), "started": None, "workers": []}
+                   "queued": time.perf_counter(), "started": None, "gen": None, "workers": []}
             self.jobs[job["id"]] = job
             self.inflight[(act, text)] = job
             self._enqueue(job)
@@ -320,7 +339,8 @@ class Pool:
 
     def drop(self, act: str) -> None:
         """The activity goes - its deck is gone: the workers let go of it; what waits for it is `internal`
-        at once, what is being checked when it ends."""
+        at once, what is being checked `internal` when it ends. Prepared again under its name, it starts
+        afresh: what was under way for it counts for nothing."""
         resolve = []
         with self.lock:
             a = self.acts.pop(act, None)
@@ -340,7 +360,8 @@ class Pool:
             return {"workers": len(self.workers), "ready": sum(w.ready for w in self.workers),
                     "spares": len(self.spares), "busy": sum(not w.free() for w in self.workers + self.spares),
                     "queued": sum(len(q) for q in self.queues.values()), "activities": len(self.acts),
-                    "set_aside": len(self.set_aside), "broken": self.broken, "ended": list(self.events)}
+                    "set_aside": len(self.set_aside), "broken": self.broken, "ended": list(self.events),
+                    "failed": {act: a["failed"] for act, a in self.acts.items() if a["failed"]}}
 
     # ------------------------------------------------------------------ preparing
     def _lead(self, a: dict) -> None:
@@ -375,7 +396,7 @@ class Pool:
             return {"status": "error", "error": Words(a["language"]).tooMuchMemory}
         return {"status": "internal", "error": why}
 
-    def _prepare_lost(self, unit: dict, why: str, resolve: list) -> None:
+    def _prepare_lost(self, unit: dict, why: str, resolve: list, logs: list) -> None:
         """A process ended while it prepared: a reported reference gets its outcome, and the next process
         goes on after it; a seed's loading counts against the seed."""
         a = self.acts.get(unit["act"])
@@ -385,12 +406,20 @@ class Pool:
             if a["outcomes"][unit["i"]] is None:
                 a["outcomes"][unit["i"]] = self._reference_lost(a, why)
             return
+        self._prepare_failed(a, why, resolve, logs)
+
+    def _prepare_failed(self, a: dict, why: str, resolve: list, logs: list) -> None:
+        """A process its preparing ended, or that could not prepare it: two fail the activity while its
+        references are checked, three after."""
         a["deaths"] += 1
         if a["deaths"] >= (SEED_DEATHS if a["phase"] == "lead" else SEED_DEATHS + 1):
-            self._fail(a, f"preparing it ended {a['deaths']} processes ({why})", resolve)
+            self._fail(a, f"preparing it ended {a['deaths']} processes ({why})", resolve, logs)
 
-    def _fail(self, a: dict, error: str, resolve: list) -> None:
-        """The activity cannot be prepared: its future fails, and what waits for it is `internal`."""
+    def _fail(self, a: dict, error: str, resolve: list, logs: list) -> None:
+        """The activity cannot be prepared: its future fails - resolved already, the log says so, as does
+        stats() -, and what waits for it is `internal`."""
+        if a["future"] is None:
+            logs.append(f"checks: activity {a['act']} failed after it was prepared: {error}")
         a["failed"], a["phase"], a["lead"] = error, "failed", None
         self._claim(a, resolve, exc=ValueError(error))
         self._unqueue(a["act"], f"not prepared: {error}", resolve)
@@ -404,7 +433,8 @@ class Pool:
 
     # ------------------------------------------------------------------ the workers' messages
     def _spawn(self, spare: bool, planned: bool = False) -> None:
-        """A new worker or spare: listed under the lock, then started outside it, which takes a while."""
+        """A new worker or spare: listed under the lock, then started outside it, which takes a while - and
+        ended at once if the pool closed meanwhile (the second review: close() did not see it)."""
         w = _Worker(self)
         with self.lock:
             if planned:
@@ -412,13 +442,23 @@ class Pool:
             if self.closed or self.broken:
                 return
             (self.spares if spare else self.workers).append(w)
+            self.starting += 1
+        error = None
         try:
             w.start()
         except Exception as e:  # noqa: BLE001 - a process that cannot be started dies before it is ready
-            w.start_error = f"{type(e).__name__}: {e}"
+            error = w.start_error = f"{type(e).__name__}: {e}"
             if w.conn is not None:
                 w.conn.close()
+        with self.lock:
+            self.starting -= 1
+            closed = self.closed
+            self.changed.notify_all()
+        if error is not None:
             self._died(w)
+        elif closed:
+            w.kill()
+            w.outbox.put(None)
 
     def _received(self, w: _Worker, msg: tuple) -> None:
         kind, resolve, kills, logs = msg[0], [], [], []
@@ -426,7 +466,8 @@ class Pool:
             try:
                 ps = self.psutil.Process(msg[1])
             except self.psutil.Error:
-                return                                   # gone already: its reader sees it end
+                w.kill()                                 # gone, or not to be watched: it ends, its reader sees it
+                return
             in_job = self.job_object.assign(msg[1]) if self.job_object is not None else True
             memory = self._memory(ps)
         elif kind == "prepared":
@@ -450,6 +491,9 @@ class Pool:
                 _, act, gen, i, reported = msg
                 w.unit = {"kind": "reference", "act": act, "gen": gen, "i": i, "reported": reported,
                           "budget": self.reference_budget, "started": time.perf_counter(), "cpu0": None}
+                a = self.acts.get(act)
+                if a is not None and a["gen"] == gen:
+                    a["loaded"] = True                   # its seed loads: a load that fails is the process's
             elif kind == "referenced":
                 _, act, gen, i, outcome, rows = msg
                 w.unit = None
@@ -461,17 +505,22 @@ class Pool:
                     if rows and a["rows_from"] is None:
                         a["rows_from"] = i
             elif kind == "prepared":
-                _, act, gen, error, _seconds = msg
+                _, act, gen, error, _seconds, here = msg
                 w.unit = None
                 if w.preparing.get(act) == gen:
                     del w.preparing[act]
                 a = self.acts.get(act)
                 if a is not None and a["gen"] == gen and not a["failed"]:
-                    if error is not None:
-                        self._fail(a, error, resolve)
+                    if error is not None and not here and not a["loaded"]:
+                        self._fail(a, error, resolve, logs)          # its seed does not load
+                    elif error is not None:                          # this process cannot prepare what
+                        w.ended_for = w.ended_for or f"could not prepare {act}: {error}"   # another did:
+                        kills.append(w)                              # a fresh one will
+                        self._prepare_failed(a, w.ended_for, resolve, logs)
                     else:
                         w.prepared.add(act)
                         w.base = max(w.base, memory or 0)
+                        a["loaded"] = True
                         if a["phase"] == "lead" and a["lead"] is w:
                             a["phase"], a["lead"] = "ready", None
                             self._claim(a, resolve, value=[o or {"status": "internal", "error": "not checked"}
@@ -483,18 +532,27 @@ class Pool:
                 if w.job is not None and w.job["id"] == jid:
                     w.job, w.unit, w.done = None, None, w.done + 1
                 if job is not None:
-                    if outcome.pop("memory", False):     # out of memory in the worker: it ends, and the text
+                    out_of_memory = outcome.pop("memory", False)
+                    if out_of_memory:                    # out of memory in the worker: it ends, and the text
                         w.ended_for = w.ended_for or "memory"    # runs once more, on a fresh process
                         kills.append(w)
-                        if job["tries"] < 2 and self._retryable(job):
-                            self._retry(job)
-                        else:
-                            self._forget(job)
-                            outcome = {"status": "error", "error": Words(job["language"]).tooMuchMemory}
-                            resolve.append((job["future"], self._finished(job, outcome, cpu_s, w), None))
+                    a = self.acts.get(job["act"])
+                    stale = a is not None and a["gen"] != job["gen"]
+                    if stale and self._retryable(job):
+                        self._requeue(job)               # prepared again meanwhile: once more, against that
                     else:
-                        self._forget(job)
-                        resolve.append((job["future"], self._finished(job, outcome, cpu_s, w), None))
+                        if a is None:
+                            outcome = {"status": "internal", "error": "dropped"}
+                        elif stale:
+                            outcome = {"status": "internal", "error": self.broken or f"not prepared: {a['failed']}"}
+                        elif out_of_memory and job["tries"] < 2 and self._retryable(job):
+                            self._retry(job)
+                            outcome = None
+                        elif out_of_memory:
+                            outcome = {"status": "error", "error": Words(job["language"]).tooMuchMemory}
+                        if outcome is not None:
+                            self._forget(job)
+                            resolve.append((job["future"], self._finished(job, outcome, cpu_s, w), None))
             self.changed.notify_all()
             self._dispatch()
         self._after_lock(logs, resolve, kills)
@@ -536,15 +594,24 @@ class Pool:
                 if a["lead"] is w:
                     a["lead"] = None
             if unit is not None and unit["kind"] in ("load", "reference"):
-                self._prepare_lost(unit, why, resolve)
+                self._prepare_lost(unit, why, resolve, logs)
             if job is not None and self.jobs.get(job["id"]) is job:
-                outcome = self._after(job, why)
-                if outcome is None and self._retryable(job):
-                    self._retry(job)
+                a = self.acts.get(job["act"])
+                stale = a is not None and a["gen"] != job["gen"]
+                if stale and self._retryable(job):
+                    self._requeue(job)                   # it ran against what was prepared before: not a try
                 else:
-                    self._forget(job)
-                    outcome = outcome or {"status": "internal", "error": self.broken or "dropped"}
-                    resolve.append((job["future"], self._finished(job, outcome, None, w), None))
+                    if a is None:
+                        outcome = {"status": "internal", "error": "dropped"}
+                    else:
+                        outcome = None if stale else self._after(job, why)
+                    if outcome is None and self._retryable(job):
+                        self._retry(job)
+                    else:
+                        self._forget(job)
+                        if outcome is None:
+                            outcome = {"status": "internal", "error": self.broken or f"not prepared: {a['failed']}"}
+                        resolve.append((job["future"], self._finished(job, outcome, None, w), None))
             if self.early_deaths >= EARLY_DEATHS and not self.broken:
                 self._break(f"{EARLY_DEATHS} processes in a row died before they were ready", resolve, logs)
             if self.broken:
@@ -585,8 +652,15 @@ class Pool:
 
     def _retry(self, job: dict) -> None:
         job["tries"] += 1
+        self._requeue(job)
+
+    def _requeue(self, job: dict) -> None:
+        """To the front of its owner's queue: after a death once more, a try more; after its activity was
+        prepared again, as it was, since what it ran against is gone."""
         job["started"] = None
         self._enqueue(job, front=True)
+        if job["tries"] > 1:
+            self.retry_ids.add(job["id"])
 
     def _unqueue(self, act: str, why: str, resolve: list) -> None:
         """What waits for the activity - not what is being checked - is `internal`."""
@@ -604,6 +678,7 @@ class Pool:
 
     def _forget(self, job: dict) -> None:
         self.jobs.pop(job["id"], None)
+        self.retry_ids.discard(job["id"])
         if self.inflight.get((job["act"], job["text"])) is job:
             del self.inflight[(job["act"], job["text"])]
 
@@ -633,23 +708,16 @@ class Pool:
         q = self.queues.setdefault(job["owner"], collections.deque())
         (q.appendleft if front else q.append)(job["id"])
 
-    def _next(self, free: list[_Worker], spares: list[_Worker], coming: bool):
+    def _next(self, free: list[_Worker], spares: list[_Worker]):
         """The next job and a process to take it, the owners in turns, each owner's first that a process
-        can take: a first try on a free worker; a second on a fresh process - the spare, a worker that has
-        checked nothing yet -, or, with none to come, on any that is free."""
+        can take."""
         for owner in list(self.queues):
             q = self.queues[owner]
             for k, jid in enumerate(q):
                 job = self.jobs.get(jid)
                 if job is None:
                     continue
-                act = job["act"]
-                if job["tries"] == 1:
-                    w = next((w for w in free if act in w.prepared), None)
-                else:
-                    w = next((w for w in spares + free if act in w.prepared and w.done == 0), None)
-                    if w is None and not coming:
-                        w = next((w for w in spares + free if act in w.prepared), None)
+                w = self._taker(job, free, spares)
                 if w is not None:
                     del q[k]
                     self.queues.move_to_end(owner)
@@ -657,6 +725,37 @@ class Pool:
                     return job, w
             self._tidy(owner)
         return None, None
+
+    def _next_retry(self, free: list[_Worker], spares: list[_Worker]):
+        """The oldest retry a process can take - before the owners' turns, so that no first try takes the
+        fresh process it waits for, and without walking the queue."""
+        for jid in sorted(self.retry_ids):
+            job = self.jobs.get(jid)
+            w = self._taker(job, free, spares) if job is not None else None
+            if w is not None:
+                q = self.queues.get(job["owner"])
+                if q is not None and jid in q:
+                    q.remove(jid)
+                    self._tidy(job["owner"])
+                return job, w
+        return None, None
+
+    def _taker(self, job: dict, free: list[_Worker], spares: list[_Worker]) -> _Worker | None:
+        """A first try goes to a free worker; a second to a fresh process - the spare, a worker that has
+        checked nothing yet -, and to any free one only when no fresh one is to come."""
+        act = job["act"]
+        if job["tries"] == 1:
+            return next((w for w in free if act in w.prepared), None)
+        w = next((w for w in spares + free if act in w.prepared and w.done == 0), None)
+        if w is None and not self._coming(act):
+            w = next((w for w in spares + free if act in w.prepared), None)
+        return w
+
+    def _coming(self, act: str) -> bool:
+        """Whether a fresh process is to come for the activity: one decided on or being started, one being
+        ended - its replacement -, or one that has checked nothing and has not prepared it yet."""
+        return self.spawning > 0 or any(w.ended_for or (w.done == 0 and act not in w.prepared)
+                                        for w in self.workers + self.spares)
 
     def _tidy(self, owner: str) -> None:
         q = self.queues.get(owner)
@@ -668,17 +767,21 @@ class Pool:
 
     def _dispatch(self) -> None:
         """Jobs to the processes that wait - not one still loading a seed, which would count against the
-        check's clock."""
+        check's clock. Retries first; with no worker free only a retry can go, to a spare, and the queue is
+        not walked - else every message and every submit walked it while the spare waited (the second
+        review)."""
         free = [w for w in self.workers if w.free()]
         spares = [w for w in self.spares if w.free()]
-        coming = self.spawning > 0 or any(not w.ready for w in self.workers + self.spares)
-        while free or spares:
-            job, w = self._next(free, spares, coming)
+        while free or (spares and self.retry_ids):
+            job, w = self._next_retry(free, spares) if self.retry_ids else (None, None)
+            if job is None and free:
+                job, w = self._next(free, spares)
             if job is None:
                 return
             (free if w in free else spares).remove(w)
+            self.retry_ids.discard(job["id"])
             now = time.perf_counter()
-            w.job, job["started"] = job, now
+            w.job, job["started"], job["gen"] = job, now, self.acts[job["act"]]["gen"]
             w.unit = {"kind": "check", "job": job, "budget": job["budget"], "started": now, "cpu0": None}
             job["workers"].append(w.pid)
             w.outbox.put(("check", job["id"], job["act"], job["text"], job["budget"], job["language"]))
@@ -719,6 +822,10 @@ class Pool:
             readings.append((w, unit, cpu, self._memory(w.ps)))
         now, kills = time.perf_counter(), []
         with self.lock:
+            for w in self.workers + self.spares:          # a process not ready in time: an early death
+                if not w.ready and not w.ended_for and w.started_at and now - w.started_at > START_BACKSTOP_S:
+                    w.ended_for = "not ready in time"
+                    kills.append(w)
             for w, unit, cpu, memory in readings:
                 if w.ended_for or w.unit is not unit:    # what it was doing changed meanwhile
                     continue

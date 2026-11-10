@@ -16,8 +16,10 @@ blob by its bytes.
 """
 from __future__ import annotations
 
+import os
 import re
 import sqlite3
+import sys
 import time
 import warnings
 
@@ -46,27 +48,87 @@ def _text(raw: bytes) -> str:
     return s[1:] if s.startswith("\ufeff") else s
 
 
+_HEAP: list = []                        # [(sqlite3_hard_heap_limit64, sqlite3_memory_used) or None], once found
+
+
+def _heap():
+    """SQLite's sqlite3_hard_heap_limit64 and sqlite3_memory_used through ctypes, in the library Python's
+    sqlite3 runs on - checked: a cap set through it is the one PRAGMA hard_heap_limit reads -, or None."""
+    if not _HEAP:
+        _HEAP.append(_find_heap())
+    return _HEAP[0]
+
+
+def _find_heap():
+    import ctypes
+    import ctypes.util
+    try:
+        import _sqlite3
+        module = getattr(_sqlite3, "__file__", None)
+    except ImportError:
+        module = None
+    paths = []
+    if module:                          # Windows: sqlite3.dll beside _sqlite3.pyd; elsewhere the module itself,
+        paths.append(os.path.join(os.path.dirname(module), "sqlite3.dll") if sys.platform == "win32"
+                     else module)        # whose symbols are found in the library it links to
+    found = ctypes.util.find_library("sqlite3")
+    if found:
+        paths.append(found)
+    probe = sqlite3.connect(":memory:")
+    try:
+        for path in paths:
+            try:
+                lib = ctypes.CDLL(path)
+                limit, used = lib.sqlite3_hard_heap_limit64, lib.sqlite3_memory_used
+            except (OSError, AttributeError):
+                continue
+            limit.restype, limit.argtypes = ctypes.c_int64, [ctypes.c_int64]
+            used.restype, used.argtypes = ctypes.c_int64, []
+            before = limit(-1)
+            limit(2**62)
+            same = probe.execute("PRAGMA hard_heap_limit").fetchone()[0] == 2**62
+            limit(before)
+            if same:
+                return limit, used
+    finally:
+        probe.close()
+    return None
+
+
 def load(seed: str, heap_allowance: int | None = None) -> dict:
     """The seed run into a database of its own, read-only from then on. Its temporary storage is in memory,
     as sql.js's was - else a large sort spills to files, past the heap's cap (F0).
 
-    heap_allowance, in a worker of the pool: SQLite's cap on its heap (PRAGMA hard_heap_limit) at what the
-    seed takes, HEAP_BASE for SQLite's own caches, and the allowance for a text. The cap holds for all of
-    a process's connections and only goes down: the first seed a worker prepares sets it, and a later one
-    - small, in a classroom - takes from the allowance."""
-    con = sqlite3.connect(":memory:", check_same_thread=False, isolation_level=None)
-    con.text_factory = _text
+    heap_allowance, in a worker of the pool: SQLite's cap on its heap, which holds for all of a process's
+    connections - at what SQLite holds once the seed is in, every other seed of the process with it,
+    HEAP_BASE for its own caches, and the allowance for a text. It is set through SQLite's own function
+    (_heap), which raises it as well; while a seed loads there is none - the pool's watchdog and job
+    object hold that. Where ctypes cannot reach the SQLite Python runs on, PRAGMA hard_heap_limit, which
+    only lowers it: the first seed sets it, and later ones take from the allowance (the second review: a
+    smaller seed after a larger one set it below what the larger one held, and no text ran)."""
+    heap = _heap() if heap_allowance else None
+    if heap is not None:
+        heap[0](0)                                      # none while the seed loads
     try:
-        con.executescript(seed)
-    except (sqlite3.Error, MemoryError) as e:
-        con.close()
-        raise ValueError(f"the seed: {'out of memory' if isinstance(e, MemoryError) else e}") from None
-    con.execute("PRAGMA temp_store = MEMORY")
-    if heap_allowance:
-        pages = con.execute("PRAGMA page_count").fetchone()[0] * con.execute("PRAGMA page_size").fetchone()[0]
-        con.execute(f"PRAGMA hard_heap_limit = {pages + HEAP_BASE + int(heap_allowance)}")
-    con.execute("PRAGMA query_only = ON")
-    con.set_authorizer(_compiling)
+        con = sqlite3.connect(":memory:", check_same_thread=False, isolation_level=None)
+        con.text_factory = _text
+        try:
+            con.executescript(seed)
+        except (sqlite3.Error, MemoryError) as e:
+            con.close()
+            raise ValueError(f"the seed: {'out of memory' if isinstance(e, MemoryError) else e}") from None
+        con.execute("PRAGMA temp_store = MEMORY")
+        if heap_allowance and heap is None:
+            row = con.execute("PRAGMA hard_heap_limit").fetchone()
+            if row is not None and not row[0]:
+                pages = con.execute("PRAGMA page_count").fetchone()[0] * con.execute("PRAGMA page_size").fetchone()[0]
+                con.execute(f"PRAGMA hard_heap_limit = {pages + HEAP_BASE + int(heap_allowance)}")
+        con.execute("PRAGMA query_only = ON")
+        con.set_authorizer(_compiling)
+    finally:
+        if heap is not None:
+            limit, used = heap
+            limit(used() + HEAP_BASE + int(heap_allowance))
     return {"con": con}
 
 
@@ -236,8 +298,21 @@ def _running(action, *args):
 
 
 # ------------------------------------------------------------------ evaluation
+class _Capped(Exception):
+    """SQLite ran into its heap's cap: the text's at once - SQLite counts alike in every process, so a
+    fresh one comes to the same (the second review: the pool ended two workers for each such text)."""
+
+
+def _step(cur: sqlite3.Cursor):
+    """The next row, or None - SQLite's work: out of memory there, it is its cap."""
+    try:
+        return next(cur, None)
+    except MemoryError:
+        raise _Capped from None
+
+
 def _failure(e: BaseException, W: Words) -> dict:
-    if isinstance(e, MemoryError):                      # SQLite's cap, or Python's memory: the pool tries the
+    if isinstance(e, MemoryError):                      # Python's memory, the job object's: the pool tries the
         return {"status": "error", "error": "out of memory", "memory": True}   # text once more, on a fresh process
     text = str(e).split("\n")[0]
     if "readonly database" in text:
@@ -257,7 +332,9 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
     for s in found:                     # each compiled, none run (sql.js's iterateStatements) - behind EXPLAIN
         try:                            # and a comment, not a space, which would take a \v in front of s along
             _execute(con, s if EXPLAIN.match(s) else "EXPLAIN/**/" + s).fetchall()
-        except (sqlite3.Error, MemoryError) as e:
+        except MemoryError:
+            return {"status": "error", "error": W.tooMuchMemory}       # SQLite's cap, as it compiles
+        except sqlite3.Error as e:
             return _failure(e, W)
     if not found:
         return {"status": "syntax", "error": W.noStatement}
@@ -271,10 +348,13 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
     con.set_authorizer(_running)
     cur = None
     try:
-        cur = _execute(con, found[0])
+        try:
+            cur = _execute(con, found[0])               # SQLite runs it to its first row
+        except MemoryError:
+            raise _Capped from None
         columns = [_text(d[0].encode("utf-8")) for d in cur.description or ()]
         rows, shown = [], []
-        for values in cur:
+        while (values := _step(cur)) is not None:
             if len(rows) == MAX_ROWS:
                 return {"status": "error", "error": f"more than {MAX_ROWS} rows"}
             rows.append("\t".join(map(_term, values)))
@@ -282,6 +362,8 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
                 shown.append([_show(v) for v in values])
             if end is not None and not len(rows) & 63 and time.thread_time() > end:
                 return {"status": "timeout"}
+    except _Capped:
+        return {"status": "error", "error": W.tooMuchMemory}
     except sqlite3.OperationalError as e:
         if end is not None and str(e) == "interrupted":
             return {"status": "timeout"}

@@ -13,13 +13,16 @@ What the pool sends and what the worker answers, through its pipe - in order, on
         -> ("loading", act, gen)                      it loads the seed
            ("reference", act, gen, i, reported)       it checks reference i
            ("referenced", act, gen, i, outcome, rows) - its outcome, and whether its rows are kept
-           ("prepared", act, gen, error, seconds)     error: None, or why the seed did not load
+           ("prepared", act, gen, error, seconds, here)   error: None, or why it is not prepared - the
+                                                      seed does not load, or (here) the rows are not
+                                                      found on this process
     ("check", job, act, text, budget, language)  -> ("done", job, outcome, cpu_s)
     ("drop", act)
     ("exit",)
 
 references: [i, text] to check and report; rows: [i, text], the reference whose rows the diffs count
-against when another process found it - checked first, not reported. An outcome is what the presenter
+against when another process found it - checked first, not reported; when it gives no rows here, the
+activity is not prepared here, since this process could not compare alike. An outcome is what the presenter
 window's evaluator sent the server (web/stage/evaluator-worker.js): the status, the error, and for a
 result its key and summary - after the reference with the rows, the summary says how its rows compare
 (diff). The rows stay in the worker. A text's budget is its CPU time, the key's computing included; an
@@ -55,8 +58,10 @@ def main(conn, options: dict) -> None:
             pass
         threading.Thread(target=_orphaned, args=(os.getppid(),), daemon=True, name="texstage-orphaned").start()
     if options.get("address_space") and sys.platform.startswith("linux"):
-        import resource
-        resource.setrlimit(resource.RLIMIT_AS, (options["address_space"], options["address_space"]))
+        import resource                                  # the soft limit only, never above what it was: a
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS)      # process may not raise its hard limit
+        cap = min(x for x in (options["address_space"], soft, hard) if x != resource.RLIM_INFINITY)
+        resource.setrlimit(resource.RLIMIT_AS, (cap, hard))
     for name in options.get("imports", ()):              # imported before "ready": ready means ready
         try:
             importlib.import_module(name)
@@ -119,14 +124,18 @@ def _prepare(conn, states: dict, msg: tuple) -> None:
     except Exception as e:  # noqa: BLE001 - a seed that does not load fails its activity
         states.pop(act, None)
         why = "the seed: out of memory" if isinstance(e, MemoryError) else str(e).split("\n")[0] or type(e).__name__
-        conn.send(("prepared", act, gen, why, time.perf_counter() - t))
+        conn.send(("prepared", act, gen, why, time.perf_counter() - t, False))
         return
     rows = None
     if rows_ref is not None:                             # the reference another process found the rows in
         conn.send(("reference", act, gen, rows_ref[0], False))
         result, _ = _evaluate(module, state, rows_ref[1], language, budget_s)
-        if result["status"] == "ok":
-            rows = result["rows"]
+        if result["status"] != "ok":                     # not here: its diffs would differ from the others'
+            states.pop(act, None)
+            why = f"its reference {rows_ref[0] + 1} gives no rows here ({result['status']})"
+            conn.send(("prepared", act, gen, why, time.perf_counter() - t, True))
+            return
+        rows = result["rows"]
     for i, text in references:                           # in their order; the first that gives a result is
         conn.send(("reference", act, gen, i, True))      # the one to compare with, unless one before it was
         result, end = _evaluate(module, state, text, language, budget_s)
@@ -136,7 +145,7 @@ def _prepare(conn, states: dict, msg: tuple) -> None:
         if first:
             rows = result["rows"]
     states[act] = (module, state, rows)
-    conn.send(("prepared", act, gen, None, time.perf_counter() - t))
+    conn.send(("prepared", act, gen, None, time.perf_counter() - t, False))
 
 
 def _serve(conn) -> None:

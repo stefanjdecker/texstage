@@ -228,7 +228,8 @@ same canonical text, byte for byte, under the same hash. So:
   they take plus an allowance F0 sets; for pyoxigraph the watchdog, every 50 ms, on committed
   memory - private bytes on Windows, as the job object counts it; a job object on Windows (through
   ctypes) and `RLIMIT_AS` on Linux as the hard stop. A text that runs over on a fresh worker too
-  is the student's `error`.
+  is the student's `error` - one that reaches SQLite's own cap at once (decided 2026-11-10, the
+  second review below).
 - **SQL** (`checks/sql.py`): the seed run into a database in memory, then
   `PRAGMA temp_store = MEMORY` - else a large sort spills to temporary files, past the cap (F0's
   review) -, `PRAGMA query_only = ON`, extensions off; the statements found as sql.js's count
@@ -318,6 +319,60 @@ same canonical text, byte for byte, under the same hash. So:
     with a busy worker taking the 8 MB seed, the mutant fails now (1.26 s held). `tests/test_pool.py`
     has 33 tests, one for each fault, about 25 s; it and `tests/test_checks.py` pass on Windows (five
     runs in a row) and on Linux (three).
+- **What the second review found, and what changed (2026-11-10):** before package 4 builds on the
+  reworked pool, the user asked for a second critical review of it - an independent reviewer with
+  experiments, and mine. Eleven faults, each reproduced against the real pool, all fixed ("Fix all
+  eleven"), one by changing a decided rule:
+  - *A drop, then a prepare under the same name* began again at generation 1, so what the dropped
+    prepare answered counted for the new one: the old references' outcomes came back for the new
+    references, and a worker counted as prepared that held nothing - every check of the activity
+    `internal: not prepared` (20 of 20), while `wait_ready()` said all was ready. Generations are
+    the pool's now, never given twice.
+  - *Checks made against an earlier prepare:* a text checked while its activity was prepared again
+    came back with the old seed's outcome, and the same text submitted after joined that check. A
+    job carries its prepare's generation now; one that ran against an earlier one runs again, not
+    counted as a try, and one of an activity dropped meanwhile is `internal`.
+  - *The waiting spare slowed every burst:* with the workers busy the spare was free, and every
+    submit and every message walked the whole queue for a job it could take - none, as it takes
+    retries only. 1,000 SQL texts on 4 workers: 0.41 s inside `submit()` and 1.0 s to the last
+    verdict, against 0.006 s and 0.12 s without a spare, quadratic in the queue. The queued
+    retries are counted now, and with no worker free only they are looked at: 0.007 s and 0.15 s.
+  - *SQLite's own cap ended two workers per text:* a forgotten join condition with `ORDER BY`
+    reached it; the pool ended the worker, ran the text on a fresh one, ended that too and
+    answered after 3.25 s - though SQLite stops such a query from inside and counts alike in every
+    process. Now the text is the student's `error` at once and its worker goes on (the design's
+    section 11, decided 2026-11-10); Python's own `MemoryError` still runs once more, fresh.
+  - *Retries on fresh processes:* without a spare the retry went to a worker that had made three
+    checks while the fresh replacement still loaded its seed, and two deaths at once put the second
+    retry on the spare after its first. A retry now waits for a process being started, replaced or
+    still preparing its activity, and is placed before the students' turns, so that no first try
+    takes the fresh process; a process not ready within a minute is ended.
+  - *A process that could not prepare what another did* - its seed not loading there, or the
+    reference with the rows giving none there - failed the activity for every process after its
+    prepare had succeeded, unannounced; for the rows, it prepared anyway, and its checks carried no
+    diff. Now that process is ended and a fresh one prepares the activity; when three could not,
+    the activity fails, and the log and `stats()["failed"]` say so.
+  - *SQLite's cap was set from one seed but holds for the whole process:* each SQL seed set it to
+    its own pages and 288 MB, and a smaller seed after a larger one lowered it below what the
+    larger one held: a 300 MB seed worked alone, and with a small SQL activity after it no text of
+    either ran. The cap is set through `sqlite3_hard_heap_limit64` now (ctypes, in Python's own
+    SQLite - checked on Windows and on Ubuntu) from all that SQLite holds, and lifted while a seed
+    loads; where ctypes cannot reach it, the pragma, set once by the first seed.
+  - *Closing while a replacement started* left that process running, outside the job object (5 of
+    5 when caught in the window): `close()` waits for it now, and `_spawn` ends it.
+  - *Linux:* under `ulimit -v` below twice the hard stop every worker failed at its `setrlimit` -
+    a process may not raise its hard limit - and the pool broke; only the soft limit is set now,
+    never above what it was.
+  - *Tests that passed with the behaviour broken:* the pool's tests passed against a pool that
+    retried on any process, and against one that looked at each student's first text only; none
+    held a prepare after a drop or closing while a process starts. `tests/test_pool.py` has 48
+    tests now, about 37 s. Of the 15 new ones, 13 fail against the code before the review, one holds
+    behaviour that was right but untested, and the Linux one stands for an experiment that failed
+    there before. They and `tests/test_checks.py` pass on Windows (five runs in a row) and on Linux
+    (three).
+  - *Found on the way, not changed:* a seed with `random()`, `randomblob()` or the time
+    (`datetime('now')`) gives each worker data of its own - the browser ran a seed once -, so one
+    text can get different keys on different workers (put to the user, 2026-11-10).
 
 ### 4.5 The activity type
 

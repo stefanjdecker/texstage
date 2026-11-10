@@ -261,8 +261,24 @@ def test_a_sort_beyond_sqlites_cap_fails_in_memory_without_a_temporary_file(tmp_
         print(r["status"], "|", r.get("error"))"""
     env = dict(os.environ, TMP=str(tmp_path), TEMP=str(tmp_path), TMPDIR=str(tmp_path), SQLITE_TMPDIR=str(tmp_path))
     done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, env=env, timeout=300)
-    assert done.stdout.strip() == "error | out of memory", done.stdout + done.stderr
+    assert done.stdout.strip() == "error | " + texts.ENGINES["en"]["tooMuchMemory"], done.stdout + done.stderr
     assert list(tmp_path.iterdir()) == []
+
+
+def test_without_sqlites_own_function_the_first_seed_sets_the_cap_and_keeps_it():
+    """Where ctypes cannot reach the SQLite Python runs on, PRAGMA hard_heap_limit - which only lowers it -
+    is set by the first seed alone: a smaller one after it no longer sets it below what the first holds
+    (the second review). In a process of its own, as the cap is the process's."""
+    script = """if True:
+        from texstage import checks
+        from texstage.checks import sql
+        sql._HEAP[:] = [None]
+        big = checks.load("sql", "CREATE TABLE t (x); INSERT INTO t VALUES (zeroblob(40000000));",
+                          heap_allowance=4 * 2**20)
+        checks.load("sql", "CREATE TABLE u (y);", heap_allowance=4 * 2**20)
+        print(checks.evaluate("sql", big, "SELECT length(x) FROM t", "en")["status"])"""
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120)
+    assert done.stdout.strip() == "ok", done.stdout + done.stderr
 
 
 @functools.cache

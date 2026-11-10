@@ -12,8 +12,10 @@
     alloconce path mb the same if the file is there, which it takes away
     raise             the engine fails: the text's error
     limits            the worker's address space (Linux)
+    flaky dir n...    the engine fails the n-th time the text is checked, counted over every process
 
-A seed "fail ..." does not load, "crash" ends the worker that loads it, "slow s" takes s seconds.
+A seed "fail ..." does not load, "crash" ends the worker that loads it, "slow s" takes s seconds, and
+"flaky dir n..." does not load the n-th time, counted alike.
 """
 from __future__ import annotations
 
@@ -23,6 +25,23 @@ import time
 HELD: list = []
 
 
+def _count(folder: str) -> int:
+    """How many times so far, in any process: each takes the next number's file in folder, which only
+    one can create."""
+    os.makedirs(folder, exist_ok=True)
+    n = 1
+    while True:
+        try:
+            os.close(os.open(os.path.join(folder, str(n)), os.O_CREAT | os.O_EXCL))
+            return n
+        except FileExistsError:
+            n += 1
+
+
+def _flaky(rest: list[str]) -> bool:
+    return _count(rest[0]) in {int(n) for n in rest[1:]}
+
+
 def load(seed: str, **options) -> dict:
     if seed.startswith("fail"):
         raise ValueError("the seed: it says fail")
@@ -30,6 +49,8 @@ def load(seed: str, **options) -> dict:
         os._exit(3)
     if seed.startswith("slow "):
         time.sleep(float(seed.split()[1]))
+    if seed.startswith("flaky ") and _flaky(seed.split()[1:]):
+        raise ValueError("the seed: not on this process")
     return {"seed": seed}
 
 
@@ -67,6 +88,8 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
         _alloc(int(rest[1]))
     elif what == "raise":
         raise RuntimeError("the engine broke")
+    elif what == "flaky" and _flaky(rest):
+        raise RuntimeError("not on this process")
     elif what == "limits":                               # the worker's address space, on Linux
         import resource
         return {"status": "ok", "canonical": "limits", "rows": [], "summary": {

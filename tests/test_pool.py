@@ -7,12 +7,17 @@ budgets of CPU time, stopped from inside or by ending the worker; the clock's ba
 worker that dies - the check once more on a fresh process, then internal, set aside -; memory; the spare;
 the priority; the job object (Windows), the address space (Linux); the students' turns; a retry without a
 spare; a large seed sent to a busy worker, the pool's lock free all the while; closing; a pool whose
-processes die or do not start. Budgets of 200 ms keep it quick. The test engine, tests/pool_engines.py,
-does what a text says."""
+processes die or do not start. And what the second review found (2026-11-10): a prepare after a drop,
+checks made against an earlier prepare, a process that cannot prepare what another did, SQLite's own cap,
+retries on fresh processes, the queue left alone while no worker is free, a student's texts that wait,
+closing while a process starts, a lower address space. Budgets of 200 ms keep it quick. The test engine,
+tests/pool_engines.py, does what a text says."""
 from __future__ import annotations
 
 import concurrent.futures as cf
+import logging
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -75,6 +80,12 @@ def pids(p: Pool) -> tuple[set, set]:
 
 def ended(p: Pool, since: int = 0) -> list[str]:
     return [e["why"] for e in p.stats()["ended"][since:]]
+
+
+def checks_made(p: Pool, pid: int) -> int:
+    """How many checks a process has made: 1 after a retry, if the retry found it fresh."""
+    with p.lock:
+        return next(w.done for w in p.workers + p.spares if w.pid == pid)
 
 
 # ------------------------------------------------------------------ checks and references
@@ -173,6 +184,101 @@ def test_preparing_again_replaces_what_was_prepared():
         p.close()
 
 
+def test_preparing_again_after_a_drop_is_answered_by_the_new_prepare():
+    """Generations are the pool's: what a prepare dropped while it loads answers does not count for the next
+    one under its name (the second review: both were generation 1, and the old reference's outcome came)."""
+    p = Pool(workers=1, spare=False, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        p.prepare("t", "test", "slow 1", ["ok the old reference"])
+        time.sleep(0.3)                                                     # it loads the old seed
+        p.drop("t")
+        assert p.prepare("t", "test", "the new seed", ["raise"]).result(30) == [
+            {"status": "error", "error": "the engine broke"}]
+        assert check(p, "t", "ok a text")["summary"]["seed"] == "the new seed"
+    finally:
+        p.close()
+
+
+def test_after_a_drop_and_a_new_prepare_every_process_has_the_new_one():
+    """The deck reloaded while the workers are busy, their prepares behind their checks: each process
+    prepares what is prepared now (the second review: one counted as prepared from the dropped prepare's
+    answer, had nothing, and answered every check `internal`)."""
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        p.prepare("x", "test", "seed x").result(60)
+        assert p.wait_ready(60)
+        busy = [p.submit("x", f"sleep 1.{i}5", owner=f"busy{i}", budget_s=2.0) for i in range(2)]
+        time.sleep(0.2)
+        assert p.prepare("t", "test", "seed v1", ["ok r"]).result(30)[0]["summary"]["seed"] == "seed v1"
+        p.drop("t")
+        assert p.prepare("t", "test", "seed v2", ["ok r"]).result(30)[0]["summary"]["seed"] == "seed v2"
+        assert all(f.result(30)["status"] == "ok" for f in busy) and p.wait_ready(30)
+        rs = [f.result(30) for f in [p.submit("t", f"ok text {i}", owner=f"s{i}") for i in range(20)]]
+        assert {(r["status"], r["summary"]["seed"]) for r in rs} == {("ok", "seed v2")}
+    finally:
+        p.close()
+
+
+def test_a_check_made_against_an_earlier_prepare_runs_again_against_the_new_one():
+    """Prepared again with another seed while a text is checked: that text - and the same text submitted
+    after, which joins it - is checked against the new seed; a text of an activity dropped meanwhile is
+    `internal` (the second review: the old seed's outcome came)."""
+    p = Pool(workers=1, spare=False, engines=ENGINES).start()
+    try:
+        p.prepare("t", "test", "seed v1").result(60)
+        assert p.wait_ready(60)
+        running = p.submit("t", "sleep 0.5 the text", budget_s=1.0)
+        time.sleep(0.2)
+        p.prepare("t", "test", "seed v2")
+        again = p.submit("t", "sleep 0.5 the text", budget_s=1.0)
+        r = again.result(30)
+        assert again is running and (r["status"], r["summary"]["seed"], r["tries"]) == ("ok", "seed v2", 1)
+        gone = p.submit("t", "sleep 0.5 gone", budget_s=1.0)
+        time.sleep(0.2)
+        p.drop("t")
+        assert (gone.result(30)["status"], gone.result()["error"]) == ("internal", "dropped")
+    finally:
+        p.close()
+
+
+@pytest.mark.parametrize("what", ["seed", "reference"])
+def test_a_process_that_cannot_prepare_what_another_did_is_replaced(tmp_path, what):
+    """The seed does not load on one process, or the reference with the rows gives none there: that process
+    is ended, a fresh one prepares the activity, and every check compares alike (the second review: the
+    activity failed for every process, unannounced - or that process's checks carried no diff)."""
+    flaky = f"flaky {tmp_path / 'n'} 2"                                     # the second time, once
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        seed, refs = (flaky, ["ok ref"]) if what == "seed" else ("a seed", [flaky])
+        assert p.prepare("f", "test", seed, refs).result(60)[0]["status"] == "ok"
+        assert p.wait_ready(60)
+        rs = [check(p, "f", f"ok text {i}", owner=f"s{i}") for i in range(10)]
+        assert all(r["status"] == "ok" and "diff" in r["summary"] for r in rs)
+        assert p.stats()["failed"] == {} and [why.startswith("could not prepare f") for why in ended(p)] == [True]
+    finally:
+        p.close()
+
+
+def test_an_activity_no_other_process_can_prepare_fails_and_says_so(tmp_path, caplog):
+    seed = f"flaky {tmp_path / 'n'} " + " ".join(str(n) for n in range(2, 40))   # the first process only
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        with caplog.at_level(logging.WARNING, logger="texstage.pool"):
+            assert p.prepare("f", "test", seed).result(60) == []
+            end = time.monotonic() + 30
+            while "f" not in p.stats()["failed"] and time.monotonic() < end:
+                time.sleep(0.05)
+            assert "preparing it ended 3 processes" in p.stats()["failed"]["f"]
+            r = check(p, "f", "ok x")
+            assert r["status"] == "internal" and r["error"].startswith("not prepared: preparing it ended 3")
+        assert any("activity f failed after it was prepared" in m for m in caplog.messages)
+    finally:
+        p.close()
+
+
 def test_a_dropped_activity_is_not_checked(pool):
     pool.prepare("gone", "test", "a seed").result(60)
     pool.drop("gone")
@@ -257,6 +363,47 @@ def test_a_check_whose_worker_dies_once_is_checked_on_a_fresh_process(pool, tmp_
     marker.write_text("")
     r = check(pool, "test", f"crashonce {marker}")
     assert (r["status"], r["tries"]) == ("ok", 2) and len(set(r["workers"])) == 2
+    assert checks_made(pool, r["workers"][1]) == 1                          # the retry was its first
+
+
+def test_a_retry_waits_for_the_fresh_process_that_replaces_its_worker(tmp_path):
+    """Without a spare: the other worker has checked texts already, so the retry waits for the one that
+    replaces the worker that died, though it still loads its seed (the second review: it took the other)."""
+    marker = tmp_path / "once"
+    marker.write_text("")
+    p = Pool(workers=2, spare=False, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "slow 0.5").result(60)
+        assert p.wait_ready(60)
+        warm = [p.submit("test", f"spin 0.3 #{i}", owner=f"w{i}") for i in range(4)]     # both workers
+        assert all(f.result(30)["status"] == "ok" for f in warm)
+        before, _ = pids(p)
+        r = check(p, "test", f"crashonce {marker}")
+        assert (r["status"], r["tries"]) == ("ok", 2)
+        assert r["workers"][1] not in before and checks_made(p, r["workers"][1]) == 1
+    finally:
+        p.close()
+
+
+def test_two_retries_at_once_each_get_a_fresh_process(tmp_path):
+    """Two workers die at once: the spare takes one retry, the other waits for a fresh process too (the
+    second review: it took the spare after its first retry)."""
+    markers = [tmp_path / f"once{i}" for i in range(2)]
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "slow 0.5").result(60)
+        assert p.wait_ready(60)
+        warm = [p.submit("test", f"spin 0.3 #{i}", owner=f"w{i}") for i in range(4)]
+        assert all(f.result(30)["status"] == "ok" for f in warm)
+        for m in markers:
+            m.write_text("")
+        futures = [p.submit("test", f"crashonce {m}", owner=f"c{i}") for i, m in enumerate(markers)]
+        rs = [f.result(60) for f in futures]
+        assert all((r["status"], r["tries"]) == ("ok", 2) for r in rs)
+        retried = [r["workers"][1] for r in rs]
+        assert len(set(retried)) == 2 and all(checks_made(p, pid) == 1 for pid in retried)
+    finally:
+        p.close()
 
 
 def test_the_clock_stops_what_takes_no_cpu_time(pool):
@@ -321,6 +468,41 @@ def test_memory_over_the_allowance_once_is_fine_on_a_fresh_process(tmp_path):
         p.close()
 
 
+CROSS = ("CREATE TABLE a (x INTEGER, y TEXT); WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r "
+         "LIMIT 400) INSERT INTO a SELECT n, 'name ' || n FROM r;")
+
+
+def test_sqlites_own_cap_is_the_students_error_at_once_and_its_worker_goes_on():
+    """A join condition forgotten, the rows sorted: SQLite's cap stops the query from inside, alike on
+    every process - so no worker is ended for it (the second review: two were, for each such text)."""
+    p = Pool(workers=1, spare=False, engines=ENGINES, heap_allowance_mb=8).start()
+    try:
+        p.prepare("s", "sql", CROSS, [], "de").result(60)
+        r = p.submit("s", "SELECT * FROM a AS p, a AS q, a AS r ORDER BY p.y, q.y, r.y", language="de").result(60)
+        assert (r["status"], r["error"], r["tries"]) == ("error", texts.ENGINES["de"]["tooMuchMemory"], 1)
+        again = p.submit("s", "SELECT count(*) FROM a", language="de").result(60)
+        assert again["status"] == "ok" and again["worker"] == r["worker"] and ended(p) == []
+    finally:
+        p.close()
+
+
+@pytest.mark.parametrize("order", [("big", "small"), ("small", "big")])
+def test_sqlites_cap_holds_every_seed_of_a_process(order):
+    """A 40 MB seed and a small one, in either order: the cap - SQLite's, for the whole process - counts
+    both (the second review: each seed set it from its own pages, a smaller one below what a larger one
+    held, and no text of either ran)."""
+    seeds = {"big": ("CREATE TABLE t (x); INSERT INTO t VALUES (zeroblob(40000000));", "SELECT length(x) FROM t"),
+             "small": ("CREATE TABLE u (y); INSERT INTO u VALUES (1);", "SELECT y FROM u")}
+    p = Pool(workers=1, spare=False, engines=ENGINES, heap_allowance_mb=4).start()
+    try:
+        for act in order:
+            assert p.prepare(act, "sql", seeds[act][0], [seeds[act][1]]).result(60)[0]["status"] == "ok", act
+        assert check(p, "big", "SELECT length(x) FROM t")["summary"]["rows"] == [["40000000"]]
+        assert check(p, "small", "SELECT y FROM u")["status"] == "ok" and ended(p) == []
+    finally:
+        p.close()
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="the job object is Windows'")
 def test_the_job_object_holds_a_worker_to_its_memory():
     """An allocation over the job object's limit fails in the worker: it ends, and the text runs once more
@@ -346,6 +528,25 @@ def test_a_workers_address_space_is_capped_on_linux():
         p.close()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="the address space is capped on Linux")
+def test_a_lower_address_space_limit_is_kept_and_the_pool_starts():
+    """The server under ulimit -v below twice the hard stop: a process may not raise its hard limit, so a
+    worker keeps the lower one (the second review: each worker failed as it started, and the pool broke)."""
+    import resource
+    limit = 3 * 2**30
+    script = f"""if True:
+        import sys
+        sys.path.insert(0, {str(Path(__file__).parent)!r})
+        from texstage.server.pool import Pool
+        p = Pool(workers=1, spare=False, engines={{"test": "pool_engines"}}).start()
+        p.prepare("test", "test", "a seed").result(60)
+        print(p.submit("test", "limits").result(60)["summary"]["address_space"])
+        p.close()"""
+    done = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120,
+                          preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_AS, (limit, limit)))
+    assert done.stdout.strip() == str(limit), done.stdout + done.stderr
+
+
 # ------------------------------------------------------------------ the queue
 def test_students_take_turns():
     """One student's many slow texts hold another's up by one round, not by all of them."""
@@ -362,6 +563,46 @@ def test_students_take_turns():
         for f in [*greedy, other]:
             f.result(60)
         assert order.index("other") == 2, order                             # behind the one running and one more
+    finally:
+        p.close()
+
+
+def test_a_text_no_process_can_take_yet_holds_up_none_of_its_owners_others():
+    """A student's text for an activity whose reference is still being checked waits; their next text, for
+    another activity, goes at once to the worker that is free (a fix of the first review that no test held,
+    the second found)."""
+    p = Pool(workers=2, spare=False, engines=ENGINES).start()
+    try:
+        p.prepare("b", "test", "seed b").result(60)
+        assert p.wait_ready(60)
+        slow = p.prepare("a", "test", "seed a", ["sleep 3 the reference"])      # one worker, for 3 s
+        time.sleep(0.2)
+        t = time.perf_counter()
+        first = p.submit("a", "ok for a", owner="s1")
+        second = p.submit("b", "ok for b", owner="s1")
+        assert second.result(30)["status"] == "ok" and time.perf_counter() - t < 1.5
+        assert slow.result(30)[0]["status"] == "ok" and first.result(30)["status"] == "ok"
+    finally:
+        p.close()
+
+
+def test_with_no_worker_free_the_queue_is_not_walked(monkeypatch):
+    """The spare waits while the worker checks: a submit - and a message - looks for a retry only (the
+    second review: each walked the whole queue, and 1,000 texts took 1.0 s to their last verdict, not
+    0.12 s)."""
+    p = Pool(workers=1, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        walks = []
+        walk = Pool._next
+        monkeypatch.setattr(Pool, "_next", lambda self, *a: walks.append(1) or walk(self, *a))
+        busy = p.submit("test", "sleep 1", owner="busy", budget_s=1.0)
+        time.sleep(0.2)
+        n = len(walks)
+        futures = [p.submit("test", f"ok {i}", owner=f"s{i}") for i in range(200)]
+        assert len(walks) == n
+        assert busy.result(30)["status"] == "ok" and all(f.result(30)["status"] == "ok" for f in futures)
     finally:
         p.close()
 
@@ -448,6 +689,37 @@ def test_close_resolves_what_waits_at_once_and_ends_busy_workers():
     p.close()
     assert time.perf_counter() - t < 1.5
     assert running.result(0)["error"] == waiting.result(0)["error"] == "closed"
+
+
+def test_closing_while_a_replacement_starts_ends_it(monkeypatch):
+    """close() while the replacement of a worker that died is being started: it waits for the start and
+    ends the process (the second review: it was left running, outside the job object)."""
+    p = Pool(workers=1, spare=False, engines=ENGINES).start()
+    try:
+        assert p.wait_ready(60)
+        starting, go, new = threading.Event(), threading.Event(), []
+        start = pool_module._Worker.start
+
+        def held(self):
+            new.append(self)
+            starting.set()
+            go.wait(10)
+            start(self)
+
+        monkeypatch.setattr(pool_module._Worker, "start", held)
+        psutil.Process(p.workers[0].pid).kill()                           # its replacement is started
+        assert starting.wait(10)
+        closing = threading.Thread(target=p.close)
+        closing.start()
+        while not p.closed:
+            time.sleep(0.01)
+        go.set()                                                            # it starts with the pool closed
+        closing.join(15)
+        assert not closing.is_alive() and new[0].pid is not None
+        new[0].proc.join(5)
+        assert not new[0].proc.is_alive()
+    finally:
+        p.close()
 
 
 def test_a_pool_whose_processes_die_before_they_are_ready_starts_no_more():

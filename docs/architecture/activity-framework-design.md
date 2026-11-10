@@ -42,7 +42,7 @@ type of its own and shares the timer, the points and the leaderboard. All of it 
 | Polls | stay as they are: quiz rounds the lecturer asks on the spot (`server/polls.py`); back to them only if the vote step and polls come to duplicate code | decided 2026-11-09 |
 | Order of the work | first today's four kinds checked on the server, behind today's messages and LaTeX; then the core and the contract, cut from them; then steps - each stage on a branch until its test passes, the lectures on `main` meanwhile (section 18) | decided 2026-11-09 |
 | The contract's number | API 0 while it may still change; API 1 once a kind of another subject has checked it (F4) (sections 7.1, 7.2) | decided 2026-11-09 |
-| Failed checks | a check whose worker died, or that the clock stopped, runs once more on a fresh worker; failing again, it stays `internal` and its text is set aside for the step; memory is a text's fault only if it runs over on a fresh worker too (sections 6.3, 11) | decided 2026-11-09 |
+| Failed checks | a check whose worker died, or that the clock stopped, runs once more on a fresh worker; failing again, it stays `internal` and its text is set aside for the step; memory is a text's fault only if it runs over on a fresh worker too (sections 6.3, 11) - except SQLite's own cap, which counts alike in every worker: a text that reaches it is the student's `error` at once (decided 2026-11-10) | decided 2026-11-09 |
 | Reopening | the lecturer can open a closed step again; going back on the slides does not, as today (section 5.2) | decided 2026-11-09 |
 | The automatic vote | its choices are made once the earlier step's checks are in, at most 3 s after it closes; a choice shows its group's most frequent text in the kind's normalized form - comments gone -, never a text as one student typed it (section 5.1) | decided 2026-11-09 |
 | The word *kind* | kept: it clashes only inside the code - the page records' `G\|kind\|...`, the polls' kinds (`server/polls.py:28`, `choice` and `text` among them) -, where *stage* clashes in the windows and the protocol; the framework's code says *activity kind* (section 4) | decided 2026-11-09 |
@@ -631,7 +631,15 @@ the texts are not.
   remains on a Mac is a short overshoot of a few hundred megabytes, not a frozen laptop - not
   measured yet: CI runs Linux and Windows only. A text over its memory is the student's `error`
   only if it runs over on a fresh worker too, since memory built up before it is never its fault;
-  its message says so. The limits on a result's size stay as today (rows, triples: LA section 12).
+  its message says so. SQLite's own cap is the exception (decided 2026-11-10): SQLite stops the
+  query from inside and counts only what its seeds and the query hold, alike in every worker, so a
+  fresh one comes to the same - the text is the student's `error` at once, and no worker ends for
+  it (the second review of F1's pool: a forgotten join condition with `ORDER BY` ended two). And
+  since `PRAGMA hard_heap_limit` can only lower the cap, which a smaller seed after a larger one
+  then set below what the larger one held, the cap is set through SQLite's own
+  `sqlite3_hard_heap_limit64` (ctypes), from everything the worker's SQLite holds; the pragma
+  stays for a Python whose SQLite ctypes cannot reach. The limits on a result's size stay as
+  today (rows, triples: LA section 12).
 - **No network, no files:** the seed is in memory before any student's text runs; SQLite runs in
   memory, with an authorizer that allows reading and refuses `ATTACH`, `PRAGMA` and the like, and
   without extensions, its temporary storage in memory (else a large sort spills to files: F0, Q6).
