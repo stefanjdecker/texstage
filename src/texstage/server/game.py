@@ -209,25 +209,19 @@ class Engine:
             for name, book in self.books.items():
                 book.load([row for cls in getattr(stage_types.TYPES[name], "ROWS", {})
                            for row in store.load_rows(cls, list(self.sessions))])
-            self._restarted()
 
-    def _restarted(self):
-        """The content types' part as the server starts again (activity.py: restarted - what could not be
-        checked for the server's reasons waits again, for the next checks)."""
+    def _restarted(self, s: Session, now: int) -> bool:
+        """The content types' part for a game as the server starts again (activity.py: restarted - what
+        could not be checked for the server's reasons waits again, for the next checks). Whether the game
+        changed."""
         changed = False
-        for s in list(self.sessions.values()):
-            for kind in stage_types.TYPES.values():
-                if not hasattr(kind, "restarted"):
-                    continue
+        for kind in stage_types.TYPES.values():
+            if hasattr(kind, "restarted"):
                 try:
-                    call = self._call(s, kind, s.last_active)
+                    changed = kind.restarted(self._call(s, kind, now)) or changed
                 except GameError:                        # (its deck is not on this server any more)
-                    continue
-                if kind.restarted(call):
-                    self._save(s)
-                    changed = True
-        if changed:
-            self._commit()
+                    pass
+        return changed
 
     # ------------------------------------------------------------ bookkeeping
     def _register(self, s: Session):
@@ -429,7 +423,7 @@ class Engine:
                 continue
             try:
                 call = self._call(s, kind, now, role="pool")
-                kind.checked(call, aid, {"text": text, **outcome})
+                kind.checked(call, aid, {"text": text, **outcome}, again=self.checks.retried(answer))
             except (GameError, stage_types.Refused) as err:
                 log.warning("checks: a text of %s in game %s not applied: %s", aid, sid, err)
                 continue
@@ -438,17 +432,22 @@ class Engine:
             changed.add(s.id)
 
     def resume_checks(self, now: int) -> None:
-        """The server (re)started: every open game's deck prepared again, and the texts that still wait -
-        sent before the restart, or while the presenter window checked them, or that could not be checked
-        then (activity.py: restarted) - go to the pool. Not a stale game's: an earlier lecture's, whose
-        deck makes a new game when it is opened again - and then prepared (the package 4 review: every
-        deck of a semester was prepared again on every process, and held). A text sent to it prepares it."""
-        if self.checks is None:
-            return
+        """The server (re)started, whoever checks: in every open game what could not be checked for the
+        server's reasons waits again (activity.py: restarted) - for the presenter window, or, where the
+        server checks, for the pool: the game's deck is prepared again, and the texts that wait - sent
+        before the restart, or while the presenter window checked them - go to it. Not in a stale game,
+        an earlier lecture's, whose deck makes a new game when it is opened again - and is prepared then
+        (the package 4 review: every deck of a semester was prepared again on every process, and held;
+        the review of that fix: its entries waited again all the same, with nobody to check them). A
+        text sent to a stale game prepares its deck."""
         book = self.books.get("activity")
         for s in list(self.sessions.values()):
             b = self.bundles.get(s.bundle)
             if b is None or now - s.last_active >= self.settings.stale_ms:
+                continue
+            if self._restarted(s, now):
+                self._save(s)
+            if self.checks is None:
                 continue
             if self._check_deck(s, b, now):
                 self._save(s)

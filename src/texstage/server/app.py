@@ -114,7 +114,7 @@ from texstage.server import archive
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
 from texstage.server.bundles import BundleError, BundleStore, holds, load_bundle
-from texstage.server.checking import AGAIN_S, MODES, Checks
+from texstage.server.checking import MODES, Checks
 from texstage.server.devices import PAIR_MS, Devices
 from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
@@ -416,6 +416,7 @@ class Server:
         if self.checks is not None:                  # (the mode both: the differences, in the game's archive folder)
             self.checks.compare_file = lambda s: archive.folder(config.data_dir, s) / "checks-compare.csv"
         self.checks_due = False
+        self.again_due = False                       # a wake-up is set for the answers to apply again
         self.loop: asyncio.AbstractEventLoop | None = None
         self.engine = Engine(self.bundles, self.store, config.settings, checks=self.checks)
         self.recordings = Recordings(config.data_dir / "archive")      # texstage (archive.py)
@@ -535,8 +536,8 @@ class Server:
         if self.checks is not None:                  # the pool starts; the open games' decks are prepared, and
             self.loop = asyncio.get_running_loop()   # what still waits is checked (Engine.resume_checks)
             self.checks.start(wake=self._wake_checks)
-            self.engine.resume_checks(now_ms())
             log.info("checks: the server checks the activities' texts (%s)", self.checks.mode)
+        self.engine.resume_checks(now_ms())          # (in every mode: what could not be checked waits again)
 
     def _wake_checks(self):
         """From the pool's threads - or a while after a round with answers to apply again (_checked):
@@ -559,8 +560,13 @@ class Server:
             self.push_due()
         except Exception:
             log.exception("pushing the checks failed")
-        if self.checks.later and self.loop is not None:
-            self.loop.call_later(AGAIN_S, self._wake_checks)
+        if self.checks.later and not self.again_due and self.loop is not None:
+            self.again_due = True                    # (one wake-up, however many rounds come before it)
+            self.loop.call_later(self.checks.again_s + 0.01, self._again)
+
+    def _again(self):
+        self.again_due = False
+        self._wake_checks()
 
     async def stop(self):
         for t in self.tasks:

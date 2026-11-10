@@ -807,7 +807,7 @@ def test_a_large_seed_goes_to_a_busy_worker_and_the_lock_stays_free():
         assert [c.result(60)["status"] for c in crashes] == ["internal", "internal"]
         assert p.wait_ready(60)
         stop.set()
-        assert check(p, "big", "ok big")["status"] == "ok"
+        assert check(p, "big", "ok big", budget_s=10.0)["status"] == "ok"   # (8 MB hashed: about 2 s of CPU)
         assert max(calls) < 0.1 and max(waits) < 0.1, (max(calls), max(waits))
     finally:
         p.close()
@@ -890,6 +890,32 @@ def test_a_pool_whose_processes_die_before_they_are_ready_starts_no_more():
         with pytest.raises(RuntimeError):
             p.prepare("x", "test", "a seed").result(1)
         assert p.submit("x", "ok x").result(1)["status"] == "internal"
+    finally:
+        p.close()
+
+
+def test_processes_that_end_before_they_take_their_pipe_break_the_pool(tmp_path, monkeypatch):
+    """A process that ends before Python has taken its end of the pipe - here its sitecustomize ends it;
+    in the field a broken environment, a virus scanner - leaves no end of the pipe to be seen on Windows,
+    where that end waits in the server's process to be taken: the watchdog asks the process itself (the
+    review of package 4's fixes: no process ever started, the pool was not broken, and every text waited)."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "sitecustomize.py").write_text(
+        "import os, sys\n"
+        "if os.environ.get('TEXSTAGE_TEST_NO_START') and any(a.startswith('--multiprocessing-fork') for a in sys.argv):\n"
+        "    os._exit(7)\n", encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(p for p in (str(site), os.environ.get("PYTHONPATH", "")) if p))
+    monkeypatch.setenv("TEXSTAGE_TEST_NO_START", "1")
+    p = Pool(workers=2, engines=ENGINES).start()
+    try:
+        end = time.monotonic() + 30
+        while not p.broken and time.monotonic() < end:
+            time.sleep(0.05)
+        assert p.broken
+        assert p.submit("x", "ok x").result(1)["status"] == "internal"
+        with pytest.raises(RuntimeError):
+            p.prepare("x", "test", "a seed").result(1)
     finally:
         p.close()
 

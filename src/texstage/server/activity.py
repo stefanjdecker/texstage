@@ -137,6 +137,7 @@ class Shelf:
     waits: int = 0                                                          # ... of them waiting for their check
     unchecked: int = 0                                                      # ... that could not be checked
     waiting: dict[str, dict[str, Contribution]] = field(default_factory=dict)   # text -> those waiting with it
+    unsure: dict[str, dict[str, Contribution]] = field(default_factory=dict)    # text -> internal, not final
     known: dict[str, Contribution] = field(default_factory=dict)            # text -> the first with a final check
 
     def add(self, c: Contribution):
@@ -164,16 +165,18 @@ class Shelf:
         text = c.input.get("text")
         if text is None:
             return
-        if c.status == "waiting":
-            same = self.waiting.setdefault(text, {})
-            if n > 0:
-                same[c.id] = c
-            else:
-                same.pop(c.id, None)
-                if not same:
-                    del self.waiting[text]
-        elif n > 0 and not c.again():          # (an internal check that is not final is no known result)
-            self.known.setdefault(text, c)
+        index = self.waiting if c.status == "waiting" else self.unsure if c.again() else None
+        if index is None:                      # a final check: the text's known result (an internal check
+            if n > 0:                          # that is not final is none)
+                self.known.setdefault(text, c)
+            return
+        same = index.setdefault(text, {})
+        if n > 0:
+            same[c.id] = c
+        else:
+            same.pop(c.id, None)
+            if not same:
+                del index[text]
 
 
 class Book:
@@ -575,10 +578,11 @@ def _result(call, aid: str, item: dict, st: dict, shelf: Shelf, msg: dict) -> di
     return reply
 
 
-def checked(call, aid: str, msg: dict) -> dict | None:
+def checked(call, aid: str, msg: dict, again: bool = False) -> dict | None:
     """The server's check of a text - every contribution waiting with it - or of a reference ("reference":
     its index), from the pool (checking.py, Engine.apply_checks), applied as the presenter window's
-    result is; a summary the shelf has no room for is left out, not the check."""
+    result is; a summary the shelf has no room for is left out, not the check. again: it was applied
+    before and that failed - maybe after the shelf had changed (_apply)."""
     item = _item(call, aid)
     if item["input"] != "code":
         raise Refused("a crowd graph has nothing to check")
@@ -587,7 +591,7 @@ def checked(call, aid: str, msg: dict) -> dict | None:
     state = copy.deepcopy(_state(call.session.stage))
     st = state["items"].setdefault(aid, _fresh(item))
     shelf = call.book.shelf(call.session.id, aid)
-    reply = _apply(call, aid, st, shelf, msg, lenient=True)
+    reply = _apply(call, aid, st, shelf, msg, lenient=True, again=again)
     call.session.stage = {**call.session.stage, NAME: state}
     return reply
 
@@ -603,7 +607,7 @@ def restarted(call) -> bool:
         shelf = call.book.shelves.get((call.session.id, aid))
         if item["input"] != "code" or shelf is None:
             continue
-        again = [c for c in shelf.contributions.values() if c.again()]
+        again = [c for same in shelf.unsure.values() for c in same.values()]
         for c in again:
             shelf.change(c, status="waiting", key="", error="")
             call.save(c)
@@ -615,10 +619,16 @@ def restarted(call) -> bool:
     return changed
 
 
-def _apply(call, aid: str, st: dict, shelf: Shelf, msg: dict, lenient: bool = False) -> dict | None:
+def _apply(call, aid: str, st: dict, shelf: Shelf, msg: dict, lenient: bool = False,
+           again: bool = False) -> dict | None:
     """A check's outcome - status, key, error, summary - for a text (msg's "text": every contribution
     waiting with it) or a reference (its "reference"). lenient, the server's: a summary over the size or
-    the activity's number of results is left out; the window's is refused."""
+    the activity's number of results is left out; the window's is refused. A final outcome - any but an
+    internal one that is not set aside - is also that of the text's entries that could not be checked
+    before (Shelf.unsure; the review of package 4's fixes: they stayed so until a restart, beside the
+    same text's verdict). again: the outcome was applied before, and that failed - if the store failed
+    after the shelf had changed, the entries that have the outcome already are saved, counted and
+    pushed again (the same review: the retry found nothing waiting, and did nothing)."""
     status = msg["status"]
     key = msg.get("key") if status == "ok" else status
     if status == "ok" and (not isinstance(key, str) or not KEY.fullmatch(key)):
@@ -637,8 +647,8 @@ def _apply(call, aid: str, st: dict, shelf: Shelf, msg: dict, lenient: bool = Fa
             raise why
         if why is None:
             r = Result(call.session.id, aid, key, summary, call.now)
+            call.save(r)                             # (first: a save that fails leaves it to be saved again)
             shelf.results[key] = r
-            call.save(r)
     if "reference" in msg:
         references = (call.keys.get(aid) or {}).get("reference") or []
         i = msg.get("reference")
@@ -649,12 +659,20 @@ def _apply(call, aid: str, st: dict, shelf: Shelf, msg: dict, lenient: bool = Fa
         st["refs"] = refs
         st["version"] += 1
         return None
-    waiting = list(shelf.waiting.get(msg.get("text"), {}).values())
-    if not waiting:
+    text, error = msg.get("text"), error[:ERROR_MAX] if status != "ok" else ""
+    waiting = list(shelf.waiting.get(text, {}).values())
+    if status != "internal" or error.startswith(SET_ASIDE):
+        waiting += list(shelf.unsure.get(text, {}).values())
+    saved = [c for c in shelf.contributions.values()
+             if c.input.get("text") == text and (c.status, c.key, c.error) == (status, key, error)] if again else []
+    if not waiting and not saved:
         return {"stale": True}                       # (checked already: a known result, an earlier check)
     phones = set()
     for c in waiting:
-        shelf.change(c, status=status, key=key, error=error[:ERROR_MAX] if status != "ok" else "")
+        shelf.change(c, status=status, key=key, error=error)
+        call.save(c)
+        phones.add(c.player)
+    for c in saved:
         call.save(c)
         phones.add(c.player)
     _recount(st, shelf)

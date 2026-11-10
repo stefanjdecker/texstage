@@ -10,7 +10,7 @@ inbox until the engine takes it (Engine.apply_checks), and wake() - the event lo
     checks.prepare(bundle)                       # a game of the deck: every process loads its code activities
     checks.submit(bundle_id, aid, text, sid, owner)   # a text that waits for its check
     checks.answers()                             # what the pool answered since, on the engine's thread
-    checks.again(answer)                         # one the engine could not apply: with the next ones
+    checks.again(answer)                         # one the engine could not apply: again in a while
     checks.problems(bundle_id)                   # {activity: why the pool cannot check it}, for the windows
     checks.release(bundle_id)                    # the deck's last game ended: the processes let go of it
     checks.close()
@@ -41,7 +41,7 @@ MODES = ("server", "browser", "both")
 COMPARE_COLUMNS = ["time", "activity", "what", "text", "browser status", "browser key", "browser error",
                    "server status", "server key", "server error"]
 AGAIN = 3                           # times an answer the engine could not apply is applied again
-AGAIN_S = 1.0                       # ... this long after (app.py)
+AGAIN_S = 1.0                       # ... each this long after the last (app.py wakes the engine then)
 
 
 def _failed(exc: BaseException) -> cf.Future:
@@ -72,7 +72,9 @@ class Checks:
         self.closed = False
         self.inbox: queue.SimpleQueue = queue.SimpleQueue()
         self.wake: Callable[[], None] = lambda: None
-        self.later: list[tuple[tuple, int]] = []         # (an answer the engine could not apply, how often)
+        self.again_s = AGAIN_S
+        self.later: list[tuple[tuple, int, float]] = []  # (an answer the engine could not apply, how often,
+                                                         #  when it is due again: time.monotonic())
         self.tried: dict[int, int] = {}                  # this round's answers from later: id -> how often
         self.prepares: dict[str, dict] = {}      # act -> {bundle, aid, texts, future, outcomes: None until known,
                                                  #         failed: why preparing it failed, or None}
@@ -163,19 +165,21 @@ class Checks:
             del self.waiting[k]
         for k in [k for k in self.outcomes if k[0].startswith(prefix)]:
             del self.outcomes[k]
-        self.later = [(a, n) for a, n in self.later if a[1] != bundle_id]
+        self.later = [x for x in self.later if x[0][1] != bundle_id]
 
     # ------------------------------------------------------------------ what the pool answers
     def answers(self) -> list[tuple]:
         """What the pool answered since, on the engine's thread - first those the engine could not apply
-        last time (again):
+        before and that are due again (again):
             ("references", bundle, aid, outcomes, failed)   outcomes: one per reference, in their order;
                                                             failed: why preparing failed, or None
             ("text", bundle, aid, text, outcome, games)     games: the sessions whose texts wait for it
         What answers a prepare or a check that was let go of meanwhile is left out."""
-        retried, self.later = self.later, []
-        self.tried = {id(a): n for a, n in retried}
-        out = [a for a, _ in retried]
+        now = time.monotonic()
+        retried = [x for x in self.later if x[2] <= now]
+        self.later = [x for x in self.later if x[2] > now]
+        self.tried = {id(a): n for a, n, _ in retried}
+        out = [a for a, _, _ in retried]
         while True:
             try:
                 item = self.inbox.get_nowait()
@@ -210,14 +214,21 @@ class Checks:
 
     def again(self, answer: tuple) -> bool:
         """An answer of this round the engine could not apply - its own error, the store's, not the
-        answer's: it comes again with the next round, at most AGAIN times (the package 4 review: else
-        one such answer lost its whole round, whose texts waited until a restart). Whether it will."""
+        answer's: it comes again again_s later, at most AGAIN times (the package 4 review: else one such
+        answer lost its whole round, whose texts waited until a restart; the review of that fix: counted
+        by rounds, the tries were used up within milliseconds while the pool answered). Whether it will."""
         n = self.tried.get(id(answer), 0) + 1
-        if n > AGAIN or self.closed:
+        if self.closed:
+            return False
+        if n > AGAIN:
             log.error("checks: an answer given up after %d tries: %s", AGAIN, answer[:3])
             return False
-        self.later.append((answer, n))
+        self.later.append((answer, n, time.monotonic() + self.again_s))
         return True
+
+    def retried(self, answer: tuple) -> bool:
+        """Whether this round's answer was applied before, in vain (again)."""
+        return id(answer) in self.tried
 
     def references(self, bundle_id: str, aid: str) -> list[dict] | None:
         """The references' outcomes of an activity, once the pool has prepared it."""

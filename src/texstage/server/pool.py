@@ -49,7 +49,9 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
   a fresh process; doing it again is the student's `error`, and its message says so. pyoxigraph ending
   its process at the hard stop is a death like any other: `internal`.
 - **Broken:** three processes in a row that die before they are ready, or cannot be started at all,
-  break the pool: it starts no more, and what is submitted or prepared then fails at once.
+  break the pool: it starts no more, and what is submitted or prepared then fails at once. On Windows the
+  watchdog asks a process that is not ready yet whether it has ended: one that ends before it takes its
+  pipe leaves no end of the pipe to be seen.
 - **Nothing blocks while the pool holds its lock:** a worker's messages go out through its outbox, which
   a thread of its own sends (a prepare carries a whole seed), its replies come in on another; processes
   start, psutil is read, a dead worker is joined, futures are resolved and log lines written outside the
@@ -115,6 +117,7 @@ class _Worker:
         self.started_at: float | None = None
         self.start_error = ""
         self.ready = False
+        self.buried = False                 # the pool has seen its end (_died), once
         self.ps = None                      # psutil.Process, once it is ready
         self.base = 0                       # its committed memory after its prepares: the watchdog counts from it
         self.job: dict | None = None        # the check it is making
@@ -587,6 +590,10 @@ class Pool:
         self._after_lock(logs, resolve, kills)
 
     def _died(self, w: _Worker) -> None:
+        with self.lock:                                  # once, whoever sees its end first: its reader at the
+            if w.buried:                                 # pipe's end, the start that failed, or the watchdog
+                return
+            w.buried = True
         if w.pid is not None:
             w.proc.join(1)                               # outside the lock (F0's review)
         w.outbox.put(None)
@@ -848,6 +855,20 @@ class Pool:
             if self.closed:
                 return False
             seen = [(w, w.unit) for w in self.workers + self.spares if w.ps is not None and not w.ended_for]
+            # Windows: a process that ended before it took its end of the pipe - it could not start: a broken
+            # environment, a virus scanner - leaves that end open in this process, where it was duplicated
+            # for it to take: its reader waits for ever, and the pool never learned that it died (the review
+            # of package 4's fixes: no process ever started, yet the pool was not broken, and every text
+            # waited). So the process itself is asked, while it is not ready.
+            unseen = [w for w in self.workers + self.spares
+                      if sys.platform == "win32" and not w.ready and not w.buried and w.pid is not None
+                      and w.proc.exitcode is not None]
+        for w in unseen:
+            try:
+                w.conn.close()                           # (its reader ends, if the system lets it)
+            except OSError:
+                pass
+            self._died(w)
         readings = []
         for w, unit in seen:
             try:                                          # one process that does not read stops no round

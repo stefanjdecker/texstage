@@ -654,6 +654,7 @@ def test_in_the_mode_both_the_windows_results_count_and_the_differences_are_writ
     w.send(bea, "query", text=WRONG)
     w.settle()
     assert w.phone(ada)["mine"]["status"] == "waiting"               # the pool's outcomes do not count
+    assert "checks" not in w.phone(ada)                              # (the phone's words: the lecturer's computer)
     work = w.stage("activity.work")
     assert "checks" not in work and sorted(j["text"] for j in work["jobs"]) == sorted([RIGHT, WRONG])
     job = {j["text"]: j["input"] for j in work["jobs"]}
@@ -735,8 +736,7 @@ def restart(w: World, checks) -> None:
     w.checks = checks
     w.engine = w.start()
     w.s = w.engine.sessions[w.s.id]
-    if checks is not None:
-        w.engine.resume_checks(w.now)
+    w.engine.resume_checks(w.now)                                  # (app.py: as the server starts, in every mode)
 
 
 def flaky(tmp_path: Path) -> bytes:
@@ -768,6 +768,7 @@ def test_what_the_server_could_not_check_is_checked_after_a_restart(tmp_path, po
     assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (0, 2)
     restart(w, pool(engines={"sparql": "pool_engines"}))
     assert [w.phone(p)["mine"]["status"] for p in (ada, bea)] == ["waiting", "waiting"]
+    assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (2, 0)     # counted again
     w.settle()
     db = sqlite3.connect(tmp_path / "store.sqlite3")             # committed as they were applied - before
     try:                                                          # any window's message commits
@@ -926,6 +927,7 @@ def test_an_answer_the_engine_cannot_apply_comes_again_and_the_rest_of_its_round
     from texstage.server import activity
     c = Checks("server")
     c.pool = FakePool()
+    c.again_s = 0                                                  # (due at once: the next round is its time)
     w = World(tmp_path, checks=c)
     w.engine.apply_checks(w.now)                                   # (the references)
     ada, bea = w.join("Ada", "Bea")
@@ -936,13 +938,329 @@ def test_an_answer_the_engine_cannot_apply_comes_again_and_the_rest_of_its_round
         fut.set_result({"status": "ok", "key": f"{i:016x}"})
     real, calls = activity.checked, []
 
-    def once(call, aid, msg):
+    def once(call, aid, msg, again=False):
         calls.append(msg["text"])
         if len(calls) == 1:
             raise RuntimeError("a bug, once")
-        return real(call, aid, msg)
+        return real(call, aid, msg, again=again)
     monkeypatch.setattr(activity, "checked", once)
     w.engine.apply_checks(w.now)
     assert sorted(w.phone(p)["mine"]["status"] for p in (ada, bea)) == ["ok", "waiting"] and len(c.later) == 1
     w.engine.apply_checks(w.now)                                   # the next round (app.py: a second on)
     assert [w.phone(p)["mine"]["status"] for p in (ada, bea)] == ["ok", "ok"] and c.later == []
+
+
+# ------------------------------------------------------------------ what the review of those fixes found (2026-11-10)
+class AgainPool(FakePool):
+    """As the pool does: a text submitted after its check is done is checked again."""
+
+    def submit(self, act, text, owner=None, language=None):
+        fut = self.futures.get((act, text))
+        if fut is None or fut.done():
+            fut = self.futures[(act, text)] = cf.Future()
+        return fut
+
+
+def fake_checks(pool=None) -> Checks:
+    c = Checks("server")
+    c.pool = pool or AgainPool()
+    return c
+
+
+@pytest.mark.parametrize("failing", ["Contribution", "Session", "Result"])
+def test_an_answer_whose_saving_failed_after_the_shelf_changed_is_repaired_when_it_comes_again(tmp_path, failing):
+    """The store fails once while an answer is applied - after the entry changed in memory, or before the
+    game or the result is saved: when the answer comes again, the entry, the game and the result are saved,
+    the counts are right and the phone is pushed (the review of package 4's fixes: the retry found nothing
+    waiting and did nothing - no push, "1 waiting" for ever, the row waiting in the store)."""
+    c = fake_checks()
+    c.again_s = 0
+    w = World(tmp_path, checks=c)
+    w.engine.apply_checks(w.now)
+    ada, = w.join("Ada")
+    w.show(259)
+    w.send(ada, "query", text="SELECT ?a WHERE {}")
+    for fut in c.pool.futures.values():
+        fut.set_result({"status": "ok", "key": "00000000000000aa", "summary": {"columns": ["a"], "rows": [], "count": 0}})
+    w.engine.take_due()
+    store, real, failed = w.engine.store, w.engine.store.save, []
+
+    def save(item):
+        if type(item).__name__ == failing and not failed:
+            failed.append(item)
+            raise sqlite3.OperationalError("database is locked")
+        return real(item)
+    store.save = save
+    w.engine.apply_checks(w.now)
+    assert failed and len(c.later) == 1
+    w.engine.apply_checks(w.now)                                   # it comes again
+    due = w.engine.take_due()
+    assert c.later == [] and due == {w.s.id: {ada}}
+    assert w.phone(ada)["mine"]["status"] == "ok" and w.item("query")["waiting"] == 0
+    assert [("summary" in k) for k in w.picture("query")["clusters"]] == [True]
+    db = sqlite3.connect(tmp_path / "store.sqlite3")
+    try:
+        assert db.execute("SELECT status, key FROM contributions").fetchall() == [("ok", "00000000000000aa")]
+        assert db.execute("SELECT key FROM results").fetchall() == [("00000000000000aa",)]
+    finally:
+        db.close()
+
+
+def test_an_answer_comes_again_after_a_while_however_many_others_come_meanwhile_and_three_times_at_most(
+        tmp_path, monkeypatch):
+    """An answer that cannot be applied for a moment, while the pool's other answers come: each of those is
+    a round, but the one to apply again waits for its time, and is applied then (the review of package 4's
+    fixes: counted by rounds, its three tries were gone after 0.13 s, and its text waited with no job).
+    One that never can is given up after three more tries."""
+    from texstage.server import activity
+    from texstage.server.checking import AGAIN
+    c = fake_checks()
+    c.again_s = 0.25
+    w = World(tmp_path, checks=c, query={"limit": 50})
+    w.engine.apply_checks(w.now)
+    pids = w.join(*[f"P{i}" for i in range(4)])
+    w.show(259)
+    act = act_name(w.bid, "query")
+    for i, pid in enumerate(pids):
+        w.send(pid, "query", text=f"SELECT ?t{i} WHERE {{}}")
+    real, state = activity.checked, {"fail": True, "calls": 0}
+
+    def busy(call, aid, msg, again=False):
+        if msg.get("text") == "SELECT ?t0 WHERE {}" and state["fail"]:
+            state["calls"] += 1
+            raise RuntimeError("the store is busy")
+        return real(call, aid, msg, again=again)
+    monkeypatch.setattr(activity, "checked", busy)
+    for i in range(4):                                             # four answers, a round each
+        c.pool.futures[(act, f"SELECT ?t{i} WHERE {{}}")].set_result({"status": "ok", "key": f"{i:016x}"})
+        w.engine.apply_checks(w.now)
+    assert state["calls"] == 1 and len(c.later) == 1               # tried once: its time has not come
+    assert [w.phone(p)["mine"]["status"] for p in pids] == ["waiting", "ok", "ok", "ok"]
+    state["fail"] = False
+    time.sleep(0.3)
+    w.engine.apply_checks(w.now)
+    assert w.phone(pids[0])["mine"]["status"] == "ok" and c.later == []
+    # one that can never be applied: AGAIN more tries, then it is given up - its text waits
+    c.again_s = 0
+    bea, = w.join("Bea")
+    w.send(bea, "query", text="SELECT ?t0 WHERE {} #2")
+    monkeypatch.setattr(activity, "checked", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("a bug")))
+    c.pool.futures[(act, "SELECT ?t0 WHERE {} #2")].set_result({"status": "ok", "key": K1})
+    rounds = 0
+    while (c.later or not rounds) and rounds < 10:
+        w.engine.apply_checks(w.now)
+        rounds += 1
+    assert rounds == AGAIN + 1 and c.later == [] and w.phone(bea)["mine"]["status"] == "waiting"
+
+
+def test_the_server_wakes_itself_once_for_the_answers_to_apply_again(tmp_path):
+    """An answer to apply again has nothing to wake the engine when the pool is silent: the server sets one
+    wake-up for when it is due, however many rounds come before (app.py: _checked, _again)."""
+    make_activity_bundle(tmp_path / "bundles" / "act.bundle")
+    config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
+                          presenter_key=KEY, checks="server", workers=1, pool={"spare": False})
+    server = create_app(config).state.server
+    calls = []
+
+    class Loop:
+        def call_later(self, delay, fn):
+            calls.append((delay, fn))
+
+        def call_soon_threadsafe(self, fn):
+            calls.append(("soon", fn))
+    try:
+        server.loop = Loop()
+        server.checks.later.append((("text", "b", "a", "t", {"status": "ok"}, set()), 1, time.monotonic() + 60))
+        server._checked()
+        server._checked()
+        assert calls == [(server.checks.again_s + 0.01, server._again)]
+        server._again()
+        assert calls[-1] == ("soon", server._checked) and not server.again_due
+        pushed = []                                              # applying fails: the phones due are pushed all the same
+        server.push_due = lambda: pushed.append(1)
+        server.engine.apply_checks = lambda now: (_ for _ in ()).throw(RuntimeError("a bug"))
+        server._checked()
+        assert pushed == [1]
+    finally:
+        server.store.close()
+
+
+def test_a_commit_that_fails_does_not_lose_the_round(tmp_path, monkeypatch):
+    """The store does not commit as the pool's answers are applied: they are applied, the windows and
+    phones learn them, and the next commit takes what was saved."""
+    c = fake_checks()
+    w = World(tmp_path, checks=c)
+    w.engine.apply_checks(w.now)
+    ada, = w.join("Ada")
+    w.show(259)
+    w.send(ada, "query", text=RIGHT)
+    for fut in c.pool.futures.values():
+        fut.set_result({"status": "ok", "key": K1})
+    w.engine.take_due()
+
+    def full():
+        raise sqlite3.OperationalError("database or disk is full")
+    monkeypatch.setattr(w.engine.store, "commit", full)
+    assert w.engine.apply_checks(w.now) == {w.s.id}
+    assert w.engine.take_due() == {w.s.id: {ada}} and w.phone(ada)["mine"]["status"] == "ok"
+
+
+def test_a_verdict_is_also_that_of_the_same_text_that_could_not_be_checked_before(tmp_path):
+    """Ada's text could not be checked - not set aside: its processes were stopped from outside. Bea sends
+    the same text and gets its verdict: Ada's entry has it too, and counts as checked (the review of
+    package 4's fixes: hers stayed "could not be checked" until a restart, beside a cluster of two)."""
+    c = fake_checks()
+    w = World(tmp_path, checks=c)
+    w.engine.apply_checks(w.now)
+    ada, bea, cy = w.join("Ada", "Bea", "Cy")
+    w.show(259)
+    act = act_name(w.bid, "query")
+    w.send(ada, "query", text=RIGHT)
+    c.pool.futures[(act, RIGHT)].set_result({"status": "internal", "error": "died (exit code -15)"})
+    w.engine.apply_checks(w.now)
+    assert w.phone(ada)["mine"]["status"] == "internal" and w.item("query")["unchecked"] == 1
+    w.send(bea, "query", text=RIGHT)
+    w.engine.take_due()
+    c.pool.futures[(act, RIGHT)].set_result({"status": "ok", "key": K1})
+    w.engine.apply_checks(w.now)
+    assert w.engine.take_due() == {w.s.id: {ada, bea}}
+    w.send(cy, "query", text=RIGHT)
+    assert [w.phone(p)["mine"]["status"] for p in (ada, bea, cy)] == ["ok", "ok", "ok"]
+    assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (0, 0)
+    assert [(k["key"], k["n"]) for k in w.picture("query")["clusters"]] == [(K1, 3)]
+    # an outcome that is not final itself heals nothing: another text, twice internal
+    w.tick()
+    w.send(ada, "query", text=WRONG)
+    c.pool.futures[(act, WRONG)].set_result({"status": "internal", "error": "not prepared: x"})
+    w.engine.apply_checks(w.now)
+    w.send(bea, "query", text=WRONG)
+    c.pool.futures[(act, WRONG)].set_result({"status": "internal", "error": "not prepared: x"})
+    w.engine.apply_checks(w.now)
+    assert [w.phone(p)["mine"]["status"] for p in (ada, bea)] == ["internal", "internal"]
+    assert w.item("query")["unchecked"] == 2
+
+
+def test_a_stale_games_entries_stay_as_they_are_at_a_restart(tmp_path, pool):
+    """A restart leaves a stale game alone - its deck is not prepared, so its entries that could not be
+    checked do not wait again either (the review of package 4's fixes: they did, with nobody to check
+    them, and the panel said "1 waiting" beside "The server checks the queries.")."""
+    w = World(tmp_path, checks=pool(engines={"sparql": "pool_engines"}), reference="ok the reference",
+              seed=flaky(tmp_path))
+    w.settle()
+    ada, = w.join("Ada")
+    w.show(259)
+    w.send(ada, "query", text="ok fine")
+    w.settle()
+    assert w.phone(ada)["mine"]["status"] == "internal"
+    w.now += Settings().stale_ms + 1
+    restart(w, pool(engines={"sparql": "pool_engines"}))
+    assert w.checks.prepares == {} and not w.checks.waiting
+    assert w.phone(ada)["mine"]["status"] == "internal"
+    assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (0, 1)
+
+
+def test_a_pool_that_breaks_during_the_lecture_is_said_to_the_windows(tmp_path, pool, monkeypatch):
+    """The pool breaks while the game runs - a worker dies, and no new process can be started -: the texts
+    sent then could not be checked, counted apart from the waiting ones, and the host view says why for the
+    activity, though its references are fine (the package 4 review's own case; the review of its fixes:
+    only a failed preparing was tested)."""
+    from texstage.server import pool as pool_module
+    w = World(tmp_path, checks=pool(engines={"sparql": "pool_engines"}), reference="ok the reference")
+    w.settle()
+    assert w.engine.host_view(w.s.id, w.now)["checks"] == {"mode": "server", "failing": {}}
+    pids = w.join("Ada", "Bea", "Cy")
+    w.show(259)
+
+    def cannot(self):
+        raise OSError(1455, "The paging file is too small for this operation to complete")
+    monkeypatch.setattr(pool_module._Worker, "start", cannot)
+    w.send(pids[0], "query", text="crash")                         # its worker dies; none takes its place
+    w.settle()
+    for i, pid in enumerate(pids[1:]):
+        w.send(pid, "query", text=f"ok fine {i}")
+    w.settle()
+    assert w.checks.pool.broken
+    assert w.engine.host_view(w.s.id, w.now)["checks"]["failing"] == {"query": w.checks.pool.broken}
+    assert [w.phone(p)["mine"]["status"] for p in pids] == ["internal"] * 3
+    assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (0, 3)
+    assert re.fullmatch(r"[0-9a-f]{16}", w.picture("query", window="stage")["refs"][0])
+
+
+def test_a_text_set_aside_stays_so_when_the_server_starts_again(tmp_path, pool):
+    """The design's rule (AF 6.3): no third worker dies for a text set aside, after a restart neither - its
+    entry stays internal, does not wait again, and the same text again is internal at once, without the
+    pool; the counts are as before the restart."""
+    w = World(tmp_path, checks=pool(engines={"sparql": "pool_engines"}), reference="ok the reference")
+    ada, bea = w.join("Ada", "Bea")
+    w.show(259)
+    w.send(ada, "query", text="crash")
+    w.settle()
+    restart(w, pool(engines={"sparql": "pool_engines"}))
+    w.settle()
+    assert w.phone(ada)["mine"]["status"] == "internal" and not w.checks.waiting
+    assert (w.item("query")["waiting"], w.item("query")["unchecked"]) == (0, 1)
+    w.send(bea, "query", text="crash")
+    assert w.phone(bea)["mine"]["status"] == "internal" and not w.checks.waiting
+    assert w.checks.pool.stats()["ended"] == []                    # no process of the new pool died
+
+
+def test_a_deck_built_again_lets_go_of_the_old_build(tmp_path, pool):
+    """The lecturer builds the deck again during the lecture and opens it: the old build's game ends, and
+    the pool lets go of the old build - after the new game is there (the review of package 4's fixes: no
+    test would have seen it held for ever)."""
+    new = make_activity_bundle(tmp_path / "bundles" / "act2.bundle", seed=SEED + b":hume :name \"Hume\" .\n")
+    w = World(tmp_path, checks=pool())
+    w.settle()
+    assert new != w.bid and list(w.checks.prepares) == [act_name(w.bid, "query")]
+    s = w.engine.open_session("act", new, w.now)
+    assert s.id != w.s.id and list(w.checks.prepares) == [act_name(new, "query")]
+    w.s = s
+    w.settle()
+    assert w.checks.pool.stats()["activities"] == 1
+
+
+def test_a_failed_preparing_reaches_the_windows_of_a_game_that_keeps_its_keys(tmp_path, pool):
+    """A game the browser's checks began, with its reference's key, and a restart with --checks server
+    whose pool cannot prepare the deck: the game keeps its key, and its windows are pushed all the same,
+    to say why the server cannot check."""
+    w = World(tmp_path, reference="ok the reference", seed=flaky(tmp_path))
+    w.stage("activity.work")
+    w.stage("activity.result", activity="query", reference=0, status="ok", key=K1)
+    restart(w, pool(engines={"sparql": "pool_engines"}))
+    changed, end = set(), time.monotonic() + 60
+    while any(p["outcomes"] is None for p in w.checks.prepares.values()):
+        changed |= w.engine.apply_checks(w.now)
+        assert time.monotonic() < end, "the pool did not answer"
+        time.sleep(0.02)
+    changed |= w.engine.apply_checks(w.now)
+    assert w.s.id in changed
+    assert list(w.engine.host_view(w.s.id, w.now)["checks"]["failing"]) == ["query"]
+    assert w.picture("query", window="stage")["refs"] == [K1]
+
+
+def test_a_reference_that_failed_for_its_own_reasons_is_not_the_windows_again_but_the_pools_after_a_restart(
+        tmp_path, pool):
+    """The window's reference failed - a syntax error, here made up: activity.work does not hand it out
+    again (only one not run yet, or one the server could not run); a restart with --checks server fills it
+    with the pool's outcome, as it fills none that has a key."""
+    w = World(tmp_path)
+    w.stage("activity.work")
+    w.stage("activity.result", activity="query", reference=0, status="syntax", error="1:1: made up")
+    assert w.stage("activity.work")["references"] == {}
+    restart(w, pool())
+    w.settle()
+    assert re.fullmatch(r"[0-9a-f]{16}", w.picture("query", window="stage")["refs"][0])
+
+
+def test_the_server_resumes_the_checks_as_it_starts_whoever_checks(tmp_path, monkeypatch):
+    """What could not be checked waits again when the server starts - for the presenter window too: the
+    server runs Engine.resume_checks in the browser's mode as well (a fallback to --checks browser)."""
+    make_activity_bundle(tmp_path / "bundles" / "act.bundle")
+    seen = []
+    real = Engine.resume_checks
+    monkeypatch.setattr(Engine, "resume_checks", lambda self, now: (seen.append(self.checks), real(self, now))[1])
+    config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
+                          presenter_key=KEY)
+    with TestClient(create_app(config)) as client:
+        assert client.get("/api/status").json()["checks"] == "browser"
+    assert seen == [None]
