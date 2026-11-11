@@ -6,7 +6,7 @@ day. Written at the lecturer's request before F1 is built and before F0's runs o
 laptop: it takes for granted what the plan of F0 and F1
 ([activity-framework-plan.md](activity-framework-plan.md), here **P1**) delivers, and changes where
 F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
-and 2 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
+to 3 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
 where it stands); nothing of the server uses them yet. File references are to `src/texstage/` unless they name another folder.
 
 ## 1. In short
@@ -361,6 +361,90 @@ archive's files.
 - **The archive:** `activity-<id>.csv` with the step and the epoch, `activity-<id>.json` with the
   final picture, the crowd graph's SVG (AF 10.5).
 
+The first part, as built (package 3: `activities/phases.py`, `entries.py`, `store.py`) and as it is
+after its review - fourteen findings, fixed -, and what it settled:
+
+- **The step** of an activity that writes none out is named `main`.
+- **A step's time** is counted by the moves and by a tick the server gives a few times a second,
+  each taking off what passed since the last. More than 5 s between two of them means the server
+  did not run - a sleep, or an event loop that stood still: the step is paused (by `sleep`), nothing
+  is taken off, and the lecturer resumes it; a round that opens or ends after such a gap leaves it
+  so. A restart is such a time as well: a step that was open with a time is paused when the server
+  starts again. A step without a time stays open through both. A running time is saved every 5 s.
+  A clock that is set back takes nothing off - the server's time is the wall clock's -, and one set
+  forward by more than 5 s is a sleep.
+- **Who paused** a step is kept (`lecturer`, `quiz`, `sleep`): a round's end resumes only what a
+  round paused; the lecturer's *Resume* - and *Open*, on a paused step, with a time if one is given
+  - resumes any.
+- **No step runs beside a quiz round** (the review): the core remembers that a round runs - the
+  engine says so, when the server starts again too -, and a step that is opened, resumed or paged
+  to meanwhile is paused by the round and starts at its end.
+- **The moves** give the rows they changed, and none when repeated - but *more time*, which adds
+  each time it is asked for (the reply cache keeps a message sent twice from adding twice).
+  Refused, with a code: opening a revealed step (`revealed`), pausing, resuming or timing one that
+  does not run (`closed`), a time that is none (`time`), a name that is no step's (`invalid`). A
+  refused move may have changed rows all the same - the time ran out as the lecturer pressed
+  *Pause* -: the refusal has them, and package 6 pushes them as after any move (the review: they
+  were lost, and no later tick said them). *Reveal* takes a step in any phase, a ready one too.
+- **The current step** - the one the phones show - is the one that runs, else the one that was
+  opened or revealed last: each such move gives the step the game's next turn (`seq`). A reset
+  leaves it the current one (the review: by the time it last moved, a reset gave the phones an older
+  activity's reveal, and two steps that moved in one millisecond changed places at a restart).
+- **The slides** give the core, for the old and the new page, the steps each shows and what the page
+  is of its step - `open` or `revealed` (package 7 records it): a step whose pages go closes; a ready
+  one opens when a page of its comes that is marked open; a page marked revealed reveals its step
+  if it was opened - paging back onto the reveal of a step nobody answered reveals nothing, and
+  after a reset the question's page opens it again. What a page asks is looked at before anything
+  changes.
+- **Entries:** an id is 8 to 40 letters, digits, `-` and `_`; one the step has - in any epoch - is
+  the entry sent again, and gets the entry that is there, whatever the phase is now. Then, in this
+  order: `closed` or `paused`, `blocked`, `too-fast`, `too-many`, `full` (10,000 in an epoch), and
+  the input's shape - `text`, `field`, `too-long`; a text with half a surrogate pair, which no
+  store takes, is refused. The step is asked as it is after a tick: who takes an entry ticks first.
+  A clock set back asks no gap. Entering gives the entry and the earlier ones it replaced, for the
+  checks' queue and the groups.
+- **The limit:** with `counts=latest` every entry a student sent counts. With `counts=all` those
+  count that are in or hidden - what the lecturer hid gives no place back, and is not taken a
+  second time -, one taken back gives its place back, and a student sends at most three times the
+  limit in all, so that nobody fills a step's 10,000 by sending and taking back (F1 had both holes).
+  `counts=all` refuses a student's same input twice (`duplicate`) as it was typed; inputs that only
+  normalize alike are package 4's.
+- **Hide and show** are the entries' own moves (moderation, package 5, calls them): only what is in
+  is hidden, only what is hidden is shown - and where the latest counts and the student has sent
+  another since, the one shown again is replaced by it, so that no student counts twice.
+- **Storage:** `steps`, `entries`, `checks`, `details`; `moderation` comes with package 5. Beyond
+  AF 10.2's columns: a step's `paused_by` and `seq`, a check's `parts` (the crowd graph's, which a
+  restart needs) and `aside` (a text set aside). Until the type is the core's (package 6),
+  `store.create` makes the tables as the server's store would; the type then hands `ROWS` over for
+  the tables alone - the core's rows are written by its writer and read by `store.load`, never by
+  the server's store, which replaces a row it saves again (it moves to the table's end) and reads a
+  flag as a number. A column that a file of an earlier version lacks is read as the row's default.
+- **The writer** writes a row as it is at the commit and updates it in place, so that the entries
+  are read back in the order they came. It uses the store's connection, in a savepoint of its own:
+  a commit of its that fails takes back what it wrote, not what the engine left uncommitted there (a
+  hook that saves and then refuses does). A commit the database refuses writes nothing,
+  acknowledges nothing and is tried again, each time after twice as long, up to 2 s. A row that no
+  commit can take - a fault of the core's, since the contract keeps such values out of a check - is
+  set aside and told (`lost`), and what waited for it is not acknowledged; the rows after it are
+  written. Cancelled, the writer writes what is left.
+- **The move** (4.10): the entries, a check per distinct input with a verdict, the details, each
+  activity's phase, the activity the phones showed as the current step. Left behind: F1's words for
+  an error (a check has a status and a key), and the crowd graph's merges, hidden and approved terms
+  and minimum - they are moderation's, and move with package 5.
+
+Left for the packages that follow, from the review:
+
+- **Package 4:** an entry is unchecked while its step has no check for its norm - moved entries
+  have a norm and may have no check, so an empty norm is not the test. An entry that the kind's
+  `normalize` refuses has been taken by then, and with `counts=latest` has replaced the student's
+  earlier one: it needs a verdict of its own - proposed: a check that is `invalid` with the
+  refusal's code, under the norm of the input as it was sent. The 2,000 characters are measured as
+  sent, before any cleaning.
+- **Package 6:** the server ticks every game's steps a few times a second and before it takes an
+  entry; it checks that an activity, a step and a player are the deck's and the game's before it
+  asks the core; it pushes what a refusal changed; and while the writer's commits fail, it says so
+  in the panel - the entries wait unacknowledged, and the phones send them again.
+
 ### 4.4 The build and LaTeX
 
 - **`texactivity.sty`** knows the core's keys that F2 uses - `id`, `kind`, `limit`, `counts`,
@@ -547,7 +631,12 @@ and a number written with other digits than ASCII's, in the build. Package 2 is 
 (2026-11-11): the contract as API 0, the registry, the kit's Python half; `texstage kinds` lists
 the four, and a kind that breaks a rule fails the kit with the rule. Its review is done too -
 thirteen faults, fixed (4.2). What F1 still changes reaches
-`f2-core` by a merge; the checks' move into the packages waits for that (4.2).
+`f2-core` by a merge; the checks' move into the packages waits for that (4.2). Both are on `main`
+since 2026-11-11, with F1 and the presenter view's improvements; `f2-core` goes on from there.
+Package 3 is built on it (2026-11-11): the steps and their phases, the entries, the storage with its
+writer, a restart, and the move of F1's rows (4.3 says what it settled). It rewires nothing either:
+F1's type runs the server, and the core's tables are made only where its own code is asked to. Its
+review is done - fourteen findings, fixed (4.3).
 
 ### 4.13 Risks
 

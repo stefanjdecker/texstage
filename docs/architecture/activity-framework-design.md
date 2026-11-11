@@ -557,13 +557,14 @@ Tables of the type (the `ROWS` of `server/types.py`, every one with its `session
 
 - `entries`: id, activity, step, epoch, player, created, input (JSON), norm (the hash of the
   normalized input), state (`in`, `replaced`, `withdrawn`, `hidden`).
-- `checks`: activity, step, norm, status, key, verdict, credit, message, at - one per distinct
-  input. A reset keeps them: the same text has the same result.
+- `checks`: activity, step, norm, status, key, parts, verdict, credit, message, at, aside (a text
+  set aside, 6.3) - one per distinct input. A reset keeps them: the same text has the same result.
 - `details`: activity, step, key, detail - one per group (LA's `results`).
 - `ledger` (the core's, for quizzes too): player, source (`quiz` or `activity`), item, part (a
   round or a step), epoch, points, bonus, created - one row per player, part and epoch, so that a
   reveal repeated after a restart gives nothing twice.
-- `steps`: activity, step, epoch, phase, the time left, the vote's choices.
+- `steps`: activity, step, epoch, phase, the time left, who paused it, its turn (the step whose
+  turn is the highest is the current one), the vote's choices (F3).
 - `moderation`: activity, step, act, group or entry, into, created, undone - every act a row, so
   that it can be undone.
 
