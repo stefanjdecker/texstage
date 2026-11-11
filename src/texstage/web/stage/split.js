@@ -11,8 +11,12 @@
 import { PdfSurface } from "/static/stage/pdfview.js";
 
 // the column's part of the width, the next slide's part of the column, and the column's part of the
-// window's height when it stands below the slide (stage.css: 1.85 : 1, 30 %, 38vh before)
-export const SHARES = { side: 0.35, next: 0.3, stacked: 0.38 };
+// window's height when it stands below the slide. "auto": what stage.css makes of the window - the
+// slide as large as its row allows, the column what is left (the review of the presenter view: at a
+// fixed 35 % and 38vh the slide left a third of its height, or of a tall window's width, empty). A
+// divider that is moved has a number, as before; put back, it is "auto" again.
+export const SHARES = { side: "auto", next: 0.3, stacked: "auto" };
+const BEFORE = { side: 0.35, stacked: 0.38 };               // the fixed shares until 2026-11-11: kept ones are "auto" now
 const LIMITS = { side: [0.15, 0.7], next: [0, 0.8], stacked: [0.12, 0.75] };
 const NARROW = window.matchMedia("(max-width: 900px)");     // stage.css: the column below the slide
 const STEP = 0.02;
@@ -25,6 +29,7 @@ export class Dividers {
   constructor(grid, shares, save) {
     this.grid = grid;
     this.shares = { ...SHARES, ...shares };
+    for (const part of ["side", "stacked"]) if (this.shares[part] === BEFORE[part]) this.shares[part] = "auto";
     this.save = save;
     this.last = { main: 0, next: 0 };
     for (const which of ["main", "next"]) {
@@ -43,19 +48,28 @@ export class Dividers {
 
   set(part, value) {
     const [lo, hi] = LIMITS[part];
-    this.shares[part] = Math.round(Math.min(hi, Math.max(lo, value)) * 1000) / 1000;
+    this.shares[part] = value === "auto" ? "auto" : Math.round(Math.min(hi, Math.max(lo, value)) * 1000) / 1000;
     this.apply();
+  }
+
+  // a share as a number: its own, or - "auto" - what the window gives the column now
+  value(part) {
+    if (this.shares[part] !== "auto") return this.shares[part];
+    const side = this.grid.querySelector(".side").getBoundingClientRect();
+    return part === "stacked" ? side.height / window.innerHeight : side.width / (this.grid.getBoundingClientRect().width || 1);
   }
 
   apply() {
     const s = this.shares;
-    this.grid.style.setProperty("--side-w", `${s.side * 100}%`);
-    this.grid.style.setProperty("--next-h", `${s.next * 100}%`);
-    this.grid.style.setProperty("--side-h", `${s.stacked * 100}vh`);
+    const put = (name, share, unit) => (share === "auto" ? this.grid.style.removeProperty(name)
+      : this.grid.style.setProperty(name, `${share * 100}${unit}`));
+    put("--side-w", s.side, "%");
+    put("--next-h", s.next, "%");
+    put("--side-h", s.stacked, "vh");
     for (const which of ["main", "next"]) {
       const el = this.grid.querySelector(`.split.${which}`);
       const part = this.part(which);
-      el.setAttribute("aria-valuenow", String(Math.round(s[part] * 100)));
+      el.setAttribute("aria-valuenow", String(Math.round(this.value(part) * 100)));
       el.setAttribute("aria-valuemin", String(LIMITS[part][0] * 100));
       el.setAttribute("aria-valuemax", String(LIMITS[part][1] * 100));
     }
@@ -136,7 +150,7 @@ export class Dividers {
     if (!delta) return;                                       // other keys: the presenter's
     e.preventDefault();
     e.stopPropagation();
-    this.set(part, this.shares[part] + delta);
+    this.set(part, this.value(part) + delta);
     this.save({ ...this.shares });
   }
 }

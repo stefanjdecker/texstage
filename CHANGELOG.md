@@ -2,6 +2,16 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Presenter view, after a review of it: a lost connection is said across the
+  window, not by a dot alone; the Activities panel shows the activity of the
+  slide and stands in the column, with the notes below it, instead of over
+  the next slide and the notes; in the overview the arrow keys choose a frame
+  and no longer move the projected slide; a running round's buttons stay to
+  be seen, also on a tablet; the notes come as text; the slide takes the room
+  the window has, the column what is left; in a narrower window the buttons
+  of before and after a lecture fold into one, and the join address stays
+  whole; Esc closes the poll dialog; a reference is named by its group, not
+  its key; buttons say what they are and whether they are on.
 - Speak the deck's language everywhere, English or German: shared message
   catalogs (`web/i18n/`) for the live views, the phones, the presenter,
   projector and host windows and the PowerPoint add-in. Phones follow the deck

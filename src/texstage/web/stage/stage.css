@@ -36,6 +36,22 @@ body.presenter {
 .status.closed { background: #ff6b6b; }
 .rtt { font-size: 12px; opacity: .8; font-variant-numeric: tabular-nums; margin-left: -7px; }
 .actions { display: flex; gap: 8px; }
+/* the buttons of before and after a lecture - the archive, the results, a new game, the decks: in a
+   window too narrow for them and the join address, behind one button (presenter.js: #morebtn) */
+.top { position: relative; }
+.more { display: contents; }
+.morebtn { display: none; }
+@media (max-width: 1350px) {
+  .morebtn { display: inline-block; }
+  .more { display: none; position: absolute; right: 10px; top: 100%; z-index: 30; flex-direction: column; gap: 6px; padding: 8px;
+    background: var(--brand); border-radius: 0 0 10px 10px; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+  .more.open { display: flex; }
+  .more button { text-align: left; }
+}
+/* the connection is gone (presenter.js: offline) */
+.offline { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 40; max-width: min(92vw, 900px);
+  padding: 9px 18px; border-radius: 10px; background: var(--no); color: #fff; font-weight: 600; text-align: center;
+  box-shadow: 0 8px 28px rgba(0,0,0,.5); }
 .top button { border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.12); color: #fff; border-radius: 8px; padding: 5px 10px; }
 .top button:hover { background: rgba(255,255,255,.25); }
 main { flex: 1; min-height: 0; }
@@ -111,7 +127,10 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .pgrid {
   --grip: 10px;
   height: 100%; display: grid; gap: 10px 0; padding: 10px;
-  grid-template-columns: minmax(0, 1fr) var(--grip) minmax(200px, var(--side-w, 35%));
+  /* the column, unless its divider was moved: what the slide leaves when it is as high as its row -
+     the window less the bars, about 170 px -, at least 320 px for the notes and at most 35 % */
+  --side-auto: clamp(320px, calc(100vw - (100vh - 170px) * var(--tq-aspect, 1.7778) - 40px), 35%);
+  grid-template-columns: minmax(0, 1fr) var(--grip) minmax(200px, var(--side-w, var(--side-auto)));
   grid-template-rows: minmax(120px, 1fr) auto auto;           /* the step keeps 120 px in a small window */
 }
 
@@ -125,6 +144,15 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .tq-stage canvas.ink { z-index: 2; }
 .tq-stage canvas.pointer { z-index: 3; }
 .tq-stage .tq-controls { z-index: 4; }
+/* ... in the presenter window always to be seen, clearer under the mouse or with the focus - shown only
+   under the mouse (live.css), a lecturer did not find them, and a finger has no hover at all */
+.current .tq-controls { opacity: .75; bottom: 1.2cqh; }      /* at the slide's foot, beside its page number: clear of
+                                                              the answers, which they stood over a little higher */
+.current .tq-stage:hover .tq-controls, .current .tq-controls:focus-within { opacity: 1; }
+@media (hover: none), (pointer: coarse) {
+  .current .tq-controls { opacity: 1; }
+  .current .tq-controls button { min-height: 44px; min-width: 44px; }
+}
 .tq-stage .input { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
 .tq-stage .input.on { pointer-events: auto; }
 .input.pen, .input.highlighter { cursor: crosshair; }
@@ -233,7 +261,7 @@ body.projector.idle .tq-onlink { cursor: none; }
 .split.next::after { top: calc(50% - 1px); height: 2px; left: calc(50% - 24px); width: 48px; }
 .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; display: flex; align-items: center; gap: 6px; }
 .label .tools { margin-left: auto; display: flex; gap: 4px; }
-.label button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 1px 8px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+.label button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; font-size: 13px; min-height: 26px; text-transform: none; letter-spacing: 0; }
 .nextwrap { height: var(--next-h, 30%); min-height: 0; display: flex; align-items: flex-start; justify-content: center; }
 .pagebox { position: relative; background: #fff; }
 .pagebox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
@@ -273,6 +301,7 @@ body.projector.idle .tq-onlink { cursor: none; }
 /* in the flow, so that the grid's rows take the tiles' height */
 .tile canvas { display: block; width: 100%; height: auto; aspect-ratio: var(--tq-aspect, 16 / 9); }
 .tile.on { border-color: var(--warn); }
+.tile.sel { border-color: #b79cf0; box-shadow: 0 0 0 3px #8a63d2; }     /* the arrow keys' mark (presenter.js: markTile) */
 .tile:hover { border-color: #8a8a99; }
 .tile .num { position: absolute; left: 6px; bottom: 6px; z-index: 1; background: rgba(0,0,0,.72); color: #fff; font-weight: 700; font-size: 13px; padding: 1px 7px; border-radius: 99px; }
 
@@ -300,6 +329,7 @@ body.projector.idle .tq-onlink { cursor: none; }
 /* M6: the poll dialog, the questions' panel, the sketches' gallery */
 .toolbar .badge, .top .badge { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 99px; background: var(--no);
   color: #fff; font-size: 12px; font-weight: 800; line-height: 18px; text-align: center; margin-left: 2px; }
+.toolbar .badge.count { background: #5a5a6a; }                           /* how many entries: a count, no alarm */
 .toolbar button.live { border-color: var(--ok); }
 .dialog .box.wide { width: min(680px, 94vw); }
 .dialog .kinds { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -320,6 +350,14 @@ body.projector.idle .tq-onlink { cursor: none; }
 .check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
 .qapanel { position: fixed; top: 52px; right: 10px; bottom: 112px; width: min(430px, 92vw); z-index: 15; display: flex; flex-direction: column;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+/* ... docked in the column (presenter.js: dock), in a window wide enough for the column to stand beside
+   the slide: in the next slide's place, the notes below it, the column at least 400 px wide meanwhile */
+@media (min-width: 901px) {
+  .side > .qapanel { position: static; width: auto; flex: 2 1 0; min-height: 0; box-shadow: none; }
+  .side.docked > .label:first-of-type, .side.docked > .nextwrap, .side.docked > .split.next { display: none; }
+  .side.docked > .notes { flex: 1 1 0; }
+  .pgrid:has(> .side.docked) { grid-template-columns: minmax(0, 1fr) var(--grip) minmax(400px, var(--side-w, var(--side-auto))); }
+}
 .qahead { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .qahead h2 { margin: 0; font-size: 18px; flex: 1; }
 .qahead button { padding: 4px 10px; }
@@ -399,7 +437,10 @@ body.projector.idle { cursor: none; }
 }
 @media (max-width: 900px) {
   /* the column below the step: its share while there is room, less before the step goes under 120 px */
-  .pgrid { grid-template-columns: 1fr; grid-template-rows: minmax(120px, 1fr) var(--grip) minmax(0, var(--side-h, 38vh)) auto auto;
+  /* ... its height, unless the divider was moved: what the slide leaves at the window's full width,
+     less the bars' 290 px or so - at least 180 px */
+  .pgrid { --side-below: max(180px, calc(100vh - 100vw / var(--tq-aspect, 1.7778) - 290px));
+    grid-template-columns: 1fr; grid-template-rows: minmax(120px, 1fr) var(--grip) minmax(0, var(--side-h, var(--side-below))) auto auto;
     row-gap: 0; }
   .split.main { grid-row: 2; grid-column: 1; cursor: row-resize; }
   .split.main::after { top: calc(50% - 1px); height: 2px; left: calc(50% - 24px); width: 48px; }

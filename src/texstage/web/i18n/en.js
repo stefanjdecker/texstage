@@ -180,7 +180,9 @@ export default {
     quizzes: (n) => `${n} ${n === 1 ? "quiz" : "quizzes"}`, slides: (n) => `${n} ${n === 1 ? "slide" : "slides"}`,
     players: (n) => `${n} ${n === 1 ? "player" : "players"}`, built: (date) => `built ${date}`,
     game: (pin, n) => `game ${pin} · ${n} ${n === 1 ? "player" : "players"}`, pin: "PIN",
-    csv: "Results (CSV)", newGame: "New game", newGameAsk: "Start a new game? The players join again with a new PIN.",
+    csv: "Results (CSV)", csvTitle: "this game's answers and points as a table, to open in a spreadsheet",
+    newGameTitle: "a new game on this deck: a new PIN, nobody has joined yet",
+    decksTitle: "back to the decks of this server", newGame: "New game", newGameAsk: "Start a new game? The players join again with a new PIN.",
     phase: { join: "join", read: "read", question: "question", reveal: "reveal", answer: "answer",
       leaderboard: "leaderboard", podium: "podium", prepare: "prepare" },
     round: { "get-ready": "get-ready", open: "open", closed: "closed", revealed: "revealed" },
@@ -191,7 +193,9 @@ export default {
   // activities, the sketches and what comes after the lecture. The keys in brackets are the same
   // in every language.
   presenter: {
-    roundTrip: "the round trip to the server", close: "Close",
+    roundTrip: "the round trip to the server",
+    offline: "No connection to the server - what you do here reaches neither the projector nor the phones. Trying again …",
+    moreTitle: "after the lecture, the results, a new game, the decks", close: "Close",
     pairInstead: (devices, pair) => `An iPad or a second computer is paired instead: in texstage on the laptop, choose ${devices}, then ${pair}, and scan the code it shows.`,
     removed: "This device was removed in the presenter window - pair it again.",
     // this device (an iPad) opened the code the laptop shows - in the browser's language
@@ -267,6 +271,9 @@ export default {
       sketches: "Sketches", sketchesTitle: "the drawings of this sketch question",
       activities: "Activities", activitiesTitle: "the deck's live activities: open, close, reveal, moderate",
       penColour: "pen colour", markerColour: "highlighter colour", width: "pen width",
+      colours: { "#1d1d1f": "black", "#e21b3c": "red", "#1368ce": "blue", "#26890c": "green", "#ffd400": "yellow",
+        "#7ee36b": "light green", "#ff8ad8": "pink", "#6cc8ff": "light blue" },
+      widths: { S: "thin", M: "medium", L: "thick" },
       cleared: "All ink of this frame erased - ↶ or Ctrl+Z brings it back",
     },
     // the bar below: timer and clock, the steps, the projector's screen
@@ -288,7 +295,7 @@ export default {
     frozen: { poll: "frozen on a poll", sketches: "frozen on a sketch board", board: "frozen on a whiteboard page",
       frame: (n) => `frozen on frame ${n}` },
     zoomed: (factor) => `zoomed ×${factor} - ⤢ tap: the whole slide`,
-    overviewHead: "Frames and whiteboard pages - click one, or type a frame's number and Enter; G or Esc closes",
+    overviewHead: "Frames and whiteboard pages - click one, move with the arrow keys and press Enter, or type a frame's number and Enter; G or Esc closes",
     overviewPage: "page",
     popup: "The browser blocked the projector window - allow pop-ups for this page.",
     videoSound: "The projector plays the video without sound - click into the projector window once.",
@@ -351,7 +358,8 @@ export default {
       mergeInto: (term) => `Merge ${term} into …`, moreNodes: (n) => `${n} more nodes than the projector shows.`,
       noTriples: "No triples yet.",
       refPending: (i) => `reference ${i}: not run yet`, refFailed: (i, why) => `reference ${i} failed: ${why}`,
-      refKey: (i, key) => `reference ${i}: ${key}`, noRef: "The deck gives no reference.", theReference: "the reference's",
+      refIn: (i, n) => `reference ${i}: the result of ${n} ${n === 1 ? "student" : "students"}, marked below`,
+      refAlone: (i) => `reference ${i}: its result is none of the groups below`, noRef: "The deck gives no reference.", theReference: "the reference's",
       unshow: "Hide from the projector", showTitle: (one) => `its ${one} and result on the projector`,
       hideOne: (one) => `Hide this ${one}`, hideOneTitle: (one) => `this ${one} goes - the others of its cluster stay`,
       none: (many) => `No ${many} yet.`,
