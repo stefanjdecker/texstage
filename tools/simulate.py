@@ -484,6 +484,9 @@ async def drive_activity(args, deck: dict, key: str, phones: list, rng: random.R
     print(f"acknowledged: {percentiles([e['ack'] - e['sent'] for e in entries if 'ack' in e])}")
     print(f"checked - sent until the phone had its verdict: "
           f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e])}")
+    if any(is_runaway(t) for t in texts):                   # (F2's plan, 4.6: what a runaway text costs the others)
+        print(f"... of the texts that do not run into their budget: "
+              f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e and not is_runaway(e['text'])])}")
     print("statuses:", dict(statuses.most_common()))
 
 

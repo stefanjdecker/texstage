@@ -69,10 +69,14 @@ LINES = {
     "ack": (r"^acknowledged: median (\d+) ms, 95 % (\d+) ms, max (\d+) ms \((\d+)\)", int),
     "checked": (r"^checked - sent until the phone had its verdict: median (\d+) ms, 95 % (\d+) ms, max (\d+) ms "
                 r"\((\d+)\)", int),
+    "others": (r"^\.\.\. of the texts that do not run into their budget: median (\d+) ms, 95 % (\d+) ms, "
+               r"max (\d+) ms \((\d+)\)", int),
 }
 # the design's budgets (AF 15.1), in ms: what of a run is held against which
 BUDGETS = {"an entry acknowledged (95 %)": (lambda r: r.get("ack", [0, None])[1], 500),
            "its verdict (95 %)": (lambda r: r.get("checked", [0, None])[1], 3000),
+           "... of the texts that do not run into their budget (95 %)":
+               (lambda r: r.get("others", r.get("checked", [0, None]))[1], 3000),
            "the activity open on every phone": (lambda r: r.get("open", [0, None])[1], 500),
            "... and closed": (lambda r: r.get("close", [0, None])[1], 500),
            "the file on a phone (95 %)": (lambda r: r.get("fetch", [0] * 5)[4] if r.get("fetch") else None, 30_000)}
@@ -207,11 +211,13 @@ def phones(bundle: Path, args, activity: str, runaway: float, n: int, log: Path,
 
 
 def table(results: list[dict]) -> str:
-    out = [f"{'run':30} {'ack 95 %':>9} {'verdict 95 %':>13} {'max':>7} {'open':>6} {'close':>6} {'file 95 %':>10}  statuses"]
+    out = [f"{'run':30} {'ack 95 %':>9} {'verdict 95 %':>13} {'max':>7} {'others 95 %':>12} {'max':>7} {'open':>6} "
+           f"{'close':>6} {'file 95 %':>10}  statuses"]
     for r in results:
         f = r.get("fetch") or [0] * 6
         out.append(f"{r['run'] + ' #' + str(r['repetition']):30} {r.get('ack', [0, 0])[1]:>9} "
-                   f"{r.get('checked', [0, 0])[1]:>13} {r.get('checked', [0, 0, 0])[2]:>7} {r.get('open', [0, 0])[1]:>6} "
+                   f"{r.get('checked', [0, 0])[1]:>13} {r.get('checked', [0, 0, 0])[2]:>7} "
+                   f"{r.get('others', ['', ''])[1]:>12} {r.get('others', ['', '', ''])[2]:>7} {r.get('open', [0, 0])[1]:>6} "
                    f"{r.get('close', [0, 0])[1]:>6} {f[4]:>10}  {r.get('statuses')}")
     out.append("")
     for what, (value, budget) in BUDGETS.items():

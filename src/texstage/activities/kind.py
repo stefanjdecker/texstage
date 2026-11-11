@@ -15,7 +15,7 @@ data.
         REDUCTION = "groups"                  # groups | crowd | tally
         OPTIONS = fixed(tokens=Words(), seed=File(".sql"), reference=File())           # options.py
         MESSAGES = fixed(service=(), at=("line", "column", "message"))       # what a check may say, by code
-        BUDGET_S = 2.0                        # a check's CPU time in seconds
+        BUDGET_S = 1.0                        # a check's CPU time in seconds
         LIMIT = 5                             # a student's entries, unless the deck says
 
         def build(self, options, bodies) -> Built: ...           # the author's machine: its keys, its data
@@ -57,7 +57,7 @@ VERDICTS = ("correct", "partial", "incorrect")
 FROM_F1 = {"syntax": "invalid"}             # what F1's checks, and the browser's before them, called it
 NAME = re.compile(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*")           # a kind's name: sql-query
 CODE = re.compile(r"[a-z][a-zA-Z0-9]*")                       # an option's key; a message's code, as the catalogs name texts
-BUDGET_S = 2.0                              # a check's CPU time in seconds, as F1's pool has it (server/pool.py)
+BUDGET_S = 1.0                              # a check's CPU time in seconds, as the pool has it (server/pool.py)
 BUDGET_MAX_S = 10.0                         # at most (the design's 11)
 LIMIT_MAX = 50                              # a student's entries, at most
 KEY_MAX = 4096                              # a key's characters: a hash - or a tuple's three terms, whose loose

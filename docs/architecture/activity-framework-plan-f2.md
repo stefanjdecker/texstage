@@ -6,8 +6,8 @@ day. Written at the lecturer's request before F1 is built and before F0's runs o
 laptop: it takes for granted what the plan of F0 and F1
 ([activity-framework-plan.md](activity-framework-plan.md), here **P1**) delivers, and changes where
 F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
-to 3 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
-where it stands); nothing of the server uses them yet. File references are to `src/texstage/` unless they name another folder.
+to 4 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
+where it stands); of the server, only the pool has changed with them (4.6). File references are to `src/texstage/` unless they name another folder.
 
 ## 1. In short
 
@@ -445,6 +445,54 @@ Left for the packages that follow, from the review:
   asks the core; it pushes what a refusal changed; and while the writer's commits fail, it says so
   in the panel - the entries wait unacknowledged, and the phones send them again.
 
+The second part, as built (package 4: `activities/checks.py`, `server/normalizer.py`, `server/pool.py`)
+and as it is after its review - twelve findings, fixed:
+
+- **The core's checks** (`activities/checks.py`) say what is to be done and take what the workers
+  answer; they run nothing, and call no pool: package 6 hands their jobs to it. A text the step has
+  not seen is a job for the normalizing process, entries with the same text waiting for that one; a
+  normalized form the step has not seen is a job for the pool, once, entries of the same form waiting
+  for that one check; a check that no entry waits for any more - replaced, taken back - is a job to
+  take it out of the queue. An entry that is hidden still waits: it may be shown again.
+- **What normalize refuses** is a check of its own, as proposed above: `invalid`, the refusal's code
+  as its message, under the hash of the input as it was sent. It is kept in memory and not stored -
+  asking the kind again costs nothing - and is no form of the step's.
+- **What could not be normalized at all** - the kind is not installed, its normalize raised or took
+  too long, the process ended - is not the student's (the review: it was stored as their `invalid`
+  text for good): the entries count as unchecked, and the same text sent again, or a restart, asks
+  again.
+- **An `internal` check** that is not set aside is not stored: its entries count as unchecked, the
+  same text sent again is checked again, and a restart asks for it again. Set aside, it is stored
+  and final.
+- **A step takes 2,000 distinct forms** - those that have a check, are being checked, or failed and
+  are still waited for; beyond, a new form waits unchecked, the counts say the step is full, and the
+  form is asked for as soon as there is room (the review: it never was, and refused texts and forms
+  nobody waited for used the room up). The cap is the step's, not an epoch's: a reset keeps the
+  checks, and so the forms. The counts for the panel - waiting, unchecked, forms, full - are of the
+  step's epoch and of the entries that are in.
+- **A check asked for twice** - its only entry left, the pool had begun it, the text came again - is
+  one check: the second answer changes nothing.
+- **After a restart** the checks and details are the tables'; a text whose entry has a check is
+  known at once; an entry without one goes to normalize again - a form is not stored, only its hash -
+  and is checked as a new one is.
+- **The pool normalizes** (`pool.normalize`) on a process of its own (`server/normalizer.py`): the
+  kind's `normalize`, found by the kind's name in the registry, one input at a time. A process that
+  ends is replaced and its input tried again, three times in all; an input that takes more than 5 s
+  ends its process and is an error, never the student's; a process that ends before it is ready is
+  seen on Windows too, where its pipe does not tell (the review: every text after it waited for
+  ever). `pool.withdraw` says that one who asked for a check waits no more: once nobody does - the
+  pool counts who asked, two games of a deck share a check - and the check is not being made, it
+  leaves the queue.
+- **In the pool,** after the review: the long checks leave one process to what comes meanwhile; a
+  long check's retry waits its turn among the long ones; a slice that ends when its activity cannot
+  be checked any more - the pool broke, its seed failed - is `internal`, not the text's timeout.
+- **Short checks first** is in the pool as 4.6 decided it; the budget is 1 s, the kinds' default with
+  it.
+- **Not yet:** the pool's workers still check with F1's engines (`texstage.checks`), as F1's type asks
+  them to; that they prepare and check through the kinds - `prepare`, `copy`, `check`, each check held
+  against the contract's rules - comes with the type's rewiring (package 6), which is where the core's
+  jobs meet the pool.
+
 ### 4.4 The build and LaTeX
 
 - **`texactivity.sty`** knows the core's keys that F2 uses - `id`, `kind`, `limit`, `counts`,
@@ -504,6 +552,42 @@ student's. Decided on 2026-11-09 (AF 2):
 - **A budget of 1 s,** not 2: right queries on a lecture's seed take milliseconds (F0, Q4).
 
 If F1's package 6 meets the problem on the laptop, F1 takes this first (P1 4.4).
+
+**Measured and decided** (package 4, 2026-11-11), with the load runs (`tools/load/run.py local`: 1,100
+phones, a burst of 1,000 SPARQL texts in 10 s, 30 % of them distinct) on one machine of 8 cores - 6
+workers, and the spares -, the budget at 1 s. The runaway text of the runs is one that nothing but the watchdog stops,
+so each ends a worker at its slice and another at its budget. The verdicts of the texts that do not
+run away - the runs now say them apart -, 95 % and the slowest, in ms:
+
+| the way | 3 % runaway | 5 % runaway | a runaway text's own verdict, at most |
+|---|---|---|---|
+| no slice (F1's queue) | 2,337 / 2,986 | 4,953 / 7,589 | 4.1 s / 8.8 s |
+| a slice; the long checks only while no other text waits; one spare | 604 / 694 | 1,761 / 2,549 | 8.0 s / 14.4 s |
+| ... two spares | 367 / 531 and 397 / 552 | 1,192 / 1,962 and 1,145 / 2,016 | 6.9 s / 13.4 s |
+| a slice; a lane of two for the long checks; one spare | 1,037 / 1,247 | 2,847 / 4,502 | 17.5 s / 29.9 s |
+| ... two spares | 529 / 706 | 2,170 / 3,490 | 17.6 s / 30.2 s |
+
+- **It stays:** a first slice of 0.25 s, the long checks only while no other text waits for a process,
+  two spares (`server/pool.py`: `SLICE_S`, `LANE`, `SPARES`). At 5 % the others have 95 % of their
+  verdicts within 1.2 s, where F1's queue took 5 s; at 1 % within 11 ms (three runs, the slowest 281 ms;
+  SQL, whose runaway text SQLite stops itself: 9 to 11 ms, no worker ended).
+- **As it stands after the review** - the long checks leave one process to what comes meanwhile
+  (`KEPT`), the process that normalizes runs beside the workers, idle in these runs -, the same runs
+  again, twice at 3 and 5 %: 386 / 611 and 356 / 556 at 3 %, 1,224 / 2,271 and 1,270 / 2,076 at 5 %;
+  at 1 % 10 to 13 ms (the slowest 256 ms), SQL 9 to 12 ms. A runaway text's own verdict: at most 8.0 s
+  at 3 %, 15.4 s at 5 %.
+- **What the slice does not do:** once no other text waits, the long checks take the processes but
+  one, each for its whole budget; texts that come then share the one, or wait for a long check to
+  end - the slowest of the others at 5 %, about 2 s, is such a one. A runaway text holds up those
+  that wait with it for its slice; it can still hold up one that comes later for a budget.
+- **The lane loses** on both counts: the other texts wait for the processes it keeps busy, and the
+  runaway texts for the two it has - one of 50 had no verdict after 30 s.
+- **A second spare** is worth about a third of the others' time at 5 %.
+- **What it costs:** a text that needs more than its slice is checked twice, and one that only the
+  watchdog stops ends two workers, not one - 100 in the run at 5 %. The runaway texts' own verdicts
+  come later than without the slice (15 s for 9 s): they wait until the others are through.
+- On one machine, with its phones on the same cores: the laptop's run with the phones from a second
+  machine is package 13's.
 
 ### 4.7 The four kinds as packages
 
@@ -636,7 +720,11 @@ since 2026-11-11, with F1 and the presenter view's improvements; `f2-core` goes 
 Package 3 is built on it (2026-11-11): the steps and their phases, the entries, the storage with its
 writer, a restart, and the move of F1's rows (4.3 says what it settled). It rewires nothing either:
 F1's type runs the server, and the core's tables are made only where its own code is asked to. Its
-review is done - fourteen findings, fixed (4.3).
+review is done - fourteen findings, fixed (4.3). Package 4 is built on it (2026-11-11): the core's checks, the
+process that normalizes, and short checks first in the pool - measured with the load runs at 1, 3
+and 5 %, which decided its way (4.6). It changes F1's pool, which the server runs: the budget of a
+check is 1 s, a check gets a slice first, the pool has two spares. Its review is done - twelve
+findings, fixed (4.3, 4.6).
 
 ### 4.13 Risks
 

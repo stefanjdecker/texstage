@@ -7,10 +7,12 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
     pool = Pool().start()
     outcomes = pool.prepare(act, "sql", seed, references, language).result()   # the references'
     future = pool.submit(act, text, owner=player, language=language)  # -> {status, error?, key?, summary?}
+    pool.normalize("sql-query", item, keys, {"text": text}, language)  # -> {input} | {refused} | {error}
+    pool.withdraw(act, text)                                          # one who asked for a check waits no more
     pool.drop(act); pool.close()
 
 - **Workers** (worker.py) start with spawn, as many as the cores less two - at least one -, at a low
-  priority; one more waits as a spare. When the pool ends a worker, the spare takes its place at once
+  priority; SPARES more wait as spares. When the pool ends a worker, a spare takes its place at once
   and a new spare starts.
 - **Preparing** an activity: one process - the spare, else one that waits - loads its seed and checks its
   references first, each under its own budget of CPU time; a reference that runs away is a `timeout`,
@@ -29,7 +31,18 @@ prototype (tools/spike/pool.py, on the branch f0-spike), reworked after package 
   future. Each owner - a student - has a queue of their own, and the owners take turns; a text that no
   process can take yet does not hold up the owner's others. While no worker is free, only a retry can
   go - to the spare -, and the queue is not walked.
-- **Budgets** of CPU time, 2 s by default, at most 10: SQLite stops a query from inside, SPARQL and
+- **Short checks first** (the plan of F2, 4.6): every check gets a first slice of its budget, SLICE_S of
+  CPU time. One that is not done by then is stopped as at its budget's end - by its engine, else by the
+  watchdog, which costs its worker - and waits in a second queue for the rest: the long checks, each
+  with its whole budget. A long text is taken only while no other text waits for a process, and the
+  long texts leave KEPT of the processes to what comes meanwhile; with a lane (LANE), at most that many
+  processes check long texts at a time, whatever else waits. So a text that runs away holds up those
+  that wait with it for its slice, not for its budget; one that comes while the long texts are checked
+  finds a process, or waits for a short one. A long text's retry waits its turn among the long ones.
+  The load runs decided for no lane and two spares (the plan of F2, 4.6, has their numbers).
+- **Normalizing** (normalize): a kind's normalize, on a process that does nothing else (normalizer.py),
+  so that what is quick never waits behind a check.
+- **Budgets** of CPU time, 1 s by default, at most 10: SQLite stops a query from inside, SPARQL and
   Turtle stop between solutions, and the Python work after the engine counts too; where nothing stops a
   check, the watchdog ends the worker. Either way the text is a `timeout`, the student's. The clock is a
   backstop at five times the budget.
@@ -73,11 +86,17 @@ import time
 
 from texstage.checks.texts import Words
 from texstage.server import worker
+from texstage.server.normalizer import Normalizer
 
 log = logging.getLogger("texstage.pool")
 
 ENGINES = {"sql": "texstage.checks.sql", "sparql": "texstage.checks.sparql", "turtle": "texstage.checks.turtle"}
-BUDGET_S = 2.0                      # a check's CPU time (plan 4.4)
+BUDGET_S = 1.0                      # a check's CPU time (F2's plan, 4.6: right queries take milliseconds)
+SLICE_S = 0.25                      # ... of which a check gets this much first; None: its whole budget at once
+LANE = None                         # processes that check long texts at a time; None: only while no other waits
+KEPT = 1                            # processes the long texts leave to the others, where there are two or more
+SPARES = 2                          # processes that wait to take an ended one's place (4.6: one covers one
+#                                     ending at a time, and a text that only the watchdog stops ends two)
 BUDGET_MAX_S = 10.0                 # at most (AF 11)
 REFERENCE_BUDGET_S = 10.0           # a reference's, as it is prepared: the lecturer's own
 WATCH_S = 0.05                      # the watchdog's period
@@ -182,14 +201,20 @@ class _Worker:
 
 
 class Pool:
-    def __init__(self, workers: int | None = None, spare: bool = True, engines: dict | None = None,
+    def __init__(self, workers: int | None = None, spare: bool | int = True, engines: dict | None = None,
                  mem_allowance_mb: float = MEM_ALLOWANCE_MB, heap_allowance_mb: float = HEAP_ALLOWANCE_MB,
                  hard_mb: float = HARD_MB, reference_budget_s: float = REFERENCE_BUDGET_S,
-                 prepare_backstop_s: float = PREPARE_BACKSTOP_S, image_max_mb: float = IMAGE_MAX_MB):
+                 prepare_backstop_s: float = PREPARE_BACKSTOP_S, image_max_mb: float = IMAGE_MAX_MB,
+                 slice_s: float | None = SLICE_S, lane: int | None = LANE):
+        """spare: True, SPARES of them; a number, that many; False, none. slice_s, lane: short checks
+        first (the module's text)."""
         import psutil
         self.psutil = psutil
         self.size = workers or max(1, (psutil.cpu_count(logical=False) or os.cpu_count() or 1) - 2)
-        self.spare = spare
+        self.spare = SPARES if spare is True else int(spare)       # how many spares
+        self.slice = slice_s
+        self.lane = lane
+        self.long: collections.deque = collections.deque()         # the long checks that wait, by id
         self.engines = dict(ENGINES if engines is None else engines)
         self.mem_allowance = int(mem_allowance_mb * 2**20)
         self.heap_allowance = int(heap_allowance_mb * 2**20)
@@ -218,6 +243,8 @@ class Pool:
         self.starting = 0                   # processes being started
         self.broken: str | None = None
         self.started = self.closed = False
+        self.normalizer = Normalizer(self.ctx, self.options | {"imports": []},
+                                     on_ready=self.job_object.assign if self.job_object is not None else None)
 
     # ------------------------------------------------------------------ starting, waiting, closing
     def start(self) -> Pool:
@@ -228,10 +255,11 @@ class Pool:
             self.started = True
         for _ in range(self.size):
             self._spawn(spare=False)
-        if self.spare:
+        for _ in range(self.spare):
             self._spawn(spare=True)
+        self.normalizer.start()
         threading.Thread(target=self._watch, daemon=True, name="texstage-pool-watch").start()
-        log.info("checks: %d workers%s", self.size, " and a spare" if self.spare else "")
+        log.info("checks: %d workers and %d to spare, and one that normalizes", self.size, self.spare)
         return self
 
     def wait_ready(self, timeout: float = 60.0) -> bool:
@@ -246,7 +274,7 @@ class Pool:
             return True
 
     def _all_ready(self) -> bool:
-        if len(self.workers) != self.size or len(self.spares) != (1 if self.spare else 0):
+        if len(self.workers) != self.size or len(self.spares) != self.spare:
             return False
         acts = {act for act, a in self.acts.items() if not a["failed"]}
         return all(w.ready and not w.ended_for and acts <= w.prepared for w in self.workers + self.spares)
@@ -258,6 +286,8 @@ class Pool:
             if self.closed:
                 return
             self.closed = True
+        self.normalizer.close()
+        with self.lock:
             everyone = self.workers + self.spares
             busy = {id(w) for w in everyone if not w.free()}
             self.workers, self.spares = [], []
@@ -266,6 +296,7 @@ class Pool:
             self.jobs.clear()
             self.inflight.clear()
             self.queues.clear()
+            self.long.clear()
             self.retry_ids.clear()
             for a in self.acts.values():
                 self._claim(a, resolve, exc=RuntimeError("the pool closed"))
@@ -348,16 +379,43 @@ class Pool:
                                   "set_aside": True})
             job = self.inflight.get((act, text))
             if job is not None:
+                job["waiters"] += 1
                 return job["future"]
             self.next_id += 1
             job = {"id": self.next_id, "act": act, "text": text, "owner": owner or f"#{self.next_id}",
                    "budget": float(budget_s), "language": language, "future": cf.Future(), "tries": 1,
-                   "queued": time.perf_counter(), "started": None, "gen": None, "workers": []}
+                   "queued": time.perf_counter(), "started": None, "gen": None, "workers": [],
+                   "long": False, "sliced": False, "waiters": 1}
             self.jobs[job["id"]] = job
             self.inflight[(act, text)] = job
             self._enqueue(job)
             self._dispatch()
             return job["future"]
+
+    def normalize(self, kind: str, item: dict, keys: dict, input: dict, language: str | None = None) -> cf.Future:
+        """An input for the kind's normalize, on the process that does nothing else (normalizer.py): the
+        future, {"input": the normalized input}, {"refused": the phone's code} or {"error": why}."""
+        with self.lock:
+            if self.closed:
+                raise RuntimeError("the pool is closed")
+        return self.normalizer.submit(kind, item, keys, input, language)
+
+    def withdraw(self, act: str, text: str) -> bool:
+        """One who asked for this text's check (submit) waits for it no more. Once nobody does, and it is
+        not being checked - it waits for its turn, or for the rest of its budget -, it leaves the queue:
+        its future is cancelled, and True. One that is being checked ends as any other."""
+        resolve = []
+        with self.lock:
+            job = self.inflight.get((act, text))
+            if job is None:
+                return False
+            job["waiters"] = max(0, job["waiters"] - 1)
+            if job["waiters"] or any(w.job is job for w in self.workers + self.spares):
+                return False
+            self._forget(job)
+            resolve.append((job["future"], None, cf.CancelledError()))
+        self._settle(resolve)
+        return True
 
     def drop(self, act: str) -> None:
         """The activity goes - its deck is gone: the workers let go of it; what waits for it is `internal`
@@ -381,8 +439,11 @@ class Pool:
         with self.lock:
             return {"workers": len(self.workers), "ready": sum(w.ready for w in self.workers),
                     "spares": len(self.spares), "busy": sum(not w.free() for w in self.workers + self.spares),
-                    "queued": sum(len(q) for q in self.queues.values()), "activities": len(self.acts),
+                    "queued": sum(1 for q in self.queues.values() for jid in q if jid in self.jobs)
+                    + self._long_waiting(),
+                    "long": self._long_waiting(), "activities": len(self.acts),
                     "set_aside": len(self.set_aside), "broken": self.broken, "ended": list(self.events),
+                    "normalizing": self.normalizer.stats(),
                     "failed": {act: a["failed"] for act, a in self.acts.items() if a["failed"]}}
 
     # ------------------------------------------------------------------ preparing
@@ -582,6 +643,12 @@ class Pool:
                             outcome = None
                         elif out_of_memory:
                             outcome = {"status": "error", "error": Words(job["language"]).tooMuchMemory}
+                        elif outcome.get("status") == "timeout" and job["sliced"] and self._retryable(job):
+                            self._longer(job)            # its first slice was not enough: the rest, later
+                            outcome = None
+                        elif outcome.get("status") == "timeout" and job["sliced"]:   # ... and there is no later:
+                            outcome = {"status": "internal",                         # not the text's timeout
+                                       "error": self.broken or f"not prepared: {a['failed']}"}
                         if outcome is not None:
                             self._forget(job)
                             resolve.append((job["future"], self._finished(job, outcome, cpu_s, w), None))
@@ -642,7 +709,13 @@ class Pool:
                         outcome = {"status": "internal", "error": "dropped"}
                     else:
                         outcome = None if stale else self._after(job, why, stopped)
-                    if outcome is None and self._retryable(job):
+                    if a is not None and not stale and why == "cpu" and job["sliced"] and self._retryable(job):
+                        self._longer(job)                # its first slice, which nothing but the watchdog stopped
+                    elif a is not None and not stale and why == "cpu" and job["sliced"]:
+                        self._forget(job)                # ... and there is no later: not the text's timeout
+                        outcome = {"status": "internal", "error": self.broken or f"not prepared: {a['failed']}"}
+                        resolve.append((job["future"], self._finished(job, outcome, None, w), None))
+                    elif outcome is None and self._retryable(job):
                         self._retry(job)
                     else:
                         self._forget(job)
@@ -697,12 +770,22 @@ class Pool:
         self._requeue(job)
 
     def _requeue(self, job: dict) -> None:
-        """To the front of its owner's queue: after a death once more, a try more; after its activity was
-        prepared again, as it was, since what it ran against is gone."""
+        """To the front of its owner's queue - a long check: of the long ones -: after a death once more,
+        a try more; after its activity was prepared again, as it was, since what it ran against is gone."""
         job["started"] = None
         self._enqueue(job, front=True)
         if job["tries"] > 1:
             self.retry_ids.add(job["id"])
+
+    def _longer(self, job: dict) -> None:
+        """A check that its first slice did not finish: it is a long one from now on, and waits its turn
+        among those - not a try more: nothing failed."""
+        job["long"], job["sliced"], job["started"] = True, False, None
+        self.long.append(job["id"])
+
+    def _long_waiting(self) -> int:
+        running = {w.job["id"] for w in self.workers + self.spares if w.job is not None}
+        return sum(1 for jid in self.long if jid in self.jobs and jid not in running)
 
     def _unqueue(self, act: str, why: str, resolve: list) -> None:
         """What waits for the activity - not what is being checked - is `internal`."""
@@ -715,7 +798,7 @@ class Pool:
     def _finished(job: dict, outcome: dict, cpu_s: float | None = None, w: _Worker | None = None) -> dict:
         now = time.perf_counter()
         started = job["started"] or now
-        return outcome | {"tries": job["tries"], "cpu_s": cpu_s, "queued_s": started - job["queued"],
+        return outcome | {"tries": job["tries"], "long": job["long"], "cpu_s": cpu_s, "queued_s": started - job["queued"],
                           "check_s": now - started, "worker": w.pid if w else None, "workers": list(job["workers"])}
 
     def _forget(self, job: dict) -> None:
@@ -747,8 +830,26 @@ class Pool:
 
     # ------------------------------------------------------------------ the queue
     def _enqueue(self, job: dict, front: bool = False) -> None:
-        q = self.queues.setdefault(job["owner"], collections.deque())
+        q = self.long if job["long"] else self.queues.setdefault(job["owner"], collections.deque())
         (q.appendleft if front else q.append)(job["id"])
+
+    def _next_long(self, free: list[_Worker], spares: list[_Worker]):
+        """The long check that waits longest and a process to take it - a retry among them first, on a
+        fresh process as any retry -, while fewer processes check long texts than may: LANE with a lane,
+        else all but KEPT."""
+        most = self.lane if self.lane is not None else max(1, self.size - KEPT)
+        if sum(1 for w in self.workers + self.spares if w.job is not None and w.job["long"]) >= most:
+            return None, None
+        for jid in list(self.long):
+            job = self.jobs.get(jid)
+            if job is None or not job["long"]:
+                self.long.remove(jid)
+                continue
+            w = self._taker(job, free, spares)
+            if w is not None:
+                self.long.remove(jid)
+                return job, w
+        return None, None
 
     def _next(self, free: list[_Worker], spares: list[_Worker]):
         """The next job and a process to take it, the owners in turns, each owner's first that a process
@@ -773,6 +874,8 @@ class Pool:
         fresh process it waits for, and without walking the queue."""
         for jid in sorted(self.retry_ids):
             job = self.jobs.get(jid)
+            if job is not None and job["long"]:          # a long text's retry: its turn is the long ones'
+                continue
             w = self._taker(job, free, spares) if job is not None else None
             if w is not None:
                 q = self.queues.get(job["owner"])
@@ -816,17 +919,26 @@ class Pool:
         spares = [w for w in self.spares if w.free()]
         while free or (spares and self.retry_ids):
             job, w = self._next_retry(free, spares) if self.retry_ids else (None, None)
+            if job is None and self.long and self.lane is not None:
+                job, w = self._next_long(free, spares)   # the lane: long checks, whatever else waits
             if job is None and free:
                 job, w = self._next(free, spares)
+            if job is None and self.long and self.lane is None:
+                job, w = self._next_long(free, spares)   # no lane: only while no other text waits
             if job is None:
                 return
             (free if w in free else spares).remove(w)
             self.retry_ids.discard(job["id"])
             now = time.perf_counter()
+            budget = job["budget"]
+            job["sliced"] = not job["long"] and self.slice is not None and self.slice < budget
+            if job["sliced"]:
+                budget = self.slice
             w.job, job["started"], job["gen"] = job, now, self.acts[job["act"]]["gen"]
-            w.unit = {"kind": "check", "job": job, "budget": job["budget"], "started": now, "cpu0": None}
+            w.unit = {"kind": "check", "job": job, "budget": budget, "clock": job["budget"] * BACKSTOP,
+                      "started": now, "cpu0": None}     # (the clock's backstop: the whole budget's, slice or not)
             job["workers"].append(w.pid)
-            w.outbox.put(("check", job["id"], job["act"], job["text"], job["budget"], job["language"]))
+            w.outbox.put(("check", job["id"], job["act"], job["text"], budget, job["language"]))
 
     # ------------------------------------------------------------------ the watchdog
     def _memory(self, ps) -> int | None:
@@ -893,7 +1005,7 @@ class Pool:
                         unit["cpu0"] = cpu               # its first 50 ms or less go uncounted
                     elif cpu - unit["cpu0"] > unit["budget"] * 1.25 + 0.1:   # the engines stop at the budget
                         why = "cpu"
-                    if why is None and now - unit["started"] > unit["budget"] * BACKSTOP:
+                    if why is None and now - unit["started"] > unit.get("clock", unit["budget"] * BACKSTOP):
                         why = "clock"
                 elif unit is not None and unit["kind"] == "load" and now - unit["started"] > self.prepare_backstop:
                     why = "prepare"

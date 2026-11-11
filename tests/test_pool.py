@@ -49,7 +49,7 @@ QUERIES_ONLY = texts.ENGINES["en"]["queriesOnly"]
 
 @pytest.fixture(scope="module")
 def pool():
-    p = Pool(workers=2, engines=ENGINES, reference_budget_s=0.3).start()
+    p = Pool(workers=2, spare=1, engines=ENGINES, reference_budget_s=0.3).start()
     p.prepare("sql", "sql", SQL_SEED, [REFERENCE], "en").result(60)
     p.prepare("test", "test", "a seed").result(60)
     yield p
@@ -62,6 +62,22 @@ def whole(request):
     activity prepared everywhere."""
     if "pool" in request.fixturenames:
         assert request.getfixturevalue("pool").wait_ready(60)
+
+
+SPARES = pool_module.SPARES          # as a server has them
+
+
+@pytest.fixture(autouse=True)
+def one_spare(monkeypatch):
+    """These tests' pools have one spare, as they were written - a server's has more (SPARES), which
+    test_a_pool_has_as_many_spares_as_it_is_given looks at."""
+    monkeypatch.setattr(pool_module, "SPARES", 1)
+
+
+def test_a_pool_has_the_spares_of_its_default(monkeypatch):
+    monkeypatch.setattr(pool_module, "SPARES", 3)
+    assert Pool(workers=1, engines=ENGINES).spare == 3 and Pool(workers=1, spare=True, engines=ENGINES).spare == 3
+    assert Pool(workers=1, spare=1, engines=ENGINES).spare == 1 and Pool(workers=1, spare=False, engines=ENGINES).spare == 0
 
 
 @pytest.fixture
@@ -949,3 +965,245 @@ def test_futures_of_what_is_replaced_dropped_or_closed_do_not_hang():
         p.close()
     with pytest.raises((RuntimeError, cf.CancelledError)):
         prepared.result(1)
+
+
+# ------------------------------------------------------------------ short checks first (the plan of F2, 4.6)
+def running_long(p: Pool) -> int:
+    with p.lock:
+        return sum(1 for w in p.workers + p.spares if w.job is not None and w.job["long"])
+
+
+def until(what, timeout: float = 30.0) -> bool:
+    """Whether it comes to be, within the timeout: a slow machine takes its time."""
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if what():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_a_check_gets_a_slice_first_and_the_rest_later(pool):
+    before, n = pids(pool), len(ended(pool))
+    r = check(pool, "test", "work 0.5 #long", budget_s=1.0)
+    assert (r["status"], r["long"], r["tries"]) == ("ok", True, 1)     # stopped at its slice, then its whole budget
+    assert len(r["workers"]) == 2 and 0.45 <= r["cpu_s"] < 0.8         # (the second run's time)
+    quick = check(pool, "test", "work 0.1 #short", budget_s=1.0)
+    assert (quick["status"], quick["long"]) == ("ok", False) and len(quick["workers"]) == 1
+    late = check(pool, "test", "work 5 #never", budget_s=0.6)
+    assert (late["status"], late["long"]) == ("timeout", True)         # its whole budget is all it gets
+    assert pids(pool) == before and len(ended(pool)) == n              # an engine that stops costs no worker
+    whole = check(pool, "test", "work 0.2 #within", budget_s=pool_module.SLICE_S)
+    assert (whole["status"], whole["long"]) == ("ok", False)           # a budget of a slice: at once
+    over = check(pool, "test", "work 5 #over", budget_s=pool_module.SLICE_S)
+    assert (over["status"], over["long"], len(over["workers"])) == ("timeout", False, 1)     # ... and once
+    asleep = check(pool, "test", "sleep 2 #asleep", budget_s=1.0)      # the clock's backstop is the whole budget's
+    assert (asleep["status"], asleep["long"], asleep["tries"]) == ("ok", False, 1)
+    assert pool.stats()["long"] == 0
+
+
+def test_what_only_the_watchdog_stops_costs_its_worker_at_the_slices_end(pool):
+    n = len(ended(pool))
+    r = check(pool, "test", "spin 0.7 #unstoppable", budget_s=2.0)
+    assert (r["status"], r["long"], r["tries"]) == ("ok", True, 1)     # not a try more, and not set aside
+    assert ended(pool, n) == ["cpu"]
+    assert pool.wait_ready(60)
+    r = check(pool, "test", "spin 30 #runaway", budget_s=0.5)
+    assert (r["status"], r["long"], r["tries"]) == ("timeout", True, 1) and ended(pool, n) == ["cpu"] * 3
+
+
+def test_a_runaway_text_holds_up_the_others_for_its_slice_not_its_budget():
+    p = Pool(workers=1, spare=False, engines=ENGINES, lane=None).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        slow = p.submit("test", "work 30 #runaway", owner="a", budget_s=3.0)
+        t = time.perf_counter()
+        quick = [p.submit("test", f"ok {i}", owner=f"s{i}", budget_s=3.0) for i in range(5)]
+        got = [f.result(30) for f in quick]
+        assert all(r["status"] == "ok" for r in got) and time.perf_counter() - t < 2.0 and not slow.done()
+        r = slow.result(30)
+        assert (r["status"], r["long"]) == ("timeout", True) and 2.9 <= r["cpu_s"] < 3.4
+    finally:
+        p.close()
+
+
+def test_with_a_lane_long_checks_take_at_most_that_many_processes():
+    p = Pool(workers=3, spare=False, engines=ENGINES, lane=1).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        long = [p.submit("test", f"work 3 #{i}", owner=f"l{i}", budget_s=6.0) for i in range(3)]
+        assert until(lambda: p.stats()["long"] == 2)           # the three slices are over
+        assert running_long(p) == 1 and p.stats()["queued"] == 2
+        t = time.perf_counter()
+        assert check(p, "test", "ok quick", budget_s=6.0)["status"] == "ok" and time.perf_counter() - t < 2.0
+        assert not any(f.done() for f in long)
+        assert [f.result(60)["status"] for f in long] == ["ok"] * 3
+    finally:
+        p.close()
+
+
+def test_without_a_lane_long_checks_take_the_processes_but_one_while_no_other_text_waits():
+    p = Pool(workers=3, spare=False, engines=ENGINES, lane=None).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        long = [p.submit("test", f"work 3 #{i}", owner=f"l{i}", budget_s=6.0) for i in range(3)]
+        assert until(lambda: running_long(p) == 2 and p.stats()["long"] == 1)     # one process is kept
+        t = time.perf_counter()                                # a text that comes meanwhile finds it
+        assert check(p, "test", "ok quick", budget_s=6.0)["status"] == "ok" and time.perf_counter() - t < 2.0
+        assert running_long(p) == 2 and not any(f.done() for f in long)
+        assert [f.result(60)["status"] for f in long] == ["ok"] * 3
+    finally:
+        p.close()
+    one = Pool(workers=1, spare=False, engines=ENGINES).start()        # a pool of one keeps none: it has to
+    try:
+        one.prepare("test", "test", "a seed").result(60)
+        assert check(one, "test", "work 0.5 #alone", budget_s=2.0)["long"] is True
+    finally:
+        one.close()
+
+
+def test_a_long_checks_retry_waits_its_turn_among_the_long_ones(tmp_path):
+    p = Pool(workers=1, spare=1, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        mark = tmp_path / "once"
+        mark.write_text("")
+        order = []
+        long = p.submit("test", f"workcrash {mark} 1.0", owner="l", budget_s=4.0)
+        long.add_done_callback(lambda f: order.append("long"))
+        assert until(lambda: running_long(p) == 1)             # its slice is over, the rest is being checked
+        quick = [p.submit("test", f"ok {i}", owner=f"q{i}", budget_s=4.0) for i in range(6)]
+        for i, f in enumerate(quick):
+            f.add_done_callback(lambda f, i=i: order.append(i))
+        r = long.result(60)
+        assert (r["status"], r["long"], r["tries"]) == ("ok", True, 2) and len(r["workers"]) == 3
+        assert [f.result(60)["status"] for f in quick] == ["ok"] * 6
+        assert order.index("long") == 6                        # the texts that waited went first
+    finally:
+        p.close()
+
+
+def test_two_processes_never_check_one_long_retry(tmp_path):
+    p = Pool(workers=2, spare=1, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        mark = tmp_path / "once"
+        mark.write_text("")
+        r = check(p, "test", f"workcrash {mark} 0.6", budget_s=3.0)
+        assert (r["status"], r["long"], r["tries"]) == ("ok", True, 2)
+        assert len(r["workers"]) == 3                          # its slice, the rest that ended, once more: no fourth
+        assert p.stats()["long"] == 0 and p.stats()["queued"] == 0
+    finally:
+        p.close()
+
+
+def test_a_slice_that_ends_when_its_activity_cannot_be_checked_is_not_the_texts_timeout():
+    for text in ("work 30 #stopped", "spin 30 #unstoppable"):      # by its engine, by the watchdog
+        p = Pool(workers=1, spare=False, engines=ENGINES).start()
+        try:
+            p.prepare("test", "test", "a seed").result(60)
+            assert p.wait_ready(60)
+            f = p.submit("test", text, budget_s=3.0)
+            assert until(lambda: any(w.job is not None for w in p.workers))
+            with p.lock:
+                p.acts["test"]["failed"] = "its seed broke"   # (as a prepare that fails meanwhile leaves it)
+            r = f.result(60)
+            assert r["status"] == "internal" and "not prepared: its seed broke" in r["error"], text
+            assert not r.get("set_aside")
+        finally:
+            p.close()
+
+
+def test_a_long_check_whose_worker_dies_runs_once_more_among_the_long_ones(tmp_path):
+    p = Pool(workers=1, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        mark = tmp_path / "once"
+        mark.write_text("")
+        before = pids(p)[0]
+        r = check(p, "test", f"workcrash {mark} 0.6", budget_s=2.0)    # its slice; the rest, which ends its worker;
+        assert (r["status"], r["long"], r["tries"]) == ("ok", True, 2)  # and once more, on a fresh process
+        assert len(r["workers"]) == 3 and r["worker"] not in before and not mark.exists()
+        assert p.stats()["long"] == 0 and p.stats()["set_aside"] == 0
+    finally:
+        p.close()
+
+
+def test_a_pool_has_as_many_spares_as_it_is_given():
+    assert SPARES == 2 and pool_module.LANE is None and pool_module.SLICE_S == 0.25    # what the runs decided
+    assert Pool(workers=1, engines=ENGINES).spare == 1                  # (these tests' SPARES)
+    for spare, n in ((True, 1), (2, 2), (False, 0)):
+        p = Pool(workers=1, spare=spare, engines=ENGINES).start()
+        try:
+            assert p.wait_ready(60) and len(pids(p)[1]) == n and p.stats()["spares"] == n
+        finally:
+            p.close()
+
+
+# ------------------------------------------------------------------ normalizing, and a check that leaves the queue
+def test_the_pool_normalizes_with_the_kind_on_a_process_of_its_own(pool):
+    from texstage.checks import cleaning
+    item = {"input": "code", "engine": "sql"}
+    got = pool.normalize("sql-query", item, {}, {"text": "  select 1 ;  "}, "en").result(60)
+    assert got == {"input": {"text": cleaning.clean_code("  select 1 ;  ")}}
+    assert pool.normalize("sql-query", item, {}, {"text": " \n "}).result(60) == {"refused": "text"}
+    triple = pool.normalize("triples", {"fields": ["s", "p", "o"]}, {}, {"fields": [" :a ", ":knows", ":b"]}).result(60)
+    assert triple == {"input": {"fields": [":a", ":knows", ":b"]}}
+    assert pool.normalize("triples", {"fields": ["s", "p", "o"]}, {}, {"fields": [":a"]}).result(60) == {"refused": "invalid"}
+    missing = pool.normalize("no-such-kind", {}, {}, {"text": "x"}).result(60)
+    assert set(missing) == {"error"} and "no-such-kind" in missing["error"]            # never the student's
+    assert set(pool.normalize("sql-query", item, {}, {"neither": 1}).result(60)) == {"refused"}   # the kind's to say
+    # it does not wait behind the checks: every worker is busy, and it answers
+    ended = pool.stats()["normalizing"]["ended"]
+    busy = [pool.submit("test", f"work 3 #{i}", owner=f"b{i}", budget_s=pool_module.SLICE_S) for i in range(2)]
+    assert until(lambda: sum(w.job is not None for w in pool.workers) == 2)
+    busy += [pool.submit("test", f"work 3 #{i}", owner=f"b{i}", budget_s=pool_module.SLICE_S) for i in range(2, 30)]
+    t = time.perf_counter()
+    assert "input" in pool.normalize("sql-query", item, {}, {"text": "select 2"}).result(60)
+    assert time.perf_counter() - t < 2.0 and sum(f.done() for f in busy) < 20
+    assert {f.result(60)["status"] for f in busy} == {"timeout"}
+    assert pool.stats()["normalizing"] == {"waiting": 0, "ended": ended, "broken": None}
+
+
+def test_a_normalizing_process_that_ends_is_replaced_and_its_input_tried_once_more(pool):
+    item = {"input": "code", "engine": "sql"}
+    assert "input" in pool.normalize("sql-query", item, {}, {"text": "select 1"}).result(60)
+    n = pool.stats()["normalizing"]["ended"]
+    pool.normalizer.proc.kill()
+    assert pool.normalize("sql-query", item, {}, {"text": "select 2"}).result(60) == {"input": {"text": "select 2"}}
+    assert pool.stats()["normalizing"]["ended"] == n + 1 and pool.stats()["normalizing"]["broken"] is None
+
+
+def test_a_check_nobody_waits_for_leaves_the_queue():
+    p = Pool(workers=1, spare=False, engines=ENGINES).start()
+    try:
+        p.prepare("test", "test", "a seed").result(60)
+        assert p.wait_ready(60)
+        running = p.submit("test", "work 1 #first", owner="a", budget_s=pool_module.SLICE_S)
+        queued = p.submit("test", "ok second", owner="b")
+        again = p.submit("test", "ok second", owner="c")         # the same text, for another who waits
+        assert again is queued and until(lambda: any(w.job is not None for w in p.workers))
+        assert p.stats()["queued"] == 1
+        assert p.withdraw("test", "ok second") is False and not queued.cancelled()   # the other still waits
+        assert p.withdraw("test", "ok second") is True and queued.cancelled()
+        assert p.stats()["queued"] == 0                          # ... and it is not counted any more
+        assert p.withdraw("test", "ok second") is False and p.withdraw("test", "never sent") is False
+        assert p.withdraw("test", "work 1 #first") is False      # being checked: it ends as any other
+        assert running.result(60)["status"] == "timeout" and p.stats()["queued"] == 0
+        assert check(p, "test", "ok second")["status"] == "ok"   # sent again, it is checked
+        # one that waits for the rest of its budget leaves the queue as well
+        first = p.submit("test", "work 30 #a", owner="a", budget_s=3.0)
+        second = p.submit("test", "work 30 #b", owner="b", budget_s=3.0)
+        assert until(lambda: running_long(p) == 1 and p.stats()["long"] == 1)
+        waits = "work 30 #b" if p.workers[0].job["text"] == "work 30 #a" else "work 30 #a"
+        assert p.withdraw("test", waits) is True and p.stats()["long"] == 0 and p.stats()["queued"] == 0
+        done = [f for f in (first, second) if not f.cancelled()]
+        assert len(done) == 1 and done[0].result(60)["status"] == "timeout"
+    finally:
+        p.close()

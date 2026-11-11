@@ -21,6 +21,7 @@ What the pool sends and what the worker answers, through its pipe - in order, on
                                                       seed does not load, or (here) the rows are not
                                                       found on this process
     ("check", job, act, text, budget, language)  -> ("done", job, outcome, cpu_s)
+    ("normalize", job, kind, item, keys, language, input)  -> ("normalized", job, answer)   (normalizer.py)
     ("drop", act)
     ("exit",)
 
@@ -124,6 +125,26 @@ def _outcome(result: dict, reference_rows: list | None, end: float) -> dict:
     return out
 
 
+def _normalize(name: str, item: dict, keys: dict, language: str | None, input: dict) -> dict:
+    """A kind's normalize for an input as it was sent (F2's plan, 4.3): {"input": the normalized input} -
+    entries that normalize alike are checked once -, {"refused": the phone's code} where the kind does
+    not take it (Unfit), {"error": why} where it could not be asked: never the student's."""
+    from texstage.activities import registry
+    from texstage.activities.kind import Entry, Step, Unfit
+    try:
+        kind = registry.kind(name)
+        fields = input.get("fields")
+        entry = Entry(text=input.get("text"), fields=tuple(fields) if isinstance(fields, list) else None)
+        out = kind.normalize(Step(item, keys, language), entry)
+        if not isinstance(out, Entry) or (out.text is None) == (out.fields is None):
+            return {"error": f"{name}: normalize gave {out!r}, not an entry"[:300]}
+        return {"input": {"text": out.text} if out.fields is None else {"fields": list(out.fields)}}
+    except Unfit as e:
+        return {"refused": e.code}
+    except Exception as e:  # noqa: BLE001 - whatever a kind's normalize raises: not the student's
+        return {"error": f"{type(e).__name__}: {e}"[:300]}
+
+
 def _prepare(conn, states: dict, msg: tuple) -> None:
     _, act, gen, name, seed, references, rows_ref, language, budget_s, options, image = msg
     data = conn.recv_bytes() if image == "follows" else None
@@ -192,5 +213,7 @@ def _serve(conn) -> None:
             cpu = time.thread_time()
             result, end = _evaluate(module, state, text, language, budget_s)
             conn.send(("done", job, _outcome(result, rows, end), time.thread_time() - cpu))
+        elif kind == "normalize":
+            conn.send(("normalized", msg[1], _normalize(*msg[2:])))
         elif kind == "drop":
             states.pop(msg[1], None)

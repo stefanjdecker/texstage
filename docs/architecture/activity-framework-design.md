@@ -586,10 +586,10 @@ the quiz's answers do. How long a server keeps games is not settled yet - for qu
 - The workers start with the server and wait: starting a Python process takes a noticeable part
   of a second on Windows, too long to start one for a burst. As many as the cores less two, at
   least one; at a low priority (`BELOW_NORMAL_PRIORITY_CLASS` on Windows, `nice` elsewhere), so
-  that the presenter window, PowerPoint and the projector stay smooth. One more waits as a
-  spare: when the pool ends a worker (section 11), the spare takes its place at once, and a new
-  spare starts. And one more normalizes and does nothing else: quick jobs, which never wait
-  behind a check (10.1).
+  that the presenter window, PowerPoint and the projector stay smooth. Two more wait as
+  spares (F2's plan, 4.6: one covers one ending at a time): when the pool ends a worker
+  (section 11), a spare takes its place at once, and a new spare starts. And one more normalizes
+  and does nothing else: quick jobs, which never wait behind a check (10.1).
 - Workers prepare a deck's activities (`prepare`) when the deck is loaded - for a large seed, one
   slide before its activity -, the spare too, so that a slide change never waits for a seed; the
   references are checked first. They drop what they prepared when the deck goes. On a hosted

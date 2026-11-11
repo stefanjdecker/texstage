@@ -5,6 +5,8 @@
 
     ok x              a result (its summary names the seed)
     spin s            s seconds of CPU time, which the engine does not stop: the watchdog's
+    work s            s seconds of CPU time, which the engine stops at its budget: a timeout, as SQLite's
+    workcrash path s  the same, and once the work is done the worker ends if the file is there - which it takes away
     sleep s           s seconds of the clock, without CPU time: the backstop's
     crash             the worker ends
     crashonce path    the worker ends if the file is there - and takes it away: the next try is a result
@@ -79,6 +81,15 @@ def _alloc(mb: int) -> None:
     HELD.clear()
 
 
+def _work(seconds: float, budget_s: float | None) -> bool:
+    """CPU time that the engine stops at its budget, as SQLite does. Whether the work was done."""
+    end, stop = time.thread_time() + seconds, None if budget_s is None else time.thread_time() + budget_s
+    while time.thread_time() < end:
+        if stop is not None and time.thread_time() >= stop:
+            return False
+    return True
+
+
 def evaluate(state: dict, text: str, language: str | None = None, budget_s: float | None = None) -> dict:
     what, *rest = text.split()                           # "spin 0.1 #3": what follows the number tells texts apart
     arg = rest[0] if rest else ""
@@ -86,6 +97,14 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
         end = time.thread_time() + float(arg)
         while time.thread_time() < end:
             pass
+    elif what == "work":
+        if not _work(float(arg), budget_s):
+            return {"status": "timeout"}
+    elif what == "workcrash":
+        if not _work(float(rest[1]), budget_s):
+            return {"status": "timeout"}
+        if _once(arg):
+            os._exit(3)
     elif what == "sleep":
         time.sleep(float(arg))
     elif what == "crash":
@@ -112,3 +131,28 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
     token = {"token": state["token"]} if "token" in state else {}
     return {"status": "ok", "canonical": "\n".join(["test", state["seed"], text, *token.values()]), "rows": [text],
             "summary": {"kind": "test", "seed": state["seed"], "text": text} | token}
+
+
+def normalizer(conn, options: dict) -> None:
+    """What a Normalizer's process runs in the tests (tests/test_normalizer.py), in worker.main's place:
+    an input's text says what happens - "sleep s", "die", "dieonce path" -, else it comes back in capitals.
+    Options: "dies", it ends before it is ready; "never_ready", it never is."""
+    if options.get("dies"):
+        os._exit(3)
+    if options.get("never_ready"):
+        time.sleep(3600)
+    conn.send(("ready", os.getpid()))
+    while True:
+        try:
+            msg = conn.recv()
+        except (EOFError, OSError):
+            return
+        if msg[0] == "exit":
+            return
+        _, job, _kind, _item, _keys, _language, input = msg
+        what, *rest = input["text"].split()
+        if what == "sleep":
+            time.sleep(float(rest[0]))
+        elif what == "die" or (what == "dieonce" and _once(rest[0])):
+            os._exit(3)
+        conn.send(("normalized", job, {"input": {"text": input["text"].upper()}}))

@@ -468,7 +468,7 @@ def test_the_kinds_say_what_the_engines_table_and_the_build_say():
 def test_the_contracts_own_facts():
     assert contract.STATUSES == ("ok", "invalid", "error", "refused", "timeout", "internal")      # the design's 6.3
     assert contract.FROM_F1 == {"syntax": "invalid"}
-    assert all(k.BUDGET_S == contract.BUDGET_S == pool.BUDGET_S == 2.0 for k in ALL)      # seconds, as a step's
+    assert all(k.BUDGET_S == contract.BUDGET_S == pool.BUDGET_S == 1.0 for k in ALL)      # seconds, as a step's
     assert "{ " + " , ".join(option_types.PRESETS["fields"]) + " }" in (ROOT / "latex" / "texactivity.sty").read_text(
         encoding="utf-8")
     for kind in ALL:                                                # a kind's options are its own, and fixed
