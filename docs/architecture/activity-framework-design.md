@@ -1,7 +1,8 @@
 # texstage - the activity framework (design)
 
-Status: 2026-11-09, a design to refine; of its stages (section 18), F0's spike and F1's packages
-1 to 5 are built on their branches (2026-11-10), nothing of it is in `main` yet. It comes from the
+Status: 2026-11-09, a design to refine; of its stages (section 18), F0's spike, F1's packages
+1 to 5 (2026-11-10) and F2's packages 1 and 2 - the contract of 7.1, the registry, the kit's Python
+half (2026-11-11) - are built on their branches, nothing of it is in `main` yet. It comes from the
 brainstorm of 2026-11-09, whose last open questions were decided the same day (section 2), was
 revised after a critical review the same day, and redesigns the live activities of October
 ([live-activities-design.md](live-activities-design.md), here **LA**): the server checks what
@@ -271,7 +272,7 @@ What a kind's `check` returns - typed facts, not a free dictionary:
 | `verdict` | `correct`, `partial`, `incorrect` - or none: the step has no reference, or the kind does not judge |
 | `credit` | 0 to 1, the share of the step's points |
 | `message` | for the student: a code and its arguments, which the phone says in its language from the kind's texts |
-| `at` | line and column in the student's text, where the engine gives them - Oxigraph does, SQLite does not (LA section 8.8) |
+| `at` | line and column in the student's text, both from 1, the column in characters, where the engine gives them - Oxigraph does, SQLite does not (LA section 8.8) |
 | `detail` | for the windows: the columns and the first rows, the comparison with the reference - at most 12 KiB |
 
 Unless the kind judges for itself, the core does: `correct` when the key is one of the
@@ -287,29 +288,41 @@ and so are such entries when the server starts again (10.2).
 
 ### 7.1 The contract
 
-A first cut - to be cut properly from today's four kinds (section 17):
+Cut from today's four kinds (section 17), as `activities/kind.py` has it (API 0, 2026-11-11):
 
 ```python
 # a kind: a class the core makes once (texstage.activities.Kind, API 0 until F4, then 1)
 class SqlQuery(Kind):
-    NAME = "sql-query"
+    NAME = "sql-query"                           # as a deck names it, and its entry point (7.2)
     API = 0                                      # the contract it implements
     INPUT = "code"                               # the core's input its steps show (6.2), or its own (7.3)
     REDUCTION = "groups"                         # groups | crowd | tally: the core's (6.2)
-    OPTIONS = {"seed": File(".sql"), "tokens": Words(), "rows": Int(1, 100_000, default=100_000)}
-    BUDGET_MS = 2000                             # a check's CPU time; a step may set less (budget=)
+    OPTIONS = fixed(tokens=Words(), seed=File(".sql"), reference=File())    # the deck's keys it takes, typed
+    MESSAGES = fixed(queriesOnly=(), engine=("text",))                     # what its checks may say, by code
+    BUDGET_S = 2.0                               # a check's CPU time in seconds; a step may set less (budget=)
+    LIMIT = 5                                    # a student's entries, unless the deck says
 
     # the build, on the author's machine
-    def build(self, options, bodies, files) -> Built: ...    # checks its keys; the item (public), keys (private), files
+    def build(self, options, bodies) -> Built: ...           # checks its keys; the item (public), keys (private), files
 
     # the server, in a worker process - no kind code runs in the server's event loop
-    def prepare(self, item, keys, files) -> Prepared: ...    # per worker and seed: load it, cap the memory, check the references
-    def normalize(self, step, entry) -> str: ...             # quick and readable: entries that normalize alike are checked once
+    def prepare(self, item, keys, files, limits=None, copy=None) -> Prepared: ...   # per worker and seed
+    def copy(self, prepared, most) -> bytes | None: ...      # optional: what prepare made, for every worker
+    def normalize(self, step, entry) -> Entry: ...           # quick: entries that normalize alike are checked once
     def check(self, prepared, step, entry) -> Check: ...     # one distinct entry, within the budget
 ```
 
 `OPTIONS` is one schema for an activity and its steps: a key given on a step overrides the
-activity's. An entry is what a step's input sends: a text, the fields or a choice. No kind code
+activity's. Its types - `Words`, `Int`, `Flag`, `Choice`, `File` (`activities/options.py`) - read
+what the deck gave and say what is wrong with it; a kind's `build` asks for each key, and so says
+in which order a deck's faults are told. An entry is what a step's input sends: a text, the fields
+or a choice. `normalize` gives an entry, not a string - fields stay fields -, and may refuse one
+that is not checked at all, too long or empty, with the code the phone has words for. `MESSAGES`
+lists what a check may say, each code with its arguments (6.3, 7.4). A check's time is counted in
+seconds, as the pool counts it; the references, which are the lecturer's, have a longer budget of
+their own. An input of a kind's own (7.3) and the entries of `choice` and `number` come with the
+browser and with texstage's own kinds; until then the kit takes the core's inputs, and an entry is
+a text or the fields. No kind code
 runs in the server's event loop (decided 2026-11-09): the loop merges entries whose texts are
 identical, and a worker normalizes a new text - the pool's worker for normalizing, which never
 waits behind a check (10.3), so that a slow or faulty kind can never hold up 1,000 phones; F0
@@ -323,7 +336,13 @@ What the core guarantees a kind: `prepare` runs once per worker for every seed a
 steps use - a step that sets its own `seed=` gets its own -, before any of their checks; `check`
 runs once per step and distinct normalized entry; the references are checked first. A check gets
 the public item, the keys and the student's entry - never who sent it - and must leave
-`prepared` as it found it (the kit runs every fixture twice, in both orders). What a kind
+`prepared` as it found it (the kit runs every fixture twice, in both orders). Where a kind has a copy of what the first
+worker's `prepare` made (`copy`), every worker, the first too, prepares from it: a seed with
+`random()` gives every worker the same data, and a database that ran its seed is not one that was
+loaded from a copy. An entry that is not of the kind's input is the core's fault, not the
+student's: `check` raises, and the core makes the check `internal` - as it does with a check that
+breaks a rule of the contract (`validated`: a status there is none of, an `ok` without a key, a
+message the kind does not list), which the kit finds first. What a kind
 promises the core: `normalize` gives a form people can read - comments and spacing gone, the
 student's names kept -, since a vote shows it (5.1); and its parsers refuse what they choke on
 before they parse it (section 11).

@@ -1,0 +1,185 @@
+{
+ "kind": "turtle-graph",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.ttl"
+   },
+   "files": {
+    "data/seed.ttl": "@prefix : <http://e.org/> .\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 5000,
+     "before": ":a :p ",
+     "open": "[ :q ",
+     "inside": ":b",
+     "close": " ]",
+     "after": " ."
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "tooDeep",
+     "args": {
+      "n": 500
+     }
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 500,
+     "before": ":a :p ",
+     "open": "[ :q ",
+     "inside": ":b",
+     "close": " ]",
+     "after": " ."
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "06ca777e0f05efe8",
+    "detail": {
+     "kind": "graph",
+     "count": 501,
+     "rows": [
+      [
+       "_:b1",
+       ":q",
+       ":b"
+      ],
+      [
+       "_:b2",
+       ":q",
+       "_:b1"
+      ],
+      [
+       "_:b3",
+       ":q",
+       "_:b2"
+      ],
+      [
+       "_:b4",
+       ":q",
+       "_:b3"
+      ],
+      [
+       "_:b5",
+       ":q",
+       "_:b4"
+      ],
+      [
+       "_:b6",
+       ":q",
+       "_:b5"
+      ],
+      [
+       "_:b7",
+       ":q",
+       "_:b6"
+      ],
+      [
+       "_:b8",
+       ":q",
+       "_:b7"
+      ],
+      [
+       "_:b9",
+       ":q",
+       "_:b8"
+      ],
+      [
+       "_:b10",
+       ":q",
+       "_:b9"
+      ],
+      [
+       "_:b11",
+       ":q",
+       "_:b10"
+      ],
+      [
+       "_:b12",
+       ":q",
+       "_:b11"
+      ],
+      [
+       "_:b13",
+       ":q",
+       "_:b12"
+      ],
+      [
+       "_:b14",
+       ":q",
+       "_:b13"
+      ],
+      [
+       "_:b15",
+       ":q",
+       "_:b14"
+      ],
+      [
+       "_:b16",
+       ":q",
+       "_:b15"
+      ],
+      [
+       "_:b17",
+       ":q",
+       "_:b16"
+      ],
+      [
+       "_:b18",
+       ":q",
+       "_:b17"
+      ],
+      [
+       "_:b19",
+       ":q",
+       "_:b18"
+      ],
+      [
+       "_:b20",
+       ":q",
+       "_:b19"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 501,
+     "before": ":a :p ",
+     "open": "[ :q ",
+     "inside": ":b",
+     "close": " ]",
+     "after": " ."
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "tooDeep",
+     "args": {
+      "n": 500
+     }
+    }
+   }
+  }
+ ]
+}

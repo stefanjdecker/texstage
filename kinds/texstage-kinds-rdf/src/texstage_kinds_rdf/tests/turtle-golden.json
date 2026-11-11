@@ -1,0 +1,1461 @@
+{
+ "kind": "turtle-graph",
+ "from": "tests/fixtures/checks/turtle.json",
+ "settings": {
+  "prefixes": {
+   "item": {
+    "seed": "data/prefixes.ttl"
+   },
+   "files": {
+    "data/prefixes.ttl": "@prefix dbr: <http://dbpedia.org/resource/> .\n@prefix dbo: <http://dbpedia.org/ontology/> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\ndbr:Potsdam rdfs:label \"Potsdam\"@de .\n"
+   }
+  },
+  "base": {
+   "item": {
+    "seed": "data/base.ttl"
+   },
+   "files": {
+    "data/base.ttl": "@base <http://example.org/base/> .\n@prefix : <ns#> .\n"
+   }
+  },
+  "picnic": {
+   "item": {
+    "seed": "data/picnic.ttl"
+   },
+   "files": {
+    "data/picnic.ttl": "@prefix : <https://example.org/picnic/> .\n:Alex :brings :apples .\n:Sam :brings :water .\n:Riley :brings :blanket .\n"
+   }
+  },
+  "none": {
+   "item": {
+    "seed": "data/none.ttl"
+   },
+   "files": {
+    "data/none.ttl": ""
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de , \"Berlino\"@it ;\n           dbo:populationTotal 3596999 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de , \"Berlino\"@it ; dbo:populationTotal 3596999 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de .\ndbr:Berlin rdfs:label \"Berlino\"@it .\ndbr:Berlin dbo:populationTotal 3596999 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@DE , \"Berlino\"@IT ; dbo:populationTotal \"3596999\"^^xsd:integer ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "<http://dbpedia.org/resource/Berlin> rdfs:label \"Berlin\"@de , \"Berlino\"@it ; dbo:populationTotal 3596999 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \u201cBerlin\u201d@de , \u201eBerlino\u201c@it ; dbo:populationTotal 3596999 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "35c1719c9ef17f89",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlino\"@it"
+      ],
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \u2018Berlin\u2019@de ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "2cc03d78c00514af",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbo:populationTotal \"3596999\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "eaeb017bcee39bdd",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "\"3596999\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbo:populationTotal 3596999.0 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "70133c429adb22e9",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3596999.0"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbo:populationTotal 3.596999e6 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "c0e75deae2fd70dc",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "3.596999e6"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbo:populationTotal \"03596999\"^^xsd:integer ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "c28006f9722cec3e",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbo:populationTotal",
+       "03596999"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbr:flag true , false ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "6855baa0a3fd6c88",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:flag",
+       "true"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:flag",
+       "false"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbr:near [ rdfs:label \"a\" ] , [ rdfs:label \"a\" ] ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "59d84e153d31f8f9",
+    "detail": {
+     "kind": "graph",
+     "count": 4,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:near",
+       "_:b1"
+      ],
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"a\""
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:near",
+       "_:b2"
+      ],
+      [
+       "_:b2",
+       "rdfs:label",
+       "\"a\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbr:list ( 1 2 3 ) ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "6455e31fba84d2ac",
+    "detail": {
+     "kind": "graph",
+     "count": 7,
+     "rows": [
+      [
+       "_:b1",
+       "rdf:first",
+       "1"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:list",
+       "_:b1"
+      ],
+      [
+       "_:b2",
+       "rdf:first",
+       "2"
+      ],
+      [
+       "_:b1",
+       "rdf:rest",
+       "_:b2"
+      ],
+      [
+       "_:b3",
+       "rdf:first",
+       "3"
+      ],
+      [
+       "_:b2",
+       "rdf:rest",
+       "_:b3"
+      ],
+      [
+       "_:b3",
+       "rdf:rest",
+       "rdf:nil"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de . dbr:Berlin rdfs:label \"Berlin\"@de ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "2cc03d78c00514af",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Berlin\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Potsdam rdfs:label \"Potsdam\"@de ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "a2fbd85e16499b5f",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Potsdam",
+       "rdfs:label",
+       "\"Potsdam\"@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "_:x rdfs:label \"x\" . _:x rdfs:label \"y\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "aefbc58b768d6d2a",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"x\""
+      ],
+      [
+       "_:b1",
+       "rdfs:label",
+       "\"y\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"\u00c4\\\"\\\\\\n\"@de , \"\ud835\udd38\" , \"\ufb00\" , \"Zebra\" , \"zebra\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "97298338ad59a42e",
+    "detail": {
+     "kind": "graph",
+     "count": 5,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"\u00c4\\\"\\\\\\n\"@de"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"\ud835\udd38\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"\ufb00\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"Zebra\""
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"zebra\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:comment \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" , \"\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "0dc088864a3a775b",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:comment",
+       "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ],
+      [
+       "dbr:Berlin",
+       "rdfs:comment",
+       "\"\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"text\"@ar--rtl ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "2facc55aaffb2854",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"text\"@ar--rtl"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdf:type dbo:City ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "bc1deed597e664e5",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "a",
+       "dbo:City"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin a dbo:City ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "bc1deed597e664e5",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "a",
+       "dbo:City"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbr:p0 0 .\ndbr:Berlin dbr:p1 1 .\ndbr:Berlin dbr:p2 2 .\ndbr:Berlin dbr:p3 3 .\ndbr:Berlin dbr:p4 4 .\ndbr:Berlin dbr:p5 5 .\ndbr:Berlin dbr:p6 6 .\ndbr:Berlin dbr:p7 7 .\ndbr:Berlin dbr:p8 8 .\ndbr:Berlin dbr:p9 9 .\ndbr:Berlin dbr:p10 10 .\ndbr:Berlin dbr:p11 11 .\ndbr:Berlin dbr:p12 12 .\ndbr:Berlin dbr:p13 13 .\ndbr:Berlin dbr:p14 14 .\ndbr:Berlin dbr:p15 15 .\ndbr:Berlin dbr:p16 16 .\ndbr:Berlin dbr:p17 17 .\ndbr:Berlin dbr:p18 18 .\ndbr:Berlin dbr:p19 19 .\ndbr:Berlin dbr:p20 20 .\ndbr:Berlin dbr:p21 21 .\ndbr:Berlin dbr:p22 22 .\ndbr:Berlin dbr:p23 23 .\ndbr:Berlin dbr:p24 24 ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "b683214accde7a92",
+    "detail": {
+     "kind": "graph",
+     "count": 25,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "dbr:p0",
+       "0"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p1",
+       "1"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p2",
+       "2"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p3",
+       "3"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p4",
+       "4"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p5",
+       "5"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p6",
+       "6"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p7",
+       "7"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p8",
+       "8"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p9",
+       "9"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p10",
+       "10"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p11",
+       "11"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p12",
+       "12"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p13",
+       "13"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p14",
+       "14"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p15",
+       "15"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p16",
+       "16"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p17",
+       "17"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p18",
+       "18"
+      ],
+      [
+       "dbr:Berlin",
+       "dbr:p19",
+       "19"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 31,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     1,
+     31
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin\"@de"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 31,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     1,
+     31
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 23,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     1,
+     23
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"Berlin ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 23,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     1,
+     23
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "ex:Berlin a dbo:City ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix ex: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "ex:Berlin a dbo:City ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix ex: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"\"\"multi\nline\"\"\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "6a30fbad6aa88201",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"multi\\nline\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label\n  \"Berlin\n"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 2,
+      "column": 3,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label\n  \"Berlin\n"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 2,
+      "column": 3,
+      "message": "Unexpected end of file"
+     }
+    },
+    "at": [
+     2,
+     3
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "# only a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noTriples",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "# only a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noTriples",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noTriples",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noTriples",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin dbr:p dbr:Q .\nfoo bar baz"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 2,
+      "column": 1,
+      "message": "foo is not a valid subject or graph name"
+     }
+    },
+    "at": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "dbr:Berlin dbr:p dbr:Q .\nfoo bar baz"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 2,
+      "column": 1,
+      "message": "foo is not a valid subject or graph name"
+     }
+    },
+    "at": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "@prefix dbr: <http://other.org/> .\ndbr:X a dbr:Y ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "df4f5218ed9726e8",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://other.org/X>",
+       "a",
+       "<http://other.org/Y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "PREFIX dbr: <http://other.org/>\ndbr:X a dbr:Y ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "df4f5218ed9726e8",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://other.org/X>",
+       "a",
+       "<http://other.org/Y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"\ud800\" ."
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "705c50f8ced8e405",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"\ufffd\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "dbr:Berlin rdfs:label \"\ufeffBerlin\" ."
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "706ac15566469107",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "dbr:Berlin",
+       "rdfs:label",
+       "\"\ufeffBerlin\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": "\ufeffdbr:Berlin rdfs:label \"B\" ."
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix \ufeffdbr: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": "\ufeffdbr:Berlin rdfs:label \"B\" ."
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix \ufeffdbr: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "prefixes",
+   "entry": {
+    "text": {
+     "repeat": 10001,
+     "line": "dbr:s{i} dbr:p dbr:o ."
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "tooManyTriples",
+     "args": {
+      "n": 10000
+     }
+    }
+   }
+  },
+  {
+   "setting": "prefixes",
+   "language": "de",
+   "entry": {
+    "text": {
+     "repeat": 10001,
+     "line": "dbr:s{i} dbr:p dbr:o ."
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "tooManyTriples",
+     "args": {
+      "n": 10000
+     }
+    }
+   }
+  },
+  {
+   "setting": "base",
+   "entry": {
+    "text": ":a :b :c ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "34cc8080ac5b85ba",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":a",
+       ":b",
+       ":c"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "base",
+   "entry": {
+    "text": "<rel> <p> <o> ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "e676c5bb0bed04a6",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://example.org/base/rel>",
+       "<http://example.org/base/p>",
+       "<http://example.org/base/o>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "base",
+   "entry": {
+    "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 11,
+      "message": "No scheme found in an absolute IRI"
+     }
+    },
+    "at": [
+     1,
+     11
+    ]
+   }
+  },
+  {
+   "setting": "base",
+   "language": "de",
+   "entry": {
+    "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 11,
+      "message": "No scheme found in an absolute IRI"
+     }
+    },
+    "at": [
+     1,
+     11
+    ]
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": ":Sam :brings :bread ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "48329da18b682ca2",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":Sam",
+       ":brings",
+       ":bread"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": ":Sam :brings :bread , :water ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "d5296eb541762b18",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":Sam",
+       ":brings",
+       ":bread"
+      ],
+      [
+       ":Sam",
+       ":brings",
+       ":water"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": ":Sam :brings :bread"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 20,
+      "message": "Unexpected end"
+     }
+    },
+    "at": [
+     1,
+     20
+    ]
+   }
+  },
+  {
+   "setting": "picnic",
+   "language": "de",
+   "entry": {
+    "text": ":Sam :brings :bread"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 20,
+      "message": "Unexpected end"
+     }
+    },
+    "at": [
+     1,
+     20
+    ]
+   }
+  },
+  {
+   "setting": "none",
+   "entry": {
+    "text": "<http://e.org/a> <http://e.org/b> <http://e.org/c> ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "c74c5e30d5dcae45",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       "<http://e.org/a>",
+       "<http://e.org/b>",
+       "<http://e.org/c>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "none",
+   "entry": {
+    "text": "ex:a ex:b ex:c ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix ex: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "none",
+   "language": "de",
+   "entry": {
+    "text": "ex:a ex:b ex:c ."
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "The prefix ex: has not been declared"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  }
+ ]
+}

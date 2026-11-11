@@ -17,9 +17,13 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE NOTICE ./
 COPY latex/texstage.sty latex/texquiz.sty latex/texvideo.sty latex/texactivity.sty ./latex/
 COPY src ./src
+# the kinds of live activities: packages of their own, installed after texstage as it is - their
+# dependencies are among texstage's locked ones (docs/architecture/activity-framework-design.md, 7.2)
+COPY kinds ./kinds
 COPY requirements ./requirements
 RUN pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt \
  && pip install --no-deps --no-build-isolation . \
+ && pip install --no-deps --no-build-isolation ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf \
  && useradd --system --home-dir /data texstage \
  && mkdir -p /data/bundles && chown -R texstage /data
 

@@ -493,7 +493,44 @@ def cmd_retarget(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin")
+COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin", "kinds")
+
+
+def cmd_kinds(args: argparse.Namespace) -> int:
+    """The kinds of live activities that are installed - or, with check, the kit (activities/kit.py): 0
+    when every kind asked for passed it, 1 otherwise - also when there was none to check."""
+    from texstage.activities import kit, registry
+    found = registry.found()
+    none = "no kinds are installed - a kind comes with its package, as texstage-kinds-sql brings sql-query"
+    if args.action != "check":
+        if not found:
+            print(none)
+            return 0
+        width = max(len(f.name) for f in found)
+        for f in found:
+            api = "API ?" if f.api is None else f"API {f.api}"
+            print(f"{f.name:{width}}  {f.package} {f.version}, {api}" + (f" - cannot be used: {f.fault}" if f.fault else ""))
+        return 1 if any(f.fault for f in found) else 0
+    names = args.names or sorted({f.name for f in found})
+    if not names:
+        print(f"nothing to check: {none}", file=sys.stderr)
+        return 1
+    known = {f.name for f in found}
+    failed = False
+    for name in names:
+        hits = [f for f in found if f.name == name]
+        if not hits:
+            print(f"{name}: no kind of this name is installed (texstage kinds lists them)", file=sys.stderr)
+            failed = True
+        for f in hits:
+            if f.kind is None:
+                print(f"{f.name} ({f.package} {f.version}): cannot be used - {f.fault}")
+                failed = True
+                continue
+            report = kit.check(f.kind, f.name, known=known)
+            print(kit.said(report, f))
+            failed = failed or not report.ok
+    return 1 if failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -625,6 +662,12 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--all", action="store_true", help="uninstall: every texstage add-in")
     a.add_argument("--data", help=f"where to put the manifest (default ~/{DEFAULT_DATA.name})")
     a.set_defaults(func=cmd_addin)
+
+    k = sub.add_parser("kinds", help="the kinds of live activities that are installed; kinds check [name ...]: "
+                                     "the kit, the test every kind passes")
+    k.add_argument("action", nargs="?", choices=["check"], help="check: run the kit")
+    k.add_argument("names", nargs="*", help="check: the kinds to check (default: every installed one)")
+    k.set_defaults(func=cmd_kinds)
     args = parser.parse_args(argv)
     return args.func(args)
 

@@ -7,19 +7,19 @@
     turtle-graph   a graph written in Turtle, parsed by pyoxigraph; of the seed only its @base and
                    @prefix lines count - today's input=code, engine=turtle
 
-Behind the provisional contract (texstage.activities.kind; F2's plan, package 1). The two checks are
-still F1's (texstage.checks.sparql, .turtle) and move here once F1 is in main; a tuple's cleaning is
-the activity type's until the core replaces it (texstage.checks.cleaning)."""
+Kinds of the activity framework's contract, API 0 (texstage.activities.kind). The two checks are still
+F1's (texstage.checks.sparql, .turtle) and move here once F1 is in main; a tuple's cleaning is the
+activity type's until the core replaces it (texstage.checks.cleaning). Their fixtures, which `texstage
+kinds check` runs, are beside this module (tests/)."""
 from __future__ import annotations
 
-from types import MappingProxyType
-
 try:
-    from texstage.activities.code import CodeKind
+    from texstage.activities.code import CodeKind, said
 except ImportError as e:                                  # an older texstage: say what is missing
     raise ImportError("texstage-kinds-rdf needs a texstage with the activity framework's contract "
                       "(texstage.activities); this one has none") from e
-from texstage.activities.kind import Built, Check, Entry, Kind, Prepared, Step, Unbuildable, Unfit, number, words
+from texstage.activities.kind import Built, Check, Entry, Kind, Prepared, Step, Unbuildable, Unfit, fixed
+from texstage.activities.options import Choice, File, Flag, Int, Options, Words
 from texstage.checks import cleaning
 
 __all__ = ["SparqlQuery", "Triples", "TurtleGraph"]
@@ -34,6 +34,8 @@ class SparqlQuery(CodeKind):
     SEED = TURTLE
     TOKENS = ["{", "}", "?", ".", ";", ":"]
     TEXT = "a query"
+    OPTIONS = fixed(tokens=Words(), seed=File(".ttl"), reference=File())
+    MESSAGES = said("at", "tooDeep", "service")
 
 
 class TurtleGraph(CodeKind):
@@ -43,6 +45,8 @@ class TurtleGraph(CodeKind):
     SEED = TURTLE
     TOKENS = [":", ".", ";", ",", '"', "@", "^^", "<", ">", "_:", "[", "]", "(", ")"]
     TEXT = "a Turtle text"
+    OPTIONS = fixed(tokens=Words(), seed=File(".ttl"), reference=File())
+    MESSAGES = said("at", "tooDeep", "noTriples", "tooManyTriples")
 
 
 class Triples(Kind):
@@ -54,28 +58,23 @@ class Triples(Kind):
     NAME = "triples"
     INPUT = "fields"
     REDUCTION = "crowd"
-    OPTIONS = MappingProxyType({"fields": "words", "suggest": "words", "min": "number", "review": "flag",
-                                "terms": "choice"})
+    OPTIONS = fixed(fields=Words(), suggest=Words(), min=Int(1000), review=Flag(), terms=Choice("exact", "loose"))
     LIMIT = 10
     FIELDS = (2, 3)
-    TERMS = ("exact", "loose")
+    TERMS = OPTIONS["terms"].values
 
-    def build(self, options: dict, bodies: dict, files) -> Built:
-        fields = list(options.get("fields") or [])
-        if not self.FIELDS[0] <= len(fields) <= self.FIELDS[1]:
-            raise Unbuildable(f"{len(fields)} fields - an activity of input=tuple has {self.FIELDS[0]} or "
+    def build(self, options: Options, bodies: dict) -> Built:
+        count = len(options.given("fields") or [])
+        if not self.FIELDS[0] <= count <= self.FIELDS[1]:
+            raise Unbuildable(f"{count} fields - an activity of input=tuple has {self.FIELDS[0]} or "
                               f"{self.FIELDS[1]}: the first and the last a node, a middle one the edge's label")
-        item: dict = {"fields": words("fields", fields)}
-        suggest = words("suggest", list(options.get("suggest") or []))
-        if suggest:
-            item["suggest"] = suggest
-        item["min"] = number("min", options.get("min") or "", 1, 1000)
-        if options.get("review"):
+        item: dict = {"fields": options["fields"]}
+        if options["suggest"]:
+            item["suggest"] = options["suggest"]
+        item["min"] = options["min"]
+        if options["review"]:
             item["review"] = True
-        terms = options.get("terms") or ""
-        if terms and terms not in self.TERMS:
-            raise Unbuildable(f"terms={terms} - {' or '.join(self.TERMS)}")
-        item["terms"] = terms or self.TERMS[0]
+        item["terms"] = options["terms"]
         return Built(item)
 
     def normalize(self, step: Step, entry: Entry) -> Entry:

@@ -1,13 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Today's four kinds as classes behind the provisional contract (texstage/activities/kind.py; the
-packages in kinds/; docs/architecture/activity-framework-plan-f2.md, package 1): what they give is
+"""Today's four kinds as classes of the contract (texstage/activities/kind.py; the packages in kinds/;
+docs/architecture/activity-framework-plan-f2.md, packages 1 and 2): what they give is
 what F1 gives - F1's golden fixtures through their checks, byte for byte; their build what the
 build's activity module makes of the same record; a tuple's key and literals the activity type's; a
 check's outcome, and the first worker's preparing, a worker's of F1's pool. What the cleaning itself
 does is tests/test_cleaning.py's: here the kinds and the activity type are only shown to clean alike.
-The packages are not installed yet (the registry is package 2's): this test puts their sources on the
-path."""
+The contract's own rules - what a check must keep, the options' types, the registry, the kit - are
+tests/test_contract.py's and tests/test_kit.py's. Where the kinds' packages are not installed, this test
+puts their sources on the path."""
 from __future__ import annotations
 
 import dataclasses
@@ -35,8 +36,10 @@ from texstage_kinds_sql import SqlQuery  # noqa: E402
 import texstage.activities  # noqa: E402
 from texstage import checks  # noqa: E402
 from texstage.activities import kind as contract  # noqa: E402
-from texstage.activities.code import CodeKind  # noqa: E402
-from texstage.activities.kind import Entry, Prepared, Step, Unbuildable, Unfit  # noqa: E402
+import texstage.activities.options as option_types  # noqa: E402
+from texstage.activities.code import CodeKind, words  # noqa: E402
+from texstage.activities.kind import Entry, Message, Prepared, Step, Unbuildable, Unfit  # noqa: E402
+from texstage.activities.options import Int, Options  # noqa: E402
 from texstage.build import activity as build  # noqa: E402
 from texstage.build.tqz import Tqz  # noqa: E402
 from texstage.checks import common  # noqa: E402
@@ -80,11 +83,12 @@ def prepared(engine: str, seed: str) -> Prepared:
     return CODE[engine].prepare({"seed": "data/seed"}, {}, {"data/seed": text.encode("utf-8")})
 
 
-def record(check) -> dict:
-    """What a fixture keeps of a result (test_checks.record), from a kind's check."""
+def record(check, language: str | None = "en") -> dict:
+    """What a fixture keeps of a result (test_checks.record), from a kind's check - its message in the
+    words F1's check had for it."""
     out = {"status": TO_F1.get(check.status, check.status)}
     if check.message is not None:
-        out["error"] = check.message
+        out["error"] = words(check.message, language)
     if check.canonical is not None:
         out["key"] = check.key
         if common.utf16_len(check.canonical) <= f1.CANONICAL_MAX:
@@ -107,7 +111,7 @@ def outcome(check) -> dict:
     """A check as the outcome a worker of F1's pool sends (server/worker.py: _outcome)."""
     out = {"status": TO_F1.get(check.status, check.status)}
     if check.message:
-        out["error"] = check.message
+        out["error"] = words(check.message, "en")
     if check.status == "ok":
         out["key"], out["summary"] = check.key, check.detail
     return out
@@ -122,7 +126,8 @@ def test_f1s_golden_fixtures_pass_through_the_kinds(engine, i):
     assert check.status in contract.STATUSES and check.status != "internal"
     assert (check.key is not None) == (check.status == "ok")
     assert check.verdict is None and check.credit is None and check.parts is None    # none of the three judges
-    f1.agrees(engine, case, record(check))
+    assert contract.fault(CODE[engine], check) is None
+    f1.agrees(engine, case, record(check, case["language"]))
 
 
 @pytest.mark.parametrize("engine", list(CODE))
@@ -131,8 +136,8 @@ def test_a_check_leaves_what_was_prepared_as_it_found_it(engine):
     will run a kind's fixtures twice, in both orders - the design's 7.1)."""
     needs(engine)
     cases = f1.fixture(engine)["cases"]
-    once = [record(through(engine, c)) for c in cases]
-    again = [record(through(engine, c)) for c in reversed(cases)]
+    once = [record(through(engine, c), c["language"]) for c in cases]
+    again = [record(through(engine, c), c["language"]) for c in reversed(cases)]
     assert again == once[::-1]
 
 
@@ -199,9 +204,12 @@ def test_a_syntax_error_says_where_in_the_students_text(engine, text, line):
     check = kind.check(mine, Step({}, language="en"), Entry(text=text))
     assert check.status == "invalid" and check.at is not None, check
     assert check.at[0] == line and check.at[1] >= 1
-    assert check.message.startswith(f"line {check.at[0]}, column {check.at[1]}: ")
+    assert check.message.code == "at" and set(check.message.args) == {"line", "column", "message"}
+    assert (check.message.args["line"], check.message.args["column"]) == check.at       # numbers both
+    assert words(check.message, "en").startswith(f"line {check.at[0]}, column {check.at[1]}: ")
     german = kind.check(mine, Step({}, language="de"), Entry(text=text))
-    assert german.at == check.at and german.message.startswith(f"Zeile {line}, Spalte {check.at[1]}: ")
+    assert german.at == check.at and german.message == check.message          # a message has no language
+    assert words(german.message, "de").startswith(f"Zeile {line}, Spalte {check.at[1]}: ")
 
 
 def test_a_place_counts_from_one_in_characters():
@@ -221,11 +229,12 @@ def test_an_error_without_a_place_has_none():
     needs("sparql")
     sql = SqlQuery()
     check = sql.check(sql.prepare({"seed": "s"}, {}, {"s": b"CREATE TABLE t(x);"}), Step({}), Entry(text="SELEC x FROM t"))
-    assert (check.status, check.at) == ("invalid", None) and check.message
+    assert (check.status, check.at) == ("invalid", None) and check.message.code == "engine"     # SQLite's own words
     sparql = SparqlQuery()
     refused = sparql.check(sparql.prepare({"seed": "s"}, {}, {"s": b""}), Step({}),
                            Entry(text="SELECT * WHERE { SERVICE <http://example.org/> { ?s ?p ?o } }"))
     assert (refused.status, refused.at, refused.key) == ("refused", None, None)
+    assert refused.message == Message("service") and words(refused.message, "de").startswith("SERVICE (eine Anfrage")
 
 
 # ------------------------------------------------------------------ an engine in a check module's place
@@ -273,9 +282,17 @@ def test_whatever_an_engine_raises_is_the_texts_error_not_the_workers(monkeypatc
     mine = kind.prepare({"seed": "s"}, {}, {"s": b"x"})
     got = {t: kind.check(mine, Step({}), Entry(text=t)) for t in ("memory", "words", "none", "said")}
     assert [(c.status, c.message, c.memory) for c in got.values()] == [
-        ("error", "out of memory", True), ("error", "the first line", False), ("error", "ValueError", False),
-        ("error", "out of memory", True)]                        # (the last: the engine says so itself)
-    assert all(c.key is None and c.detail is None for c in got.values())
+        ("error", Message("engine", {"text": t}), m) for t, m in (
+            ("out of memory", True), ("the first line", False), ("ValueError", False),
+            ("out of memory", True))]                            # (the last: the engine says so itself)
+    assert all(c.key is None and c.detail is None and contract.fault(kind, c) is None for c in got.values())
+
+
+def test_an_engines_long_words_are_cut_to_what_a_message_takes(monkeypatch):
+    """SQLite names the token it stumbles on, and a token may have 2,000 characters."""
+    kind = kind_with(monkeypatch, lambda text: {"status": "error", "error": "near " + "x" * 2000})
+    check = kind.check(kind.prepare({"seed": "s"}, {}, {"s": b"x"}), Step({}), Entry(text="a"))
+    assert check.message == Message("engine", {"text": ("near " + "x" * 2000)[:300]}) and contract.fault(kind, check) is None
 
 
 def test_making_the_key_counts_against_the_budget(monkeypatch):
@@ -437,25 +454,28 @@ def test_the_kinds_say_what_the_engines_table_and_the_build_say():
         assert kind.SEED == ENGINES[engine]["seed"] and kind.TOKENS == ENGINES[engine]["tokens"]
         assert kind.TEXT == ENGINES[engine]["text"]
         assert (kind.INPUT, kind.REDUCTION, kind.LIMIT) == ("code", "groups", build.LIMITS["code"])
+        assert kind.OPTIONS["seed"].suffixes == tuple(kind.SEED) and list(kind.OPTIONS) == ["tokens", "seed", "reference"]
     triples = Triples()
     assert (triples.INPUT, triples.REDUCTION, triples.LIMIT) == ("fields", "crowd", build.LIMITS["tuple"])
     assert (triples.FIELDS, triples.TERMS) == (build.FIELDS, build.TERMS)
-    assert (contract.WORD_MAX, contract.WORDS_MAX) == (build.WORD_MAX, build.WORDS_MAX)
+    assert (option_types.WORD_MAX, option_types.WORDS_MAX) == (build.WORD_MAX, build.WORDS_MAX)
     assert {k.NAME for k in ALL} == {"sql-query", "sparql-query", "turtle-graph", "triples"}
-    assert all(k.API == 0 and set(k.OPTIONS) <= set(contract.KEYS) for k in ALL)
-    assert set(contract.KEYS) == set().union(*(k.OPTIONS for k in ALL))             # every key is some kind's
+    keys = {"fields", "suggest", "tokens", "min", "review", "terms", "seed", "reference"}      # a record's, that are a kind's
+    assert all(k.API == 0 for k in ALL) and keys == set().union(*(k.OPTIONS for k in ALL))
+    assert not keys & set(option_types.CORE)
 
 
 def test_the_contracts_own_facts():
     assert contract.STATUSES == ("ok", "invalid", "error", "refused", "timeout", "internal")      # the design's 6.3
     assert contract.FROM_F1 == {"syntax": "invalid"}
     assert all(k.BUDGET_S == contract.BUDGET_S == pool.BUDGET_S == 2.0 for k in ALL)      # seconds, as a step's
-    assert "{ " + " , ".join(contract.FIELDS) + " }" in (ROOT / "latex" / "texactivity.sty").read_text(encoding="utf-8")
+    assert "{ " + " , ".join(option_types.PRESETS["fields"]) + " }" in (ROOT / "latex" / "texactivity.sty").read_text(
+        encoding="utf-8")
     for kind in ALL:                                                # a kind's options are its own, and fixed
         with pytest.raises(TypeError):
             kind.OPTIONS["more"] = "words"
     assert Triples.OPTIONS is not CodeKind.OPTIONS and contract.Kind.OPTIONS == {}
-    for name in ("Kind", "Built", "Prepared", "Check", "Entry", "Step", "Unbuildable", "Unfit"):
+    for name in ("Kind", "Built", "Prepared", "Check", "Entry", "Step", "Message", "Unbuildable", "Unfit", "fixed"):
         assert getattr(texstage.activities, name) is getattr(contract, name)      # as the design's 7.1 imports them
 
 
@@ -610,18 +630,19 @@ def by_kind(tmp_path, a: build.Activity) -> tuple[dict, dict, dict, list[str]]:
             raise Unbuildable(f"the {what} {name} is not there (paths are the deck's)")
         return path.read_text(encoding="utf-8-sig")
 
-    options = {"fields": a.fields, "suggest": a.suggest, "tokens": a.tokens, "min": a.min, "review": a.review,
-               "terms": a.terms, "seed": a.seed, "reference": a.reference_file}
+    options = Options(kind.OPTIONS, {"fields": a.fields, "suggest": a.suggest, "tokens": a.tokens, "min": a.min,
+                                     "review": a.review, "terms": a.terms, "seed": a.seed, "reference": a.reference_file},
+                      files)
     bodies = {"seed": a.seed_text, "references": a.references}
     try:
-        item = {"input": a.input, "limit": contract.number("limit", a.limit, kind.LIMIT, build.LIMIT_MAX)}
-        built = kind.build(options, bodies, files)
+        item = {"input": a.input, "limit": Int(build.LIMIT_MAX, kind.LIMIT).read("limit", a.limit, None)}
+        built = kind.build(options, bodies)
     except Unbuildable as e:
         raise build.ActivityError(f"activity {a.id}: {e}") from None
     item.update(built.item)
     if a.open == "manual":
         item["open"] = "manual"
-    extra = contract.unused(kind, options, bodies)
+    extra = options.unused(bodies)
     return item, built.keys, built.files, [f"activity {a.id}: {', '.join(extra)} - not for input={a.input}"] if extra else []
 
 
@@ -742,12 +763,16 @@ def test_what_the_build_makes_of_the_records_that_show_an_order(tmp_path):
 
 
 def test_the_keys_a_kind_does_not_take():
+    def unused(kind, given, bodies=None):
+        return Options(kind.OPTIONS, given).unused(bodies)
+
     sql, triples = SqlQuery(), Triples()
-    assert contract.unused(sql, {"fields": list(contract.FIELDS), "tokens": ["?"], "seed": "s.sql"}) == []
-    assert contract.unused(sql, {"fields": ["a", "b"], "min": "2", "review": True, "terms": "loose", "suggest": ["x"]}) == [
+    assert unused(sql, {"fields": list(option_types.PRESETS["fields"]), "tokens": ["?"], "seed": "s.sql"}) == []
+    assert unused(sql, {"fields": ["a", "b"], "suggest": ["x"], "min": "2", "review": True, "terms": "loose"}) == [
         "fields", "suggest", "min", "review", "terms"]
-    assert contract.unused(sql, {"review": False, "min": "", "suggest": [], "terms": ""}, {"seed": "x", "references": ["y"]}) == []
-    assert contract.unused(triples, {"fields": ["a", "b"], "tokens": ["?"]}) == ["tokens"]
-    assert contract.unused(triples, {}, {"seed": "CREATE TABLE t(x);"}) == ["seed"]
-    assert contract.unused(triples, {}, {"references": ["SELECT 1"]}) == ["reference"]
-    assert contract.unused(triples, {"seed": "s.sql", "reference": "r.sql"}, {"seed": "", "references": []}) == ["seed", "reference"]
+    assert unused(sql, {"review": False, "min": "", "suggest": [], "terms": ""}, {"seed": "x", "references": ["y"]}) == []
+    assert unused(triples, {"fields": ["a", "b"], "tokens": ["?"]}) == ["tokens"]
+    assert unused(triples, {"seed": "", "reference": ""}, {"seed": "CREATE TABLE t(x);"}) == ["seed"]
+    assert unused(triples, {"seed": "", "reference": ""}, {"references": ["SELECT 1"]}) == ["reference"]
+    assert unused(triples, {"seed": "s.sql", "reference": "r.sql"}, {"seed": "", "references": []}) == ["seed", "reference"]
+    assert unused(triples, {"limit": "3", "open": "manual", "id": "act"}) == []                 # the core's own keys

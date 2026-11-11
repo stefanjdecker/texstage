@@ -1,0 +1,3943 @@
+{
+ "kind": "sql-query",
+ "from": "tests/fixtures/checks/sql.json",
+ "settings": {
+  "uni": {
+   "item": {
+    "seed": "data/uni.sql"
+   },
+   "files": {
+    "data/uni.sql": "CREATE TABLE professor (id INTEGER PRIMARY KEY, name TEXT NOT NULL);\nCREATE TABLE lecture (id INTEGER PRIMARY KEY, title TEXT NOT NULL, taught_by INTEGER REFERENCES professor (id), hours REAL);\nINSERT INTO professor VALUES (1, 'Kant'), (2, 'Socrates'), (3, 'Popper');\nINSERT INTO lecture VALUES (1, 'Foundations', 1, 2), (2, 'The Three Critiques', 1, 4), (3, 'Ethics', 2, 3.5);\n"
+   }
+  },
+  "packing": {
+   "item": {
+    "seed": "data/packing.sql"
+   },
+   "files": {
+    "data/packing.sql": "CREATE TABLE packing (item TEXT, quantity INTEGER);\nINSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);\n"
+   }
+  },
+  "types": {
+   "item": {
+    "seed": "data/types.sql"
+   },
+   "files": {
+    "data/types.sql": "CREATE TABLE v (id INTEGER PRIMARY KEY, i INTEGER, r REAL, t TEXT, b BLOB);\nINSERT INTO v VALUES (1, 7, 7.0, '7', x'00ff'), (2, 9007199254740993, 0.1, '\u00c4\"\\' || char(10) || char(9) || char(1), NULL),\n  (3, -0, 1e-7, '\ud835\udd38', x''), (4, 9223372036854775807, 1e21, '\ufb00', NULL), (5, NULL, 2.5e-300, '', NULL),\n  (6, -9223372036854775808, 123456789.123456789, 'Zebra', x'0a'), (7, 0, -1.5e-7, 'zebra', NULL), (8, 42, 1e300 * 1e10, '\u00e9', NULL);\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "select name from professor;"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor ORDER BY name DESC"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ],
+      [
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT p.name, l.title FROM professor p JOIN lecture l ON l.taught_by = p.id"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4039e3e2cbbe3ca4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name",
+      "title"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant",
+       "Foundations"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT p.name, l.title FROM professor p, lecture l"
+   },
+   "check": {
+    "status": "ok",
+    "key": "601af3ecbe9c6d34",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name",
+      "title"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       "Kant",
+       "Foundations"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Ethics"
+      ],
+      [
+       "Socrates",
+       "Foundations"
+      ],
+      [
+       "Socrates",
+       "The Three Critiques"
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ],
+      [
+       "Popper",
+       "Foundations"
+      ],
+      [
+       "Popper",
+       "The Three Critiques"
+      ],
+      [
+       "Popper",
+       "Ethics"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name, name FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "f4ef72871d880f34",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name",
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant",
+       "Kant"
+      ],
+      [
+       "Socrates",
+       "Socrates"
+      ],
+      [
+       "Popper",
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * FROM lecture"
+   },
+   "check": {
+    "status": "ok",
+    "key": "fffdd1e8ba2eed12",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "id",
+      "title",
+      "taught_by",
+      "hours"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "1",
+       "Foundations",
+       "1",
+       "2"
+      ],
+      [
+       "2",
+       "The Three Critiques",
+       "1",
+       "4"
+      ],
+      [
+       "3",
+       "Ethics",
+       "2",
+       "3.5"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT title, hours FROM lecture"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d5354021e02fca68",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "title",
+      "hours"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Foundations",
+       "2"
+      ],
+      [
+       "The Three Critiques",
+       "4"
+      ],
+      [
+       "Ethics",
+       "3.5"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT avg(hours) FROM lecture"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84445e8df078656f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "avg(hours)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3.16666666667"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT sum(hours) / count(*) FROM lecture"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84445e8df078656f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "sum(hours) / count(*)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3.16666666667"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT count(*) FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc49ff7e7c259ab",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "count(*)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor WHERE id > 5"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "-- a comment\nSELECT name FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "/* a comment */ SELECT name FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELEC name FROM professor"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"SELEC\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELEC name FROM professor"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"SELEC\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM nope"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such table: nope"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT name FROM nope"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such table: nope"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT nme FROM professor"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such column: nme"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT nme FROM professor"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such column: nme"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor WHERE"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT name FROM professor WHERE"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 'unterminated"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"'unterminated\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 'unterminated"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"'unterminated\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT name FROM professor; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor;;"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; -- after"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1 /* c */ ;"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 /* c */"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "   "
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "   "
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "-- only a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "-- only a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": ";"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": ";"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "noStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "INSERT INTO professor VALUES (9, 'X')"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "INSERT INTO professor VALUES (9, 'X')"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "DELETE FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "DELETE FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "UPDATE professor SET name = 'Y'"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "UPDATE professor SET name = 'Y'"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "CREATE TABLE z (a)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "CREATE TABLE z (a)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "DROP TABLE professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "DROP TABLE professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "ATTACH DATABASE 'x.db' AS x"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "ATTACH DATABASE 'x.db' AS x"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PRAGMA table_info(professor)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "PRAGMA table_info(professor)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * FROM pragma_table_info('professor')"
+   },
+   "check": {
+    "status": "ok",
+    "key": "69fba83e6eac9e35",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "cid",
+      "name",
+      "type",
+      "notnull",
+      "dflt_value",
+      "pk"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "0",
+       "id",
+       "INTEGER",
+       "0",
+       "NULL",
+       "1"
+      ],
+      [
+       "1",
+       "name",
+       "TEXT",
+       "1",
+       "NULL",
+       "0"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT load_extension('x')"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT load_extension('x')"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "WITH x AS (SELECT name FROM professor) SELECT name FROM x"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f86ef05624e2222",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Popper"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "VALUES (1, 'a'), (2, 'b')"
+   },
+   "check": {
+    "status": "ok",
+    "key": "141080776f32e56b",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "column1",
+      "column2"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1",
+       "a"
+      ],
+      [
+       "2",
+       "b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r LIMIT 100000) SELECT n FROM r"
+   },
+   "check": {
+    "status": "ok",
+    "key": "ad80bf8cc96ea147",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "n"
+     ],
+     "count": 100000,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ],
+      [
+       "3"
+      ],
+      [
+       "4"
+      ],
+      [
+       "5"
+      ],
+      [
+       "6"
+      ],
+      [
+       "7"
+      ],
+      [
+       "8"
+      ],
+      [
+       "9"
+      ],
+      [
+       "10"
+      ],
+      [
+       "11"
+      ],
+      [
+       "12"
+      ],
+      [
+       "13"
+      ],
+      [
+       "14"
+      ],
+      [
+       "15"
+      ],
+      [
+       "16"
+      ],
+      [
+       "17"
+      ],
+      [
+       "18"
+      ],
+      [
+       "19"
+      ],
+      [
+       "20"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r LIMIT 100001) SELECT n FROM r"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "more than 100000 rows"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r LIMIT 100001) SELECT n FROM r"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "more than 100000 rows"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "EXPLAIN SELECT name FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "EXPLAIN SELECT name FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "EXPLAIN QUERY PLAN SELECT name FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "EXPLAIN QUERY PLAN SELECT name FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "WITH x AS (SELECT 9 AS id) DELETE FROM professor WHERE id IN (SELECT id FROM x)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "changesData",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "WITH x AS (SELECT 9 AS id) DELETE FROM professor WHERE id IN (SELECT id FROM x)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "changesData",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; /*"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"/\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1; /*"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"/\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; /* x"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1 /* a */ */"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"/\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1 /* a */ */"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"/\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "/* a */ SELECT 1 /* b */"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 /* b */"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1;\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1;\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; \u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; /* c */\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1; /* c */\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; \ufeff\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1; \ufeff\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "\u000b"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "unrecognized token: \"\u000b\""
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; \u0085"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"\u0085\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1; \u0085"
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"\u0085\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; \ufeff"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "\ufeffSELECT 1"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "\u00a0SELECT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"\u00a0SELECT\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "\u00a0SELECT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"\u00a0SELECT\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT\u00a01"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"SELECT\u00a01\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT\u00a01"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"SELECT\u00a01\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1;; SELECT 2"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1;; SELECT 2"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "-- c\n;\nSELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "-- c\n;\nSELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "EXPLAIN"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "EXPLAIN"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "incomplete input"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "explain_x SELECT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"explain_x\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "explain_x SELECT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "near \"explain_x\": syntax error"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PRAGMA foreign_key_check(nope)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "PRAGMA foreign_key_check(nope)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PRAGMA nope.table_info(professor)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "PRAGMA nope.table_info(professor)"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * FROM pragma_query_only"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "query_only"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "pragma QUERY_ONLY=0; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "pragma QUERY_ONLY=0; SELECT 1"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1; PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT 1; PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "\ufeffPRAGMA query_only = OFF"
+   },
+   "direct": true,
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "\ufeffPRAGMA query_only = OFF"
+   },
+   "direct": true,
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "/* c */PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "/* c */PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "EXPLAIN PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "EXPLAIN PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PRAGMA case_sensitive_like = ON"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "PRAGMA case_sensitive_like = ON"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "WITH x AS (SELECT 1) DELETE FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "changesData",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "WITH x AS (SELECT 1) DELETE FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "changesData",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT count(*) FROM professor"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc49ff7e7c259ab",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "count(*)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 'a' LIKE 'A'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "'a' LIKE 'A'"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 'PRAGMA' AS \"PRAGMA\", 1 AS [pragma], 2 AS `pragma`"
+   },
+   "check": {
+    "status": "ok",
+    "key": "cf7e35b9b3a8f467",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "PRAGMA",
+      "pragma",
+      "pragma"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "PRAGMA",
+       "1",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1 -- PRAGMA"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 -- PRAGMA"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1 /* PRAGMA */"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 /* PRAGMA */"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT :pragma, $pragma, @pragma"
+   },
+   "check": {
+    "status": "ok",
+    "key": "50728ef5082011d5",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      ":pragma",
+      "$pragma",
+      "@pragma"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL",
+       "NULL",
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT $a(PRAGMA)"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84129f31f0fd67c3",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "$a(PRAGMA)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT pragma FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT pragma FROM professor"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT x\ufeffPRAGMA FROM professor"
+   },
+   "direct": true,
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such column: x\ufeffPRAGMA"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT x\ufeffPRAGMA FROM professor"
+   },
+   "direct": true,
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine",
+     "args": {
+      "text": "no such column: x\ufeffPRAGMA"
+     }
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT 1\u0000PRAGMA query_only = OFF"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84129f31f0fd67c3",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor WHERE id = ?"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT name FROM professor WHERE id = :id OR name = @n"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "name"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?2, ?"
+   },
+   "check": {
+    "status": "ok",
+    "key": "f790e20c0574e802",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?2",
+      "?"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL",
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT $x, $x"
+   },
+   "check": {
+    "status": "ok",
+    "key": "f790e20c0574e802",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "$x",
+      "$x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL",
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?, :x"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "EXPLAIN SELECT ?"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "EXPLAIN SELECT ?"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?; SELECT :y"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT ?; SELECT :y"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT $a(x;y)"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84129f31f0fd67c3",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "$a(x;y)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?0"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT ?0"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?99999999"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT ?99999999"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "SELECT item FROM packing WHERE quantity = 6;"
+   },
+   "check": {
+    "status": "ok",
+    "key": "780fc0e9c37cde2a",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "Apples"
+      ],
+      [
+       "Cups"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "select item from packing where quantity=6"
+   },
+   "check": {
+    "status": "ok",
+    "key": "780fc0e9c37cde2a",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "Apples"
+      ],
+      [
+       "Cups"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "SELECT item FROM packing WHERE quantity = 6 -- me"
+   },
+   "check": {
+    "status": "ok",
+    "key": "780fc0e9c37cde2a",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "Apples"
+      ],
+      [
+       "Cups"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "SELECT item, quantity FROM packing"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0c0fe094747a928e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item",
+      "quantity"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Apples",
+       "6"
+      ],
+      [
+       "Cups",
+       "6"
+      ],
+      [
+       "Blankets",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "SELECT * FROM packing ORDER BY quantity"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0c0fe094747a928e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item",
+      "quantity"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Blankets",
+       "2"
+      ],
+      [
+       "Apples",
+       "6"
+      ],
+      [
+       "Cups",
+       "6"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "packing",
+   "entry": {
+    "text": "SELECT item FROM packing WHERE quantity = 2"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d4aa1acfa4c6f1b8",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "item"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "Blankets"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT i, r, t, b FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0d116567afb3abda",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "i",
+      "r",
+      "t",
+      "b"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7",
+       "7",
+       "7",
+       "x'00ff'"
+      ],
+      [
+       "9007199254740992",
+       "0.1",
+       "\u00c4\"\\\n\t\u0001",
+       "NULL"
+      ],
+      [
+       "0",
+       "1e-7",
+       "\ud835\udd38",
+       "x''"
+      ],
+      [
+       "9223372036854776000",
+       "1e+21",
+       "\ufb00",
+       "NULL"
+      ],
+      [
+       "NULL",
+       "2.5e-300",
+       "",
+       "NULL"
+      ],
+      [
+       "-9223372036854776000",
+       "123456789.123",
+       "Zebra",
+       "x'0a'"
+      ],
+      [
+       "0",
+       "-1.5e-7",
+       "zebra",
+       "NULL"
+      ],
+      [
+       "42",
+       "Infinity",
+       "\u00e9",
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT t FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0200fe258e1abd3e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "t"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7"
+      ],
+      [
+       "\u00c4\"\\\n\t\u0001"
+      ],
+      [
+       "\ud835\udd38"
+      ],
+      [
+       "\ufb00"
+      ],
+      [
+       ""
+      ],
+      [
+       "Zebra"
+      ],
+      [
+       "zebra"
+      ],
+      [
+       "\u00e9"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT i FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84422fe0e616f724",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "i"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7"
+      ],
+      [
+       "9007199254740992"
+      ],
+      [
+       "0"
+      ],
+      [
+       "9223372036854776000"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "-9223372036854776000"
+      ],
+      [
+       "0"
+      ],
+      [
+       "42"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT r FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "b84b21d54874f4f7",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "r"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7"
+      ],
+      [
+       "0.1"
+      ],
+      [
+       "1e-7"
+      ],
+      [
+       "1e+21"
+      ],
+      [
+       "2.5e-300"
+      ],
+      [
+       "123456789.123"
+      ],
+      [
+       "-1.5e-7"
+      ],
+      [
+       "Infinity"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT b FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "a7e26fbde604d382",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "b"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "x'00ff'"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "x''"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "x'0a'"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 1 / 3.0, 2 / 3.0, 0.1 + 0.2, 1e-7, 1e21, 1e22, -0.0, 2.0, 1 / 0, 3.14159265358979, 1e-6, 123e-20"
+   },
+   "check": {
+    "status": "ok",
+    "key": "96d7fd99d8df4e91",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 / 3.0",
+      "2 / 3.0",
+      "0.1 + 0.2",
+      "1e-7",
+      "1e21",
+      "1e22",
+      "-0.0",
+      "2.0",
+      "1 / 0",
+      "3.14159265358979",
+      "1e-6",
+      "123e-20"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "0.333333333333",
+       "0.666666666667",
+       "0.3",
+       "1e-7",
+       "1e+21",
+       "1e+22",
+       "0",
+       "2",
+       "NULL",
+       "3.14159265359",
+       "0.000001",
+       "1.23e-18"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 9007199254740993, 9007199254740992, -9007199254740993, 1.0e15 + 0.3, 2.675, 1.005, 0.000001234567890123456"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3f3cbc41db99cf3a",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "9007199254740993",
+      "9007199254740992",
+      "-9007199254740993",
+      "1.0e15 + 0.3",
+      "2.675",
+      "1.005",
+      "0.000001234567890123456"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "9007199254740992",
+       "9007199254740992",
+       "-9007199254740992",
+       "1000000000000000",
+       "2.675",
+       "1.005",
+       "0.00000123456789012"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 'a' UNION ALL SELECT 'a'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e9eaee3d756c6154",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "'a'"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "a"
+      ],
+      [
+       "a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT NULL"
+   },
+   "check": {
+    "status": "ok",
+    "key": "84129f31f0fd67c3",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "NULL"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "NULL"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT x'0102'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "dcf669d0b9437e8d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x'0102'"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "x'0102'"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT char(0)"
+   },
+   "check": {
+    "status": "ok",
+    "key": "5101399219359894",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "char(0)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "fa02056eb8bfc154",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT '\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "ab33b9fcff697a94",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "'\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\u2026"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT printf('%.300c', 'y')"
+   },
+   "check": {
+    "status": "ok",
+    "key": "398a0a8eb8bc09c0",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "printf('%.300c', 'y')"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r LIMIT 50) SELECT n, printf('%.300c', 'y') FROM r"
+   },
+   "check": {
+    "status": "ok",
+    "key": "53d7d265de1c08c1",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "n",
+      "printf('%.300c', 'y')"
+     ],
+     "count": 50,
+     "rows": [
+      [
+       "1",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "2",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "3",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "4",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "5",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "6",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "7",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "8",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "9",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "10",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "11",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "12",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "13",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "14",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "15",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "16",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "17",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "18",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "19",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ],
+      [
+       "20",
+       "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r LIMIT 25) SELECT n, n * 0.1 FROM r"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0ef1bbd744e55de8",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "n",
+      "n * 0.1"
+     ],
+     "count": 25,
+     "rows": [
+      [
+       "1",
+       "0.1"
+      ],
+      [
+       "2",
+       "0.2"
+      ],
+      [
+       "3",
+       "0.3"
+      ],
+      [
+       "4",
+       "0.4"
+      ],
+      [
+       "5",
+       "0.5"
+      ],
+      [
+       "6",
+       "0.6"
+      ],
+      [
+       "7",
+       "0.7"
+      ],
+      [
+       "8",
+       "0.8"
+      ],
+      [
+       "9",
+       "0.9"
+      ],
+      [
+       "10",
+       "1"
+      ],
+      [
+       "11",
+       "1.1"
+      ],
+      [
+       "12",
+       "1.2"
+      ],
+      [
+       "13",
+       "1.3"
+      ],
+      [
+       "14",
+       "1.4"
+      ],
+      [
+       "15",
+       "1.5"
+      ],
+      [
+       "16",
+       "1.6"
+      ],
+      [
+       "17",
+       "1.7"
+      ],
+      [
+       "18",
+       "1.8"
+      ],
+      [
+       "19",
+       "1.9"
+      ],
+      [
+       "20",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT t, length(t) FROM v ORDER BY t"
+   },
+   "check": {
+    "status": "ok",
+    "key": "77d7e83daf73f733",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "t",
+      "length(t)"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "",
+       "0"
+      ],
+      [
+       "7",
+       "1"
+      ],
+      [
+       "Zebra",
+       "5"
+      ],
+      [
+       "zebra",
+       "5"
+      ],
+      [
+       "\u00c4\"\\\n\t\u0001",
+       "6"
+      ],
+      [
+       "\u00e9",
+       "1"
+      ],
+      [
+       "\ufb00",
+       "1"
+      ],
+      [
+       "\ud835\udd38",
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT typeof(i), typeof(r), typeof(t), typeof(b) FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "b56ea5cb73141d8e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "typeof(i)",
+      "typeof(r)",
+      "typeof(t)",
+      "typeof(b)"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "integer",
+       "real",
+       "text",
+       "blob"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "null"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "blob"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "null"
+      ],
+      [
+       "null",
+       "real",
+       "text",
+       "null"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "blob"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "null"
+      ],
+      [
+       "integer",
+       "real",
+       "text",
+       "null"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT r * 3 FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e3e882841a81f0e6",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "r * 3"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "21"
+      ],
+      [
+       "0.3"
+      ],
+      [
+       "3e-7"
+      ],
+      [
+       "3e+21"
+      ],
+      [
+       "7.5e-300"
+      ],
+      [
+       "370370367.37"
+      ],
+      [
+       "-4.5e-7"
+      ],
+      [
+       "Infinity"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT round(r, 2) FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "12cb8b388fc293c4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "round(r, 2)"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7"
+      ],
+      [
+       "0.1"
+      ],
+      [
+       "0"
+      ],
+      [
+       "1e+21"
+      ],
+      [
+       "0"
+      ],
+      [
+       "123456789.12"
+      ],
+      [
+       "0"
+      ],
+      [
+       "Infinity"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT i + 0.5 FROM v"
+   },
+   "check": {
+    "status": "ok",
+    "key": "981d0f099c0f2298",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "i + 0.5"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "7.5"
+      ],
+      [
+       "9007199254740992"
+      ],
+      [
+       "0.5"
+      ],
+      [
+       "9223372036854776000"
+      ],
+      [
+       "NULL"
+      ],
+      [
+       "-9223372036854776000"
+      ],
+      [
+       "0.5"
+      ],
+      [
+       "42.5"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 'a' || char(0) || 'b'"
+   },
+   "check": {
+    "status": "ok",
+    "key": "db90fb40d6d3843d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "'a' || char(0) || 'b'"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT char(65, 0, 66), length(char(65, 0, 66))"
+   },
+   "check": {
+    "status": "ok",
+    "key": "64db85fea2ddf15e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "char(65, 0, 66)",
+      "length(char(65, 0, 66))"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "A",
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT CAST(x'41ff42' AS TEXT)"
+   },
+   "check": {
+    "status": "ok",
+    "key": "ffb19c0e6f889656",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "CAST(x'41ff42' AS TEXT)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "A\ufffdB"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT CAST(x'efbbbf41' AS TEXT), length(CAST(x'efbbbf41' AS TEXT))"
+   },
+   "check": {
+    "status": "ok",
+    "key": "64db84fea2ddefab",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "CAST(x'efbbbf41' AS TEXT)",
+      "length(CAST(x'efbbbf41' AS TEXT))"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "A",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT CAST(x'eda080' AS TEXT)"
+   },
+   "check": {
+    "status": "ok",
+    "key": "397114a7d22b2ddd",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "CAST(x'eda080' AS TEXT)"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "\ufffd\ufffd\ufffd"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 1 AS \"\ufeffx\""
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT 1\u0000; SELECT 2"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "4cc4a1f7e7c25d11",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT '\ud800'"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok"
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT length('\ud800')"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok"
+   }
+  }
+ ]
+}

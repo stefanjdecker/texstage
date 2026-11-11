@@ -60,6 +60,10 @@ jobs:
           python maintenance/build_manual.py --output-dir .manual-build
       - name: Install project
         run: python -m pip install --no-deps --no-build-isolation -e .
+      - name: Install the kinds of live activities
+        run: python -m pip install --no-deps --no-build-isolation -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf
+      - name: Check the kinds
+        run: texstage kinds check
       - name: Compile authoring examples
         if: runner.os == 'Linux' && matrix.python == '3.14'
         run: python maintenance/check_reference_examples.py
@@ -105,7 +109,8 @@ jobs:
           trap 'docker logs "$container"; docker rm --force --volumes "$container"' EXIT
           for attempt in {1..30}; do
             if docker exec "$container" python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8470/api/status', timeout=2)"; then
-              exit 0
+              docker exec "$container" texstage kinds check
+              exit $?
             fi
             sleep 1
           done

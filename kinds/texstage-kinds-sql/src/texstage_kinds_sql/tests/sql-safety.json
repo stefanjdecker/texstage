@@ -1,0 +1,122 @@
+{
+ "kind": "sql-query",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.sql"
+   },
+   "files": {
+    "data/seed.sql": "CREATE TABLE t (x);\nINSERT INTO t VALUES (1);\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 5000,
+     "before": "SELECT ",
+     "open": "(",
+     "inside": "1",
+     "close": ")"
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": [
+     "ok",
+     "error",
+     "invalid"
+    ]
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 50,
+     "before": "SELECT ",
+     "open": "(",
+     "inside": "1",
+     "close": ")"
+    }
+   },
+   "check": {
+    "status": "ok"
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "PRAGMA query_only = OFF"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT 1; DELETE FROM t"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "oneStatement"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "WITH d AS (SELECT 1) DELETE FROM t"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "changesData"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "ATTACH DATABASE 'x.db' AS x"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "queriesOnly"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT load_extension('x')"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT writefile('x', 1)"
+   },
+   "check": {
+    "status": "error",
+    "message": {
+     "code": "engine"
+    }
+   }
+  }
+ ]
+}

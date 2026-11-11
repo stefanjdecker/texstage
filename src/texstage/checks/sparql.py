@@ -186,7 +186,7 @@ def _failure(e: BaseException, shift: int, W: Words) -> dict:
     m = AT.fullmatch(text)
     if m:
         line = max(1, int(m.group(1)) - shift)              # the student's line: the seed's prefixes are in front
-        return {"status": "syntax", "error": W.at(line, m.group(2), m.group(3)), "at": (line, int(m.group(2)))}
+        return {"status": "syntax", "error": W.at(line, int(m.group(2)), m.group(3)), "at": (line, int(m.group(2)))}
     return {"status": "error", "error": text}
 
 

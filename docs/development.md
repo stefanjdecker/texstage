@@ -54,9 +54,17 @@ because no Docker daemon was available.
 
 ```sh
 python -m pip install --no-deps --no-build-isolation -e .
+python -m pip install --no-deps --no-build-isolation -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf
 python -m pip check
+texstage kinds check
 python -m pytest tests -ra
 ```
+
+The second line installs the kinds of live activities: packages of their own in
+`kinds/`, found by their entry points. `texstage kinds` lists what is installed,
+and `texstage kinds check` runs the kit - the test every kind passes - on each.
+Without them the tests of the registry and of the kit fail and say what to install;
+the kinds' own tests find their sources in `kinds/`.
 
 The tests exercise Python, server/WebSocket behavior, Node-based browser logic,
 LaTeX and PowerPoint file generation. Windows registration tests use the

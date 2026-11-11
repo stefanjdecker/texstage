@@ -4,16 +4,18 @@
 
     sql-query   a query over the seed's tables, run by Python's sqlite3 - today's input=code, engine=sql
 
-Behind the provisional contract (texstage.activities.kind; F2's plan, package 1). The check itself is
-still F1's (texstage.checks.sql) and moves here once F1 is in main."""
+A kind of the activity framework's contract, API 0 (texstage.activities.kind). The check itself is still
+F1's (texstage.checks.sql) and moves here once F1 is in main. Its fixtures, which `texstage kinds check`
+runs, are beside this module (tests/)."""
 from __future__ import annotations
 
 try:
-    from texstage.activities.code import CodeKind
+    from texstage.activities.code import CodeKind, said
 except ImportError as e:                                  # an older texstage: say what is missing
     raise ImportError("texstage-kinds-sql needs a texstage with the activity framework's contract "
                       "(texstage.activities); this one has none") from e
-from texstage.activities.kind import Prepared
+from texstage.activities.kind import Prepared, fixed
+from texstage.activities.options import File, Words
 
 __all__ = ["SqlQuery"]
 
@@ -25,6 +27,8 @@ class SqlQuery(CodeKind):
     SEED = {".sql": "application/sql"}
     TOKENS = ["*", ",", "(", ")", "=", "'", "."]
     TEXT = "a query"
+    OPTIONS = fixed(tokens=Words(), seed=File(".sql"), reference=File())
+    MESSAGES = said("changesData", "noStatement", "oneStatement", "queriesOnly", "tooMuchMemory")
 
     def prepare(self, item: dict, keys: dict, files: dict[str, bytes], limits: dict | None = None,
                 copy: bytes | None = None) -> Prepared:

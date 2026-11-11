@@ -1,0 +1,385 @@
+{
+ "kind": "sparql-query",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.ttl"
+   },
+   "files": {
+    "data/seed.ttl": "@prefix : <http://e.org/> .\n:a :p :b .\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "select * where { service <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { SeRvIcE SILENT <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o . SERVICE ?endpoint { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { # a comment\nSERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { \\u0053ERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { \\U00000053ervice <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { { SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?service WHERE { ?service ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa76b4a4c9847e3d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?service"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT $service WHERE { $service ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa76b4a4c9847e3d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?service"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s :service ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "23332d1a0de3cf6d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "PREFIX ex: <http://e.org/> SELECT * WHERE { ?s ex:Service ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "23332d1a0de3cf6d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "PREFIX service: <http://e.org/> SELECT * WHERE { ?s service:p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d447d07576a8192b",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p 'SERVICE' }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "23332d1a0de3cf6d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?p",
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p \"\"\"SERVICE\"\"\" }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "23332d1a0de3cf6d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?p",
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o } # SERVICE <http://127.0.0.1:9/sparql>"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2a80e72cc69ea01f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s <http://e.org/SERVICE> ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "23332d1a0de3cf6d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 5000,
+     "before": "SELECT * WHERE ",
+     "open": "{ ",
+     "inside": "?s ?p ?o ",
+     "close": "} "
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "tooDeep",
+     "args": {
+      "n": 500
+     }
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 500,
+     "before": "SELECT * WHERE ",
+     "open": "{ ",
+     "inside": "?s ?p ?o ",
+     "close": "} "
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "2a80e72cc69ea01f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": {
+     "deep": 501,
+     "before": "SELECT * WHERE ",
+     "open": "{ ",
+     "inside": "?s ?p ?o ",
+     "close": "} "
+    }
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "tooDeep",
+     "args": {
+      "n": 500
+     }
+    }
+   }
+  }
+ ]
+}

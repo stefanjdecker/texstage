@@ -5,9 +5,9 @@ Status: 2026-11-09, the plan for F2 of [activity-framework-design.md](activity-f
 day. Written at the lecturer's request before F1 is built and before F0's runs on the presentation
 laptop: it takes for granted what the plan of F0 and F1
 ([activity-framework-plan.md](activity-framework-plan.md), here **P1**) delivers, and changes where
-F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Package 1
-is built (2026-11-10, on `f2-core`, ahead of F1's last packages - 4.12 says where it stands); nothing
-of the server uses it yet. File references are to `src/texstage/` unless they name another folder.
+F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
+and 2 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
+where it stands); nothing of the server uses them yet. File references are to `src/texstage/` unless they name another folder.
 
 ## 1. In short
 
@@ -115,7 +115,7 @@ archive's files.
   provisional base class, and F1's golden fixtures pass through them unchanged.
 - **Then what they share is the contract** (`activities/kind.py`, API 0): `NAME`, `API = 0`,
   `INPUT` (one of the core's inputs, or the kind's own), `REDUCTION` (`groups`, `crowd` or
-  `tally`), `OPTIONS` (one schema for the activity and, from F3, its steps), `BUDGET_MS`. Where the
+  `tally`), `OPTIONS` (one schema for the activity and, from F3, its steps), `BUDGET_S`. Where the
   four differ, the contract learns: `triples` has fields and `crowd`'s parts, `turtle-graph` a seed
   that is only a prologue, `sparql-query` and `turtle-graph` share a seed's prefixes, `sql-query`
   hints from the seed's schema. And `sql-query`'s `prepare` is not alike on every worker - a seed
@@ -236,6 +236,86 @@ archive's files.
   the status is `ok`, a verdict and a credit between 0 and 1 where the kind judges, a message code
   its texts have, a detail of at most 12 KiB, the parts for `crowd`. A kind that returns something
   else gets `internal` for that entry, and the kit finds it first.
+- **What package 2 built (2026-11-11):** the contract, API 0 - `activities/kind.py`, no longer
+  provisional, and AF 7.1 has it as it is now; `activities/options.py`, the options' types; the
+  rules a check must keep (`fault`) and what the core makes of one that breaks them (`validated`:
+  `internal`); `Check.sent()`, what leaves the worker. `activities/registry.py` finds the kinds by
+  their entry points and says why one cannot be used - its module does not import, its class is no
+  kind, its name is not its entry point's, another API, two packages with one name. `activities/kit.py`
+  is the kit's Python half, and `texstage kinds` and `texstage kinds check [name ...]` the commands
+  (4.9). Each kind's fixtures are beside its module (`tests/*.json`), made of F1's golden fixtures
+  by `tests/fixtures/checks/to_kinds.py`, with the safety cases, a setting with references over
+  rows that are not ASCII, the kinds' builds and the cases of `triples` - 364 cases and 27 builds
+  after the review. `tests/test_contract.py`, `tests/test_kit.py`.
+- **What it decided of what the four taught:**
+  - *`normalize`* gives an entry and may refuse (`Unfit`, with the phone's code); whether the core
+    keeps the bounds that need no kind is package 3's, with the entries.
+  - *What stays in the worker* - `canonical`, `rows`, `memory` - are fields of the check that
+    `sent()` leaves out; the comparison with the reference stays the core's order (`referenced`).
+  - *`copy`* and the first worker: `first()`, as F1's worker does it.
+  - *Messages are codes* (AF 6.3, 7.4): a check says `Message(code, args)`, a kind lists its codes
+    and their arguments (`MESSAGES`), and `engine` is the code for an engine's own words, cut to
+    300 characters. Until the phones say them (package 8), `activities/code.py` words a message as
+    F1's catalog does - which is how the golden fixtures still hold. F1's checks carry the codes
+    only when a kind asks (`checks/texts.py`: `coded()`); F1's worker gets plain text as before.
+  - *The base of three kinds* (`code.py`) is a helper beside the contract, not a part of it.
+  - *By input, not by kind:* the pause between entries and whether a new entry stands beside the
+    old ones or in the old one's place are the input's rules, the core's (package 3); how many
+    entries a student has is the kind's (`LIMIT`).
+  - *Options:* typed, and read as the kind asks for them, so that today's order of refusals stays;
+    the keys a kind does not take are `Options.unused()`'s. A seed's two megabytes stay until the
+    build is rewired (package 7), where the number is decided anew.
+  - *Budgets* in seconds; the references' own is `referenced`'s argument, the pool's to give.
+  - *`triples` through a worker:* package 4 measures it, with the queue.
+- **What package 2 pulled forward:** the registry finds a kind by its entry point, which only an
+  installed package has - so the kinds are installed from here on: `docs/development.md`, CI (which
+  runs `texstage kinds check` too) and the image (`deploy/Dockerfile`) install both packages after
+  texstage, without dependencies of their own to lock - pyoxigraph is texstage's since F1. The rest
+  of installing - `docs/installation.md`, lecture-tools - stays package 11's.
+- **What package 2's review found (2026-11-11, fixed the same day):** an independent reviewer with
+  experiments, and the author's. F1 is untouched in effect - the kinds give what F1's worker gives
+  for 4,500 garbled texts, the options what today's build makes of 6,000 random records.
+  Thirteen faults:
+  1. *A result over text that is not ASCII became `internal`:* the rule measured a detail's JSON
+     with every such letter escaped, six times its length - twenty rows of Cyrillic, umlauts or
+     emoji were over 12 KiB, and a right answer would never have been graded. It is measured as it
+     is sent now; a fixture of each code kind has such rows, with references.
+  2. *The kit ignored a check that failed the second time:* a check that raised or broke a rule on
+     its second run, in the other order, was not compared. It is.
+  3. *`texstage kinds check` passed when nothing was checked* - no kind installed -, so that the
+     image's job in CI could be green without the kinds; and a package whose import leaves the
+     process took the command with it. Nothing to check fails now; what a package does when it is
+     imported is its kind's reason.
+  4. *`fault` raised* where it promises a reason - a message's code that is no text, a detail
+     nested without end, a kind whose tables are none. It never raises now, and neither does
+     `validated`.
+  5. *It passed what a phone cannot read:* `NaN` and infinity, whole numbers beyond 2^53, half of a
+     surrogate pair in a key or a message.
+  6. *A syntax error's column was a text, its line a number* - both are numbers now, in F1's two
+     checks too, whose words are the same.
+  7. *The kit, smaller:* a `normalize` that raised anything but `Unfit` ended the kit - it fails its
+     case now; malformed fixture files ended it or were passed over - each is said, a key twice in
+     a table and a file for a kind that is not installed among them; a tuple in a detail was held
+     against the list a case pins; a check that never came back was waited for - it is given up
+     after 30 s; no fixture had a reference; the kit never called `build` - fixtures have builds
+     now, what a kind makes of a deck's keys or the words it refuses them with.
+  8. *The registry, smaller:* a kind whose engine's library is not installed was listed as usable -
+     a kind of an engine imports it when it is made, and cannot be made without; `API = False`
+     passed as 0; a name twice in one package gave two kinds; what was found could be changed.
+  9. *The texts that carry their codes could not be pickled or copied* - they can; and nothing
+     held that the codes end with the check that asked for them.
+  10. *texstage's source archive* had the image's file, which copies `kinds/`, and no `kinds/` -
+      it has them now (`MANIFEST.in`).
+  11. *43 of the reviewer's 76 small faults passed the tests:* a credit below 0, a place of three
+      numbers, the kit's own failure lost, and others - each has its test now.
+  12. *Seven sentences* of docstrings, the development guide, the design's 7.1 and this plan said
+      what the code does not.
+  13. *The keys a kind does not take* missed a seed given in the body when the record had no such
+      key at all.
+
+  One fault of F1's own came with the first: its server measures a result's summary the same
+  way, and drops the table of a group whose rows are mostly not ASCII (`server/activity.py`); it
+  is F1's to fix, on its branch.
 - **The registry:** `[project.entry-points."texstage.kinds"]`; texstage's own kinds through its own
   `pyproject.toml`, which has no entry points yet (only `[project.scripts]`).
 - **`deck.json` names the kinds** with package, version and API; a server that lacks one, has
@@ -375,6 +455,12 @@ If F1's package 6 meets the problem on the laptop, F1 takes this first (P1 4.4).
 They come after the four, as the contract's second test: no seed, other reductions, other views.
 Their checks run in the pool too: no kind code runs in the server's event loop (AF 2).
 
+Asked alone, each is what a quiz's question or a poll asks already - a choice, a number, a short
+text. The duplication is accepted (decided 2026-11-11): the quiz stays as simple to use as it is,
+with its own flow (AF 2, "Quizzes"), and is not bent to serve as a step of an activity; the three
+kinds are the activities' own, for the steps that need them - a vote on an earlier step's groups,
+a number before a query (AF 5.1) - and they stay in F2.
+
 ### 4.9 The kit
 
 `texstage kinds` lists what is installed - name, package, version, API. `texstage kinds check
@@ -385,6 +471,20 @@ English and German; loads its browser modules in Node, with a network that refus
 phone loads - against the sizes of AF 2 -; and reports each fixture's time against the
 budget (AF 7.5). Its Python half comes with the contract (package 2), its browser half with the
 browser (package 8).
+
+The Python half, as built (`activities/kit.py`): the class against the contract's rules; the
+fixtures, each entry through `normalize` and `check` on a thread with a worker's stack, twice and
+the second time in the other order; every check against the rules a check must keep; for a kind
+of code, three texts nested as deep as a text is long, which must come back as a check; each
+fixture's time against the kind's budget - over it, a warning -, and a check that is not back
+after 30 s given up. A fixture names a setting - the item, keys and files the kind is prepared
+with, its references among them -, an entry, and what it pins: the check's status, or the
+statuses it may be, and of its other fields those it lists, or the code `normalize` refuses the
+entry with. A build gives a deck's keys, bodies and files, and what the kind makes of them or the
+words it refuses them with. The command fails when a kind fails, cannot be used, or none is there
+to check.
+Left for the browser half: the texts in English and German - the codes are listed in Python
+(`MESSAGES`), their words are not there yet -, the modules in Node, what a phone loads.
 
 ### 4.10 Moving the data
 
@@ -441,9 +541,12 @@ About eight weeks of work - 33 to 42 days -, and the dry run.
 **Where it stands (2026-11-10):** package 1 is built on `f2-core`, which starts from
 `f1-server-checks` - F1's packages 6 to 8 were waiting for a second machine and a lecture, not for
 code. It rewires nothing: the server, the pool and the build are F1's, and the suite passes as
-before. Its review is done - ten faults, fixed (4.2). Three of the fixes change F1's code, for
+before. Its review is done - ten faults, fixed (4.2). Three of those fixes change F1's code, for
 texts and decks no lecture has met: what a text with a soft hyphen before an accent is cleaned to,
-and a number written with other digits than ASCII's, in the build. What F1 still changes reaches
+and a number written with other digits than ASCII's, in the build. Package 2 is built on it
+(2026-11-11): the contract as API 0, the registry, the kit's Python half; `texstage kinds` lists
+the four, and a kind that breaks a rule fails the kit with the rule. Its review is done too -
+thirteen faults, fixed (4.2). What F1 still changes reaches
 `f2-core` by a merge; the checks' move into the packages waits for that (4.2).
 
 ### 4.13 Risks

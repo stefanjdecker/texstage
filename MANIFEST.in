@@ -11,6 +11,12 @@ prune examples/manual/texquiz-out
 graft deploy
 exclude deploy/.env
 graft tests
+# the kinds of live activities: packages of their own, which the tests, the kit and deploy/Dockerfile need
+graft kinds
+prune kinds/texstage-kinds-sql/build
+prune kinds/texstage-kinds-rdf/build
+prune kinds/texstage-kinds-sql/src/texstage_kinds_sql.egg-info
+prune kinds/texstage-kinds-rdf/src/texstage_kinds_rdf.egg-info
 global-exclude __pycache__ *.py[cod] .env
 include provenance/original-NOTICE
 

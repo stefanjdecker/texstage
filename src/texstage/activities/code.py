@@ -1,31 +1,61 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""What three of today's four kinds share (F2's plan, 4.2) - sql-query, sparql-query, turtle-graph: a
+"""A base for kinds of one shape (the plan of F2, 4.2) - sql-query, sparql-query, turtle-graph: a
 student's text, checked against a seed with one of F1's engines (texstage.checks: load, evaluate, and
 for SQL image), grouped by the key of its result's canonical form, shown with a summary and compared
-with the first reference's rows. Provisional, as the contract is (kind.py): whether such a base is the
-contract's, a helper beside it, or each package's own is package 2's to say.
+with the first reference's rows. It is no part of the contract (kind.py) but a helper beside it: a kind
+of another shape - triples - does without, and a kind of this shape may.
 
 A kind of this shape names its engine's module and what the engines' table (texstage/engines.py) says
-of it: the files a seed may be, the tokens its bar always offers, what it calls a student's text."""
+of it: the files a seed may be, the tokens its bar always offers, what it calls a student's text. Its
+messages are the engines' texts by their codes (checks/texts.py; web/i18n: engines), and `engine` for
+what an engine says in its own words - SQLite's, Oxigraph's."""
 from __future__ import annotations
 
 import importlib
 import time
-from pathlib import Path
-from types import MappingProxyType
 
-from texstage.activities.kind import FROM_F1, Built, Check, Entry, Kind, Prepared, Step, Unbuildable, words
-from texstage.checks import cleaning, common
+from texstage.activities.kind import (
+    ARGUMENT_MAX,
+    FROM_F1,
+    Built,
+    Check,
+    Entry,
+    Kind,
+    Message,
+    Prepared,
+    Step,
+    Unbuildable,
+    fixed,
+)
+from texstage.activities.options import File, Options, Words
+from texstage.checks import cleaning, common, texts
 
 SEED_MAX = 2 * 2**20                       # as the build has it: the presenter's browser loaded it
 QUERY_MAX = 2000                           # a reference: as long as a student's text may be
 
 
+def said(*codes: str):
+    """A kind's MESSAGES from the engines' catalog: each code with what its text is made with, and
+    `engine`, the engine's own words."""
+    return fixed(engine=("text",), **{code: texts.arguments(code) for code in codes})
+
+
+def words(message: Message | None, language: str | None = None) -> str | None:
+    """A message in words, as F1's checks worded it on the server - for the tests, the kit and a window
+    that cannot say codes yet; the phones say them themselves (the design's 7.4)."""
+    if message is None:
+        return None
+    if message.code == "engine":
+        return message.args["text"]
+    return texts.ENGINES[texts.language(language)][message.code].format(**message.args)
+
+
 class CodeKind(Kind):
     INPUT = "code"
     REDUCTION = "groups"
-    OPTIONS = MappingProxyType({"seed": "file", "tokens": "words", "reference": "file"})
+    OPTIONS = fixed(tokens=Words(), seed=File(), reference=File())
+    MESSAGES = said()
     LIMIT = 5
     ENGINE = ""                            # the deck's engine= (the item's "engine", until kinds are named)
     MODULE = ""                            # F1's check: load(seed, ...), evaluate(state, text, language, budget_s=)
@@ -33,20 +63,26 @@ class CodeKind(Kind):
     TOKENS: list[str] = []                 # what the phone's bar offers beside the deck's
     TEXT = "a query"                       # a student's text, in a refusal's words
 
+    def __init__(self):
+        """A kind is made once, and its engine is imported then: a kind whose engine's library is not
+        installed cannot be made, and the registry lists it so - not as one that can be used."""
+        if self.MODULE:
+            importlib.import_module(self.MODULE)
+
     @property
     def engine(self):
         return importlib.import_module(self.MODULE)
 
     # -------------------------------------------------------------- the build
-    def build(self, options: dict, bodies: dict, files) -> Built:
+    def build(self, options: Options, bodies: dict) -> Built:
         from texstage.build.bundle import content_name     # the build's, not a worker's
-        tokens = words("tokens", list(options.get("tokens") or []))
+        tokens = options["tokens"]
         item = {"engine": self.ENGINE, "tokens": tokens + [t for t in self.TOKENS if t not in tokens]}
-        name = options.get("seed")
-        if name:
-            if Path(name).suffix.lower() not in self.SEED:
-                raise Unbuildable(f"the seed {name} - {self.ENGINE} takes {', '.join(self.SEED)} files")
-            seed = files(name, "seed").encode("utf-8")
+        file = options["seed"]
+        if file is not None:
+            if file.suffix not in self.SEED:
+                raise Unbuildable(f"the seed {file.name} - {self.ENGINE} takes {', '.join(self.SEED)} files")
+            seed = file.text().encode("utf-8")
         elif bodies.get("seed"):
             seed = (bodies["seed"] + "\n").encode("utf-8")
         else:
@@ -56,8 +92,8 @@ class CodeKind(Kind):
                               f"presenter's browser loads")
         item["seed"] = content_name("data", seed, next(iter(self.SEED)))
         references = list(bodies.get("references") or [])
-        if options.get("reference"):
-            references.append(files(options["reference"], "reference").strip())
+        if options["reference"] is not None:
+            references.append(options["reference"].text().strip())
         for r in references:
             if not r or len(r) > QUERY_MAX:
                 raise Unbuildable(f"a reference has 1 to {QUERY_MAX} characters")
@@ -84,6 +120,15 @@ class CodeKind(Kind):
     def normalize(self, step: Step, entry: Entry) -> Entry:
         return Entry(text=cleaning.clean_code(entry.text, self.TEXT))
 
+    def _message(self, error) -> Message | None:
+        """An engine's error as a message: a text of the catalog by its code, anything else as the engine's
+        own words - cut to what a message's argument may be."""
+        if error is None:
+            return None
+        if isinstance(error, texts.Said) and error.code in self.MESSAGES:
+            return Message(error.code, {k: v[:ARGUMENT_MAX] if isinstance(v, str) else v for k, v in error.args.items()})
+        return Message("engine", {"text": str(error)[:ARGUMENT_MAX]})
+
     def check(self, prepared: Prepared, step: Step, entry: Entry) -> Check:
         """As a worker of F1's pool checks a text (server/worker.py: _evaluate, _outcome): whatever the
         engine raises is this text's error; the key's computing counts against the budget. An entry
@@ -92,13 +137,14 @@ class CodeKind(Kind):
             raise TypeError(f"{self.NAME} checks a text, not {entry!r}")
         end = None if step.budget_s is None else time.thread_time() + step.budget_s
         try:
-            result = self.engine.evaluate(prepared.state, common.well_formed(entry.text), step.language,
-                                          budget_s=step.budget_s)
+            with texts.coded():                       # the engines' words with their codes
+                result = self.engine.evaluate(prepared.state, common.well_formed(entry.text), step.language,
+                                              budget_s=step.budget_s)
         except MemoryError:
-            return Check("error", message="out of memory", memory=True)
+            return Check("error", message=self._message("out of memory"), memory=True)
         except Exception as e:  # noqa: BLE001 - the engine's failure is the text's error, not the worker's
-            return Check("error", message=str(e).split("\n")[0] or type(e).__name__)
-        check = Check(FROM_F1.get(result["status"], result["status"]), message=result.get("error"),
+            return Check("error", message=self._message(str(e).split("\n")[0] or type(e).__name__))
+        check = Check(FROM_F1.get(result["status"], result["status"]), message=self._message(result.get("error")),
                       memory=bool(result.get("memory")))
         if result.get("at"):
             check.at = tuple(result["at"])

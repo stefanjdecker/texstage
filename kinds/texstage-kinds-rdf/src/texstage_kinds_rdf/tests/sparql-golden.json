@@ -1,0 +1,1803 @@
+{
+ "kind": "sparql-query",
+ "from": "tests/fixtures/checks/sparql.json",
+ "settings": {
+  "uni": {
+   "item": {
+    "seed": "data/uni.ttl"
+   },
+   "files": {
+    "data/uni.ttl": "@base <http://data.rwth-aachen.de/resources/> .\n@prefix : <> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n:kant a :Professor ; :name \"Kant\" .\n:socrates a :Professor ; :name \"Socrates\" .\n:popper a :Professor ; :name \"Popper\" .\n:l1 :taughtBy :kant ; :title \"Foundations\" .\n:l2 :taughtBy :kant ; :title \"The Three Critiques\" .\n:l3 :taughtBy :socrates ; :title \"Ethics\" .\n"
+   }
+  },
+  "picnic": {
+   "item": {
+    "seed": "data/picnic.ttl"
+   },
+   "files": {
+    "data/picnic.ttl": "@prefix : <https://example.org/picnic/> .\n:Alex :brings :apples .\n:Sam :brings :water .\n:Riley :brings :blanket .\n"
+   }
+  },
+  "types": {
+   "item": {
+    "seed": "data/types.ttl"
+   },
+   "files": {
+    "data/types.ttl": "@prefix ex: <http://example.org/> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\nex:a ex:n 7 ; ex:d 7.0 ; ex:f 7e0 ; ex:s \"7\" ; ex:b true ; ex:i \"03\"^^xsd:integer ; ex:l \"Kant\"@DE , \"Kant\"@en-GB .\nex:a ex:x [ ex:y \"blank\" ] .\nex:b ex:n -0.0 ; ex:s \"\u00c4\\\"\\\\\\n\\t\" ; ex:u \"\ud835\udd38\" , \"\ufb00\" , \"Zebra\" , \"zebra\" , \"\u00e9\" .\nex:c ex:long \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" ; ex:emoji \"\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\" ; ex:date \"2026-11-09\"^^xsd:date ; ex:neg -5 ; ex:big 12345678901234567890 .\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?name ?title WHERE { ?p a :Professor ; :name ?name . ?l :taughtBy ?p ; :title ?title . }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2ceeb2bd14c4f01e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Socrates",
+       "Ethics"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?title ?name WHERE { ?l :title ?title ; :taughtBy ?p . ?p :name ?name }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "f65b1b9bcf734d46",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?title",
+      "?name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Ethics",
+       "Socrates"
+      ],
+      [
+       "The Three Critiques",
+       "Kant"
+      ],
+      [
+       "Foundations",
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "select ?name ?title where { ?p a :Professor ; :name ?name . ?l :taughtBy ?p ; :title ?title . } order by ?name"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2ceeb2bd14c4f01e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?name WHERE { ?p a :Professor ; :name ?name }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "5e8262a8a6b17ec0",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?name"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       "Popper"
+      ],
+      [
+       "Socrates"
+      ],
+      [
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT DISTINCT ?p WHERE { ?l :taughtBy ?p }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3a15356c60a23bd0",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?p"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       ":socrates"
+      ],
+      [
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "dfd2814310baf0d4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 12,
+     "rows": [
+      [
+       "Ethics",
+       ":title",
+       ":l3"
+      ],
+      [
+       ":socrates",
+       ":taughtBy",
+       ":l3"
+      ],
+      [
+       "The Three Critiques",
+       ":title",
+       ":l2"
+      ],
+      [
+       ":kant",
+       ":taughtBy",
+       ":l2"
+      ],
+      [
+       "Foundations",
+       ":title",
+       ":l1"
+      ],
+      [
+       ":kant",
+       ":taughtBy",
+       ":l1"
+      ],
+      [
+       "Popper",
+       ":name",
+       ":popper"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":popper"
+      ],
+      [
+       "Socrates",
+       ":name",
+       ":socrates"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":socrates"
+      ],
+      [
+       "Kant",
+       ":name",
+       ":kant"
+      ],
+      [
+       ":Professor",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "387b22257026f804",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?n"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "12"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?name ?title WHERE { ?p :name ?name . OPTIONAL { ?l :taughtBy ?p ; :title ?title } }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "9b61f79f36eb57fc",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?name",
+      "?title"
+     ],
+     "count": 4,
+     "rows": [
+      [
+       "Popper",
+       ""
+      ],
+      [
+       "Socrates",
+       "Ethics"
+      ],
+      [
+       "Kant",
+       "The Three Critiques"
+      ],
+      [
+       "Kant",
+       "Foundations"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "PREFIX : <http://other.org/> SELECT ?s WHERE { ?s a :Professor }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 12,
+      "message": "expected IRI parsing failed"
+     }
+    },
+    "at": [
+     1,
+     12
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 12,
+      "message": "expected IRI parsing failed"
+     }
+    },
+    "at": [
+     1,
+     12
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "ASK { :kant a :Professor }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "86182f43c74bc3c0",
+    "detail": {
+     "kind": "ask",
+     "boolean": true
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "ASK { :kant a :Lecture }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4431d27eefbda1db",
+    "detail": {
+     "kind": "ask",
+     "boolean": false
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "CONSTRUCT { ?p :teaches ?l } WHERE { ?l :taughtBy ?p }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "8314d83f9fa48d40",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       ":socrates",
+       ":teaches",
+       ":l3"
+      ],
+      [
+       ":kant",
+       ":teaches",
+       ":l2"
+      ],
+      [
+       ":kant",
+       ":teaches",
+       ":l1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "CONSTRUCT WHERE { ?s :name ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "b576eeb91df4ea4c",
+    "detail": {
+     "kind": "graph",
+     "count": 3,
+     "rows": [
+      [
+       ":popper",
+       ":name",
+       "Popper"
+      ],
+      [
+       ":socrates",
+       ":name",
+       "Socrates"
+      ],
+      [
+       ":kant",
+       ":name",
+       "Kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "DESCRIBE :kant"
+   },
+   "check": {
+    "status": "ok",
+    "key": "501d43356c9fedf1",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":kant",
+       ":name",
+       "Kant"
+      ],
+      [
+       ":kant",
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#type>",
+       ":Professor"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELEC ?name WHERE { ?p :name ?name }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 10,
+      "message": "expected CONSTRUCT"
+     }
+    },
+    "at": [
+     1,
+     10
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELEC ?name WHERE { ?p :name ?name }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 10,
+      "message": "expected CONSTRUCT"
+     }
+    },
+    "at": [
+     1,
+     10
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?name WHERE {\n  ?p a :Professor ;\n     :name ?name\n  ?x }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 4,
+      "column": 7,
+      "message": "expected one of BIND, [_]"
+     }
+    },
+    "at": [
+     4,
+     7
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT ?name WHERE {\n  ?p a :Professor ;\n     :name ?name\n  ?x }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 4,
+      "column": 7,
+      "message": "expected one of BIND, [_]"
+     }
+    },
+    "at": [
+     4,
+     7
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?x WHERE { ?x }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 23,
+      "message": "expected one of BIND, [_]"
+     }
+    },
+    "at": [
+     1,
+     23
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT ?x WHERE { ?x }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 23,
+      "message": "expected one of BIND, [_]"
+     }
+    },
+    "at": [
+     1,
+     23
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * WHERE { SERVICE SILENT <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service"
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "INSERT DATA { :a :b :c }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 10,
+      "message": "expected CONSTRUCT"
+     }
+    },
+    "at": [
+     1,
+     10
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "INSERT DATA { :a :b :c }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 10,
+      "message": "expected CONSTRUCT"
+     }
+    },
+    "at": [
+     1,
+     10
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "expected [_]"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": ""
+   },
+   "direct": true,
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 1,
+      "message": "expected [_]"
+     }
+    },
+    "at": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "# just a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 17,
+      "message": "expected [_]"
+     }
+    },
+    "at": [
+     1,
+     17
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "language": "de",
+   "entry": {
+    "text": "# just a comment"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 1,
+      "column": 17,
+      "message": "expected [_]"
+     }
+    },
+    "at": [
+     1,
+     17
+    ]
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT ?service WHERE { ?service :name ?n }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "3a8407aab426f5fc",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?service"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       ":popper"
+      ],
+      [
+       ":socrates"
+      ],
+      [
+       ":kant"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "uni",
+   "entry": {
+    "text": "SELECT * WHERE { ?s :name 'SERVICE' }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": "SELECT ?person WHERE { ?person :brings :water . }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e0f60434ae54a0e6",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?person"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":Sam"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": "SELECT ?who WHERE { ?who :brings :water }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e0f60434ae54a0e6",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?who"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":Sam"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": "SELECT ?person ?thing WHERE { ?person :brings ?thing }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "db3e1acd909cda87",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?person",
+      "?thing"
+     ],
+     "count": 3,
+     "rows": [
+      [
+       ":Riley",
+       ":blanket"
+      ],
+      [
+       ":Sam",
+       ":water"
+      ],
+      [
+       ":Alex",
+       ":apples"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "picnic",
+   "entry": {
+    "text": "SELECT ?person WHERE { ?person :brings :bread }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?person"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?o WHERE { ex:a ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "f73b3cacadb60b95",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       "_:b"
+      ],
+      [
+       "Kant@en-gb"
+      ],
+      [
+       "Kant@de"
+      ],
+      [
+       "3"
+      ],
+      [
+       "true"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?p ?o WHERE { ex:a ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0d18ab16cbacba7e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?p",
+      "?o"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:f",
+       "7"
+      ],
+      [
+       "ex:d",
+       "7"
+      ],
+      [
+       "ex:n",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?o WHERE { ex:b ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "dd608522877c7f3f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 7,
+     "rows": [
+      [
+       "\u00e9"
+      ],
+      [
+       "zebra"
+      ],
+      [
+       "Zebra"
+      ],
+      [
+       "\ufb00"
+      ],
+      [
+       "\ud835\udd38"
+      ],
+      [
+       "\u00c4\"\\\n\t"
+      ],
+      [
+       "0"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?s ?p ?o WHERE { ?s ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e65da9abd172b533",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?s",
+      "?p",
+      "?o"
+     ],
+     "count": 22,
+     "rows": [
+      [
+       "ex:c",
+       "ex:big",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:neg",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:date",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:emoji",
+       "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\u2026"
+      ],
+      [
+       "ex:c",
+       "ex:long",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\u00e9"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "Zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\ufb00"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\ud835\udd38"
+      ],
+      [
+       "ex:b",
+       "ex:s",
+       "\u00c4\"\\\n\t"
+      ],
+      [
+       "ex:b",
+       "ex:n",
+       "0"
+      ],
+      [
+       "_:b",
+       "ex:y",
+       "blank"
+      ],
+      [
+       "ex:a",
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:a",
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:a",
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:a",
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:a",
+       "ex:f",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?l WHERE { ex:a ex:l ?l }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "48421f37fa7cce92",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?l"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "Kant@en-gb"
+      ],
+      [
+       "Kant@de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (LANG(?l) AS ?lang) WHERE { ex:a ex:l ?l }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "93c7090faa3f1f4e",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?lang"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "en-gb"
+      ],
+      [
+       "de"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (STR(?o) AS ?s) WHERE { ex:a ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "528e5ae72b5cbf0c",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?s"
+     ],
+     "count": 9,
+     "rows": [
+      [
+       ""
+      ],
+      [
+       "Kant"
+      ],
+      [
+       "Kant"
+      ],
+      [
+       "3"
+      ],
+      [
+       "true"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ],
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (DATATYPE(?o) AS ?d) WHERE { ex:a ?p ?o FILTER isLiteral(?o) }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "67c664387e12ad7d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?d"
+     ],
+     "count": 8,
+     "rows": [
+      [
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>"
+      ],
+      [
+       "<http://www.w3.org/1999/02/22-rdf-syntax-ns#langString>"
+      ],
+      [
+       "xsd:integer"
+      ],
+      [
+       "xsd:boolean"
+      ],
+      [
+       "xsd:string"
+      ],
+      [
+       "xsd:double"
+      ],
+      [
+       "xsd:decimal"
+      ],
+      [
+       "xsd:integer"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (1/3 AS ?x) (0.1 + 0.2 AS ?y) (1e-7 AS ?z) (2.0 AS ?w) {}"
+   },
+   "check": {
+    "status": "ok",
+    "key": "49be56be39878424",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x",
+      "?y",
+      "?z",
+      "?w"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "0.333333333333333333",
+       "0.3",
+       "0.0000001",
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?x WHERE { VALUES ?x { 1 2 3 1 } }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "5292e3b59d617441",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 4,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ],
+      [
+       "3"
+      ],
+      [
+       "1"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?x ?y WHERE { OPTIONAL { ?x ex:nothing ?y } }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa9b82fc51a71a12",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x",
+      "?y"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "",
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?b WHERE { ex:a ex:x ?b }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "264ba12b87b845e7",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?b"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "_:b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?y WHERE { ex:a ex:x [ ex:y ?y ] }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "e5117a4a0f0570a4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?y"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "blank"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (SUM(?n) AS ?t) WHERE { ?s ex:n ?n }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "b7a1f96f26124639",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?t"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT (AVG(?n) AS ?t) WHERE { ?s ex:n ?n }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "1584f91239d2ffc6",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?t"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "3.5"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?o WHERE { ex:b ex:u ?o } ORDER BY ?o"
+   },
+   "check": {
+    "status": "ok",
+    "key": "622f530a6918c616",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 5,
+     "rows": [
+      [
+       "Zebra"
+      ],
+      [
+       "zebra"
+      ],
+      [
+       "\u00e9"
+      ],
+      [
+       "\ufb00"
+      ],
+      [
+       "\ud835\udd38"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "87dd760490c0307c",
+    "detail": {
+     "kind": "graph",
+     "count": 22,
+     "rows": [
+      [
+       "ex:c",
+       "ex:big",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:neg",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:date",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:emoji",
+       "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\u2026"
+      ],
+      [
+       "ex:c",
+       "ex:long",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\u00e9"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "Zebra"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\ufb00"
+      ],
+      [
+       "ex:b",
+       "ex:u",
+       "\ud835\udd38"
+      ],
+      [
+       "ex:b",
+       "ex:s",
+       "\u00c4\"\\\n\t"
+      ],
+      [
+       "ex:b",
+       "ex:n",
+       "0"
+      ],
+      [
+       "_:b",
+       "ex:y",
+       "blank"
+      ],
+      [
+       "ex:a",
+       "ex:x",
+       "_:b"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@en-gb"
+      ],
+      [
+       "ex:a",
+       "ex:l",
+       "Kant@de"
+      ],
+      [
+       "ex:a",
+       "ex:i",
+       "3"
+      ],
+      [
+       "ex:a",
+       "ex:b",
+       "true"
+      ],
+      [
+       "ex:a",
+       "ex:s",
+       "7"
+      ],
+      [
+       "ex:a",
+       "ex:f",
+       "7"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "CONSTRUCT { ex:c ex:copy ?o } WHERE { ex:c ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "a5f5ed8a2935f86d",
+    "detail": {
+     "kind": "graph",
+     "count": 5,
+     "rows": [
+      [
+       "ex:c",
+       "ex:copy",
+       "12345678901234567890"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "-5"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "2026-11-09"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\u2026"
+      ],
+      [
+       "ex:c",
+       "ex:copy",
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?o WHERE { ex:c ?p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "187b965a343ecd50",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 5,
+     "rows": [
+      [
+       "12345678901234567890"
+      ],
+      [
+       "-5"
+      ],
+      [
+       "2026-11-09"
+      ],
+      [
+       "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\u2026"
+      ],
+      [
+       "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u2026"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?x WHERE { BIND(\"\ud800\" AS ?x) }"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "da17a0deef119487",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "\ufffd"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?x WHERE { BIND(\"a\u0000b\" AS ?x) }"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "95c3d37a768bc79c",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "a\u0000b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "types",
+   "entry": {
+    "text": "SELECT ?x WHERE { BIND(\"\ufeffA\" AS ?x) }"
+   },
+   "direct": true,
+   "check": {
+    "status": "ok",
+    "key": "3062044aa3c2e198",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "\ufeffA"
+      ]
+     ]
+    }
+   }
+  }
+ ]
+}

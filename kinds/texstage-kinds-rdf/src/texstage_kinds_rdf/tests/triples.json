@@ -1,0 +1,527 @@
+{
+ "kind": "triples",
+ "settings": {
+  "3 fields, exact": {
+   "item": {
+    "fields": [
+     "Subject",
+     "Predicate",
+     "Object"
+    ],
+    "terms": "exact"
+   }
+  },
+  "3 fields, loose": {
+   "item": {
+    "fields": [
+     "Subject",
+     "Predicate",
+     "Object"
+    ],
+    "terms": "loose"
+   }
+  },
+  "2 fields, exact": {
+   "item": {
+    "fields": [
+     "From",
+     "To"
+    ],
+    "terms": "exact"
+   }
+  },
+  "2 fields, loose": {
+   "item": {
+    "fields": [
+     "From",
+     "To"
+    ],
+    "terms": "loose"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     ":Kant",
+     ":knows",
+     ":Hume"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": ":Kant\u001f:knows\u001f:Hume",
+    "parts": [
+     {
+      "key": ":Kant",
+      "text": ":Kant",
+      "literal": false
+     },
+     {
+      "key": ":knows",
+      "text": ":knows",
+      "literal": false
+     },
+     {
+      "key": ":Hume",
+      "text": ":Hume",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "  \u201cKant\u201d@de ",
+     "is  a",
+     "\u2018Philosopher\u2019"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "\"Kant\"@de\u001fis a\u001f'Philosopher'",
+    "parts": [
+     {
+      "key": "\"Kant\"@de",
+      "text": "\"Kant\"@de",
+      "literal": true
+     },
+     {
+      "key": "is a",
+      "text": "is a",
+      "literal": false
+     },
+     {
+      "key": "'Philosopher'",
+      "text": "'Philosopher'",
+      "literal": true
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "KANT",
+     "Knows",
+     "hume"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "KANT\u001fKnows\u001fhume",
+    "parts": [
+     {
+      "key": "KANT",
+      "text": "KANT",
+      "literal": false
+     },
+     {
+      "key": "Knows",
+      "text": "Knows",
+      "literal": false
+     },
+     {
+      "key": "hume",
+      "text": "hume",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, loose",
+   "entry": {
+    "fields": [
+     "KANT",
+     "Knows",
+     "hume"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "kant\u001fknows\u001fhume",
+    "parts": [
+     {
+      "key": "kant",
+      "text": "KANT",
+      "literal": false
+     },
+     {
+      "key": "knows",
+      "text": "Knows",
+      "literal": false
+     },
+     {
+      "key": "hume",
+      "text": "hume",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, loose",
+   "entry": {
+    "fields": [
+     "K\u00f6ln",
+     "liegt  am",
+     "\"Rhein\"@de"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "koln\u001fliegt am\u001f\"rhein\"@de",
+    "parts": [
+     {
+      "key": "koln",
+      "text": "K\u00f6ln",
+      "literal": false
+     },
+     {
+      "key": "liegt am",
+      "text": "liegt am",
+      "literal": false
+     },
+     {
+      "key": "\"rhein\"@de",
+      "text": "\"Rhein\"@de",
+      "literal": true
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, loose",
+   "entry": {
+    "fields": [
+     "x",
+     "is",
+     "TRUE"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "x\u001fis\u001ftrue",
+    "parts": [
+     {
+      "key": "x",
+      "text": "x",
+      "literal": false
+     },
+     {
+      "key": "is",
+      "text": "is",
+      "literal": false
+     },
+     {
+      "key": "true",
+      "text": "TRUE",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "x",
+     "is",
+     "true"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "x\u001fis\u001ftrue",
+    "parts": [
+     {
+      "key": "x",
+      "text": "x",
+      "literal": false
+     },
+     {
+      "key": "is",
+      "text": "is",
+      "literal": false
+     },
+     {
+      "key": "true",
+      "text": "true",
+      "literal": true
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a\u0007b",
+     "x\u200b",
+     "42"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "ab\u001fx\u001f42",
+    "parts": [
+     {
+      "key": "ab",
+      "text": "ab",
+      "literal": false
+     },
+     {
+      "key": "x",
+      "text": "x",
+      "literal": false
+     },
+     {
+      "key": "42",
+      "text": "42",
+      "literal": true
+     }
+    ]
+   }
+  },
+  {
+   "setting": "2 fields, exact",
+   "entry": {
+    "fields": [
+     ":Aachen",
+     ":K\u00f6ln"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": ":Aachen\u001f:K\u00f6ln",
+    "parts": [
+     {
+      "key": ":Aachen",
+      "text": ":Aachen",
+      "literal": false
+     },
+     {
+      "key": ":K\u00f6ln",
+      "text": ":K\u00f6ln",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "2 fields, loose",
+   "entry": {
+    "fields": [
+     "  Aachen ",
+     "K\u00d6LN"
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "aachen\u001fkoln",
+    "parts": [
+     {
+      "key": "aachen",
+      "text": "Aachen",
+      "literal": false
+     },
+     {
+      "key": "koln",
+      "text": "K\u00d6LN",
+      "literal": false
+     }
+    ]
+   }
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     "",
+     "c"
+    ]
+   },
+   "unfit": "field"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     "b",
+     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ]
+   },
+   "unfit": "field"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "\u0301",
+     "b",
+     "c"
+    ]
+   },
+   "unfit": "field"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     "b"
+    ]
+   },
+   "unfit": "invalid"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     "b",
+     "c",
+     "d"
+    ]
+   },
+   "unfit": "invalid"
+  },
+  {
+   "setting": "2 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     "b",
+     "c"
+    ]
+   },
+   "unfit": "invalid"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": "abc"
+   },
+   "unfit": "invalid"
+  },
+  {
+   "setting": "3 fields, exact",
+   "entry": {
+    "fields": [
+     "a",
+     5,
+     "c"
+    ]
+   },
+   "unfit": "invalid"
+  }
+ ],
+ "builds": [
+  {
+   "options": {
+    "fields": [
+     "Who",
+     "does",
+     "What"
+    ],
+    "suggest": [
+     ":Kant",
+     ":Hume"
+    ],
+    "min": "2",
+    "review": true,
+    "terms": "loose"
+   },
+   "built": {
+    "item": {
+     "fields": [
+      "Who",
+      "does",
+      "What"
+     ],
+     "suggest": [
+      ":Kant",
+      ":Hume"
+     ],
+     "min": 2,
+     "review": true,
+     "terms": "loose"
+    },
+    "keys": {},
+    "files": {}
+   }
+  },
+  {
+   "options": {
+    "fields": [
+     "From",
+     "To"
+    ]
+   },
+   "built": {
+    "item": {
+     "fields": [
+      "From",
+      "To"
+     ],
+     "min": 1,
+     "terms": "exact"
+    },
+    "keys": {},
+    "files": {}
+   }
+  },
+  {
+   "options": {
+    "fields": [
+     "One"
+    ]
+   },
+   "refused": "1 fields - an activity of input=tuple has 2 or 3: the first and the last a node, a middle one the edge's label"
+  },
+  {
+   "options": {
+    "fields": [
+     "a",
+     "b",
+     "c"
+    ],
+    "terms": "fuzzy"
+   },
+   "refused": "terms=fuzzy - exact or loose"
+  },
+  {
+   "options": {
+    "fields": [
+     "a",
+     "b",
+     "c"
+    ],
+    "min": "many"
+   },
+   "refused": "min=many - a number from 1 to 1000"
+  },
+  {
+   "options": {
+    "fields": [
+     "a",
+     "b",
+     "c"
+    ],
+    "suggest": [
+     "x",
+     ""
+    ]
+   },
+   "refused": "suggest= takes at most 40 items of 1 to 60 characters"
+  }
+ ]
+}
