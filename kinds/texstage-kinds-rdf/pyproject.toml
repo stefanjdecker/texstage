@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texstage-kinds-rdf"
+version = "0.1.0"
+description = "texstage's kinds of live activity for RDF: triples, sparql-query and turtle-graph, checked on the server with pyoxigraph"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Stefan Decker" }]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+  # texstage: the contract (texstage.activities) and, until F1 is in main, the checks. No lower bound yet -
+  # texstage has had no version since the contract came, so none would tell; the package says so when it is
+  # imported, and the bound comes with the version F2 gets (the plan of F2, package 11)
+  "texstage",
+  "pyoxigraph>=0.5.13,<0.6",     # SPARQL, Turtle - 0.6 may change what the keys are made of (MIT OR Apache-2.0)
+]
+
+[project.entry-points."texstage.kinds"]
+triples = "texstage_kinds_rdf:Triples"
+sparql-query = "texstage_kinds_rdf:SparqlQuery"
+turtle-graph = "texstage_kinds_rdf:TurtleGraph"
+
+[tool.setuptools.packages.find]
+where = ["src"]

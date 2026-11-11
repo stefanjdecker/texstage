@@ -1,0 +1,7 @@
+texstage-kinds-sql, a package of kinds for texstage's live activities
+Copyright 2026 Stefan Decker
+
+Apache License 2.0 covers this package (LICENSE).
+
+Installed with the package, not included in it: texstage (Apache-2.0); Python's sqlite3 runs
+SQLite, which is in the public domain.

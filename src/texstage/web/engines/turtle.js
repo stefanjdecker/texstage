@@ -22,7 +22,7 @@
 // with its datatype or its language in lower case; blank nodes all alike). A literal counts as
 // written, as RDF compares terms: "03"^^xsd:integer is not 3 (a CONSTRUCT's literals from the
 // store are Oxigraph's values, section 8.7). A phone keyboard's typographic quotes - “Berlin”,
-// „Berlin“ - count as Turtle's, as the crowd graph takes them (server/activity.py, clean_term).
+// „Berlin“ - count as Turtle's, as the crowd graph takes them (checks/cleaning.py, clean_term).
 
 import { texts } from "../i18n/i18n.js";
 import { bounded, cut, ROWS } from "./common.js";
@@ -34,7 +34,7 @@ const MAX_TRIPLES = 10_000;         // more is an error, not a graph (a phone's 
 const TURTLE = { format: "text/turtle" };
 const XSD = "http://www.w3.org/2001/XMLSchema#";
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const DOUBLE_QUOTES = /[“”„‟«»]/g;  // (server/activity.py: DOUBLE_QUOTES, SINGLE_QUOTES)
+const DOUBLE_QUOTES = /[“”„‟«»]/g;  // (checks/cleaning.py: DOUBLE_QUOTES, SINGLE_QUOTES)
 const SINGLE_QUOTES = /[‘’‚‛]/g;
 
 export function load(ox, seed) {

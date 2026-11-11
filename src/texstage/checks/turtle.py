@@ -95,7 +95,8 @@ def _failure(e: BaseException, shift: int, W: Words) -> dict:
     if not m:
         return {"status": "syntax" if text.startswith("Parser error") else "error", "error": text}
     line = max(1, int(m.group(1) or m.group(4)) - shift)      # the student's line: the seed's are in front
-    return {"status": "syntax", "error": W.at(line, m.group(2) or m.group(3) or m.group(5), m.group(6))}
+    column = m.group(2) or m.group(3) or m.group(5)
+    return {"status": "syntax", "error": W.at(line, column, m.group(6)), "at": (line, int(column))}
 
 
 def evaluate(state: dict, text: str, language: str | None = None, budget_s: float | None = None) -> dict:

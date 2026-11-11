@@ -49,10 +49,11 @@ import math
 import re
 import secrets
 import time
-import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field
 
+from texstage.checks import cleaning
+from texstage.checks.cleaning import TERM_MAX, TEXT_MAX, is_literal, norm_term, term_key  # noqa: F401 - the type's names
 from texstage.engines import ENGINES
 from texstage.server.types import Refused
 
@@ -67,8 +68,6 @@ FILE_TYPES = {suffix: mime for e in ENGINES.values() for suffix, mime in e["seed
 FILES = r"data/[0-9a-f]{16}(?:" + "|".join(map(re.escape, FILE_TYPES)) + ")"     # a query's seed (build/activity.py)
 ARCHIVE = r"activity-[a-z0-9-]+\.(?:json|svg)"           # (its CSV: the archive takes any [a-z0-9-]+.csv)
 
-TERM_MAX = 60                       # a term of a tuple
-TEXT_MAX = 2000                     # a query
 GAP_MS = {"tuple": 2000, "code": 5000}
 PER_ACTIVITY = 5000
 RESULTS_MAX = 500                   # distinct results of an activity
@@ -226,63 +225,21 @@ class Book:
 
 
 # ------------------------------------------------------------------ texts
-def norm_term(text: str) -> str:
-    """A term's key - as scoring.normalize_text groups open answers: case, accents and spacing do
-    not matter (imported there it would make a cycle: scoring -> bundles -> types -> here)."""
-    text = unicodedata.normalize("NFKD", unicodedata.normalize("NFKC", text).casefold())
-    return " ".join("".join(c for c in text if not unicodedata.combining(c)).split())
-
-
-def term_key(text: str, item: dict) -> str:
-    """A cleaned term's key in an activity: the term as written (terms=exact - also a deck built
-    before the key), or its word-cloud key (terms=loose)."""
-    return norm_term(text) if item.get("terms") == "loose" else text
-
-
-# the quotes a phone's keyboard makes of " and ' (iOS's smart punctuation: “Kant”, „Kant“, ‘Kant’)
-DOUBLE_QUOTES, SINGLE_QUOTES = "“”„‟«»", "‘’‚‛"
-
-
+# (the cleaning itself: checks/cleaning.py, which the kinds share - F2's plan, 4.2)
 def clean_term(text) -> str:
-    """A term as the phone sent it, control characters out and spaces collapsed - and a string a
-    phone's keyboard quoted typographically in the quotes Turtle writes: “Kant” and „Kant“ are
-    "Kant", one literal whichever keyboard typed it (an apostrophe inside stays as it is)."""
-    if not isinstance(text, str):
-        raise Refused("a field is text")
-    text = " ".join("".join(c for c in unicodedata.normalize("NFC", text)
-                            if not unicodedata.category(c).startswith("C")).split())
-    if text and text[0] in DOUBLE_QUOTES:
-        text = "".join('"' if c in DOUBLE_QUOTES else c for c in text)
-    elif text and text[0] in SINGLE_QUOTES:
-        text = "".join("'" if c in SINGLE_QUOTES else c for c in text)
-    if not 1 <= len(text) <= TERM_MAX or not norm_term(text):
-        raise Refused(f"every field has 1 to {TERM_MAX} characters", "field")
-    return text
-
-
-LITERAL = re.compile("[\"'" + DOUBLE_QUOTES + SINGLE_QUOTES + r"].*|[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?|true|false", re.S)
-
-
-def is_literal(term: str) -> bool:
-    """Whether a term is written as a literal, as Turtle writes one: a quoted string - with its
-    language or datatype: "Kant"@de, "42"^^xsd:integer -, a number, true or false. Any other term
-    names a resource: an IRI, a prefixed name, a blank node. (The crowd graph draws a literal as
-    the slides do, as a box.)"""
-    return bool(LITERAL.fullmatch(term))
+    """A term as the phone sent it, cleaned (cleaning.clean_term) - or refused."""
+    try:
+        return cleaning.clean_term(text)
+    except cleaning.Unfit as e:
+        raise Refused(str(e), e.code) from None
 
 
 def clean_code(text, what: str = "a query") -> str:
-    """A query (what: as the engine calls a student's text - texstage/engines.py) as typed: its
-    lines (tabs and newlines kept, other control characters not), without spaces at their ends and
-    blank lines around them."""
-    if not isinstance(text, str):
-        raise Refused(f"{what} is text")
-    text = unicodedata.normalize("NFC", text.replace("\r\n", "\n").replace("\r", "\n"))
-    text = "".join(c for c in text if c in "\n\t" or not unicodedata.category(c).startswith("C"))
-    text = "\n".join(line.rstrip() for line in text.split("\n")).strip("\n")
-    if not text.strip() or len(text) > TEXT_MAX:
-        raise Refused(f"{what} has 1 to {TEXT_MAX} characters", "text")
-    return text
+    """A query as typed, cleaned (cleaning.clean_code) - or refused."""
+    try:
+        return cleaning.clean_code(text, what)
+    except cleaning.Unfit as e:
+        raise Refused(str(e), e.code) from None
 
 
 # ------------------------------------------------------------------ state

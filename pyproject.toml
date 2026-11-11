@@ -50,7 +50,7 @@ texstage = "texstage.cli:main"
 [tool.setuptools]
 # Four generic LaTeX packages are installed under texstage/latex/.
 package-dir = { "" = "src", "texstage.latex" = "latex" }
-packages = ["texstage", "texstage.build", "texstage.checks", "texstage.server", "texstage.latex",
+packages = ["texstage", "texstage.activities", "texstage.build", "texstage.checks", "texstage.server", "texstage.latex",
             # the web pages' folders - data, but importable names to Python, so setuptools wants them listed
             "texstage.web", "texstage.web.addin", "texstage.web.host", "texstage.web.i18n", "texstage.web.play", "texstage.web.shared",
             "texstage.web.stage", "texstage.web.engines", "texstage.web.vendor", "texstage.web.vendor.katex",

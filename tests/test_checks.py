@@ -99,7 +99,12 @@ def test_a_check_gives_what_the_browsers_engine_gave(engine, i):
         pytest.importorskip("pyoxigraph")
     case = fixture(engine)["cases"][i]
     text = expand(case["text"])
-    got = record(checks.evaluate(engine, state(engine, case["seed"]), text, case["language"]))
+    agrees(engine, case, record(checks.evaluate(engine, state(engine, case["seed"]), text, case["language"])))
+
+
+def agrees(engine: str, case: dict, got: dict):
+    """A case's record is the fixture's - or differs as KNOWN says, or in SQLite's own words (BUILT). The
+    kinds' classes are held against the fixtures with it too (tests/test_kinds.py)."""
     want = case["result"]
     written = case["text"] if isinstance(case["text"], str) else None
     if (engine, written, case["language"]) in KNOWN:

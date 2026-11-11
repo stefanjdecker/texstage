@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Stefan Decker
+# SPDX-License-Identifier: Apache-2.0
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "texstage-kinds-sql"
+version = "0.1.0"
+description = "texstage's kind of live activity for SQL: sql-query, checked on the server with Python's sqlite3"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Stefan Decker" }]
+classifiers = ["Private :: Do Not Upload"]
+# texstage: the contract (texstage.activities) and, until F1 is in main, the check. No lower bound yet - texstage
+# has had no version since the contract came, so none would tell; the package says so when it is imported, and
+# the bound comes with the version F2 gets (the plan of F2, package 11)
+dependencies = ["texstage"]
+
+[project.entry-points."texstage.kinds"]
+sql-query = "texstage_kinds_sql:SqlQuery"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -108,12 +108,15 @@ function codes() {
   const found = new Map();
   const add = (code, where) => found.set(code, [...(found.get(code) || []), where]);
   const server = path.join(root, "src/texstage/server");
-  for (const file of fs.readdirSync(server).filter((f) => f.endsWith(".py"))) {
-    const src = fs.readFileSync(path.join(server, file), "utf8");
+  const sources = fs.readdirSync(server).filter((f) => f.endsWith(".py")).map((f) => path.join(server, f));
+  sources.push(path.join(root, "src/texstage/checks/cleaning.py"));     // what an entry is refused for (Unfit)
+  for (const source of sources) {
+    const file = path.basename(source);
+    const src = fs.readFileSync(source, "utf8");
     for (const m of src.matchAll(/GameError\(\s*"([a-z][a-z0-9-]*)"/g)) add(m[1], file);
     for (const m of src.matchAll(/refuse\(\s*"([a-z][a-z0-9-]*)"/g)) add(m[1], file);
     for (const m of src.matchAll(/code\s*=\s*"([a-z][a-z0-9-]*)"/g)) add(m[1], file);
-    for (const line of src.split("\n").filter((l) => /(Refused|PollError)\(/.test(l))) {
+    for (const line of src.split("\n").filter((l) => /(Refused|PollError|Unfit)\(/.test(l))) {
       const m = line.match(/,\s*"([a-z][a-z0-9-]*)"\)\s*(?:#.*)?$/);
       if (m) add(m[1], file);
     }
@@ -134,7 +137,7 @@ const PROTOCOL = new Set(["invalid", "unknown-command", "hello-first", "bad-json
 test("every refusal a person can meet has words in every language", () => {
   const all = codes();
   for (const code of ["unknown-pin", "nickname-taken", "kicked", "qa-own", "poll-question", "key-required", "deck-running",
-    "name-empty", "recording-too-large", "recording-part", "disconnected", "field", "too-many-polls"]) {
+    "name-empty", "recording-too-large", "recording-part", "disconnected", "field", "text", "too-many-polls"]) {
     assert.ok(all.has(code), `the scan finds ${code}`);
   }
   const missing = [...all].filter(([code]) => !PROTOCOL.has(code) && !(code in CATALOGS.en.errors) && !(code in REFUSALS))

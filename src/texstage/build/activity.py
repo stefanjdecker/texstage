@@ -98,7 +98,7 @@ def box(tqz: Tqz, item: Item) -> dict:
 def _number(a: Activity, key: str, value: str, default: int, top: int) -> int:
     if not value:
         return default
-    if not value.isdigit() or not 1 <= int(value) <= top:
+    if not (value.isascii() and value.isdigit()) or not 1 <= int(value) <= top:    # (isdigit alone: a superscript 2)
         raise ActivityError(f"activity {a.id}: {key}={value} - a number from 1 to {top}")
     return int(value)
 
