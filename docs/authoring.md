@@ -204,10 +204,10 @@ the same command by the browser presenter's name (`texstage deck.tex`).
 **In the browser instead of PowerPoint** (texstage): `texstage present` opens the presenter
 window on the deck (`http://localhost:8470/stage` lists all decks of the server); *Projector*
 opens the projector window (a click in it makes it full screen). The presenter window shows the
-current and the next step, your notes (the note page, or as text with Aâˆ’/A+), a timer that starts
+current and the next step, your notes (as text with A−/A+, or the note page), a timer that starts
 with the first step - drag the dividers between them to share the window as in PowerPoint (a double
-click puts one back; each browser remembers them); B, W and F make the projector black, white or frozen, G shows all frames, a
-number and Enter jumps there. The quizzes run as with PowerPoint. Write on the slides with a pen
+click puts one back; each browser remembers them); B, W and F make the projector black, white or frozen, G shows all frames - the
+arrow keys and Enter choose one there -, a number and Enter jumps there. The quizzes run as with PowerPoint. Write on the slides with a pen
 (Wacom: *Use Windows Ink* on) - it draws without choosing a tool, its eraser end erases - or
 choose a tool: P pen, H highlighter, E eraser, L laser pointer (it is where the mouse, the pen or
 the finger is; with a mouse the cursor itself turns into the red dot), Z zoom (drag a box; the

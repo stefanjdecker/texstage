@@ -101,7 +101,7 @@ const prefs = loadPrefs();
 const follow = new BroadcastChannel("texstage");   // the projector window follows when the deck changes
 
 function loadPrefs() {
-  const base = { notes: "page", size: 22, pen: PENS[0], marker: MARKERS[0], width: "M", mic: "", poll: "choice", pollTime: 0,
+  const base = { notes: "text", size: 22, pen: PENS[0], marker: MARKERS[0], width: "M", mic: "", poll: "choice", pollTime: 0,
     split: SHARES, deckSort: "name" };
   try {
     const kept = { ...base, ...JSON.parse(localStorage.getItem(PREFS) || "{}") };
@@ -345,6 +345,7 @@ async function showDecks(resume = false, uploaded = "") {
   speak(null);                         // the deck page: the browser's language
   for (const id of ["deckname", "pin", "join", "actions"]) $(`#${id}`).textContent = "";
   $("#status").className = "status";
+  offline(false);
   state = null;
   renderRec();
   library(decks, folders, uploaded);
@@ -625,8 +626,16 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   const laptop = typeof auth === "string";        // the presenter key: the projector and the devices are here
   $("#actions").innerHTML = `${laptop ? `<button id="projector" title="${esc(P.projectorTitle)}">${esc(P.projector)}</button>
     <button id="devices" title="${esc(P.devices.buttonTitle)}">${esc(P.devices.button)}</button>` : ""}
-    <button id="archive" title="${esc(P.archiveTitle)}">${esc(P.archive)}</button>
-    <button id="csv">${esc(L.csv)}</button><button id="newgame">${esc(L.newGame)}</button><button id="decks">${esc(L.decks)}</button>`;
+    <button id="morebtn" class="morebtn" title="${esc(P.moreTitle)}" aria-expanded="false">⋯</button>
+    <span class="more" id="more"><button id="archive" title="${esc(P.archiveTitle)}">${esc(P.archive)}</button>
+    <button id="csv" title="${esc(L.csvTitle)}">${esc(L.csv)}</button><button id="newgame" title="${esc(L.newGameTitle)}">${esc(L.newGame)}</button>
+    <button id="decks" title="${esc(L.decksTitle)}">${esc(L.decks)}</button></span>`;
+  $("#morebtn").onclick = () => {
+    const open = $("#more").classList.toggle("open");
+    $("#morebtn").setAttribute("aria-expanded", String(open));
+  };
+  closeActivities();                    // a panel of the deck before stood in the column that is made anew
+  closeQa();
   app.innerHTML = `<div class="pgrid">
     <section class="current"><div class="fitbox" id="currentbox"><div id="stage"></div><button class="onscreen" id="onscreen" hidden></button></div></section>
     <div class="split main" role="separator" tabindex="0" aria-label="${esc(P.splitMain)}"
@@ -656,7 +665,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
       <span class="group"><button id="pollbtn" title="${esc(O.pollTitle)}">▤ ${esc(O.poll)}</button>
         <button id="qabtn" title="${esc(O.qaTitle)}">？ ${esc(O.qa)} <span class="badge" id="qacount" hidden></span></button>
         <button id="sketchbtn" title="${esc(O.sketchesTitle)}" hidden>✎ ${esc(O.sketches)} <span class="badge" id="sketchcount"></span></button>
-        <button id="actbtn" title="${esc(O.activitiesTitle)}" hidden>◎ ${esc(O.activities)} <span class="badge" id="actcount" hidden></span></button></span>
+        <button id="actbtn" title="${esc(O.activitiesTitle)}" hidden>◎ ${esc(O.activities)} <span class="badge count" id="actcount" hidden></span></button></span>
     </footer>
     <footer class="bar">
       <div class="clock"><button id="timer" title="${esc(P.timer)}"></button><span class="elapsed" id="elapsed">0:00</span>
@@ -673,6 +682,8 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   client = new Client({
     onStatus: (s) => {
       $("#status").className = `status ${s}`;
+      if (s === "closed") offline(true);                        // in words: a dot alone is overlooked
+      else if (s === "open") offline(false);                    // (not while it tries again: no flicker)
       if (s === "open" && book?.loaded.size) {                  // back after a break: the ink anew
         book.reset();
         ink?.reload();
@@ -829,6 +840,24 @@ function inkAnew() {
   ink?.reload();
 }
 
+// The connection is gone: said across the window, since the slides here go on while nothing that is
+// done reaches the server - the projector and the phones stay where they are. The round trip's last
+// time goes with it; the next ping that comes back brings a new one.
+function offline(on) {
+  let el = document.querySelector("#offline");
+  if (on && !el) {
+    el = document.createElement("div");
+    el.id = "offline";
+    el.className = "offline";
+    el.setAttribute("role", "alert");
+    el.textContent = T.presenter.offline;
+    document.body.append(el);
+    $("#rtt").textContent = "";
+  } else if (!on) {
+    el?.remove();
+  }
+}
+
 async function ping() {
   // the round trip to the server, next to the connection's dot: the room's network or the tunnel
   if (!client) return;
@@ -909,9 +938,11 @@ function render() {
     $("#where").textContent = `${P.frameOf(current.frame, frames.length)}${steps > 1 ? ` · ${P.stepOf(current.step, steps)}` : ""}${live}`;
   }
   // the notes: the deck's note page, or its text
-  const text = prefs.notes === "text";
-  $("#notesmode").textContent = text ? P.notesPage : P.notesText;
-  $("#notesmode").title = text ? P.notesPageTitle : P.notesTextTitle;
+  const asText = prefs.notes === "text";
+  // ... as text - unless this slide's notes have none (a picture, a formula): then its note page
+  const text = asText && (Boolean(current.board) || !current.note || Boolean((current.notes || "").trim()));
+  $("#notesmode").textContent = asText ? P.notesPage : P.notesText;
+  $("#notesmode").title = asText ? P.notesPageTitle : P.notesTextTitle;
   $("#notewrap").hidden = text;
   $("#notetext").hidden = !text;
   note.show(text || current.board ? null : current);
@@ -938,7 +969,7 @@ function render() {
   $("#onscreen").hidden = !away;
   $("#onscreen").disabled = !zoomed;
   $('[data-tool="zoom"]').classList.toggle("zoomed", Boolean(view));
-  app.querySelectorAll("[data-screen]").forEach((b) => b.classList.toggle("on", b.dataset.screen === st.screen));
+  app.querySelectorAll("[data-screen]").forEach((b) => press(b, b.dataset.screen === st.screen));
   if (overview) markOverview();
   renderInteraction();
   prefetch(i);
@@ -1033,13 +1064,14 @@ function setTool(t) {
 }
 
 function renderTools() {
-  app.querySelectorAll("[data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
+  app.querySelectorAll("[data-tool]").forEach((b) => press(b, b.dataset.tool === tool));
   const marker = tool === "highlighter";
   const colors = marker ? MARKERS : PENS;
   const chosen = marker ? prefs.marker : prefs.pen;
   const O = T.presenter.tools;
   $("#swatches").innerHTML = colors.map((c) => `<button class="swatch${c === chosen ? " on" : ""}" data-color="${c}"
-    style="--c:${c}" title="${esc(marker ? O.markerColour : O.penColour)}"></button>`).join("");
+    style="--c:${c}" aria-pressed="${c === chosen}"
+    title="${esc(`${marker ? O.markerColour : O.penColour}: ${O.colours[c] || c}`)}"></button>`).join("");
   $("#swatches").querySelectorAll("[data-color]").forEach((b) => b.onclick = () => {
     prefs[marker ? "marker" : "pen"] = b.dataset.color;
     savePrefs();
@@ -1047,7 +1079,7 @@ function renderTools() {
     else renderTools();
   });
   $("#sizes").innerHTML = Object.keys(SIZES).map((s) => `<button class="size${s === prefs.width ? " on" : ""}"
-    data-size="${s}" title="${esc(O.width)}">${s}</button>`).join("");
+    data-size="${s}" aria-pressed="${s === prefs.width}" title="${esc(`${O.width}: ${O.widths[s] || s}`)}">${s}</button>`).join("");
   $("#sizes").hidden = marker;
   $("#sizes").querySelectorAll("[data-size]").forEach((b) => b.onclick = () => {
     prefs.width = b.dataset.size;
@@ -1463,9 +1495,41 @@ function markOverview() {
   }
 }
 
+// The overview's own keys: the arrows move a mark from tile to tile - not the slide behind it, which
+// the projector would follow -, Enter or Space goes to the marked tile, Home and End mark the first
+// and the last. (A number and Enter, G and Esc are onKey's.)
+function overviewKey(k) {
+  const tiles = overview.tiles;
+  const at = overview.at ?? Math.max(0, tiles.findIndex((t) => t.b.classList.contains("on")));
+  const top = tiles[0].b.offsetTop;
+  const columns = tiles.filter((t) => t.b.offsetTop === top).length || 1;
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns, ArrowUp: -columns, PageDown: 1, PageUp: -1,
+    Backspace: -1 }[k];
+  if (step !== undefined) markTile(Math.min(tiles.length - 1, Math.max(0, at + step)));
+  else if (k === "Home") markTile(0);
+  else if (k === "End") markTile(tiles.length - 1);
+  else if (k === "Enter" || k === " ") {
+    go(tiles[at].go);
+    closeOverview();
+  } else return false;
+  return true;
+}
+
+function markTile(i) {
+  overview.at = i;
+  overview.tiles.forEach((t, j) => t.b.classList.toggle("sel", j === i));
+  overview.tiles[i].b.scrollIntoView({ block: "nearest" });
+}
+
 function closeOverview() {
   overview?.el.remove();
   overview = null;
+}
+
+// A button that is on or off: its look, and what a screen reader says of it
+function press(b, on) {
+  b.classList.toggle("on", on);
+  b.setAttribute("aria-pressed", String(on));
 }
 
 // ------------------------------------------------------------------ projector window
@@ -1596,6 +1660,14 @@ function pollDialog() {
   el.querySelectorAll("[data-kind]").forEach((b) => b.onclick = () => pick(b.dataset.kind));
   prompt.oninput = preview;
   el.querySelector("#closedlg").onclick = () => el.remove();
+  const keys = (e) => {                               // Esc closes it, as it closes the other dialogs
+    if (el.isConnected && e.key === "Escape") {
+      e.stopPropagation();
+      el.remove();
+    }
+    if (!el.isConnected) document.removeEventListener("keydown", keys, true);
+  };
+  document.addEventListener("keydown", keys, true);
   el.querySelectorAll("[data-show]").forEach((b) => b.onclick = () => {
     send({ t: "poll.show", quiz: b.dataset.show });
     el.remove();
@@ -1627,7 +1699,8 @@ function openQa() {
       <label class="check" title="${esc(Q.openTitle)}"><input type="checkbox" id="qaopen"> ${esc(Q.open)}</label>
       <button class="secondary" id="qaclose" title="${esc(Q.closeTitle)}">✕</button></div>
     <div class="qabody" id="qabody"></div>`;
-  document.body.append(qaPanel);
+  if (actPanel) closeActivities();      // one panel at a time: they stand in the same place
+  dock(qaPanel);
   qaPanel.querySelector("#qaopen").onchange = (e) => send({ t: "qa.open", on: e.target.checked });
   qaPanel.querySelector("#qaclose").onclick = closeQa;
   qaPanel.querySelector("#qabody").addEventListener("click", async (e) => {
@@ -1651,6 +1724,7 @@ function openQa() {
 function closeQa() {
   qaPanel?.remove();
   qaPanel = null;
+  undock();
 }
 
 function renderQa() {
@@ -1688,12 +1762,18 @@ function openActivities() {
   actPanel.innerHTML = `<div class="qahead"><h2>${esc(T.presenter.activity.title)}</h2><select id="actpick"></select>
       <button class="secondary" id="actclose" title="${esc(T.presenter.activity.closeTitle)}">✕</button></div>
     <div class="qabody" id="actbody"></div>`;
-  document.body.append(actPanel);
+  if (qaPanel) closeQa();               // one panel at a time: they stand in the same place
+  dock(actPanel);
   actPanel.chosen = null;               // the activity shown here (the current one by default)
   actPanel.merging = null;              // a term on its way into another: {role, term}
   actPanel.seen = "";
   actPanel.querySelector("#actclose").onclick = closeActivities;
-  actPanel.querySelector("#actpick").onchange = (e) => { actPanel.chosen = e.target.value; actPanel.seen = ""; renderActivities(); };
+  actPanel.querySelector("#actpick").onchange = (e) => {
+    actPanel.chosen = e.target.value;
+    actPanel.picked = true;             // the lecturer's choice stays while the panel is open
+    actPanel.seen = "";
+    renderActivities();
+  };
   actPanel.querySelector("#actbody").addEventListener("click", onActivityClick);
   actPanel.querySelector("#actbody").addEventListener("change", (e) => {
     if (e.target.id === "actmin") send({ t: "activity.min", activity: actPanel.chosen, min: Number(e.target.value) || 1 });
@@ -1704,6 +1784,21 @@ function openActivities() {
 function closeActivities() {
   actPanel?.remove();
   actPanel = null;
+  undock();
+}
+
+// A panel - Activities, Q&A - stands in the column, where the next slide was: the notes stay to be read
+// below it, and nothing of the slide is covered. (In a narrow window, where the column is below the
+// slide, it lies over the window as before: stage.css.)
+function dock(panel) {
+  const side = $(".side");
+  side.prepend(panel);
+  side.classList.add("docked");
+}
+
+function undock() {
+  const side = document.querySelector(".side");
+  if (side && !side.querySelector(":scope > .qapanel")) side.classList.remove("docked");
 }
 
 async function onActivityClick(e) {
@@ -1751,7 +1846,15 @@ function renderActivities() {
   const acts = state?.stage?.activity || { current: null, items: {} };
   const pick = actPanel.querySelector("#actpick");
   const ids = Object.keys(items);
-  if (!actPanel.chosen || !items[actPanel.chosen]) actPanel.chosen = acts.current && items[acts.current] ? acts.current : ids[0];
+  // the activity shown: the one the lecturer picked here - else the open one, else the one on this
+  // slide (one that waits for its "Open" is not the server's current one yet: the panel showed the
+  // deck's first, and "Open" would have opened that), else the one shown so far, else the deck's first
+  const onSlide = itemFor(local)?.live?.find((b) => b.type === "activity")?.item;
+  const auto = [acts.current, onSlide, actPanel.chosen, ids[0]].find((id) => id && items[id]);
+  if (!actPanel.picked || !items[actPanel.chosen]) {
+    if (auto !== actPanel.chosen) actPanel.seen = "";
+    actPanel.chosen = auto;
+  }
   if (pick.options.length !== ids.length) pick.innerHTML = ids.map((id) => `<option value="${esc(id)}">${esc(id)}</option>`).join("");
   pick.value = actPanel.chosen;
   const id = actPanel.chosen;
@@ -1818,10 +1921,15 @@ function crowdPanel(item, st, pic) {
     ${terms.map(row).join("") || `<p class="empty">${esc(A.noTriples)}</p>`}`;
 }
 
+// A reference that ran, in the panel's words: the group of students that has its result - not its key
+function refGroup(A, i, cluster) {
+  return cluster ? A.refIn(i, cluster.n) : A.refAlone(i);
+}
+
 function clusterPanel(words, pic) {
   const A = T.presenter.activity;
   const refs = (pic.refs || []).map((r, i) => r === null ? A.refPending(i + 1)
-    : typeof r === "object" ? A.refFailed(i + 1, r.failed) : A.refKey(i + 1, r));
+    : typeof r === "object" ? A.refFailed(i + 1, r.failed) : refGroup(A, i + 1, pic.clusters.find((c) => c.key === r)));
   const shown = pic.shown?.key;
   return `${refs.length ? `<p class="note">${refs.map(esc).join("<br>")}</p>` : `<p class="note">${esc(A.noRef)}</p>`}
     ${pic.clusters.map((c) => `<div class="actcluster${c.reference ? " ref" : ""}${c.key === shown ? " shown" : ""}">
@@ -2225,6 +2333,7 @@ function onKey(e) {
     render();
     return true;
   }
+  if (overview && overviewKey(k)) return true;
   if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(k)) move(1);
   else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(k)) move(-1);
   else if (k === "Home") go(items[0]);
@@ -2254,6 +2363,12 @@ function escape() {
   else return false;
   return true;
 }
+
+document.addEventListener("click", (e) => {           // a click elsewhere closes the top bar's "more"
+  if (e.target.closest?.("#morebtn")) return;
+  document.querySelector("#more")?.classList.remove("open");
+  document.querySelector("#morebtn")?.setAttribute("aria-expanded", "false");
+});
 
 document.addEventListener("keydown", (e) => {
   if (!deck || !state || e.target.closest("input, textarea") || e.altKey || $(".dialog")) return;   // a dialog's keys
