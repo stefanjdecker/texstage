@@ -340,19 +340,7 @@
     "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
    },
    "check": {
-    "status": "invalid",
-    "message": {
-     "code": "at",
-     "args": {
-      "line": 1,
-      "column": 12,
-      "message": "expected IRI parsing failed"
-     }
-    },
-    "at": [
-     1,
-     12
-    ]
+    "status": "ok"
    }
   },
   {
@@ -362,19 +350,7 @@
     "text": "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1"
    },
    "check": {
-    "status": "invalid",
-    "message": {
-     "code": "at",
-     "args": {
-      "line": 1,
-      "column": 12,
-      "message": "expected IRI parsing failed"
-     }
-    },
-    "at": [
-     1,
-     12
-    ]
+    "status": "ok"
    }
   },
   {

@@ -95,12 +95,17 @@ def _numbered(quads) -> list:
 
 
 def _completed(state: dict, text: str) -> tuple[str, int]:
-    """The seed's declarations in front of a query that does not make them itself; how many lines."""
+    """The seed's declarations in front of a query that does not make them itself; how many lines.
+
+    The seed's base is in front of every query, one with a BASE of its own too: the seed's prefixes
+    may be relative to it - `@prefix : <> .`, as the lectures' seeds have -, and the query's own BASE,
+    behind them, is the base of what the query writes. Until 2026-11-12 a query with a BASE got the
+    seed's prefixes without the seed's base - where a relative one has no base at all: a syntax error,
+    in a line the student did not write."""
     lines = []
     for d in state["decls"]:
         if "base" in d:
-            if not re.search(r"^\s*BASE\s", text, re.I | re.M):
-                lines.append(f"BASE <{d['base']}>")
+            lines.append(f"BASE <{d['base']}>")
         elif not re.search(rf"^\s*PREFIX\s+{re.escape(d['prefix'])}:", text, re.I | re.M):
             lines.append(f"PREFIX {d['prefix']}: <{d['iri']}>")
     return ("\n".join(lines) + "\n" + text if lines else text), len(lines)

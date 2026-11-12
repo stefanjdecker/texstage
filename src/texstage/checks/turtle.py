@@ -15,8 +15,8 @@ import re
 
 import pyoxigraph as ox
 
-from texstage.checks.common import (NESTING_MAX, ROWS, bounded, collected, cut, deadline, js_quote, js_sorted,
-                                    mapped, message, nesting)
+from texstage.checks.common import (NESTING_MAX, ROWS, bounded, collected, cut, deadline, js_quote,
+                                    js_sorted, mapped, message, nesting)
 from texstage.checks.sparql import namespaces, prologue, rdf_term, shorten
 from texstage.checks.texts import Words
 
@@ -43,14 +43,39 @@ def load(seed: str) -> dict:
 
 
 def _completed(state: dict, text: str) -> tuple[str, int]:
+    """The seed's declarations in front of a text that does not make them itself; how many lines. The
+    seed's base is in front of every text, one with a base of its own too: the seed's prefixes may be
+    relative to it (sparql.py: _completed)."""
     lines = []
     for d in state["decls"]:
         if "base" in d:
-            if not re.search(r"^\s*(?:@base|BASE)\b", text, re.I | re.M):
-                lines.append(f"@base <{d['base']}> .")
+            lines.append(f"@base <{d['base']}> .")
         elif not re.search(rf"^\s*(?:@prefix|PREFIX)\s+{re.escape(d['prefix'])}:", text, re.I | re.M):
             lines.append(f"@prefix {d['prefix']}: <{d['iri']}> .")
     return ("\n".join(lines) + "\n" + text if lines else text), len(lines)
+
+
+# Oxigraph reads a name with an escape in it, and the dot behind it, other at a text's end than anywhere
+# else: `ex:a ex:p ex:b\#c.` is "Unexpected end" as a text's last characters and a graph once anything
+# follows; `ex:b\..` names b there and b. here; and `ex:a ex:p ex:\.`, a triple without its dot, is a
+# graph there. The shape of such a text: a backslash in its last word, a dot its end (40,000 random
+# texts: 2,777 were read otherwise at their end, all of them of it).
+AT_END = re.compile(r"\\\S*\.\Z")
+
+
+def _parsed(turtle: str, end: float | None):
+    """The text's quads - of a text of that shape, read with a space behind it: as the grammar has it,
+    and as Oxigraph reads it wherever it is not the text's end. Where it is no graph either way, its
+    error is the text's as it stands, every place as it was; where it is one only at the text's end, the
+    error is the one with the space (its mark: `spaced`)."""
+    if not AT_END.search(turtle):
+        return collected(ox.parse(turtle, format=ox.RdfFormat.TURTLE), end)
+    try:
+        return collected(ox.parse(turtle + " ", format=ox.RdfFormat.TURTLE), end)
+    except (SyntaxError, ValueError, OSError) as spaced:
+        collected(ox.parse(turtle, format=ox.RdfFormat.TURTLE), end)        # (its own error goes on from here)
+        spaced.spaced = True
+        raise spaced from None
 
 
 def _own(t):
@@ -89,13 +114,17 @@ def _show(state: dict, t, blanks: dict, predicate: bool = False) -> str:
     return f"?{type(t).__name__}"
 
 
-def _failure(e: BaseException, shift: int, W: Words) -> dict:
+def _failure(e: BaseException, shift: int, W: Words, student: str) -> dict:
     text = message(e)
     m = AT.fullmatch(text)
     if not m:
         return {"status": "syntax" if text.startswith("Parser error") else "error", "error": text}
     line = max(1, int(m.group(1) or m.group(4)) - shift)      # the student's line: the seed's are in front
     column = int(m.group(2) or m.group(3) or m.group(5))
+    if getattr(e, "spaced", False):                           # read with a space behind the text (_parsed): no
+        lines = student.split("\n")                           # place is behind the one behind its last character
+        if line >= len(lines):
+            line, column = len(lines), min(column, len(lines[-1]) + 1)
     return {"status": "syntax", "error": W.at(line, column, m.group(6)), "at": (line, column)}
 
 
@@ -107,9 +136,9 @@ def evaluate(state: dict, text: str, language: str | None = None, budget_s: floa
         return {"status": "syntax", "error": W.tooDeep(NESTING_MAX)}
     turtle, shift = _completed(state, text.translate(QUOTES))
     try:
-        quads = collected(ox.parse(turtle, format=ox.RdfFormat.TURTLE), end)
+        quads = _parsed(turtle, end)
     except (SyntaxError, ValueError, OSError) as e:
-        return _failure(e, shift, W)
+        return _failure(e, shift, W, text)
     if quads is None:
         return {"status": "timeout"}
     seen, triples = set(), []                  # the graph, a set: in the order written, each once

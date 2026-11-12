@@ -1266,19 +1266,7 @@
     "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> ."
    },
    "check": {
-    "status": "invalid",
-    "message": {
-     "code": "at",
-     "args": {
-      "line": 1,
-      "column": 11,
-      "message": "No scheme found in an absolute IRI"
-     }
-    },
-    "at": [
-     1,
-     11
-    ]
+    "status": "ok"
    }
   },
   {
@@ -1288,19 +1276,7 @@
     "text": "@base <http://elsewhere.org/> .\n<rel> <p> <o> ."
    },
    "check": {
-    "status": "invalid",
-    "message": {
-     "code": "at",
-     "args": {
-      "line": 1,
-      "column": 11,
-      "message": "No scheme found in an absolute IRI"
-     }
-    },
-    "at": [
-     1,
-     11
-    ]
+    "status": "ok"
    }
   },
   {

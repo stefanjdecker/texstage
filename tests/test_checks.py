@@ -43,6 +43,15 @@ KNOWN = {
     ("sql", "SELECT ?, :x", "en"):
         "an error: Python's sqlite3 binds parameters with names or without, not both in one statement (sql.py: "
         "_execute); sql.js left them all unbound, NULL",
+    ("sparql", "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1", "en"):
+        "a result since 2026-11-12: the seed's base is in front of a query with a BASE of its own too (sparql.py: "
+        "_completed); the browser's engine left it out and put the seed's relative `PREFIX : <>` in front of the "
+        "query's BASE, where it has no base - a syntax error in the seed's line, which is none of the student's",
+    ("sparql", "BASE <http://other.org/> PREFIX : <> SELECT ?s WHERE { ?s ?p ?o } LIMIT 1", "de"): "as in English",
+    ("turtle", "@base <http://elsewhere.org/> .\n<rel> <p> <o> .", "en"):
+        "a graph since 2026-11-12, for the same reason (turtle.py: _completed): the seed's `@prefix : <ns#> .` "
+        "stood in front of the text's @base",
+    ("turtle", "@base <http://elsewhere.org/> .\n<rel> <p> <o> .", "de"): "as in English",
 }
 # (engine, text) -> the error's words as a pattern, where they are SQLite's and depend on how it was built:
 # the largest parameter number is 32766 in sql.js's and Python's own SQLite, 250000 in Debian's and Ubuntu's
@@ -515,3 +524,109 @@ def test_nesting_up_to_the_cap_is_checked_on_a_thread_with_a_workers_stack(engin
     finally:
         threading.stack_size(old)
     assert result["status"] == "ok", result
+
+
+# ------------------------------------------------------------------ a text's own base, and a text's end (2026-11-12)
+RELATIVE = "@base <http://seed/> .\n@prefix ex: <x/> .\n@prefix : <> .\nex:a ex:p ex:o , :b .\n"
+BOTH = "select\n1\n<http://seed/b>\n<http://seed/x/o>"
+
+
+@pytest.mark.parametrize("text, canonical", [
+    ("SELECT ?o { ex:a ex:p ?o }", BOTH),
+    ("BASE <http://seed/>\nSELECT ?o { ex:a ex:p ?o }", BOTH),                    # a syntax error until 2026-11-12
+    ("base <http://other/>\nSELECT ?o { ex:a ex:p ?o }", BOTH),                   # the prefixes are the seed's
+    ("BASE <http://seed/>\nSELECT ?o { ex:a ex:p ?o FILTER(?o != <b>) }", "select\n1\n<http://seed/x/o>"),
+    ("BASE <http://other/>\nSELECT ?o { ex:a ex:p ?o FILTER(?o != <b>) }", BOTH),  # ... and its own IRIs the query's
+    ("BASE <http://seed/>\nPREFIX ex: <y/>\nSELECT ?o { ex:a ex:p ?o }", "select\n1\n"),   # a prefix of its own is its own
+    ("PREFIX ex: <x/>\nSELECT ?o { ex:a ex:p ?o }", BOTH),                        # ... relative to the seed's base
+    ("BASE# mine\n<http://seed/>\nSELECT ?o { ex:a ex:p ?o }", BOTH),             # with a comment in it
+    ("BASE\n<http://seed/>\nSELECT ?o { ex:a ex:p ?o }", BOTH),                   # ... and as normalize leaves it
+])
+def test_a_query_with_a_base_of_its_own_has_the_seeds_prefixes_as_the_seed_has_them(text, canonical):
+    """A seed with @base and prefixes relative to it, as the lectures' have: the check puts the seed's
+    declarations in front of a query - and a relative prefix in front of the query's own BASE had no base."""
+    pytest.importorskip("pyoxigraph")
+    r = checks.evaluate("sparql", checks.load("sparql", RELATIVE), text, "en")
+    assert (r["status"], r.get("canonical")) == ("ok", canonical), r
+
+
+def test_an_errors_line_is_the_texts_with_a_base_of_its_own_too():
+    pytest.importorskip("pyoxigraph")
+    r = checks.evaluate("sparql", checks.load("sparql", RELATIVE), "BASE <http://seed/>\n\nSELECT ?o { ex:a ex:p }", "en")
+    assert r["status"] == "syntax" and r["at"][0] == 3, r
+    r = checks.evaluate("turtle", checks.load("turtle", RELATIVE), "@base <http://seed/> .\n\nex:a ex:p", "en")
+    assert r["status"] == "syntax" and r["at"] == (3, 10), r
+
+
+@pytest.mark.parametrize("text, graph", [
+    ("ex:a ex:p ex:o .", "<http://seed/x/a> <http://seed/x/p> <http://seed/x/o>"),
+    ("@base <http://seed/> .\nex:a ex:p ex:o .", "<http://seed/x/a> <http://seed/x/p> <http://seed/x/o>"),
+    ("BASE <http://other/>\nex:a ex:p <c> , :d .", "<http://seed/x/a> <http://seed/x/p> <http://other/c>\n"
+                                                    "<http://seed/x/a> <http://seed/x/p> <http://seed/d>"),
+    ("@base <http://seed/> .\n@prefix ex: <y/> .\nex:a ex:p :d .", "<http://seed/y/a> <http://seed/y/p> <http://seed/d>"),
+    ("@base <http://elsewhere.org/> .\n<rel> <p> :o .", "<http://elsewhere.org/rel> <http://elsewhere.org/p> <http://seed/o>"),
+])
+def test_a_turtle_text_with_a_base_of_its_own_has_the_seeds_prefixes_as_the_seed_has_them(text, graph):
+    pytest.importorskip("pyoxigraph")
+    r = checks.evaluate("turtle", checks.load("turtle", RELATIVE), text, "en")
+    assert (r["status"], r.get("canonical")) == ("ok", "graph\n" + graph), r
+
+
+ENDS = "@prefix ex: <http://x/> .\n"
+
+
+@pytest.mark.parametrize("text, last", [
+    ("ex:a ex:p ex:b" + B + "#c.", "<http://x/b#c>"),            # "Unexpected end" until 2026-11-12 ...
+    ("ex:a ex:p ex:b" + B + "-.", "<http://x/b->"),
+    ("ex:a ex:p ex:" + B + "#.", "<http://x/#>"),
+    ("ex:a ex:p ex:b" + B + "..", "<http://x/b.>"),              # ... and this one b, not b.
+    ("ex:a ex:p ex:o ; ex:q ex:b" + B + "~c.", "<http://x/b~c>"),
+    ("ex:a ex:p ex:b" + B + "#c .", "<http://x/b#c>"),           # as ever
+    ("ex:a ex:p \"a" + B + "\"b\".", "\"a" + B + "\"b\"^^<http://www.w3.org/2001/XMLSchema#string>"),
+])
+def test_a_turtle_text_is_read_at_its_end_as_anywhere_else(text, last):
+    """Oxigraph reads a name with an escape, and the dot behind it, other at a text's end than in front of a
+    space, a line end or a comment: such a text is read with a space behind it."""
+    pytest.importorskip("pyoxigraph")
+    state = checks.load("turtle", ENDS)
+    for more in ("", " ", "\n", " # the end", "\n# the end\n"):
+        r = checks.evaluate("turtle", state, text + more, "en")
+        assert r["status"] == "ok" and r["canonical"].endswith(" " + last), (more, r)
+
+
+@pytest.mark.parametrize("text, at", [
+    ("ex:a ex:p ex:" + B + ".", (1, 16)),                        # a graph at a text's end until 2026-11-12: no dot ends it
+    ("ex:a ex:p ex:o .\nex:a ex:p ex:" + B + "-" + B + ".", (2, 18)),
+    ("ex:a ex:p ex:b" + B + "#c..", (1, 20)),                    # no graph either way: its own error, where it was
+    ("ex:a ex:p ex:o", (1, 15)), ("ex:a ex:p", (1, 10)), ("ex:a ex:p 'x", (1, 11)),      # (not of the shape: as ever)
+])
+def test_a_turtle_text_that_is_none_at_its_end_says_where(text, at):
+    """The place is in the text: behind its last character at most, though it was read with a space there."""
+    pytest.importorskip("pyoxigraph")
+    r = checks.evaluate("turtle", checks.load("turtle", ENDS), text, "en")
+    assert (r["status"], r.get("at")) == ("syntax", at), r
+    assert checks.evaluate("turtle", checks.load("turtle", ENDS), text + "\n", "en")["status"] == "syntax"
+
+
+def test_no_turtle_text_is_another_graph_at_its_end():
+    """4,000 texts that end in a name - with escapes or without -, a literal or nothing, and a dot or none:
+    each is the graph, or the error, that it is with a line end behind it."""
+    import random
+    pytest.importorskip("pyoxigraph")
+    state, rng = checks.load("turtle", ENDS + "ex:a ex:p ex:o .\n"), random.Random(20261112)
+    pieces = ["a", "b", "1", ".", "-", ":", "%41", "x"] + [B + c for c in "_~.-!$&'()*+,;=/?#@%"]
+    terms = ["ex:o", "1", "1.5", "true", "'s'", '"t"', "<http://x/y>", "_:b", "'s'@en", "[ ]", "( 1 )", "1e3", "'a" + B + "'b'",
+             "'a" + B + B + "'", "<http://x/" + B + "u0041>", "ex:", "1.", ".5"]
+
+    def name() -> str:
+        return "ex:" + "".join(rng.choices(pieces, k=rng.randint(0, 4)))
+
+    seen = {"graphs": 0, "of the shape": 0}
+    for _ in range(4000):
+        text = rng.choice(["ex:a ex:p ", "ex:a ex:p ex:o ; ex:q ", "ex:a ex:p 1 , ", name() + " ex:p ", "ex:a " + name() + " "])
+        text += (name() if rng.random() < 0.6 else rng.choice(terms)) + rng.choice([".", ".", " .", "", " ;", ","])
+        here, there = checks.evaluate("turtle", state, text, "en"), checks.evaluate("turtle", state, text + "\n", "en")
+        assert (here["status"] == "ok", here.get("canonical")) == (there["status"] == "ok", there.get("canonical")), text
+        seen["graphs"] += here["status"] == "ok"
+        seen["of the shape"] += B in text.split()[-1] and text.endswith(".")
+    assert seen["graphs"] > 1000 and seen["of the shape"] > 300, seen

@@ -148,7 +148,8 @@ def test_a_check_is_what_a_worker_of_f1s_pool_sends(engine):
     needs(engine)
     kind, fixture = CODE[engine], f1.fixture(engine)
     for seed, text in fixture["seeds"].items():
-        cases = [c for c in fixture["cases"] if c["seed"] == seed and c["language"] == "en"]
+        cases = [c for c in fixture["cases"] if c["seed"] == seed and c["language"] == "en"
+                 and (engine, c["text"] if isinstance(c["text"], str) else None, "en") not in f1.KNOWN]   # (as the fixture says)
         good = [f1.expand(c["text"]) for c in cases if c["result"]["status"] == "ok"][:2]
         bad = [f1.expand(c["text"]) for c in cases if c["result"]["status"] != "ok"][:1]
         if not good:
