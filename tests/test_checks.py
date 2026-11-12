@@ -215,6 +215,9 @@ def test_texts_as_the_browser_handed_them_to_its_engines():
     assert common.nesting("{ ( [ ] ) } ((") == 3 and common.nesting(")))(") == 1
 
 
+B = chr(92)                                     # a backslash
+
+
 # ------------------------------------------------------------------ the checks' safety (plan 4.4)
 SQL_SEED = "CREATE TABLE t (a INTEGER, b TEXT); INSERT INTO t VALUES (1, 'x'), (2, 'y');"
 RDF_SEED = "@prefix : <http://e.org/> .\n:a :service :b ; :Service :c ; :SERVICE :d ; :p 'SERVICE' .\n"
@@ -389,10 +392,84 @@ def rdf_state(engine: str):
     "SELECT * WHERE { \\u0053ERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
     "SELECT * WHERE { \\U00000053ervice <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
     "SELECT * WHERE { { SELECT * WHERE { SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } } }",
+    # ... and behind what is no comment and no string's start, each of which Oxigraph ran until 2026-11-12:
+    "SELECT * WHERE { ?s :a" + B + "#b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",              # a name's escape
+    "SELECT * WHERE { ?s :a" + B + "'b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }",
+    "SELECT * WHERE { ?s :a" + chr(0xB7) + B + "#b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",  # ... behind a middle dot
+    "SELECT * WHERE { ?s ?p 'x" + B + "u0027' . SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }",  # no quote, decoded
+    "SELECT * WHERE { ?s <http://e.org/" + chr(0xA0) + "#> ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",   # an IRI's #
+    "SELECT * WHERE { ?s <http://e.org/" + B + "u0041#> ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }",
+    "SELECT * WHERE { ?s ?p '''a" + B + "'''' . SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }",  # a long string's end
+    "SELECT * WHERE { ?s ?p ?o FILTER(?o<'>') SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }",   # a comparison
+    "SELECT * WHERE { ?s ?p ?o FILTER(?o<'''>''') SERVICE<http://127.0.0.1:9/sparql>{ ?s ?p ?o } FILTER(?o != '''c''') }",
 ])
 def test_service_is_refused_in_every_spelling(text):
     r = checks.evaluate("sparql", rdf_state("sparql"), text, "en")
     assert (r["status"], r.get("error")) == ("refused", texts.ENGINES["en"]["service"])
+
+
+def test_service_is_refused_however_a_query_hides_it():
+    """6,000 queries with what may break a reading in front of SERVICE - strings with escapes and quotes, IRIs
+    with a #, a quote or a no-break space, prefixed names with escapes, a comparison that looks like an
+    IRI's start - and Oxigraph the judge of what is a keyword: a text has it if it parses, and does not
+    once every SERVICE in it reads @@@, which a comment, a string and an IRI take and a query's own words
+    do not. None gets past. Nothing is run: a query is parsed, its result never read, its endpoint a urn."""
+    import random
+    ox = pytest.importorskip("pyoxigraph")
+    from texstage.checks import sparql
+    store, rng = ox.Store(), random.Random(20261112)
+    call = ["SERVICE <urn:x> { ?s ?p ?o }", "service <urn:x> { ?s ?p ?o }", "SERVICE SILENT <urn:x> { ?s ?p ?o }",
+            "SERVICE ?e { ?s ?p ?o }", "SERVICE<urn:x>{?s ?p ?o}", "'no SERVICE'", "<http://x/SERVICE>", "ex:SERVICE"]
+    inside = ["a", "#", " ", "SERVICE", B + "'", B + '"', B + B, B + "n", "'", '"', "''", '""', "<", ">", "{", chr(0xA0),
+              B + "u0023", B + "u0027", B + "u0022"]
+    in_iri = ["a", "#", "'", chr(0xA0), B + "u0023", B + "u0041", "/", "?", ":", "%20", "!"]
+    in_name = ["a", B + "#", B + "'", B + "~", B + "?", B + "%", B + "(", B + "!", "%23", ".", ":", B + "@", B + ";",
+               chr(0xB7), chr(0x301), chr(0x203F), "-"]
+    shapes = ["SELECT * WHERE { ?s ?p {0} . {1} }", "SELECT * WHERE { ?s {0} ?o {1} }", "SELECT * WHERE { {0} ?p ?o . {1} }",
+              "SELECT * WHERE { ?s ?p ?o FILTER(?o != {0}) {1} }", "SELECT * WHERE { ?s ?p ?o FILTER(?o<{0}) {1} }",
+              "ASK { ?s ?p {0} , {0} . {1} }", "SELECT * WHERE { ?s ?p {0} # c\n {1} }", "SELECT * WHERE { ?s ?p ?o . # {0} {1}\n }",
+              "SELECT * WHERE { ?s ?p ?o FILTER(1<2) {1} FILTER(3>{0}) }"]
+    shapes += [s[:-1] + "FILTER(?o != " + tail + ") }" for s in list(shapes)
+               for tail in ("'c'", '"c"', "'''c'''", "<http://x/c#d>", "ex:c" + B + "'d")]
+
+    def term() -> str:
+        kind, q = rng.randrange(4), rng.choice("'\"")
+        if kind == 0:                                                   # a short string
+            return q + "".join(p for p in (rng.choice(inside) for _ in range(rng.randint(0, 5))) if q not in p or p[0] == B) + q
+        if kind == 1:                                                   # a long one: no quote in front of its end
+            return q * 3 + "".join(p + ("x" if p in (q, q * 2) else "") for p in rng.choices(inside, k=rng.randint(0, 6))) + q * 3
+        if kind == 2:
+            return "<http://x/" + "".join(rng.choices(in_iri, k=rng.randint(0, 5))) + ">"
+        return "ex:" + "".join(rng.choices(in_name, k=rng.randint(0, 4))) + rng.choice(["a", "1", B + "#", B + "'"])
+
+    def parses(text: str) -> bool:
+        try:
+            store.query(text)
+            return True
+        except (SyntaxError, ValueError, OSError, RuntimeError):
+            return False
+
+    seen = {"parsed": 0, "with the keyword": 0, "refused": 0}
+    for _ in range(6000):
+        text = "PREFIX ex: <http://x/>\n" + rng.choice(shapes).replace("{0}", term()).replace("{1}", rng.choice(call))
+        parsed = parses(text)
+        keyword = parsed and not parses(re.sub("service", "@@@", text, flags=re.I | re.A))
+        refused = sparql.names_service(text)
+        assert refused or not keyword, text
+        seen["parsed"] += parsed
+        seen["with the keyword"] += keyword
+        seen["refused"] += refused
+    assert seen["parsed"] > 1500 and seen["with the keyword"] > 1000 and seen["refused"] < 5000, seen
+
+
+def test_what_may_be_service_is_refused_though_it_is_none():
+    """The cautious way round: an IRI with a quote in it may be a comparison and a string's start, and what
+    is a string behind it would be the query's words then."""
+    pytest.importorskip("pyoxigraph")
+    from texstage.checks import sparql
+    text = "SELECT * WHERE { ?s <http://e.org/it's> ?o FILTER(?o != 'the SERVICE desk') }"
+    assert sparql.names_service(text)
+    assert not sparql.names_service(text.replace("it's", "its"))
 
 
 @pytest.mark.parametrize("text", [
@@ -402,6 +479,10 @@ def test_service_is_refused_in_every_spelling(text):
     "SELECT * WHERE { ?s ?p 'SERVICE' }", 'SELECT * WHERE { ?s ?p """SERVICE""" }',
     "SELECT * WHERE { ?s ?p ?o } # SERVICE <http://127.0.0.1:9/sparql>",
     "SELECT * WHERE { ?s <http://e.org/SERVICE> ?o }",
+    "SELECT * WHERE { ?s ?p ?o FILTER(?o != <http://e.org/SERVICE?x=1>) }",
+    "SELECT * WHERE { ?s ?p ?o OPTIONAL { ?s :a" + B + "#SERVICE ?x } }",
+    "SELECT * WHERE { ?s ?p ?o FILTER('SERVICE<' < 'x>') }",
+    "SELECT * WHERE { ?s ?p ?o FILTER(?o != '''SERVICE" + B + "'''') }",
 ])
 def test_names_strings_and_comments_that_say_service_are_no_service(text):
     r = checks.evaluate("sparql", rdf_state("sparql"), text, "en")

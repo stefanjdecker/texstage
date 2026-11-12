@@ -23,8 +23,8 @@ from urllib.parse import urljoin
 
 import pyoxigraph as ox
 
-from texstage.checks.common import (NESTING_MAX, ROWS, bounded, collected, cut, deadline, js_quote, js_sorted,
-                                    mapped, message, nesting, utf16_len)
+from texstage.checks.common import (IRI, NESTING_MAX, ROWS, bounded, collected, cut, deadline,
+                                    js_quote, js_sorted, mapped, message, nesting, utf16_len)
 from texstage.checks.texts import Words
 
 XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
@@ -108,25 +108,75 @@ def _completed(state: dict, text: str) -> tuple[str, int]:
 
 # ------------------------------------------------------------------ SERVICE
 ESCAPE = re.compile(r"\\u([0-9a-fA-F]{4})|\\U([0-9a-fA-F]{8})")
-TOKENS = re.compile(r"""'''.*?'''|\"\"\".*?\"\"\"|'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|<[^<>"{}|^`\\\s]*>|#[^\n]*"""
-                    r"""|[?$][\w\u00b7\u0300-\u036f\u203f-\u2040]+"""
-                    r"""|(?:[^\W\d_][\w.\-\u00b7]*)?:[\w.\-:%\\]*"""
-                    r"""|[^\W\d_]\w*""", re.S)
-WORD = re.compile(r"[^\W\d_]\w*")
+# A query's words - a variable, a prefixed name with its escapes (ex:a\#b), a word - and the characters
+# that begin or end what hides them: a comment, a string, an IRI, an escape.
+STEPS = re.compile(r"""[?$][\w\u00b7\u0300-\u036f\u203f-\u2040]+"""
+                   r"""|(?:[^\W\d_][\w.\-\u00b7]*)?:(?:[\w.\-:%\u00b7\u0300-\u036f\u203f-\u2040]|\\[^\n\r])*"""
+                   r"""|[^\W\d_]\w*|[#\\'"<\n\r]""")
 
 
 def _decoded(text: str) -> str:
     return ESCAPE.sub(lambda m: chr(int(m.group(1) or m.group(2), 16)), text)
 
 
+def _service(text: str) -> bool:
+    """Whether SERVICE is a word of the query however it is read: Oxigraph takes a < as an IRI's start or as
+    the comparison, as the grammar around it wants, so the text is read both ways at once - and the
+    cautious way round: a word counts if one reading has it. In `FILTER(?o<'>') SERVICE <e> { } FILTER(?o != 'c')` the first reading
+    finds an IRI, <'>, and a string behind it, ') SERVICE ... '; the second, Oxigraph's, a comparison with
+    the string '>' - and the word.
+
+    What an IRI may be is no query's word in either reading - <http://e.org/SERVICE> -: no space and no
+    brace is in it, and SERVICE wants an endpoint and a brace behind it. A string that goes over its
+    line's end is no text Oxigraph takes; it is read on as if it had ended there."""
+    if "ervice" not in text.lower():
+        return False
+    states = {("code", 0, 0)}               # the readings: (code, # - a comment -, a string's quotes; read from; words from)
+    for step in STEPS.finditer(text):
+        i, c = step.start(), step.group()
+        mark = len(c) == 1 and c in "#\\'\"<\n\r"
+        after = set()
+        for mode, since, quiet in states:
+            if i < since:                                   # inside what this reading took whole
+                after.add((mode, since, quiet))
+            elif not mark:
+                if mode == "code" and i >= quiet and c.upper() == "SERVICE":
+                    return True
+                after.add((mode, since, quiet))
+            elif mode == "#":
+                after.add(("code" if c in "\n\r" else "#", 0, quiet))
+            elif mode == "code":
+                if c == "#":
+                    after.add(("#", 0, quiet))
+                elif c == "\\":
+                    after.add(("code", i + 2, quiet))
+                elif c in "'\"":
+                    after.add((c * 3, i + 3, quiet) if text.startswith(c * 3, i) else (c, 0, quiet))
+                elif c == "<" and (m := IRI.match(text, i)):
+                    after.add(("code", m.end(), quiet))     # an IRI
+                    after.add(("code", 0, m.end()))         # ... or the comparison, and no word up to its >
+                else:
+                    after.add(("code", 0, quiet))
+            elif c == "\\":                                 # in a string, short or long
+                after.add((mode, i + 2, quiet))
+            elif text.startswith(mode, i):
+                after.add(("code", i + len(mode), quiet))
+            else:
+                after.add(("code" if c in "\n\r" and len(mode) == 1 else mode, 0, quiet))
+        states = {(mode, since if since > i + 1 else 0, quiet if quiet > i + 1 else 0) for mode, since, quiet in after}
+    return False
+
+
 def names_service(text: str) -> bool:
     """Whether the keyword SERVICE is in the query - a word of its own, not a part of a string, an IRI, a
-    comment, a variable or a prefixed name -, as written or with its escapes decoded."""
-    for t in (text, _decoded(text)):
-        for m in TOKENS.finditer(t):
-            if WORD.fullmatch(m.group(0)) and m.group(0).upper() == "SERVICE":
-                return True
-    return False
+    comment, a variable or a prefixed name -, as written or with its escapes decoded.
+
+    Until 2026-11-12 a pattern read the text one way, and four texts got the word past it, which Oxigraph
+    then ran (found with the review of the kinds' comments): a name's escape - in ex:a\\#b the # began a
+    comment here, in ex:a\\'b the ' a string -; an IRI with a no-break space or a \\u escape in front of
+    its #, which was none here; a long string with an escaped quote at its end, '''a\\'''' - its last quote
+    began a string; and a comparison that looks like an IRI's start (_service)."""
+    return _service(text) or _service(_decoded(text))
 
 
 # ------------------------------------------------------------------ terms

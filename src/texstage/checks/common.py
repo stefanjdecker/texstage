@@ -54,6 +54,10 @@ def nesting(text: str) -> int:
     return deepest
 
 
+# An IRI as SPARQL and Turtle write one: no space, none of <>"{}|^`\ - but \u and \U escapes.
+IRI = re.compile(r"""<(?:[^\x00-\x20<>"{}|^`\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*>""")
+
+
 def deadline(budget_s: float | None) -> float | None:
     """When a check's budget ends, in its thread's CPU time (time.thread_time) - None, no budget."""
     return None if budget_s is None else time.thread_time() + budget_s

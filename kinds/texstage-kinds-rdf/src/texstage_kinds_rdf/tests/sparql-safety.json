@@ -118,6 +118,123 @@
   {
    "setting": "seed",
    "entry": {
+    "text": "SELECT * WHERE { ?s :a\\#b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s :a\\'b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s :a\u00b7\\#b ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p 'x\\u0027' . SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s <http://e.org/\u00a0#> ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s <http://e.org/\\u0041#> ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p '''a\\'''' . SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o FILTER(?o<'>') SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } FILTER(?o != 'c') }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o FILTER(?o<'''>''') SERVICE<http://127.0.0.1:9/sparql>{ ?s ?p ?o } FILTER(?o != '''c''') }"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
     "text": "SELECT ?service WHERE { ?service ?p ?o }"
    },
    "check": {
@@ -301,6 +418,112 @@
      ],
      "count": 0,
      "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o FILTER(?o != <http://e.org/SERVICE?x=1>) }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2a80e72cc69ea01f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o OPTIONAL { ?s :a\\#SERVICE ?x } }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "90df0d27db9c6cfa",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s",
+      "?x"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a",
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o FILTER('SERVICE<' < 'x>') }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2a80e72cc69ea01f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT * WHERE { ?s ?p ?o FILTER(?o != '''SERVICE\\'''') }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2a80e72cc69ea01f",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o",
+      "?p",
+      "?s"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b",
+       ":p",
+       ":a"
+      ]
+     ]
     }
    }
   },
