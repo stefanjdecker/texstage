@@ -69,15 +69,55 @@ def is_literal(term: str) -> bool:
     return bool(LITERAL.fullmatch(term))
 
 
-def clean_code(text, what: str = "a query") -> str:
+def clean_code(text, what: str = "a query", top: bool = False) -> str:
     """A query (what: as the engine calls a student's text - texstage/engines.py) as typed: its
     lines (tabs and newlines kept, other control characters not), without spaces at their ends and
-    blank lines around them."""
+    blank lines around them. top: the blank lines in front stay - where an engine's error names a
+    line, it is the line the student sees."""
     if not isinstance(text, str):
         raise Unfit(f"{what} is text")
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = _composed(c for c in text if c in "\n\t" or not unicodedata.category(c).startswith("C"))
-    text = "\n".join(line.rstrip() for line in text.split("\n")).strip("\n")
+    text = "\n".join(line.rstrip() for line in text.split("\n"))
+    text = text.rstrip("\n") if top else text.strip("\n")
     if not text.strip() or len(text) > TEXT_MAX:
         raise Unfit(f"{what} has 1 to {TEXT_MAX} characters", "text")
+    return text
+
+
+GONE = "\0"                         # where a comment was: no cleaned text has one
+GAP = re.compile(f"(?:{GONE}[ \t]*)+")
+
+
+def _gap(m: re.Match) -> str:
+    """What stands where comments were, in a line: a space where they parted two words - SELECT/**/1 -,
+    none behind a space or at the line's start (one at its end goes with the line's other spaces)."""
+    before = m.string[m.start() - 1:m.start()]
+    return " " if before and before not in " \t" else ""
+
+
+def uncommented(text: str, comments, what: str = "a query", lines: bool = False) -> str:
+    """A cleaned text (clean_code) without its comments - comments: where they are, (start, end) in their
+    order, as the engine's own reading finds them. A group is shown by such a text, and a vote puts it on
+    every phone: no name and no joke in a comment gets there (the design's 5.1). What is left is checked
+    as the text with its comments is: a comment between two words leaves a space.
+
+    lines: every line stays, one that was a comment as an empty one - and of a comment over several
+    lines their ends -, so that an error's line and column are the student's own. Without: a line that
+    held nothing but comments goes. A text of nothing but comments is refused."""
+    if comments:
+        parts, at = [], 0
+        for start, end in comments:
+            parts += [text[at:start], "\n" * text.count("\n", start, end) if lines else GONE]
+            at = end
+        marked = "".join(parts) + text[at:]
+        if lines:
+            kept = [line.rstrip() for line in marked.split("\n")]
+        else:
+            kept = [GAP.sub(_gap, line).rstrip() if GONE in line else line for line in marked.split("\n")]
+            kept = [line for line, was in zip(kept, marked.split("\n")) if line or GONE not in was]
+        text = "\n".join(kept)
+        text = text.rstrip("\n") if lines else text.strip("\n")
+        if not text.strip():
+            raise Unfit(f"{what} is more than its comments", "text")
     return text

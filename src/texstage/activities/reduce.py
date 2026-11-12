@@ -10,10 +10,10 @@ F2, 4.3): what a step's entries and their checks are reduced to, for the picture
               (server/activity.py), with the lecturer's merges, hidden and approved terms and minimum
     tally     the groups in the deck's order, a choice nobody made among them (its kinds: package 9)
 
-What a group is shown by is as clean as its kind's normalize makes a text. The design wants comments and
-spacing gone, so that no name or joke in a comment reaches the class (5.1); today's four kinds only take
-off the spaces at the ends of the lines, as F1 did - their texts show as they were typed. Until their
-normalize does more, this module cannot promise more.
+What a group is shown by is as clean as its kind's normalize makes a text: this module shows it as it
+is. The design wants no name or joke in a comment to reach the class (5.1), and the kinds of a text take
+its comments out (code.py: CodeKind.normalize); a check moved from F1 has the text as F1 cleaned it,
+its comments with it.
 
 What counts is an entry that is in, of the step's epoch, with a check. Kept in memory per step, as the
 entries and their checks change: the groups by key with their students and their distinct texts, the

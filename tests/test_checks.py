@@ -224,7 +224,98 @@ def test_texts_as_the_browser_handed_them_to_its_engines():
     assert common.nesting("{ ( [ ] ) } ((") == 3 and common.nesting(")))(") == 1
 
 
+# ------------------------------------------------------------------ where a text's comments are
 B = chr(92)                                     # a backslash
+
+
+def found(engine: str, text: str) -> list[str]:
+    return [text[i:j] for i, j in checks.comments(engine, text)]
+
+
+@pytest.mark.parametrize("text, comments", [
+    ("SELECT 1", []),
+    ("SELECT 1 -- c", ["-- c"]),
+    ("-- a\nSELECT 1 -- b\n", ["-- a", "-- b"]),                     # to its line's end, without the line's end
+    ("SELECT 1 /* c */ + 2", ["/* c */"]),
+    ("SELECT 1 /* a\nb */", ["/* a\nb */"]),
+    ("SELECT 1 /* open", ["/* open"]),                               # to the text's end
+    ("SELECT 1 /*/", ["/*/"]),                                       # ... the star of /* closes nothing
+    ("SELECT 1 /**/", ["/**/"]),
+    ("SELECT 1 /*", []),                                             # the text's last two: a slash and a star
+    ("SELECT 1 --", ["--"]),
+    ("SELECT '--', '/* */' -- c", ["-- c"]),                         # none in a string
+    ("SELECT 'it''s -- no' -- yes", ["-- yes"]),
+    ('SELECT "a--b", `c/*d`, [e--f] -- g', ["-- g"]),                # ... or in a quoted name
+    ("SELECT 'open -- no", []),
+    ("SELECT $a(--x) -- y", ["-- y"]),                               # ... or in a parameter
+    ("SELECT 1 /* -- */ + 2 -- /* \nFROM t", ["/* -- */", "-- /* "]),
+    ("SELECT x'ab' -- c", ["-- c"]),
+    ("SELECT a-->b", ["-->b"]),                                      # no arrow: SQLite reads -- first
+    ("SELECT 1--1", ["--1"]),
+])
+def test_where_an_sql_texts_comments_are(text, comments):
+    assert found("sql", text) == comments
+
+
+HASHES = [
+    ("ASK {} # c", ["# c"]),
+    ("# a\nASK {} # b\n# c", ["# a", "# b", "# c"]),                 # to its line's end, without the line's end
+    ("ASK { ?s <http://x#y> ?o } # c", ["# c"]),                     # none in an IRI
+    ("ASK { ?s ?p 'a#b', \"c#d\" } # e", ["# e"]),                   # ... in a string
+    ("ASK { ?s ?p '''a\n# b\n''' } # c", ["# c"]),                   # ... in a long one, over its lines
+    ('ASK { ?s ?p """a"" # b""" } # c', ["# c"]),
+    ("ASK { ?s ?p 'a" + B + "'#b' } # c", ["# c"]),                  # ... behind a quote that closes none
+    ("ASK { ?s ex:a" + B + "#b ?o } # c", ["# c"]),                  # ... behind a backslash
+    ("ASK { ?s <http://x/" + B + "u0023y#z> ?o } # c", ["# c"]),     # an IRI may have escapes
+    ("ASK { ?s ?p 1#c\n}", ["#c"]),                                  # no space is needed in front
+    ("ASK { ?s ?p '' } # c", ["# c"]),
+    ("ASK { ?s ?p '''''' } # c", ["# c"]),
+    ("ASK { ?s ?p '''a''''b#c' } # d", ["# d"]),                     # a long string's end is three quotes, the fourth a string's start
+    ("ASK { ?s <a b#c> ?o } # d", ["#c> ?o } # d"]),                 # no IRI has a space: its # is a comment's
+    ("ASK { ?s ?p 'open # no\n} # yes", []),                         # a string over a line's end: no text - left as it is
+    ("ASK { ?s ?p '''open # no\n} # no", []),
+    ("ASK {}", []),
+]
+
+
+@pytest.mark.parametrize("text, comments", HASHES + [
+    ("ASK { FILTER(1 < 2) # c\n}", ["# c"]),                         # a < that starts no IRI
+    ("ASK { FILTER(?a<?b#c>\n) }", []),                              # an IRI, or a comparison and a comment: left
+    ("ASK { FILTER(?a<?b#c> # d\n) }", ["# d"]),                     # ... what is a comment either way goes
+    ("ASK { ?s <it's> ?o # c\n # d\n}", ["# d"]),                    # an IRI, or a comparison and a string to its line's end
+    ("ASK { ?s ?p \u201ca # b\u201d }", ["# b\u201d }"]),            # a phone's quotes are none of SPARQL's
+])
+def test_where_a_sparql_texts_comments_are(text, comments):
+    assert [text[i:j] for i, j in common.hash_comments(text, less_than=True)] == comments
+    pytest.importorskip("pyoxigraph")
+    assert found("sparql", text) == comments
+
+
+@pytest.mark.parametrize("text, comments", HASHES + [
+    (":a :p <?b#c>\n", []),                                          # a < starts an IRI, always
+    (":a :p <it's> . # c", ["# c"]),
+    (":a :p \u201ca # b\u201d . # c", ["# c"]),                      # a phone's quotes are Turtle's (turtle.py)
+    (":a :p \u00aba # b\u00bb , \u2018c # d\u2019 . # e", ["# e"]),
+])
+def test_where_a_turtle_texts_comments_are(text, comments):
+    pytest.importorskip("pyoxigraph")
+    assert found("turtle", text) == comments
+
+
+def test_a_text_full_of_what_may_be_a_comment_is_read_quickly():
+    """Each < doubles the ways to read a SPARQL text; they are followed together, not one after another."""
+    import time
+    text = ("?a<?b#c> ?d<'e#f' " * 120)[:2000]
+    started = time.perf_counter()
+    assert common.hash_comments(text, less_than=True) == []
+    assert common.hash_comments(text + "\n# g", less_than=True) == [(2001, 2004)]
+    assert time.perf_counter() - started < 0.5
+
+
+def test_a_comment_ends_with_a_carriage_return_too():
+    """No cleaned text has one - a reference may: what is behind it is the text's, as Oxigraph reads it."""
+    assert common.hash_comments("ASK {} # c\rASK {} # d\r\n# e") == [(7, 10), (18, 21), (23, 26)]
+    assert common.hash_comments("ASK { ?s ?p 'open # no\r} # yes") == []
 
 
 # ------------------------------------------------------------------ the checks' safety (plan 4.4)
@@ -318,6 +409,19 @@ def test_a_copy_of_an_sql_database_checks_as_the_run_it_was_made_from():
     assert sql(copy, "SELECT count(*) FROM t WHERE name LIKE 'a%'")[2] == "select\n1\nn:25"
     assert sql(copy, "DELETE FROM t")[0] == "refused" and sql(copy, "SELECT count(*) FROM t")[2] == "select\n1\nn:50"
     assert sql(copy, "PRAGMA query_only = OFF")[0] == "refused" and sql(copy, "DELETE FROM t")[0] == "refused"
+
+
+def test_a_seeds_pragma_behind_a_comment_holds_on_a_copy_too():
+    """A statement's first word is behind its comments: a seed that says what its PRAGMA is for has it on
+    every process, not on the first alone."""
+    from texstage.checks import sql as engine
+    seed = "-- LIKE with the case\n/* as the lecture has it */ PRAGMA case_sensitive_like = ON;\n" + RANDOM_SEED.split(";", 1)[1]
+    assert engine._pragmas(seed) == ["-- LIKE with the case\n/* as the lecture has it */ PRAGMA case_sensitive_like = ON;"]
+    assert engine._pragmas("-- PRAGMA x\nCREATE TABLE t (x); /* PRAGMA y */") == []
+    run = checks.load("sql", seed)
+    copy = checks.load("sql", seed, image=engine.image(run, 2**20))
+    assert sql(copy, "SELECT count(*) FROM t WHERE name LIKE 'a%'")[2] == "select\n1\nn:25" == sql(
+        run, "SELECT count(*) FROM t WHERE name LIKE 'a%'")[2]
 
 
 def test_a_seeds_temp_tables_are_there_for_the_texts():

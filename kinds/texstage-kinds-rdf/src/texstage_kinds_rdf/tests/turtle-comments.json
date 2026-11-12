@@ -1,0 +1,158 @@
+{
+ "kind": "turtle-graph",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.ttl"
+   },
+   "files": {
+    "data/seed.ttl": "@prefix : <http://e.org/> .\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": ":a :p :b ; :q \"x # y\" ."
+   },
+   "check": {
+    "status": "ok",
+    "key": "d4afe6e9a2d16914",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":a",
+       ":p",
+       ":b"
+      ],
+      [
+       ":a",
+       ":q",
+       "\"x # y\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# by Max\n:a :p :b ; # one\n   :q \"x # y\" . # two"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d4afe6e9a2d16914",
+    "detail": {
+     "kind": "graph",
+     "count": 2,
+     "rows": [
+      [
+       ":a",
+       ":p",
+       ":b"
+      ],
+      [
+       ":a",
+       ":q",
+       "\"x # y\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": ":a :p <http://e.org/x#y> . # c"
+   },
+   "check": {
+    "status": "ok",
+    "key": "82d7497ff2bebfc0",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":a",
+       ":p",
+       "<http://e.org/x#y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": ":a :p \u201cx # y\u201d . # c"
+   },
+   "check": {
+    "status": "ok",
+    "key": "0b1c535b32140e88",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":a",
+       ":p",
+       "\"x # y\""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": ":a :p :x\\#y . # c"
+   },
+   "check": {
+    "status": "ok",
+    "key": "82d7497ff2bebfc0",
+    "detail": {
+     "kind": "graph",
+     "count": 1,
+     "rows": [
+      [
+       ":a",
+       ":p",
+       "<http://e.org/x#y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# c\n# d\n:a :p"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 3,
+      "column": 6,
+      "message": "Unexpected end"
+     }
+    },
+    "at": [
+     3,
+     6
+    ]
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# only\n# comments"
+   },
+   "unfit": "text"
+  }
+ ]
+}

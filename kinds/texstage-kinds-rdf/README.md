@@ -28,7 +28,10 @@ texstage kinds check triples sparql-query turtle-graph
 
 `texstage kinds check` runs the kit on the fixtures beside the module (`tests/*.json`): the golden
 fixtures of today's SPARQL and Turtle engines, made by `tests/fixtures/checks/to_kinds.py`, safety
-cases - `SERVICE` in every spelling, nesting beyond the parsers' cap - and the cases of `triples`.
+cases - `SERVICE` in every spelling, nesting beyond the parsers' cap -, texts with comments and the
+cases of `triples`. `sparql-query` and `turtle-graph` take a text's comments out before it is
+checked, since a group of answers is shown by such a text; every line stays, so that an error's
+line is the student's own.
 
 The two checks are F1's `texstage.checks.sparql` and `texstage.checks.turtle` and move into this
 package once F1 is in `main`.

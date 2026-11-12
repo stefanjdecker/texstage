@@ -393,6 +393,7 @@
    "entry": {
     "text": "-- a comment\nSELECT name FROM professor"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "3f86ef05624e2222",
@@ -421,6 +422,7 @@
    "entry": {
     "text": "/* a comment */ SELECT name FROM professor"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "3f86ef05624e2222",
@@ -690,6 +692,7 @@
    "entry": {
     "text": "SELECT 1; -- after"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -712,6 +715,7 @@
    "entry": {
     "text": "SELECT 1 /* c */ ;"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -792,6 +796,7 @@
    "entry": {
     "text": "-- only a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -806,6 +811,7 @@
    "entry": {
     "text": "-- only a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -1378,6 +1384,7 @@
    "entry": {
     "text": "SELECT 1; /* x"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -1400,6 +1407,7 @@
    "entry": {
     "text": "SELECT 1 /* a */ */"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -1416,6 +1424,7 @@
    "entry": {
     "text": "SELECT 1 /* a */ */"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -1431,6 +1440,7 @@
    "entry": {
     "text": "/* a */ SELECT 1 /* b */"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -1803,6 +1813,7 @@
    "entry": {
     "text": "-- c\n;\nSELECT 1"
    },
+   "direct": true,
    "check": {
     "status": "refused",
     "message": {
@@ -1817,6 +1828,7 @@
    "entry": {
     "text": "-- c\n;\nSELECT 1"
    },
+   "direct": true,
    "check": {
     "status": "refused",
     "message": {
@@ -2078,6 +2090,7 @@
    "entry": {
     "text": "/* c */PRAGMA query_only = OFF"
    },
+   "direct": true,
    "check": {
     "status": "refused",
     "message": {
@@ -2092,6 +2105,7 @@
    "entry": {
     "text": "/* c */PRAGMA query_only = OFF"
    },
+   "direct": true,
    "check": {
     "status": "refused",
     "message": {
@@ -2256,6 +2270,7 @@
    "entry": {
     "text": "SELECT 1 -- PRAGMA"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -2278,6 +2293,7 @@
    "entry": {
     "text": "SELECT 1 /* PRAGMA */"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "4cc4a1f7e7c25d11",
@@ -2725,6 +2741,7 @@
    "entry": {
     "text": "SELECT item FROM packing WHERE quantity = 6 -- me"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "780fc0e9c37cde2a",

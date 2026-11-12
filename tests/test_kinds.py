@@ -5,7 +5,8 @@ docs/architecture/activity-framework-plan-f2.md, packages 1 and 2): what they gi
 what F1 gives - F1's golden fixtures through their checks, byte for byte; their build what the
 build's activity module makes of the same record; a tuple's key and literals the activity type's; a
 check's outcome, and the first worker's preparing, a worker's of F1's pool. What the cleaning itself
-does is tests/test_cleaning.py's: here the kinds and the activity type are only shown to clean alike.
+does is tests/test_cleaning.py's: here the kinds and the activity type are only shown to clean alike -
+and what the kinds do beyond it: a text's comments out, checked as the text with them.
 The contract's own rules - what a check must keep, the options' types, the registry, the kit - are
 tests/test_contract.py's and tests/test_kit.py's. Where the kinds' packages are not installed, this test
 puts their sources on the path."""
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import re
 import sqlite3
 import sys
 import time
@@ -249,6 +251,9 @@ class Engine:
     def load(self, seed, **options):
         self.loads.append((seed, options))
         return {"seed": seed}
+
+    def comments(self, text):
+        return []
 
     def evaluate(self, state, text, language=None, budget_s=None):
         self.budgets.append(budget_s)
@@ -505,10 +510,11 @@ def test_each_package_carries_its_licence():
 
 
 # ------------------------------------------------------------------ normalize: the activity type's cleaning
-@pytest.mark.parametrize("text", ["SELECT 1", "  SELECT 1  \r\n\r\n", "\n\nSELECT\t1 \n FROM t \n\n", "a\x00b\x07c",
+@pytest.mark.parametrize("text", ["SELECT 1", "  SELECT 1  \r\n\r\n", "SELECT\t1 \n FROM t \n\n", "a\x00b\x07c",
                                   "e\u0301", "", "   \n ", "x" * 2001, None, 7])
 def test_a_text_is_cleaned_as_the_activity_type_cleans_it(text):
-    """The kinds and the type clean alike - with one function; what it does: tests/test_cleaning.py."""
+    """The kinds and the type clean alike - with one function; what it does: tests/test_cleaning.py. A
+    text without comments, and none of blank lines in front: there the kinds do more (below)."""
     for engine, kind in CODE.items():
         try:
             want = today.clean_code(text, ENGINES[engine]["text"])
@@ -518,6 +524,183 @@ def test_a_text_is_cleaned_as_the_activity_type_cleans_it(text):
             assert (str(mine.value), mine.value.code) == (str(e), e.code)
         else:
             assert kind.normalize(Step({}), Entry(text=text)) == Entry(text=want)
+
+
+# ------------------------------------------------------------------ normalize: comments out
+B = chr(92)                                            # a backslash
+RDF = "@prefix ex: <http://x/> .\nex:a ex:p ex:o ; ex:n 1 , 2 ; ex:l 'a' , \"b#c\" .\nex:b ex:p ex:a ; <http://x/p#q> 3 .\n"
+SEEDS = {"sql": "CREATE TABLE t(a, n);\nINSERT INTO t VALUES (1, 'one'), (2, 'two'), (3, 'it''s');\n", "sparql": RDF,
+         "turtle": RDF}
+
+
+def normal(engine: str, text):
+    return CODE[engine].normalize(Step({}), Entry(text=text)).text
+
+
+@pytest.mark.parametrize("engine, sent, normalized", [
+    ("sql", "-- by Max\nSELECT a FROM t", "SELECT a FROM t"),                    # a line of comments goes
+    ("sql", "SELECT a -- the key\n  FROM t  /* all of it */", "SELECT a\n  FROM t"),
+    ("sql", "SELECT/**/a/* b */FROM t", "SELECT a FROM t"),                      # a space where one parted two words
+    ("sql", "SELECT 1 /* a\nb */ + 2", "SELECT 1 + 2"),
+    ("sql", "SELECT '-- no', n FROM t -- yes", "SELECT '-- no', n FROM t"),      # a string is none
+    ("sql", "SELECT a FROM t /* open", "SELECT a FROM t"),
+    ("sql", "\n\nSELECT 1", "SELECT 1"),                                         # no error of SQLite's names a line
+    ("sparql", "# by Max\nASK { ?s ?p ?o }", "\nASK { ?s ?p ?o }"),              # the line stays: ASK is in line 2
+    ("sparql", "ASK { ?s <http://x/p#q> ?o # c\n}  # d", "ASK { ?s <http://x/p#q> ?o\n}"),
+    ("sparql", "ASK { FILTER(1<2#c>\n) }", "ASK { FILTER(1<2#c>\n) }"),          # a comment for Oxigraph - but not surely
+    ("sparql", "\n\nASK {}", "\n\nASK {}"),                                      # the blank lines in front stay too
+    ("turtle", "# by Max\nex:a ex:p 1 ; # one\n  ex:q \u201cx # y\u201d . # two", "\nex:a ex:p 1 ;\n  ex:q \u201cx # y\u201d ."),
+    ("turtle", "ex:a ex:p <http://x/p#q> .\n# the end\n", "ex:a ex:p <http://x/p#q> ."),
+])
+def test_a_text_is_normalized_without_its_comments(engine, sent, normalized):
+    """What a group is shown by, and a vote puts on every phone (the design's 5.1): no name in a comment."""
+    needs(engine)
+    assert normal(engine, sent) == normalized
+    assert normal(engine, normalized) == normalized                              # a normal form is its own
+
+
+@pytest.mark.parametrize("engine, text", [("sql", "-- only a comment"), ("sql", "/* a */ -- b\n /* c"),
+                                          ("sparql", "# only\n  # comments"), ("turtle", "#")])
+def test_a_text_of_nothing_but_comments_is_refused(engine, text):
+    needs(engine)
+    with pytest.raises(Unfit, match="is more than its comments") as e:
+        normal(engine, text)
+    assert e.value.code == "text" and str(e.value).startswith(CODE[engine].TEXT)
+
+
+def test_only_a_kind_whose_errors_name_a_line_keeps_every_line():
+    assert {engine: "at" in kind.MESSAGES for engine, kind in CODE.items()} == {"sql": False, "sparql": True, "turtle": True}
+
+
+@pytest.mark.parametrize("engine, text, line", [
+    ("sparql", "# by Max\n\n# and Moritz\nSELECT ?s # them\nWHERE { ?s ?p }", 5),
+    ("turtle", "# by Max\n\nex:a ex:p ex:o . # fine\n# now\nex:a ex:p .", 5),
+])
+def test_an_error_is_where_it_is_in_the_text_with_its_comments(engine, text, line):
+    """The check is the text's without its comments, and every line is where it was: the place an error
+    names is a place of the student's text. In these two it is the place Oxigraph names for the text
+    with its comments too - which holds for Turtle, and for most of SPARQL: its parser names how far it
+    read, and in a broken query that may be a line further down once a comment is out of its way."""
+    needs(engine)
+    kind = CODE[engine]
+    mine = kind.prepare({"seed": "s"}, {}, {"s": SEEDS[engine].encode()})
+    with_them = kind.check(mine, Step({}), Entry(text=text))                     # as a reference is checked
+    without = kind.check(mine, Step({}), kind.normalize(Step({}), Entry(text=text)))
+    assert without.status == "invalid" and without.at == with_them.at and without.at[0] == line
+    assert without.at[1] in (len(text.split("\n")[line - 1]), len(text.split("\n")[line - 1]) + 1)   # at its end
+
+
+WORDS = {
+    "sql": (["SELECT a FROM t", "SELECT a , n FROM t WHERE a > 1 ORDER BY a", "SELECT count ( * ) FROM t",
+             "SELECT 1 - - 1", "SELECT 6 / 2 * 3", "SELECT 'a--b' , n FROM t", "VALUES ( 1 ) , ( 2 )",
+             "WITH q AS ( SELECT a FROM t ) SELECT * FROM q", "SELECT n || '/*' FROM t", "SELECT [a] , `n` FROM t ;",
+             "SELECT a FROM t WHERE n = 'it''s'", "SELECT a FROM t ; SELECT 2", "INSERT INTO t VALUES ( 9 , 9 )"],
+            ["-- c\n", "/* c */", "/**/", "/* a\nb */", " -- c\n", "/* ' */", "-- \"\n", "/* -- */", "--\n", " /* c */ ",
+             "/* c */ /* d */", "\n-- only\n", "/* ; */", "-- ;\n", "/* PRAGMA */", "-- select\n"],
+            ["SELECT", "1", "'a'", "'it''s -- no'", '"x"', "[a b]", "`n`", "--", "-- c", "/*", "*/", "/* c */", "/**/",
+             "-", "/", "*", "+", ",", ";", "\n", " ", "FROM t", "a", "x'ab'", "$p(--x)", ":p", "#", "'", '"', "(", ")",
+             "||", "->", "'/*'", "'--'", "PRAGMA", "VALUES(1)", "SELECT a FROM t", "-- '", "/* ' */", "--\n", "/*/",
+             "[", "`", "/* -- */", "-- /*", "'--\n'"]),
+    "sparql": (["SELECT * WHERE { ?s ?p ?o }", "ASK { ex:a ex:p ?o }", "SELECT ?s WHERE { ?s <http://x/p#q> ?o }",
+                "SELECT ?o WHERE { ex:a ex:n ?o FILTER ( ?o < 2 ) }", "SELECT ?o WHERE { ex:a ex:n ?o FILTER(?o<2||?o>1) }",
+                "SELECT ?s WHERE { ?s ex:l \"b#c\" }", "SELECT ?s WHERE { ?s ex:l '''b#c''' }",
+                "PREFIX q: <http://x/p#> SELECT ?s WHERE { ?s q:q ?o }", "CONSTRUCT { ?s ex:p ?o } WHERE { ?s ex:p ?o }",
+                "SELECT ?s ?o WHERE { ?s ex:n ?o FILTER ( ?o<?s || 1<2 ) }", "ASK { FILTER(1<2 && 3>2) }",
+                "SELECT ( 'a#b' AS ?x ) WHERE { }", "SELECT ?s WHERE { ?s ex:p [ ] }", "SELECT ?s WHERE { ?s ex:p ( ) }",
+                "SELECT ?s WHERE { [ ex:p ?s ] ex:n ( 1 2 ) }", "SELECT ( ( RAND ( ) < 2 ) AS ?x ) WHERE { }",
+                "SELECT * WHERE { ?s ?p ?o SERVICE <urn:x> { ?s ?p ?o } }"],
+               ["# c\n", " # c\n", "#\n", "# ' \n", "# \" \n", "# <x>\n", "#c>\n", "\n# only\n", "# '''\n", "# } {\n"],
+               ["SELECT", "*", "ASK", "{", "}", "?s", "?p", "?o", "ex:a", "ex:p", "<http://x/p#q>", "#", "# c", "#c>", "\n",
+                " ", "'a'", '"b#c"', "'''l\n#x'''", "'", '"', "<", ">", "<=", "FILTER(", ")", "1", "&&", ".", B + "#",
+                "ex:a" + B + "#b", "WHERE", "<<(", ")>>", '"x"@en', B + "u0023", B + "'", "?o<?s", "?s>?o", "# '", '# "',
+                "# <", "'''", '"""', "<it's>", "<a#b>", "SELECT * WHERE { ?s ?p ?o }", "FILTER(?o<?s&&?s>?o)",
+                "<http://x/p" + B + "u0023q>", "[", "]", "(", "SERVICE", "SERVICE <urn:x> {"]),
+    "turtle": (["ex:a ex:p ex:o .", "ex:a ex:p ex:o ; ex:n 1 , 2 .", "ex:a ex:l 'x#y' , \"b # c\" .",
+                "ex:a <http://x/p#q> ex:o .", "@prefix f: <http://f/#> . f:a f:p f:o .", "ex:a ex:l '''l\n# x''' .",
+                "ex:a ex:p [ ex:n 1 ] .", "ex:a ex:p ( 1 2 ) .", "ex:a ex:l \u201ca # b\u201d .", "_:b ex:p ex:a" + B + "#b .",
+                "ex:a ex:p ex:a" + B + "#b.", "ex:a ex:p ex:b" + B + "..", "ex:a ex:p [ ] , ( ) ."],
+               ["# c\n", " # c\n", "#\n", "# ' \n", "# \" \n", "# <x>\n", "#c>\n", "\n# only\n", "# '''\n", "# } {\n"],
+               ["ex:a", "ex:p", "ex:o", ".", ";", ",", "<http://x/p#q>", "'a'", '"b # c"', "'''l\n# x'''", "#", "# c", "\n",
+                " ", "1", "[", "]", "(", ")", "@prefix f: <http://f/#> .", "\u201c", "\u201d", "\u2018", "\u2019", B + "#",
+                "<", ">", "<<", ">>", '"x"@en', "^^", "a", "_:b", "ex:a ex:p ex:o .", "# '", '# "', "'", '"', "'''", '"""',
+                "ex:a" + B + "#b", "<http://x/p" + B + "u0023q>", "<a#b>", "\u201ea # b\u201c", "<a b>"]),
+}
+
+
+def some_text(rng, engine: str) -> str:
+    """A text that checks with comments between its words - or words, quotes and comments thrown together."""
+    good, notes, words_ = WORDS[engine]
+    if rng.random() < 0.5:
+        return "".join(rng.choice(words_) + rng.choice(["", " ", " ", "\n"]) for _ in range(rng.randint(1, 14)))
+    out = [rng.choice(notes)] if rng.random() < 0.3 else []
+    for word in rng.choice(good).split(" "):
+        r = rng.random()
+        out += [word, rng.choice(notes) if r < 0.3 else " " if r < 0.9 else "\n" if r < 0.95 else ""]
+    return "".join(out + ([rng.choice(notes)] if rng.random() < 0.3 else []))
+
+
+@pytest.mark.parametrize("engine", list(CODE))
+def test_a_text_without_its_comments_is_checked_as_the_text_with_them(engine):
+    """3,000 texts, each checked as it is cleaned and as normalize leaves it: what gave a result gives the
+    same one, what gave none gives none - but for one thing that is the grammar's. And a normal form has
+    no comment, is its own, and - where an error names a line - has every line the text had, up to where
+    its comment was.
+
+    SPARQL takes no comment in brackets that are empty: `[ # any\\n ]` is a syntax error, `[\\n ]` a
+    node (the review of 2026-11-12). Until that day there was a second thing: Oxigraph reads a Turtle
+    text's last name and its dot other at the text's end than in front of a comment - `ex:b\\#c.`,
+    `ex:b\\..` -, which the check makes up for now (checks/turtle.py: _parsed); such texts are among
+    these, and counted."""
+    import random
+    needs(engine)
+    kind, module, rng = CODE[engine], CODE[engine].engine, random.Random(20261112)
+    lines = "at" in kind.MESSAGES
+    state = module.load(SEEDS[engine])
+    seen = {"texts": 0, "with comments": 0, "results": 0, "refused": 0, "brackets": 0, "at its end": 0}
+    for _ in range(3000):
+        raw = some_text(rng, engine)
+        try:
+            old = checks.cleaning.clean_code(raw, kind.TEXT, top=lines)
+        except Unfit:
+            continue
+        seen["texts"] += 1
+        before = module.evaluate(state, common.well_formed(old), "en")
+        try:
+            new = normal(engine, raw)
+        except Unfit as e:
+            assert "comments" in str(e) and before["status"] != "ok", (raw, before)
+            seen["refused"] += 1
+            continue
+        seen["with comments"] += new != old
+        assert module.comments(new) == [] and normal(engine, new) == new, (raw, new)
+        if lines:
+            assert len(new.split("\n")) <= len(old.split("\n")), (raw, new)
+            assert all(was.startswith(now) for was, now in zip(old.split("\n"), new.split("\n"))), (raw, new)
+        after = module.evaluate(state, common.well_formed(new), "en")
+        seen["results"] += before["status"] == "ok"
+        seen["at its end"] += new != old and new.endswith(".") and B in new.split()[-1] and before["status"] == "ok"
+        same = (before["status"] == "ok") == (after["status"] == "ok") and before.get("canonical") == after.get("canonical")
+        if same:
+            continue
+        assert engine == "sparql" and before["status"] != "ok" and after["status"] == "ok", (raw, new, before, after)
+        assert re.search(r"[\[(]\s*#", old), (raw, new)          # a comment in brackets that are empty without it
+        seen["brackets"] += 1
+    assert seen["with comments"] > 1500 and seen["results"] > 800 and seen["refused"] > 10, seen
+    assert (seen["brackets"] > 0) == (engine == "sparql") and (seen["at its end"] > 20) == (engine == "turtle"), seen
+
+
+def test_a_groups_text_is_one_without_comments():
+    """Two students, one result, one of them with a name in a comment: one form, one check - and what the
+    class is shown has no comment."""
+    kind = SqlQuery()
+    mine = kind.prepare({"seed": "s"}, {}, {"s": SEEDS["sql"].encode()})
+    forms = {normal("sql", t) for t in ("SELECT a FROM t", "SELECT a FROM t -- Max was here", "/* hi, Moritz */\nSELECT a FROM t")}
+    assert forms == {"SELECT a FROM t"}
+    text = "SELECT a + /* Max */ 1 FROM t"
+    with_it = kind.check(mine, Step({}), Entry(text=text))                       # (SQLite names a column by its text)
+    without = kind.check(mine, Step({}), kind.normalize(Step({}), Entry(text=text)))
+    assert with_it.key == without.key
+    assert (with_it.detail["columns"], without.detail["columns"]) == (["a + /* Max */ 1"], ["a + 1"])
 
 
 def test_the_bounds_of_an_entry():

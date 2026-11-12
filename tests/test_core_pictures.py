@@ -1042,12 +1042,13 @@ def test_nothing_of_the_reference_reaches_the_projector_before_the_reveal_with_a
 
 
 def test_a_group_shows_what_its_kinds_normalize_made_of_the_text():
-    # today's kinds take off the spaces at the lines' ends and no more, as F1 did: a comment stays. What the
-    # design wants - comments and spacing gone (5.1) - is the kinds' to do, before a vote shows such a text.
+    # the kinds take a text's comments out, and the spaces at its lines' ends (the design's 5.1): no name in
+    # a comment is shown to the class. What is left is as it was typed - its case, its spacing within a line.
     g = sql_game()
-    g.send("p1", "SELECT x FROM t   -- a comment   \n\n")
-    g.send("p2", "select x from t")
-    assert g.groups() == [("SELECT x FROM t   -- a comment", 2)]
+    g.send("p1", "SELECT x FROM t   -- Max was here   \n\n")
+    g.send("p2", "select x  from t /* and Moritz */")
+    assert g.groups() == [("SELECT x FROM t", 2)]
+    assert "Max" not in str(g.picture()) + str(g.picture("stage")) and "Moritz" not in str(g.picture("stage"))
 
 
 def test_where_the_latest_counts_a_student_never_has_two_entries_in():

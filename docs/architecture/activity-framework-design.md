@@ -163,8 +163,9 @@ model has to carry:
   so that the options never give the answer away; the lecturer can pick them instead. They are
   made once step 1's last checks are in - its last seconds bring the most entries -, at most 3 s
   after it closes, while the phones say "counting". A choice shows its group's most frequent text
-  in the kind's normalized form - comments and spacing gone -, never a text as one student typed
-  it: no name or joke in a comment reaches 1,000 phones.
+  in the kind's normalized form - its comments gone, and the spaces at its lines' ends -, never a
+  text as one student typed it: no name or joke in a comment reaches 1,000 phones (but one in
+  what only may be a comment - the plan of F2, 4.7).
 - **write, see, fix** - after step 1 closes, the projector shows its groups; step 2 asks again,
   and the points go to whoever is right at the end: a student's entry of step 1 stands in step 2
   until they send another.
@@ -343,9 +344,10 @@ loaded from a copy. An entry that is not of the kind's input is the core's fault
 student's: `check` raises, and the core makes the check `internal` - as it does with a check that
 breaks a rule of the contract (`validated`: a status there is none of, an `ok` without a key, a
 message the kind does not list), which the kit finds first. What a kind
-promises the core: `normalize` gives a form people can read - comments and spacing gone, the
-student's names kept -, since a vote shows it (5.1); and its parsers refuse what they choke on
-before they parse it (section 11).
+promises the core: `normalize` gives a form people can read - its comments gone, the student's
+names kept, and its lines where the kind's errors name one, so that the line is the student's own
+-, since a vote shows it (5.1); and its parsers refuse what they choke on before they parse it
+(section 11).
 
 ### 7.2 Packages
 

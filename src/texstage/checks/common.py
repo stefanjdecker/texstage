@@ -54,8 +54,74 @@ def nesting(text: str) -> int:
     return deepest
 
 
+# ------------------------------------------------------------------ comments
 # An IRI as SPARQL and Turtle write one: no space, none of <>"{}|^`\ - but \u and \U escapes.
 IRI = re.compile(r"""<(?:[^\x00-\x20<>"{}|^`\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*>""")
+MARKS = re.compile(r"""[#\\'"<\n\r]""")
+
+
+def hash_comments(text: str, less_than: bool = False) -> list[tuple[int, int]]:
+    """Where a SPARQL or Turtle text's comments are - each from its # to its line's end, as (start, end) -,
+    for a kind's normalize, which takes them out. A # is none in a string, in an IRI - <http://x#y> -
+    and behind a backslash (ex:a\\#b).
+
+    Only what is a comment however the text is read counts, so that a text without them is checked as
+    the text with them. less_than (SPARQL): a < may be the comparison and not an IRI's start, which only
+    the parser knows - Oxigraph reads FILTER(?a<?b#c> as a comparison and a comment -, so the text is
+    read both ways at once, and a # is a comment where every reading says so: in `?s <http://x#y> ?o # c`
+    the last one. A reading ends where no text can go on - a line's end in a short string -; where none
+    is left, the rest is left as it is."""
+    if "#" not in text:
+        return []
+    states = {("code", 0)}                  # the readings: (code, # - a comment -, a string's quotes; read from)
+    sure, start = [], None
+    for mark in MARKS.finditer(text):       # between these characters no reading changes
+        i, c = mark.start(), mark.group()
+        after, comment = set(), True
+        for mode, since in states:
+            if i < since:                                   # inside what this reading took whole
+                after.add((mode, since))
+                comment = False
+            elif mode == "#":
+                if c in "\n\r":
+                    after.add(("code", 0))
+                    comment = False
+                else:
+                    after.add(("#", 0))
+            elif mode == "code":
+                if c == "#":
+                    after.add(("#", 0))
+                    continue
+                comment = False
+                if c == "\\":
+                    after.add(("code", i + 2))
+                elif c in "'\"":
+                    after.add((c * 3, i + 3) if text.startswith(c * 3, i) else (c, 0))
+                elif c == "<" and (m := IRI.match(text, i)):
+                    after.add(("code", m.end()))
+                    if less_than:
+                        after.add(("code", 0))
+                else:
+                    after.add(("code", 0))
+            else:                                           # a string, short or long
+                comment = False
+                if c == "\\":
+                    after.add((mode, i + 2))
+                elif text.startswith(mode, i):
+                    after.add(("code", i + len(mode)))
+                elif c not in "\n\r" or len(mode) == 3:
+                    after.add((mode, 0))
+        if comment and start is None:
+            start = i
+        elif not comment and start is not None:
+            sure.append((start, i))
+            start = None
+        if not after:
+            return sure
+        states = {(mode, since if since > i + 1 else 0) for mode, since in after}
+    if start is not None:
+        sure.append((start, len(text)))
+    return sure
 
 
 def deadline(budget_s: float | None) -> float | None:

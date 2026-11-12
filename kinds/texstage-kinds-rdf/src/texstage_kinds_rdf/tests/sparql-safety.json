@@ -68,6 +68,7 @@
    "entry": {
     "text": "SELECT * WHERE { # a comment\nSERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } }"
    },
+   "direct": true,
    "check": {
     "status": "refused",
     "message": {
@@ -381,6 +382,7 @@
    "entry": {
     "text": "SELECT * WHERE { ?s ?p ?o } # SERVICE <http://127.0.0.1:9/sparql>"
    },
+   "direct": true,
    "check": {
     "status": "ok",
     "key": "2a80e72cc69ea01f",

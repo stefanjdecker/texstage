@@ -954,6 +954,7 @@
    "entry": {
     "text": "# only a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -968,6 +969,7 @@
    "entry": {
     "text": "# only a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {

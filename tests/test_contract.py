@@ -443,6 +443,30 @@ def test_a_kind_of_an_engine_that_is_not_installed_cannot_be_made(monkeypatch):
     assert isinstance(CodeKind(), CodeKind)                                   # (a base without an engine is made)
 
 
+def test_a_kind_of_an_engine_that_does_not_say_where_comments_are_cannot_be_made(monkeypatch):
+    """A kind of this shape takes a text's comments out: without the engine's word normalize would fail on
+    every entry - said when the kind is made, not in a lecture."""
+    import sys
+    import types
+
+    from texstage.activities.code import CodeKind
+    from texstage.activities.kind import Entry, Step
+
+    engine = types.SimpleNamespace(load=lambda seed, **options: {}, evaluate=lambda *a, **k: {"status": "error"})
+    monkeypatch.setitem(sys.modules, "an_engine_without_comments", engine)
+
+    class Mute(CodeKind):
+        NAME = "mute"
+        MODULE = "an_engine_without_comments"
+
+    found = registry.read([Point("mute", Mute)])[0]
+    assert found.kind is None and found.fault.startswith(
+        "it cannot be made - TypeError: an_engine_without_comments has no comments(text)")
+    engine.comments = lambda text: [(2, len(text))] if "%" in text[2:] else []       # a language whose comments start with %
+    kind = registry.read([Point("mute", Mute)])[0].kind
+    assert kind.normalize(Step({}), Entry(text="x % y")) == Entry(text="x")
+
+
 def test_a_text_that_carries_its_code_travels_whole_and_only_while_a_kind_asks():
     import copy
     import pickle
@@ -475,6 +499,9 @@ def test_a_catalogs_text_is_cut_as_an_engines_words_are_and_a_code_a_kind_does_n
     class Engine:
         def load(self, seed, **options):
             return {}
+
+        def comments(self, text):
+            return []
 
         def evaluate(self, state, text, language=None, budget_s=None):
             W = texts.Words(language)

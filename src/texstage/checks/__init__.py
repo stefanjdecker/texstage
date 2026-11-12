@@ -7,6 +7,7 @@ form, key, rows and summary (tests/test_checks.py against tests/fixtures/checks/
 
     state = load(engine, seed)                      # once per worker and activity
     result = evaluate(engine, state, text, language)  # {status, error?, canonical?, key?, rows?, summary?}
+    comments(engine, text)                          # where its comments are: [(start, end), ...]
 """
 from __future__ import annotations
 
@@ -30,6 +31,12 @@ def _module(engine: str):
 def load(engine: str, seed: str, **options) -> dict:
     """The seed read once: the state the engine's texts are checked against."""
     return _module(engine).load(seed, **options)
+
+
+def comments(engine: str, text: str) -> list[tuple[int, int]]:
+    """Where a text's comments are, (start, end) in their order, as the engine reads it - what a kind's
+    normalize takes out (cleaning.uncommented)."""
+    return _module(engine).comments(text)
 
 
 def evaluate(engine: str, state: dict, text: str, language: str | None = None, **options) -> dict:

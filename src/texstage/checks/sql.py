@@ -197,9 +197,11 @@ def _idchar(c: str) -> bool:
 
 def _lex(text: str):
     """SQLite's tokens as far as the check needs them (tokenize.c): each word - a name, a keyword, a
-    number - and each semicolon, as (kind, start, end). Strings, quoted names, comments and parameters
-    are skipped whole - $a(x;y) is one parameter -, and a byte order mark where a token starts is a space.
-    web/engines/sql.js reads a text alike (namesPragma)."""
+    number -, each semicolon and each comment, as (kind, start, end). Strings, quoted names and
+    parameters are skipped whole - $a(x;y) is one parameter -, and a byte order mark where a token starts
+    is a space. A comment is -- to its line's end, or /* to the first */ or the text's end - but "/*" as
+    the text's last two characters is a slash and a star. web/engines/sql.js reads a text alike
+    (namesPragma)."""
     i, n = 0, len(text)
     while i < n:
         c = text[i]
@@ -240,10 +242,14 @@ def _lex(text: str):
             i = n if j == -1 else j + 1
         elif text.startswith("--", i):
             j = text.find("\n", i)
-            i = n if j == -1 else j + 1
-        elif text.startswith("/*", i):
+            j = n if j == -1 else j
+            yield "comment", i, j
+            i = j
+        elif text.startswith("/*", i) and i + 2 < n:
             j = text.find("*/", i + 2)
-            i = n if j == -1 else j + 2
+            j = n if j == -1 else j + 2
+            yield "comment", i, j
+            i = j
         elif c == ";":
             yield ";", i, i + 1
             i += 1
@@ -273,10 +279,17 @@ def names_pragma(text: str) -> bool:
                for kind, i, j in _lex(text))
 
 
+def comments(text: str) -> list[tuple[int, int]]:
+    """Where the text's comments are, as SQLite reads it (_lex) - for the kind's normalize, which takes
+    them out."""
+    return [(i, j) for kind, i, j in _lex(text) if kind == "comment"]
+
+
 def _first_word(statement: str) -> str:
     """A statement's first word (_lex), in lower case - "" for none."""
     for kind, i, j in _lex(statement):
-        return statement[i:j].lower() if kind == "word" and statement[i:j].isascii() else ""
+        if kind != "comment":
+            return statement[i:j].lower() if kind == "word" and statement[i:j].isascii() else ""
     return ""
 
 

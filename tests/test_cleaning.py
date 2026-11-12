@@ -3,7 +3,9 @@
 """What a phone sent, made fit to check (texstage/checks/cleaning.py) - each case with the result written
 out, not held against another caller of the same function: the activity type and the kinds both clean
 with it, so a test that compares the two sees no fault in it (the review of F2's package 1: seventeen
-faults put into the cleaning passed such tests, twelve the whole suite)."""
+faults put into the cleaning passed such tests, twelve the whole suite). And a text without its comments,
+where they are being given: where an engine finds them is tests/test_checks.py's, what the kinds make of
+both tests/test_kinds.py's."""
 from __future__ import annotations
 
 import random
@@ -11,7 +13,7 @@ import random
 import pytest
 
 from texstage.checks import cleaning
-from texstage.checks.cleaning import Unfit, clean_code, clean_term, is_literal, norm_term, term_key
+from texstage.checks.cleaning import Unfit, clean_code, clean_term, is_literal, norm_term, term_key, uncommented
 
 TOO_LONG = ("a query has 1 to 2000 characters", "text")
 NO_TEXT = ("a query is text", "invalid")
@@ -60,6 +62,75 @@ def test_a_text_that_is_refused(sent, why):
 def test_a_refusal_calls_the_text_what_its_engine_calls_it():
     assert refusal(clean_code, "", "a Turtle text") == ("a Turtle text has 1 to 2000 characters", "text")
     assert refusal(clean_code, None, "a Turtle text") == ("a Turtle text is text", "invalid")
+
+
+def test_the_blank_lines_in_front_stay_where_an_error_names_a_line():
+    """top: a text's lines keep their numbers - only what is behind the last one goes."""
+    assert clean_code("\n\n SELECT 1 \n\n", top=True) == "\n\n SELECT 1"
+    assert clean_code("  \n\t\nx", top=True) == "\n\nx"
+    assert clean_code("\n\nx", top=True) == clean_code(clean_code("\n\nx", top=True), top=True)
+    assert clean_code("x \n", top=True) == clean_code("x \n") == "x"
+    assert refusal(clean_code, "\n \n", "a query", True) == TOO_LONG
+
+
+# ------------------------------------------------------------------ a text without its comments
+def cut(text: str, *comments: str, lines: bool = False) -> str:
+    """The text without these comments, each where it is first found behind the one before."""
+    spans, at = [], 0
+    for c in comments:
+        start = text.index(c, at)
+        spans.append((start, at := start + len(c)))
+    return uncommented(text, spans, lines=lines)
+
+
+@pytest.mark.parametrize("text, comments, left", [
+    ("SELECT 1", [], "SELECT 1"),
+    ("SELECT 1 -- one", ["-- one"], "SELECT 1"),                         # the spaces in front of it go with it
+    ("-- by Max\nSELECT 1", ["-- by Max"], "SELECT 1"),                  # a line of nothing but comments goes
+    ("SELECT a\n  -- b\nFROM t", ["-- b"], "SELECT a\nFROM t"),
+    ("SELECT a\n\n-- b\n\nFROM t", ["-- b"], "SELECT a\n\n\nFROM t"),    # ... a line that was blank stays
+    ("SELECT/**/1", ["/**/"], "SELECT 1"),                               # between two words: a space
+    ("SELECT /* c */ 1", ["/* c */"], "SELECT 1"),                       # ... one, not two
+    ("SELECT/* c */ 1", ["/* c */"], "SELECT 1"),
+    ("SELECT /* c */1", ["/* c */"], "SELECT 1"),
+    ("SELECT\t/* c */1", ["/* c */"], "SELECT\t1"),
+    ("1 -/* c */-1", ["/* c */"], "1 - -1"),                             # no comment comes of taking one out
+    ("a //* c */* b", ["/* c */"], "a / * b"),
+    ("a/* b *//* c */d", ["/* b */", "/* c */"], "a d"),                 # two of them: one space
+    ("a /* b */ /* c */ d", ["/* b */", "/* c */"], "a d"),
+    ("a /* b\nc */ d", ["/* b\nc */"], "a d"),                           # over two lines: they are one now
+    ("  /* c */ SELECT 1", ["/* c */"], "  SELECT 1"),                   # the indent stays
+    ("SELECT 1 /* c */\n/* d */\n  FROM t -- e\n-- f", ["/* c */", "/* d */", "-- e", "-- f"], "SELECT 1\n  FROM t"),
+    ("\u00a0/* c */x", ["/* c */"], "\u00a0 x"),                         # a space only where SQLite reads one
+    ("x \u00a0 -- c", ["-- c"], "x"),                                    # at a line's end every space goes, as ever
+])
+def test_a_text_without_its_comments(text, comments, left):
+    assert cut(text, *comments) == left
+    assert clean_code(left) == left
+
+
+@pytest.mark.parametrize("text, comments, left", [
+    ("ASK {} # c", ["# c"], "ASK {}"),
+    ("# by Max\nASK {}", ["# by Max"], "\nASK {}"),                      # the line stays, empty: ASK is in line 2
+    ("a # b\n  # c\n\nd # e\n# f\n", ["# b", "# c", "# e", "# f"], "a\n\n\nd"),
+    ("\n\na #b", ["#b"], "\n\na"),
+    ("a#b\nc", ["#b"], "a\nc"),
+    ("a (* b\nc\nd *)\ne", ["(* b\nc\nd *)"], "a\n\n\ne"),               # a comment over three lines: three lines
+])
+def test_a_text_without_its_comments_keeps_its_lines(text, comments, left):
+    assert cut(text, *comments, lines=True) == left
+    assert clean_code(left, top=True) == left
+    assert left.count("\n") <= text.count("\n")
+    for was, now in zip(text.split("\n"), left.split("\n")):
+        assert was.startswith(now) or "*)" in was                        # every column as it was
+
+
+def test_a_text_of_nothing_but_comments_is_refused():
+    for lines in (False, True):
+        with pytest.raises(Unfit, match="a Turtle text is more than its comments") as e:
+            uncommented("# a\n  # b", [(0, 3), (6, 9)], "a Turtle text", lines)
+        assert e.value.code == "text"
+    assert uncommented("x", [], lines=True) == "x"
 
 
 # ------------------------------------------------------------------ a term

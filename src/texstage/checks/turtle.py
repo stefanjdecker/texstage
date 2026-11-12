@@ -15,7 +15,7 @@ import re
 
 import pyoxigraph as ox
 
-from texstage.checks.common import (NESTING_MAX, ROWS, bounded, collected, cut, deadline, js_quote,
+from texstage.checks.common import (NESTING_MAX, ROWS, bounded, collected, cut, deadline, hash_comments, js_quote,
                                     js_sorted, mapped, message, nesting)
 from texstage.checks.sparql import namespaces, prologue, rdf_term, shorten
 from texstage.checks.texts import Words
@@ -40,6 +40,12 @@ def load(seed: str) -> dict:
     list(ox.parse(seed, format=ox.RdfFormat.TURTLE))      # a seed that does not parse says so now
     decls = prologue(seed)
     return {"decls": decls, "prefixes": namespaces(decls)}
+
+
+def comments(text: str) -> list[tuple[int, int]]:
+    """Where the text's comments are - for the kind's normalize, which takes them out. A phone's
+    typographic quotes are Turtle's here too (evaluate): what is in them is a string."""
+    return hash_comments(text.translate(QUOTES))
 
 
 def _completed(state: dict, text: str) -> tuple[str, int]:

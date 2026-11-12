@@ -23,7 +23,7 @@ from urllib.parse import urljoin
 
 import pyoxigraph as ox
 
-from texstage.checks.common import (IRI, NESTING_MAX, ROWS, bounded, collected, cut, deadline,
+from texstage.checks.common import (IRI, NESTING_MAX, ROWS, bounded, collected, cut, deadline, hash_comments,
                                     js_quote, js_sorted, mapped, message, nesting, utf16_len)
 from texstage.checks.texts import Words
 
@@ -120,14 +120,21 @@ STEPS = re.compile(r"""[?$][\w\u00b7\u0300-\u036f\u203f-\u2040]+"""
                    r"""|[^\W\d_]\w*|[#\\'"<\n\r]""")
 
 
+def comments(text: str) -> list[tuple[int, int]]:
+    """Where the query's comments are - for the kind's normalize, which takes them out: what is one
+    whether a < is an IRI's start or the comparison (common.hash_comments)."""
+    return hash_comments(text, less_than=True)
+
+
 def _decoded(text: str) -> str:
     return ESCAPE.sub(lambda m: chr(int(m.group(1) or m.group(2), 16)), text)
 
 
 def _service(text: str) -> bool:
     """Whether SERVICE is a word of the query however it is read: Oxigraph takes a < as an IRI's start or as
-    the comparison, as the grammar around it wants, so the text is read both ways at once - and the
-    cautious way round: a word counts if one reading has it. In `FILTER(?o<'>') SERVICE <e> { } FILTER(?o != 'c')` the first reading
+    the comparison, as the grammar around it wants, so the text is read both ways at once, as its comments
+    are (common.hash_comments) - and where a comment is found to be none, the cautious way round: a word
+    counts if one reading has it. In `FILTER(?o<'>') SERVICE <e> { } FILTER(?o != 'c')` the first reading
     finds an IRI, <'>, and a string behind it, ') SERVICE ... '; the second, Oxigraph's, a comparison with
     the string '>' - and the word.
 

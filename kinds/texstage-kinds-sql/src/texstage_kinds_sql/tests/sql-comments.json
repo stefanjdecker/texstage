@@ -1,0 +1,244 @@
+{
+ "kind": "sql-query",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.sql"
+   },
+   "files": {
+    "data/seed.sql": "CREATE TABLE t (x);\nINSERT INTO t VALUES (1), (2);\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x FROM t"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "-- by Max\nSELECT x FROM t"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x -- the column\nFROM t"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT/* c */x FROM t"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x /* a\nb */ FROM t /* open"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x FROM t; -- done"
+   },
+   "check": {
+    "status": "ok",
+    "key": "717e26f7c721fb15",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1"
+      ],
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x, '-- no', '/* no */' FROM t -- yes"
+   },
+   "check": {
+    "status": "ok",
+    "key": "cb37fec50d21ad47",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "x",
+      "'-- no'",
+      "'/* no */'"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "1",
+       "-- no",
+       "/* no */"
+      ],
+      [
+       "2",
+       "-- no",
+       "/* no */"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT 1 -/* not a comment's start */- 1"
+   },
+   "check": {
+    "status": "ok",
+    "key": "4cc49ef7e7c257f8",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "1 - - 1"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "2"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT x FROM t WHERE x > 1 /*"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "engine"
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "-- only a comment"
+   },
+   "unfit": "text"
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "/* a */ -- b\n/* c"
+   },
+   "unfit": "text"
+  }
+ ]
+}

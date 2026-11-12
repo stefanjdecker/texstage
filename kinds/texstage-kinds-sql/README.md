@@ -25,6 +25,8 @@ texstage kinds check sql-query
 ```
 
 `texstage kinds check` runs the kit on the fixtures beside the module (`tests/*.json`): the golden
-fixtures of today's SQL engine, made by `tests/fixtures/checks/to_kinds.py`, and safety cases.
+fixtures of today's SQL engine, made by `tests/fixtures/checks/to_kinds.py`, safety cases, and texts
+with comments: the kind takes a text's comments out before it is checked, since a group of answers
+is shown by such a text.
 
 The check itself is F1's `texstage.checks.sql` and moves into this package once F1 is in `main`.

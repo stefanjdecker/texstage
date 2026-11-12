@@ -1,0 +1,244 @@
+{
+ "kind": "sparql-query",
+ "settings": {
+  "seed": {
+   "item": {
+    "seed": "data/seed.ttl"
+   },
+   "files": {
+    "data/seed.ttl": "@prefix : <http://e.org/> .\n:a :p :b ; :q <http://e.org/x#y> .\n"
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa6cb2a4c97c2652",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# by Max\nSELECT ?o WHERE { :a :p ?o }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa6cb2a4c97c2652",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :p ?o } # the object"
+   },
+   "check": {
+    "status": "ok",
+    "key": "aa6cb2a4c97c2652",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ":b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :q ?o . # here\n FILTER(?o = <http://e.org/x#y>) } # and here"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d00c215958ba53b4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "<http://e.org/x#y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a ?p ?o FILTER(str(?o) = 'http://e.org/x#y') # c\n}"
+   },
+   "check": {
+    "status": "ok",
+    "key": "d00c215958ba53b4",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       "<http://e.org/x#y>"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a ?p ?o FILTER(1<2#c>\n) }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "33d2a3b401049dfa",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 2,
+     "rows": [
+      [
+       "<http://e.org/x#y>"
+      ],
+      [
+       ":b"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :x\\#y ?o # c\n}"
+   },
+   "check": {
+    "status": "ok",
+    "key": "2328eb1a0ddb0ac2",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 0,
+     "rows": []
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# c\n# d\nSELECT ?o WHERE { :a :p }"
+   },
+   "check": {
+    "status": "invalid",
+    "message": {
+     "code": "at",
+     "args": {
+      "line": 3,
+      "column": 26,
+      "message": "expected one of LATERAL, SERVICE, [_]"
+     }
+    },
+    "at": [
+     3,
+     26
+    ]
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { # all there is\n SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } # anywhere"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :x\\#y ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } # c"
+   },
+   "check": {
+    "status": "refused",
+    "message": {
+     "code": "service",
+     "args": {}
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "SELECT ?o WHERE { :a :p [ # any node\n ] }"
+   },
+   "check": {
+    "status": "ok",
+    "key": "99926c458b33941d",
+    "detail": {
+     "kind": "select",
+     "columns": [
+      "?o"
+     ],
+     "count": 1,
+     "rows": [
+      [
+       ""
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "setting": "seed",
+   "entry": {
+    "text": "# only a comment"
+   },
+   "unfit": "text"
+  }
+ ]
+}

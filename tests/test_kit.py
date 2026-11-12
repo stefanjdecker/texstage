@@ -38,7 +38,7 @@ def test_a_kind_of_today_passes_the_kit(name):
         pytest.importorskip("pyoxigraph")
     report = kit.check(installed()[name].kind, name, known=set(installed()))
     assert report.faults == [] and report.ok
-    assert report.fixtures == {"sql-query": 197, "sparql-query": 97, "turtle-graph": 65, "triples": 18}[name]
+    assert report.fixtures == {"sql-query": 208, "sparql-query": 109, "turtle-graph": 72, "triples": 18}[name]
     assert report.builds == (6 if name == "triples" else 7)
     assert report.budget_s == 1.0 and report.slowest_s < kit.BUDGET_S     # (how slow: the machine's)
     assert not [w for w in report.warnings if "is for a kind" in w]         # every file of its folder is some kind's
@@ -53,13 +53,13 @@ def test_the_kinds_fixtures_are_what_the_golden_fixtures_make():
     to_kinds = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(to_kinds)
     made = to_kinds.made()
-    assert len(made) == 10
+    assert len(made) == 13
     stale = [path.name for path, text in made.items() if not path.is_file() or path.read_text(encoding="utf-8") != text]
     assert stale == [], "python tests/fixtures/checks/to_kinds.py writes them anew"
     on_disk = {p for p in (ROOT / "kinds").glob("*/src/*/tests/*.json")}
     assert on_disk == set(made)                                    # and no file of another making
     cases = sum(len(json.loads(text)["cases"]) for text in made.values())
-    assert cases == 300 + 33 + 3 + 8 + 3 * 5 + 18                  # golden; safety; with references; triples
+    assert cases == 300 + 33 + 3 + 8 + 3 * 5 + 11 + 12 + 7 + 18    # golden; safety; with references; with comments; triples
     assert sum(len(json.loads(text).get("builds", [])) for text in made.values()) == 3 * 7 + 6
     people = json.loads(made[ROOT / "kinds/texstage-kinds-sql/src/texstage_kinds_sql/tests/sql-reference.json"])
     everyone = people["cases"][2]["check"]["detail"]                # rows that are not ASCII: six times as long, escaped

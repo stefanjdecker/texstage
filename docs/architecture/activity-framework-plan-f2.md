@@ -514,13 +514,12 @@ The third part, as built (package 5: `activities/reduce.py`, `views.py`, `modera
   normalize gave it; among as many, the one whose first entry came first. For that a check keeps its
   normalized input (`form`, a new column of `checks`; package 4 dropped it once the check was made).
   What normalize refused has none: such a group shows its status alone. A moved check has the text
-  as F1 cleaned it, which is what F1 showed. **It is not yet what AF 5.1 wants** - comments and
-  spacing gone, so that no name in a comment reaches the class: the four kinds' normalize takes off
-  the spaces at the ends of the lines and no more, as F1's cleaning did, and a group shows such a
-  text as it was typed (the review: this plan and the code's own words said otherwise, and the tests
-  showed it with a normalize of their own). That the kinds take comments out - without touching a
-  string that has `--` or `#` in it - is theirs to do before F3's vote shows a group's text on 1,000
-  phones; it changes which texts are checked as one, not their groups.
+  as F1 cleaned it, which is what F1 showed - its comments with it. As package 5 was built, the
+  kinds' normalize took off the spaces at the ends of the lines and no more, as F1's cleaning did,
+  and a group showed a text's comments (the review: this plan and the code's own words said
+  otherwise, and the tests showed it with a normalize of their own). **Since 2026-11-12 the three
+  kinds of a text take its comments out** (4.7), as AF 5.1 wants: no name in a comment reaches the
+  class. It changes which texts are checked as one, not their groups.
 - **Nothing of the reference before the reveal:** the projector's picture marks no group and has no
   verdict and no solution until then - and of a group's detail not what the kind says there of the
   reference, its comparison (`diff`: none missing, none more, marks the right group). The contract
@@ -616,7 +615,7 @@ Left for the packages that follow:
     higher one.
 - **Package 8:** the panel's 50 groups come with their details, up to 12 KiB each, as F1's - about
   0.6 MB when all are full.
-- **The kinds, before F3's vote:** normalize takes comments out (above).
+- **The kinds' normalize takes comments out** - done on 2026-11-12, before package 6 (4.7).
 
 ### 4.4 The build and LaTeX
 
@@ -736,6 +735,112 @@ run away - the runs now say them apart -, 95 % and the slowest, in ms:
   guide (`docs/installation.md`), and lecture-tools (2.3).
 - The server refuses a bundle whose kinds are missing (AF 7.2).
 
+**A text without its comments (2026-11-12, after package 5's review; AF 5.1).** `sql-query`,
+`sparql-query` and `turtle-graph` normalize a text to what it is without its comments
+(`activities/code.py`: `CodeKind.normalize`; `checks/cleaning.py`: `uncommented`), since a group is
+shown by that text and F3's vote puts it on every phone. F1's type is as it was: it shows a text
+with its comments until the core replaces it.
+
+- **Where the comments are, the engine says** (`comments(text)` in `checks/sql.py`, `sparql.py`,
+  `turtle.py`), each as its parser reads the text: SQLite's `--` to the line's end and `/* */` to
+  the first `*/` or the text's end - none in a string, a quoted name or a parameter, and `/*` as
+  the text's last two characters is a slash and a star -; SPARQL's and Turtle's `#` to the line's
+  end - none in a string, in an IRI (`<http://x#y>`) or behind a backslash (`ex:a\#b`); in Turtle
+  a phone's typographic quotes make a string, as in the check.
+- **Only what is surely a comment goes.** Oxigraph reads a `<` in SPARQL as an IRI's start or as
+  the comparison, as the grammar around it wants: `FILTER(?a<?b#c>` is a comparison and a comment.
+  The text is read both ways at once (`common.hash_comments`), and a `#` is a comment where every
+  reading says so - in `?s <http://x#y> ?o # c` the last one. What may be one stays: such a text
+  keeps a comment, and is checked as before.
+- **SQL:** a comment between two words leaves a space (`SELECT/**/1`), a line of nothing but
+  comments goes. SQLite names a column by its expression's text: the detail's `1 /* Max */ + 2` is
+  `1 + 2` now. The spaces at a line's end go as ever, those in front of a comment that was the
+  line's last too - also a no-break space, which SQLite reads as a letter.
+- **SPARQL and Turtle keep their lines** - a comment's line stays as an empty one, and the blank
+  lines in front stay too, which F1's cleaning took off; only what is behind the last line that
+  has something goes -, so that the place an error names is a place of the student's text: the
+  engines' errors name a line and a column, SQLite's do not. (A kind keeps its lines if its
+  messages have `at`.) For Turtle it is also the place Oxigraph names for the text with its
+  comments. For SPARQL not always: its parser names how far it read, and of ordinary broken
+  queries with comments at their lines' ends about one in six is named a line further down once
+  the comments are out - where the same query typed without comments always was (the review).
+  A text that began with a comment begins with an empty line: it is another form than the text
+  without that line, checked for itself and counted for itself where a group's most frequent text
+  is asked for, and a window that draws a group's text may leave such lines out (package 8). The
+  blank lines in front count to a text's 2,000 characters now.
+- **A text of nothing but comments is refused** (`Unfit`, the phone's code `text`: "a query is more
+  than its comments") - it was a syntax error before; either way it is in the group of what is
+  invalid, now without a text to show.
+- **Checked as the text with its comments:** 240,000 random texts, each checked as F1 cleaned it
+  and as normalize leaves it - words, quotes, IRIs and comments thrown together, and texts that
+  check with comments between their words; and 240,000 of the reviewer's own. Nothing that is no
+  comment was taken or changed in any of them, a normal form was its own and had no comment left,
+  and for SQL whatever gave a result gave the same one and whatever gave none gave none. For
+  Turtle that holds since its check reads a text's end as it reads the rest, for SPARQL but for
+  the one thing below; 3,000 texts per kind are in the suite (`tests/test_kinds.py`), which names
+  it. What may differ besides is an
+  error's words: Oxigraph's "expected ..." depends on how far it read, a comment included. The
+  golden texts with comments go to the checks as they are (`direct`), as references do - a
+  reference is not normalized -, so what the engines make of a comment stays pinned; the kinds'
+  fixtures have texts with comments through normalize beside them (`*-comments.json`: what the
+  code gives, so they show a change, not that it is right - the random texts show that).
+- **Where the check is another without the comments** - one thing is left, the grammar's: *SPARQL
+  takes no comment in brackets that are empty* - `[ # any node`, then `]` on the next line, and
+  `( )`, `RAND( )` alike: with the comment a syntax error, without it the node the student meant.
+  (As a reference, which is not normalized, the text stays an error.) Keeping the comment there
+  would show it to the class, and tell a student that a comment is a mistake.
+- **Two more the review found were faults of F1's checks, older than the comments, and are mended
+  there** (2026-11-12, on the user's word) - the lectures' checks change with it:
+  - *A text's own base* (`checks/sparql.py`, `turtle.py`: `_completed`). The checks put the
+    seed's declarations in front of a text that does not make them itself. For a seed with `@base`
+    and a prefix relative to it - `@prefix : <> .`, as the lectures' seeds have - and a text with
+    a `BASE` of its own, the seed's base was left out and its relative prefix stood in front of
+    the text's `BASE`, where it has no base: a syntax error, placed in a line the student never
+    wrote. The seed's base stands in front of every text now, the seed's prefixes behind it as the
+    seed has them, and the text's own `BASE` behind those: what the text writes is its own
+    base's. Nothing else changes for a text without a base of its own, nor for one whose seed's
+    prefixes are not relative. (With comments out, `BASE# c` and its IRI on the next line had
+    become such a text.)
+  - *A Turtle text's end* (`checks/turtle.py`: `_parsed`). Oxigraph reads a name with an escape
+    in it, and the dot behind it, other at a text's end than in front of a space, a line end or a
+    comment: `ex:a ex:p ex:b\#c.` was "Unexpected end" and is a graph once anything follows;
+    `ex:b\..` named `b`, and `b.` once anything follows; `ex:a ex:p ex:\.`, a triple without its
+    dot, was a graph. A text of that shape - a backslash in its last word, a dot its end - is read
+    with a space behind it; of 40,000 random texts 2,777 were read otherwise at their end, all of
+    that shape, and none is now (120,000 texts). Every other text is read as before, so no error
+    of theirs has another place or other words - a space behind every text would move "Unexpected
+    end", the commonest error, a column on. Where a text of the shape is no graph, its error is
+    its own, where it was; where it was one only at its end, the error is the one with the space,
+    its place no further than behind the text's last character.
+  - *The browser's engines have both faults still* (`web/engines`), and the golden fixtures made
+    from them had the first as two syntax errors: these are in `KNOWN` now
+    (`tests/test_checks.py`), with the reason. Where a server compares the phones' checks with its
+    own (`--checks both`), such texts show as differences.
+- **Quick:** 1 to 2 ms for 2,000 characters full of comments, 4 ms for the slowest of 9,000 random
+  texts, on the process that normalizes; the time grows with the text's length and no faster.
+- **An engine must say where comments are:** a kind of this shape whose engine has no
+  `comments(text)` cannot be made, and the registry says why - not every entry of a lecture.
+- **Its review (2026-11-12):** an independent reviewer, 240,000 random texts of its own, mutants
+  - the brackets and the two faults above, the SPARQL lines, a speed that was said too low, two tests that were
+  missing, and what follows.
+- **Found by it in F1's check, and mended: SERVICE got past its refusal** (`checks/sparql.py`:
+  `names_service`), in the lectures too, so that a student's query could have the server ask an
+  address of the student's choosing. A pattern read the text one way; four texts were read
+  otherwise by Oxigraph, which then ran the word: a name's escape (`ex:a\#b` - the `#` began a
+  comment for the pattern, and `ex:a\'b` a string), an IRI with a no-break space or a `\u`
+  escape in front of its `#`, a long string with an escaped quote at its end (`'''a\''''`), and
+  a comparison that looks like an IRI's start (`FILTER(?o<'>')`). The refusal reads a text now as
+  its comments are read - both ways at once, and the cautious way round: SERVICE counts if one
+  reading has it as a word. Held against Oxigraph itself: of 300,000 random queries with what may
+  break a reading in front of SERVICE, 70,000 had the keyword - they parse, and do not once the
+  word reads `@@@` -, and none got past, where one in ten had before (1,351 of the first 14,172);
+  6,000 are in the suite
+  (`tests/test_checks.py`). The price: `<http://e.org/it's>` and, behind it, a string that says
+  SERVICE is refused, since the IRI may be a comparison and a string's start.
+- **Not done:** the spacing within a line, which AF 5.1 named with the comments, stays as typed -
+  a column is the student's own only so. And a name in a string, or a text that is a name, is
+  shown: comments are what is written for no one to run.
+
 ### 4.8 texstage's own kinds
 
 - **`choice`** - one or several of the options a deck gives (from F3 also an earlier step's
@@ -851,7 +956,13 @@ and 5 %, which decided its way (4.6). It changes F1's pool, which the server run
 check is 1 s, a check gets a slice first, the pool has two spares. Its review is done - twelve
 findings, fixed (4.3, 4.6). Package 5 is built on it (2026-11-11): the reductions - groups, today's
 crowd graph, the tally -, the pictures and their versions, and the lecturer's acts with their undo
-(4.3). It rewires nothing. Its review is done (2026-11-12) - twenty findings, fixed (4.3).
+(4.3). It rewires nothing. Its review is done (2026-11-12) - twenty findings, fixed (4.3). What
+the review left to the kinds is done too (2026-11-12): their normalize takes a text's comments out
+(4.7) - F1's type, which runs the lectures, shows them as before. Its own review found a fault of
+F1's check that the lectures run with, and it is mended in F1's code: SERVICE got past its refusal
+(4.7). Two more faults of F1's checks, which the review met, are mended with it: a text with a
+base of its own for a seed with relative prefixes, and how Oxigraph reads a Turtle text's end
+(4.7).
 
 ### 4.13 Risks
 
@@ -862,7 +973,7 @@ crowd graph, the tally -, the pictures and their versions, and the lecturer's ac
 | a decision of 2.4 changes later | 2.4's table says what follows; short checks first is measured before it stays (4.6) |
 | lecture-tools has drifted from texstage-public (47 files on 2026-11-09) | taking F2 is a package of its own (11), and F1's lecture brings it nearer first |
 | the groups differ from F1's | normalizing merges only checks, not groups; package 13 compares them in the lecture's environment |
-| a name in a comment reaches the class | a group shows its text as the kind's normalize left it, comments and all, as F1 does; the kinds take comments out before F3's vote shows such a text on the phones (4.3) |
+| a name in a comment reaches the class | the kinds' normalize takes comments out since 2026-11-12 (4.7); a comment that only may be one stays - SPARQL's `<`, an IRI's start or the comparison -, and so does a name in a string |
 | the pages' policy breaks the add-in or KaTeX | a policy per page, tried in PowerPoint and Chromium (package 10) |
 | separate packages make installing harder (decided, AF 2) | locks for their dependencies, one command for development, the image and CI install both |
 | a fallback after a lecture on F2 | F1's release, without that lecture's entries; its archive stays (3, 4.10) |

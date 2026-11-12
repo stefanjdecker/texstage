@@ -59,16 +59,19 @@ class CodeKind(Kind):
     MESSAGES = said()
     LIMIT = 5
     ENGINE = ""                            # the deck's engine= (the item's "engine", until kinds are named)
-    MODULE = ""                            # F1's check: load(seed, ...), evaluate(state, text, language, budget_s=)
+    MODULE = ""                            # F1's check: load(seed, ...), evaluate(state, text, language, budget_s=),
+    #                                        comments(text) - where they are, for normalize
     SEED: dict[str, str] = {}              # a seed's file types, each with its media type; the first is the bundle's
     TOKENS: list[str] = []                 # what the phone's bar offers beside the deck's
     TEXT = "a query"                       # a student's text, in a refusal's words
 
     def __init__(self):
         """A kind is made once, and its engine is imported then: a kind whose engine's library is not
-        installed cannot be made, and the registry lists it so - not as one that can be used."""
-        if self.MODULE:
-            importlib.import_module(self.MODULE)
+        installed cannot be made, and the registry lists it so - not as one that can be used. Nor can one
+        whose engine does not say where a text's comments are: normalize would fail on every entry."""
+        if self.MODULE and not callable(getattr(importlib.import_module(self.MODULE), "comments", None)):
+            raise TypeError(f"{self.MODULE} has no comments(text) - where a text's comments are, which normalize "
+                            f"takes out ([] where its language has none)")
 
     @property
     def engine(self):
@@ -119,7 +122,13 @@ class CodeKind(Kind):
         return Prepared(self.engine.load(self.seed(item, files)))
 
     def normalize(self, step: Step, entry: Entry) -> Entry:
-        return Entry(text=cleaning.clean_code(entry.text, self.TEXT))
+        """The text cleaned, and without its comments - a group is shown by it, and a vote puts it on the
+        phones (the design's 5.1); the engine says where they are (comments). Where the engine's errors
+        name a line and a column, every line stays - a comment's as an empty one, the blank ones in front
+        too -, so that they are the student's own; where they name none, a line of comments goes."""
+        lines = "at" in self.MESSAGES
+        text = cleaning.clean_code(entry.text, self.TEXT, top=lines)
+        return Entry(text=cleaning.uncommented(text, self.engine.comments(text), self.TEXT, lines=lines))
 
     def _message(self, error) -> Message | None:
         """An engine's error as a message: a text of the catalog by its code, anything else as the engine's

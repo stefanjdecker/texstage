@@ -11,9 +11,11 @@ Every golden case becomes a case of its kind - the entry, and the check the kind
 the golden result: tests/test_kinds.py holds the two against each other, and this file refuses to write a
 case whose words differ. A case the server answers otherwise than the browser did (test_checks.py: KNOWN)
 or in SQLite's own words, which depend on its build (BUILT), pins its status and its message's code only.
+A golden text with a comment goes to the check as it is (direct), as a reference does: normalize takes
+comments out, and what the engine makes of one stays pinned.
 With them: the safety cases - SERVICE in every spelling, the names that are not it, nesting beyond the
 parsers' cap and up to it -; a setting with references over rows that are not ASCII, and the kinds'
-builds; and the cases of triples, which have no golden fixtures.
+builds; texts with comments, through normalize; and the cases of triples, which have no golden fixtures.
 tests/test_kit.py: the files are what this makes."""
 from __future__ import annotations
 
@@ -250,6 +252,72 @@ def reference(engine: str) -> dict:
             "builds": [built(kind, b) for b in given]}
 
 
+B = chr(92)                                             # a backslash
+COMMENTED = {
+    "sql": ("CREATE TABLE t (x);\nINSERT INTO t VALUES (1), (2);\n", [
+        "SELECT x FROM t",
+        "-- by Max\nSELECT x FROM t",
+        "SELECT x -- the column\nFROM t",
+        "SELECT/* c */x FROM t",
+        "SELECT x /* a\nb */ FROM t /* open",
+        "SELECT x FROM t; -- done",
+        "SELECT x, '-- no', '/* no */' FROM t -- yes",
+        "SELECT 1 -/* not a comment's start */- 1",
+        "SELECT x FROM t WHERE x > 1 /*",
+        "-- only a comment",
+        "/* a */ -- b\n/* c",
+    ]),
+    "sparql": ("@prefix : <http://e.org/> .\n:a :p :b ; :q <http://e.org/x#y> .\n", [
+        "SELECT ?o WHERE { :a :p ?o }",
+        "# by Max\nSELECT ?o WHERE { :a :p ?o }",
+        "SELECT ?o WHERE { :a :p ?o } # the object",
+        "SELECT ?o WHERE { :a :q ?o . # here\n FILTER(?o = <http://e.org/x#y>) } # and here",
+        "SELECT ?o WHERE { :a ?p ?o FILTER(str(?o) = 'http://e.org/x#y') # c\n}",
+        "SELECT ?o WHERE { :a ?p ?o FILTER(1<2#c>\n) }",
+        "SELECT ?o WHERE { :a :x" + B + "#y ?o # c\n}",
+        "# c\n# d\nSELECT ?o WHERE { :a :p }",
+        "SELECT ?o WHERE { # all there is\n SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } # anywhere",
+        "SELECT ?o WHERE { :a :x" + B + "#y ?o SERVICE <http://127.0.0.1:9/sparql> { ?s ?p ?o } } # c",
+        "SELECT ?o WHERE { :a :p [ # any node\n ] }",
+        "# only a comment",
+    ]),
+    "turtle": ("@prefix : <http://e.org/> .\n", [
+        ":a :p :b ; :q \"x # y\" .",
+        "# by Max\n:a :p :b ; # one\n   :q \"x # y\" . # two",
+        ":a :p <http://e.org/x#y> . # c",
+        ":a :p \u201cx # y\u201d . # c",
+        ":a :p :x" + B + "#y . # c",
+        "# c\n# d\n:a :p",
+        "# only\n# comments",
+    ]),
+}
+
+
+def comments(engine: str) -> dict:
+    """Texts with comments, through normalize: checked as the texts without them - the first of each is
+    one -, an error's line the student's own, and a text of nothing but comments refused."""
+    kind = KINDS[engine]
+    seed, texts = COMMENTED[engine]
+    name = f"data/seed{SUFFIX[engine]}"
+    made = {"seed": {"item": {"seed": name}, "files": {name: seed}}}
+    prepared = kind.prepare(made["seed"]["item"], {}, {name: seed.encode("utf-8")})
+    step, cases = Step({}), []
+    for text in texts:
+        case = {"setting": "seed", "entry": {"text": text}}
+        try:
+            entry = kind.normalize(step, Entry(text=text))
+        except Unfit as e:
+            case["unfit"] = e.code
+        else:
+            sent = kind.check(prepared, step, entry).sent()
+            if engine == "sql" and sent["status"] != "ok":       # SQLite's own words are its build's
+                sent = {k: ({"code": v["code"]} if k == "message" else v) for k, v in sent.items() if k in LOOSE}
+            case["check"] = sent
+        cases.append(case)
+    assert sum("unfit" in c for c in cases) in (1, 2) and all(c.get("unfit", "text") == "text" for c in cases)
+    return {"kind": kind.NAME, "settings": made, "cases": cases}
+
+
 def made() -> dict[Path, str]:
     """Every fixture file of the kinds, by its path, as its text - made on a thread with a worker's stack,
     as the nested texts are checked in a lecture."""
@@ -271,6 +339,7 @@ def _made() -> dict[Path, str]:
         files[folder / f"{engine}-golden.json"] = golden(engine)
         files[folder / f"{engine}-safety.json"] = safety(engine)
         files[folder / f"{engine}-reference.json"] = reference(engine)
+        files[folder / f"{engine}-comments.json"] = comments(engine)
     files[ROOT / "kinds" / FOLDER["triples"] / "tests" / "triples.json"] = triples()
     return {path: json.dumps(data, ensure_ascii=True, indent=1) + "\n" for path, data in files.items()}
 

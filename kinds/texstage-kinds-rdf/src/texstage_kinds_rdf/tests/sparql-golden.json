@@ -730,6 +730,7 @@
    "entry": {
     "text": "# just a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
@@ -752,6 +753,7 @@
    "entry": {
     "text": "# just a comment"
    },
+   "direct": true,
    "check": {
     "status": "invalid",
     "message": {
