@@ -32,7 +32,8 @@ the step is full (the plan of F2, 4.3); it is asked for as soon as there is room
 checks - the same text has the same result - and so the forms: the cap is the step's, not an epoch's.
 
 After a restart (load, again): the checks and details are the tables'; an entry that has none goes to
-normalize again - its normalized form is not stored, only its hash - and is checked as a new one is.
+normalize again - a normalized form is stored with its check, not before - and is checked as a new one
+is.
 """
 from __future__ import annotations
 
@@ -306,7 +307,7 @@ class Checks:
             return list(s.asking.get(form, {}).values())
         row = CheckRow(self.session, activity, step, form, status, key=outcome.get("key"), parts=outcome.get("parts"),
                        verdict=outcome.get("verdict"), credit=outcome.get("credit"), message=outcome.get("message"),
-                       at=outcome.get("at"), aside=status == "internal", created=now)
+                       at=outcome.get("at"), aside=status == "internal", created=now, form=s.forms.get(form))
         s.checks[form] = row
         rows = [row]
         if row.key and outcome.get("detail") is not None and row.key not in s.details:

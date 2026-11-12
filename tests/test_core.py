@@ -623,7 +623,22 @@ def test_an_entry_hidden_and_shown_again():
     assert es.counts(q) == {"entries": 1, "students": 1}
     assert not es.hide(e1) and not es.show(e1, CODE) and e1.state == "replaced"       # a replaced one is neither
     es.hide(e2)
-    assert es.show(e2, CODE) and e2.state == "in"              # the latest itself is in again
+    assert es.show(e2, CODE) == [e2] and e2.state == "in"      # the latest itself is in again
+    # both hidden, the earlier one shown first: the later one, shown, replaces it - one entry of a student is in
+    e3 = es.enter(q, CODE, "p2", "entry-0003", {"text": "three"}, now=7_000).entry
+    es.hide(e3)
+    e4 = es.enter(q, CODE, "p2", "entry-0004", {"text": "four"}, now=13_000).entry
+    es.hide(e4)
+    saved.take()
+    assert es.show(e3, CODE) == [e3] and es.show(e4, CODE) == [e4, e3] and saved.take() == [e3, e4, e3]
+    assert (e3.state, e4.state) == ("replaced", "in") and es.counts(q) == {"entries": 2, "students": 2}
+    assert es.show(e4, CODE) == []
+    # where all count, both are in
+    t = opened("t")
+    f1_, f2_ = (es.enter(t, TRIPLE, "p1", f"entry-000{i}", {"fields": ["a", "b", str(i)]}, now=i * 10_000).entry
+                for i in (5, 6))
+    es.hide(f1_), es.hide(f2_)
+    assert es.show(f1_, TRIPLE) == [f1_] and es.show(f2_, TRIPLE) == [f2_] and es.counts(t)["entries"] == 2
 
 
 class _Kind:
@@ -959,8 +974,10 @@ def f1_store(path) -> Store:
     """A store as F1 leaves it: a game with a query activity - revealed - and a crowd graph, open."""
     store = Store(path)
     stage = {"screen": "slide", "activity": {"current": "triples", "items": {
-        "query": {"phase": "closed", "version": 9, "revealed": True, "shown": None, "refs": ["k1"]},
-        "triples": {"phase": "open", "version": 4, "min": 1, "merges": [], "hidden": [], "approved": []},
+        "query": {"phase": "closed", "version": 9, "revealed": True, "shown": "k1", "refs": ["k1"]},
+        "triples": {"phase": "open", "version": 4, "min": 2, "merges": [["node", ":aachen", ":Aachen"],
+                                                                      ["label", ":liegt_in", ":liegtIn"]],
+                    "hidden": [":x"], "approved": [":Aachen", ":NRW"]},
         "untouched": {"phase": "ready", "version": 0}}}}
     store.save(Session("g1", "111111", "deck", "bundle", 0, 0, stage=stage))
     store.save(Session("g2", "222222", "deck", "bundle", 0, 0, stage={}))
@@ -1000,7 +1017,7 @@ def test_a_store_of_todays_games_loads(tmp_path):
     sessions = {s.id: s.stage for s in store.load()}
     before = (count(store.db, "contributions"), count(store.db, "results"))
     made = core.move(store.db, {"g1": sessions["g1"]})
-    assert made == {"steps": 3, "entries": 12, "checks": 7, "details": 1}
+    assert made == {"steps": 3, "entries": 12, "checks": 7, "details": 1, "moderation": 7}
     assert (count(store.db, "contributions"), count(store.db, "results")) == before   # the old tables stay
     assert not store.db.in_transaction
     got = core.load(store.db, ["g1", "g2"])
@@ -1019,6 +1036,7 @@ def test_a_store_of_todays_games_loads(tmp_path):
     def of(text: str) -> CheckRow | None:
         return checks.get(("query", core.norm({"text": text})))
     assert (of("SELECT 1").status, of("SELECT 1").key, of("SELECT 1").created) == ("ok", "k1", 100)
+    assert of("SELECT 1").form == {"text": "SELECT 1"} and of("SELEC").form == {"text": "SELEC"}    # as F1 cleaned it
     assert (of("SELEC").status, of("SELEC").key, of("SELEC").message) == ("invalid", None, None)
     assert of("SELECT 2") is None and of("SELECT 3") is None and of("SELECT 7") is None
     assert (of("SELECT 4").status, of("SELECT 4").aside) == ("internal", True)
@@ -1029,6 +1047,7 @@ def test_a_store_of_todays_games_loads(tmp_path):
                             {"key": ":einwohner", "text": ":einwohner", "literal": False},
                             {"key": '"260000"', "text": '"260000"', "literal": True}]
     assert len(checks[("triples", core.norm({"fields": [":Aachen", ":liegtIn", ":NRW"]}))].parts) == 3
+    assert triple.form == {"fields": [":Aachen", ":einwohner", '"260000"']}
     assert ("triples", core.norm({"fields": [":x", ":y", ":z"]})) not in checks       # ... nor what F1 never wrote
     assert got.details == [DetailRow("g1", "query", ONE, "k1", {"columns": ["1"], "rows": [[1]], "count": 1}, 105)]
 
@@ -1037,6 +1056,17 @@ def test_a_store_of_todays_games_loads(tmp_path):
     assert {a: st.phase for a, st in steps.items()} == {"query": "revealed", "triples": "open", "untouched": "ready"}
     assert {a: st.seq for a, st in steps.items()} == {"query": 0, "triples": 1, "untouched": 0}
     assert all((st.step, st.epoch, st.time_left) == (ONE, 0, None) for st in got.steps)
+
+    # the lecturer's acts: the result that was shown; the graph's minimum, merges, hidden and approved terms
+    acts = [(r.n, r.activity, r.act, r.target, r.role, r.onto, r.value) for r in got.moderation]
+    assert acts == [(1, "query", "show", core.gid("ok", "k1"), "", None, None),
+                    (2, "triples", "min", None, "", None, 2),
+                    (3, "triples", "merge", ":aachen", "node", ":Aachen", None),
+                    (4, "triples", "merge", ":liegt_in", "label", ":liegtIn", None),
+                    (5, "triples", "hide", ":x", "", None, None),
+                    (6, "triples", "approve", ":Aachen", "", None, None),
+                    (7, "triples", "approve", ":NRW", "", None, None)]
+    assert all((r.step, r.off, r.undone, r.entry) == (ONE, False, False, None) for r in got.moderation)
 
     # ... and the core goes on with them
     p, es = Phases("g1"), Entries("g1")
@@ -1059,19 +1089,67 @@ def test_a_store_of_todays_games_loads(tmp_path):
     es.save = w.put
     assert es.hide(got.entries[1])
     w.flush()
-    assert core.move(store.db, sessions) == {"steps": 1, "entries": 1, "checks": 1, "details": 1}   # g2 only
-    assert core.move(store.db, sessions) == {"steps": 0, "entries": 0, "checks": 0, "details": 0}
+    assert core.move(store.db, sessions) == {"steps": 1, "entries": 1, "checks": 1, "details": 1,
+                                             "moderation": 0}              # g2 only
+    assert core.move(store.db, sessions) == {"steps": 0, "entries": 0, "checks": 0, "details": 0, "moderation": 0}
+    assert len(core.load(store.db, ["g1"]).moderation) == 7
     assert [e.state for e in core.load(store.db, ["g1"]).entries][1] == "hidden"
     store.close()
 
 
 def test_a_store_without_f1s_tables_and_a_game_without_activities():
     db = sqlite3.connect(":memory:")
-    assert core.move(db, {}) == {"steps": 0, "entries": 0, "checks": 0, "details": 0}
-    stage = {"activity": {"current": "b", "items": {"a": {"phase": "closed"}, "b": {"phase": "ready"}}}}
-    assert core.move(db, {"g1": stage, "g2": {}, "g3": None}) == {"steps": 2, "entries": 0, "checks": 0, "details": 0}
+    assert core.move(db, {}) == {"steps": 0, "entries": 0, "checks": 0, "details": 0, "moderation": 0}
+    stage = {"activity": {"current": "b", "items": {
+        "a": {"phase": "closed", "shown": "syntax", "min": 0, "merges": [["node", ":a"], ["edge", ":a", ":b"], 7],
+              "hidden": [None, ""], "approved": "x"},     # (not what F1 writes: nothing is made of it)
+        "b": {"phase": "ready"}}}}
+    assert core.move(db, {"g1": stage, "g2": {}, "g3": None}) == {"steps": 2, "entries": 0, "checks": 0, "details": 0,
+                                                                 "moderation": 1}
+    (shown,) = core.load(db, ["g1"]).moderation                # F1's word for a text that does not parse
+    assert (shown.act, shown.target, shown.n) == ("show", core.gid("invalid"), 1)
     steps = {st.activity: st for st in core.load(db, ["g1", "g2", "g3"]).steps}
     assert (steps["a"].phase, steps["a"].seq, steps["b"].phase, steps["b"].seq) == ("closed", 0, "ready", 1)
+
+
+def test_what_f1_never_wrote_makes_no_act_and_ends_no_move():
+    db = sqlite3.connect(":memory:")
+    items = {
+        "round": {"min": 3, "merges": [["node", "a", "b"], ["node", "b", "c"], ["node", "c", "a"], ["node", "d", "d"],
+                                       ["label", "c", "a"]]},           # c into a would lead back to c; d into itself
+        "big": {"min": 5000, "hidden": ["x", "x", "y"], "approved": ["x", "x"]},
+        "huge": {"min": 10 ** 30},
+        "decks": {"min": 2}, "ones": {"min": 1}, "true": {"min": True},
+        "list": [1, 2], "text": "x", "number": 5, "none": None}
+    stage = {"activity": {"current": "round", "items": items}}
+    decks = {"g1": {"decks": {"min": 2}, "round": {"min": 2}, "big": "no item", "ones": {}, "true": {"min": 5}}}
+    made = core.move(db, {"g1": stage, "g2": {"activity": "no state"}, "g3": {"activity": {"items": ["a", 1]}},
+                          "g4": 7}, decks)
+    assert made == {"steps": 10, "entries": 0, "checks": 0, "details": 0, "moderation": 7}
+    acts = [(r.n, r.activity, r.act, r.target, r.role, r.onto, r.value) for r in core.load(db, ["g1"]).moderation]
+    assert acts == [(1, "big", "hide", "x", "", None, None), (2, "big", "hide", "y", "", None, None),
+                    (3, "big", "approve", "x", "", None, None),
+                    (4, "round", "min", None, "", None, 3),            # not the deck's: the lecturer's
+                    (5, "round", "merge", "a", "node", "b", None), (6, "round", "merge", "b", "node", "c", None),
+                    (7, "round", "merge", "c", "label", "a", None)]
+    steps = {st.activity: st.phase for st in core.load(db, ["g1"]).steps}
+    assert steps == dict.fromkeys(items, "ready")              # each has its step, whatever its state was
+    # without the deck's items a minimum is moved as it is: it may be the lecturer's
+    other = sqlite3.connect(":memory:")
+    assert core.move(other, {"g1": {"activity": {"items": {"a": {"min": 2}}}}})["moderation"] == 1
+
+
+def test_an_activity_moved_later_numbers_its_acts_after_the_games():
+    db = sqlite3.connect(":memory:")
+    core.create(db)
+    w = Writer(db)
+    w.put(StepRow("g1", "a"), core.ModerationRow("g1", 1, "a", ONE, "hide", target="t"),
+          core.ModerationRow("g1", 5, "a", ONE, "min", value=2))
+    w.flush()
+    stage = {"activity": {"items": {"a": {"hidden": ["never moved: a has its step"]}, "b": {"hidden": ["u", "v"]}}}}
+    assert core.move(db, {"g1": stage})["moderation"] == 2
+    assert [(r.n, r.activity, r.target) for r in core.load(db, ["g1"]).moderation] == [
+        (1, "a", "t"), (5, "a", None), (6, "b", "u"), (7, "b", "v")]
 
 
 def test_a_move_that_fails_leaves_nothing_half_moved(tmp_path):

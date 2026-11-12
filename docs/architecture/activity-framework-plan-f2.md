@@ -90,7 +90,7 @@ As P1's (P1, 2), and:
 |---|---|---|
 | the four kinds | `kinds/texstage-kinds-rdf/`, `kinds/texstage-kinds-sql/` (new packages) | F1's checks moved into kind classes, with texts, browser modules and fixtures (4.7) |
 | the contract | `activities/kind.py` (new) | `Kind` (API 0); the option types; `Built`, `Prepared`, `Check` (AF 6.3) and an entry; the registry from the entry points `texstage.kinds` (4.2) |
-| the core | `activities/` (new): `phases.py`, `entries.py`, `checks.py`, `reduce.py`, `views.py`, `store.py` | phases and the step, entries, the checks' way through the pool, groups, crowd and tally, pictures and phone states, storage (4.3) |
+| the core | `activities/` (new): `phases.py`, `entries.py`, `checks.py`, `reduce.py`, `views.py`, `moderation.py`, `store.py` | phases and the step, entries, the checks' way through the pool, groups, crowd and tally, pictures and phone states, the lecturer's acts, storage (4.3) |
 | the type | `server/activity.py`, rewritten and thin | the content type's hooks (`server/types.py`) handing over to the core; AF 10.4's messages |
 | the pool | `server/pool.py` (F1's) | a worker for normalizing; short checks first (4.6) |
 | the build | `build/activity.py`, `latex/texactivity.sty` | the core's keys, a kind's recorded for its `build`; named record fields; `deck.json`'s kinds; the aliases (4.4) |
@@ -411,7 +411,9 @@ after its review - fourteen findings, fixed -, and what it settled:
   normalize alike are package 4's.
 - **Hide and show** are the entries' own moves (moderation, package 5, calls them): only what is in
   is hidden, only what is hidden is shown - and where the latest counts and the student has sent
-  another since, the one shown again is replaced by it, so that no student counts twice.
+  another since, the one shown again is replaced by it, so that no student counts twice (package 5's
+  review: nor when both were hidden and the earlier one was shown first - the later one, shown,
+  replaces it; `show` gives the entries that changed).
 - **Storage:** `steps`, `entries`, `checks`, `details`; `moderation` comes with package 5. Beyond
   AF 10.2's columns: a step's `paused_by` and `seq`, a check's `parts` (the crowd graph's, which a
   restart needs) and `aside` (a text set aside). Until the type is the core's (package 6),
@@ -492,6 +494,129 @@ and as it is after its review - twelve findings, fixed:
   them to; that they prepare and check through the kinds - `prepare`, `copy`, `check`, each check held
   against the contract's rules - comes with the type's rewiring (package 6), which is where the core's
   jobs meet the pool.
+
+The third part, as built (package 5: `activities/reduce.py`, `views.py`, `moderation.py`, and the table
+`moderation` in `store.py`) and as it is after its review - twenty findings, fixed:
+
+- **What counts** in a reduction is an entry that is in, of the step's epoch, with a check. The
+  reductions are kept as the entries and their checks change: whoever changes an entry says which
+  (`touch`), and the reduction looks for itself at what the entry is now - told twice, nothing counts
+  twice. A picture goes through a step's groups and their distinct texts, not through its entries
+  (AF 10.2): with 10,000 entries in a step it is made in 0.4 to 7 ms on the development machine -
+  2,000 results; one group of 2,000 texts that do not parse, each with its own message; 10,000 texts
+  that normalize refused; a crowd graph of 10,000 triples.
+- **Groups:** by the check's key, and by its status where the check is no result. A group's id, as
+  the pictures and the acts name it, is 16 hexadecimal digits of a hash of both (`store.gid`): a key
+  may be any text of up to 4,096 characters - a short answer's among them, which may read `invalid`.
+  Counted by students; the largest first, among as many a result before what is none, then by key.
+  The projector gets 8 groups and the panel 50, as F1's; the others are counted.
+- **What a group is shown by** is the text that most of its entries have, in the form the kind's
+  normalize gave it; among as many, the one whose first entry came first. For that a check keeps its
+  normalized input (`form`, a new column of `checks`; package 4 dropped it once the check was made).
+  What normalize refused has none: such a group shows its status alone. A moved check has the text
+  as F1 cleaned it, which is what F1 showed. **It is not yet what AF 5.1 wants** - comments and
+  spacing gone, so that no name in a comment reaches the class: the four kinds' normalize takes off
+  the spaces at the ends of the lines and no more, as F1's cleaning did, and a group shows such a
+  text as it was typed (the review: this plan and the code's own words said otherwise, and the tests
+  showed it with a normalize of their own). That the kinds take comments out - without touching a
+  string that has `--` or `#` in it - is theirs to do before F3's vote shows a group's text on 1,000
+  phones; it changes which texts are checked as one, not their groups.
+- **Nothing of the reference before the reveal:** the projector's picture marks no group and has no
+  verdict and no solution until then - and of a group's detail not what the kind says there of the
+  reference, its comparison (`diff`: none missing, none more, marks the right group). The contract
+  names that part (`kind.COMPARED`), and the core takes it out for the projector until the reveal
+  (the review: it went out whole, as F1's does - no window draws it today).
+- **The panel's picture has more:** the counts - entries, students, checked, waiting, unchecked, the
+  step's forms and whether it is full -; an entry of each group, for its buttons; what is hidden,
+  marked; what the checks of a group that is no result said, each message once, the first five in
+  the order their entries came; and the entries whose text was set aside, as a group of their own -
+  never graded, never on the projector. A group that is no result is not judged by a verdict that
+  one of its checks has: only a result's group takes the kind's own.
+- **The crowd graph** is F1's: the same nodes, edges and order, `more`, the positions, the panel's
+  terms. The tests hold it against F1's own function (`server/activity.py`: `_crowd`) with the same
+  entries and the same acts - twelve random games, two and three fields, both windows - and against
+  a game moved from one of F1's stores. One difference, on purpose: a term is written as most of the
+  entries that count write it - F1 counted the ones taken back and hidden too -, among as many as
+  the entry that came first wrote it, whichever was checked first; a node that nobody writes any
+  more keeps its first writing. An entry that is no triple - a field longer than a term may be,
+  which F1 refused when it came - counts as an entry, is in no graph, and the panel says how many
+  there are.
+- **The tally** is the deck's choices in its order, one nobody made among them - which can be
+  hidden like any other -, then the largest of the other groups, as many as a window lists. What an
+  item calls its choices, and an entry of several, come with the kind (package 9).
+- **A step's setup** (`Setup.of`) reads the item's `min` and `review` for a crowd graph and its
+  `options` for a tally only: with another reduction these names are the kind's own.
+- **The references:** the pool's results of them are handed to the core (`refer`; package 6) and kept
+  in memory - a restarted server checks its references again. A check's verdict is the kind's own;
+  else the core's, by the references' keys; none while no reference has a result, and never for an
+  `internal` check. The panel has the references' groups at once, the projector at the reveal; with
+  `solution=show` both pictures then have the references' texts and details, with `mark` neither.
+- **Pictures:** one per window - `display` (the projector and the box), `stage` (the panel) -, made
+  once per version. `projector=count` gives the projector the counts alone until the step is closed,
+  `hidden` nothing until the reveal. A step's version goes up with everything a picture shows - an
+  entry, a check, the phase, an act, a reference, and the checks' counts, which a check that comes
+  back for a text nobody waits for changes without changing an entry -, the positions of a crowd
+  graph have a counter of their own, and the windows are told at most every 250 ms (`told`, which
+  the server asks with its tick). Positions are taken for a crowd graph only, of the terms its
+  entries have as a node, and are not stored.
+- **Moderation:** the acts `hide` (a group, a crowd graph's term, an entry), `approve`, `merge`,
+  `unmerge`, `show`, `min` and `block`; `off` takes a `hide`, an `approve` or a `block` back. Beyond
+  this section's list: `approve` and `min`, which today's crowd graph has (F3's *Approve* is of
+  entries, for peer review). An act that changes nothing makes no row. A row has the act's number
+  in its game, the step's epoch, the act, `target` (a group's id, a term's key), `role`, `entry`,
+  `onto`, `off`, `value` (the minimum; of a block the entries it hid and those it found hidden),
+  when, and `undone` - AF 10.2's `group`, `into` and `on` are SQL's own words; the message
+  (package 6) can keep them. A game takes 5,000 acts that hold, and 20,000 rows.
+- **Undo** marks an act, and what holds is read again from the acts that are left, in their order.
+  By the act's number, or the last one; the panel's picture has the last ten. The entries are then
+  as the acts that hold say, each from what the first act about it found: one that an act showed
+  again was hidden before, with or without an act - a moved game's hidden entries have none. An
+  undo that would leave two terms merged into each other is refused; merges that a stored game has
+  going round already are skipped, and keep no other act from being undone.
+- **Where the latest counts, a student has one entry in:** shown again, an entry is replaced by a
+  later one of the student's that is in - and replaces an earlier one (the review: two hidden
+  entries of a student, both shown again, were both in).
+- **Through a reset** the acts on groups and terms stay, as the checks do - that two terms are one,
+  or that a word is not to be shown, is as true of the next epoch. The acts on entries are those
+  entries': after a reset the panel does not list them, no undo takes them, and no undo changes an
+  entry of the earlier epoch. The group whose detail is on the projector is its epoch's - after a
+  reset none is, though the same result comes again.
+- **A block** hides what its student has in the step. While the student is blocked, their entries
+  stay hidden: no undo brings one back, and showing one is refused until the student is unblocked.
+  Taken back with `off`, the entries stay hidden; the block undone, they are as before it. An
+  unblock is undone by blocking again - an act of its own, which hides what the student sent
+  meanwhile. Who is blocked is read from the acts (`blocked`) - no row and no picture names a
+  student, a block names an entry; so the acts are loaded after the entries, and loading them
+  before is an error, not a game in which nobody is blocked.
+- **The move** (4.10) makes acts of what F1 kept in an activity's state: the crowd graph's minimum
+  - unless it is the deck's own, which F1 wrote into every graph's state; the caller hands the
+  deck's items over -, merges, hidden and approved terms, and the result that was shown. What F1
+  never wrote makes no act and ends no move: a minimum beyond 1,000, a term twice, a merge that
+  leads back to its own term, a state that is no table. Who was blocked in F1 is the server's (a
+  player's `muted`), and stays there.
+
+Left for the packages that follow:
+
+- **Package 6:**
+  - It loads a game in this order: the move, if the game is F1's - before any act is in memory, since
+    the moved acts are numbered after the table's -, the steps, the entries, the checks, the acts,
+    then the reductions (`Reduced.load`) and the references (`refer`), without which no check has a
+    verdict.
+  - It tells the reductions every entry that changed (`touch`): what `enter` gives with what it
+    replaced, `withdraw`, what `normalized`, `unnormalized` and `checked` give, and an act's or an
+    undo's entries; it hands the acts' jobs to the pool; it tells the pictures every move (`moved`).
+    Forgotten, nothing fails - the counts are stale.
+  - It asks both who is blocked: `moderation.blocked` and the player's `muted`, when it takes an
+    entry (`enter(blocked=...)`).
+  - It gives an undo the step of the act; it checks who may send positions (the lead window's
+    lease); it asks `told` with its tick.
+  - The archive's files - F1's `graph_svg` draws the core's crowd picture as it is -; the phones'
+    states.
+  - A picture's version starts anew with the server: a window fetches when it is another, not a
+    higher one.
+- **Package 8:** the panel's 50 groups come with their details, up to 12 KiB each, as F1's - about
+  0.6 MB when all are full.
+- **The kinds, before F3's vote:** normalize takes comments out (above).
 
 ### 4.4 The build and LaTeX
 
@@ -724,7 +849,9 @@ review is done - fourteen findings, fixed (4.3). Package 4 is built on it (2026-
 process that normalizes, and short checks first in the pool - measured with the load runs at 1, 3
 and 5 %, which decided its way (4.6). It changes F1's pool, which the server runs: the budget of a
 check is 1 s, a check gets a slice first, the pool has two spares. Its review is done - twelve
-findings, fixed (4.3, 4.6).
+findings, fixed (4.3, 4.6). Package 5 is built on it (2026-11-11): the reductions - groups, today's
+crowd graph, the tally -, the pictures and their versions, and the lecturer's acts with their undo
+(4.3). It rewires nothing. Its review is done (2026-11-12) - twenty findings, fixed (4.3).
 
 ### 4.13 Risks
 
@@ -735,6 +862,7 @@ findings, fixed (4.3, 4.6).
 | a decision of 2.4 changes later | 2.4's table says what follows; short checks first is measured before it stays (4.6) |
 | lecture-tools has drifted from texstage-public (47 files on 2026-11-09) | taking F2 is a package of its own (11), and F1's lecture brings it nearer first |
 | the groups differ from F1's | normalizing merges only checks, not groups; package 13 compares them in the lecture's environment |
+| a name in a comment reaches the class | a group shows its text as the kind's normalize left it, comments and all, as F1 does; the kinds take comments out before F3's vote shows such a text on the phones (4.3) |
 | the pages' policy breaks the add-in or KaTeX | a policy per page, tried in PowerPoint and Chromium (package 10) |
 | separate packages make installing harder (decided, AF 2) | locks for their dependencies, one command for development, the image and CI install both |
 | a fallback after a lecture on F2 | F1's release, without that lecture's entries; its archive stays (3, 4.10) |

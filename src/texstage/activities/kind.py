@@ -45,7 +45,7 @@ from types import MappingProxyType
 from texstage.activities.options import Options, Unbuildable
 from texstage.checks.cleaning import Unfit
 
-__all__ = ["API", "BUDGET_S", "INPUTS", "REDUCTIONS", "STATUSES", "VERDICTS", "Built", "Check", "Entry", "Kind",
+__all__ = ["API", "BUDGET_S", "COMPARED", "INPUTS", "REDUCTIONS", "STATUSES", "VERDICTS", "Built", "Check", "Entry", "Kind",
            "Message", "Prepared", "Step", "Unbuildable", "Unfit", "fault", "first", "fixed", "referenced", "validated"]
 
 API = 0
@@ -64,6 +64,8 @@ KEY_MAX = 4096                              # a key's characters: a hash - or a 
 #                                             keys may be many times their 60 characters (a ligature is three)
 ARGUMENT_MAX = 300                          # a message's argument, if it is a text
 DETAIL_MAX = 12 * 1024                      # a detail's JSON in characters, as it is sent (the design's 6.3)
+COMPARED = "diff"                           # in a detail: what it says of the reference - the comparison with it.
+#                                             The core keeps it from the projector until the reveal (reduce.py)
 SAFE = 2**53                                # the largest whole number a phone's JSON keeps
 
 
@@ -123,7 +125,10 @@ class Check:
     the text's, not the key's: with terms=loose, true and TRUE are one node and only the first is written
     as a literal; a node is a literal when its label is, which the core chooses.
     at: the line and the column in the student's text, both from 1, the column in characters; a phone,
-    whose strings count UTF-16 units, counts characters to find it."""
+    whose strings count UTF-16 units, counts characters to find it.
+    detail: whatever of it tells how the entry compares with the reference goes under COMPARED ("diff") and
+    nowhere else: the core takes that out of what the projector gets until the reveal, and knows no other
+    part of a detail."""
     status: str
     key: str | None = None
     parts: list[dict] | None = None

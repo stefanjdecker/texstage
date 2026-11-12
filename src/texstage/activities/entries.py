@@ -289,15 +289,26 @@ class Entries:
         self.save(e)
         return True
 
-    def show(self, e: EntryRow, rules: Rules) -> bool:
-        """The lecturer shows a hidden entry again: it is in - or, where the latest counts and the
-        student has sent another since that is in, replaced by it. Whether it changed."""
+    def show(self, e: EntryRow, rules: Rules) -> list[EntryRow]:
+        """The lecturer shows a hidden entry again: it is in. Where the latest counts, a student has one
+        entry in: has the student sent another since that is in, the one shown is replaced by it; is an
+        earlier one of theirs in - both were hidden, and that one was shown first -, that one is replaced
+        (the review of package 5: both were in, and the student counted twice). The entries that changed,
+        the one shown first - none: it was not hidden."""
         if e.state != "hidden":
-            return False
+            return []
         held = self._held(e.activity, e.step)
         theirs = held.mine.get(e.player, []) if e.epoch == held.epoch else []
-        later = theirs[next((i for i, o in enumerate(theirs) if o is e), len(theirs)) + 1:]
-        latest = rules.counts == "latest" and any(o.state == "in" for o in later)
-        held.change(e, "replaced" if latest else "in")
-        self.save(e)
-        return True
+        at = next((i for i, o in enumerate(theirs) if o is e), len(theirs))
+        changed = [e]
+        if rules.counts == "latest" and any(o.state == "in" for o in theirs[at + 1:]):
+            held.change(e, "replaced")
+        else:
+            held.change(e, "in")
+            if rules.counts == "latest":
+                for old in theirs[:at]:
+                    if old.state == "in":
+                        held.change(old, "replaced")
+                        changed.append(old)
+        self.save(*changed)
+        return changed

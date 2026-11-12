@@ -273,7 +273,7 @@ What a kind's `check` returns - typed facts, not a free dictionary:
 | `credit` | 0 to 1, the share of the step's points |
 | `message` | for the student: a code and its arguments, which the phone says in its language from the kind's texts |
 | `at` | line and column in the student's text, both from 1, the column in characters, where the engine gives them - Oxigraph does, SQLite does not (LA section 8.8) |
-| `detail` | for the windows: the columns and the first rows, the comparison with the reference - at most 12 KiB |
+| `detail` | for the windows: the columns and the first rows, and under `diff` the comparison with the reference, which the core keeps from the projector until the reveal - at most 12 KiB |
 
 Unless the kind judges for itself, the core does: `correct` when the key is one of the
 references' keys, else `incorrect`. An `internal` check is never graded: the entry counts as
@@ -558,15 +558,19 @@ Tables of the type (the `ROWS` of `server/types.py`, every one with its `session
 - `entries`: id, activity, step, epoch, player, created, input (JSON), norm (the hash of the
   normalized input), state (`in`, `replaced`, `withdrawn`, `hidden`).
 - `checks`: activity, step, norm, status, key, parts, verdict, credit, message, at, aside (a text
-  set aside, 6.3) - one per distinct input. A reset keeps them: the same text has the same result.
+  set aside, 6.3), form (the normalized input itself: what its group is shown by, 5.1) - one per
+  distinct input. A reset keeps them: the same text has the same result.
 - `details`: activity, step, key, detail - one per group (LA's `results`).
 - `ledger` (the core's, for quizzes too): player, source (`quiz` or `activity`), item, part (a
   round or a step), epoch, points, bonus, created - one row per player, part and epoch, so that a
   reveal repeated after a restart gives nothing twice.
 - `steps`: activity, step, epoch, phase, the time left, who paused it, its turn (the step whose
   turn is the highest is the current one), the vote's choices (F3).
-- `moderation`: activity, step, act, group or entry, into, created, undone - every act a row, so
-  that it can be undone.
+- `moderation`: the act's number in its game, activity, step, epoch, act, the group or term or
+  entry it is on, a term's role, what a term is merged into, whether it takes an earlier act back, a value
+  (the crowd graph's minimum; the entries a block hid and those it found hidden), created, undone - every act a row, so that
+  it can be undone: what holds is what the acts that are not undone say, in their order (F2's
+  plan, 4.3). No row names a student.
 
 In memory, per step: the entries by student, the groups by key with their students, the counts -
 what the views read, so that no view goes through the entries. Writes are gathered and committed

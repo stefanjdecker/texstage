@@ -8,11 +8,13 @@ transaction, what a restarted server reads back, and the move of F1's rows into 
     entries    what a student sent in a step (entries.py); its id is the phone's, unique per step
     checks     the verdict on one distinct normalized input of a step (the checks: package 4)
     details    what one group shows, one per key (LA's results)
+    moderation the lecturer's acts on a step's picture, every act a row, so that it can be undone
+               (moderation.py)
 
 Every table has its `session`. ROWS has them as a content type gives the server its tables
 (server/types.py), so that the type, once it is the core's (package 6), hands them to the server's
-store, which then makes them (server/store.py); until then create() does, the same way. The tables
-`moderation` and `ledger` come with what writes them (package 5; F3).
+store, which then makes them (server/store.py); until then create() does, the same way. The table
+`ledger` comes with what writes it (F3).
 
 The core's rows are written by the Writer and read by load(), never by the server's store: that one
 replaces a row it saves again, which moves it to the table's end, and reads a flag as a number. Here a
@@ -33,8 +35,8 @@ from dataclasses import dataclass, field
 from texstage.activities.kind import FROM_F1
 from texstage.checks import cleaning
 
-__all__ = ["ROWS", "CheckRow", "DetailRow", "EntryRow", "Loaded", "StepRow", "Writer", "create", "load", "move",
-           "norm"]
+__all__ = ["ROWS", "CheckRow", "DetailRow", "EntryRow", "Loaded", "ModerationRow", "StepRow", "Writer", "create",
+           "gid", "load", "move", "norm"]
 
 ONE = "main"                         # the step of an activity that writes none out (the design's 5.1)
 EVERY_S = 0.05                       # the writer's commits (the design's 10.2)
@@ -42,6 +44,7 @@ RETRY_MAX_S = 2.0                    # ... and at most this far apart while the 
 ASIDE_KEPT = 100                     # the rows set aside that the writer remembers, for whoever asks why
 F1_SET_ASIDE = "set aside: "         # F1's mark of a text its pool set aside (server/activity.py: SET_ASIDE)
 F1_FINAL = ("ok", "syntax", "error", "timeout", "refused")     # F1's statuses that are a verdict
+MIN_MAX = 1000                       # a crowd graph's minimum, at most (the kind's option: min)
 
 
 @dataclass
@@ -78,7 +81,8 @@ class EntryRow:
 class CheckRow:
     """The verdict on one distinct normalized input of a step (the design's 6.3). aside: an internal
     check that is final - its text ended two workers and is not checked again, after a restart neither.
-    parts: for crowd, what a restart needs to draw the graph again."""
+    parts: for crowd, what a restart needs to draw the graph again. form: the normalized input itself -
+    what a group is shown by: as clean as its kind's normalize makes a text (reduce.py)."""
     session: str
     activity: str
     step: str
@@ -92,6 +96,7 @@ class CheckRow:
     at: list | None = None           # [line, column]
     aside: bool = False
     created: int = 0
+    form: dict | None = None         # {"text": ...} or {"fields": [...]}, normalized; None: it has none
 
 
 @dataclass
@@ -105,6 +110,28 @@ class DetailRow:
     created: int = 0
 
 
+@dataclass
+class ModerationRow:
+    """An act of the lecturer's on a step's picture (moderation.py): every act a row, so that it can be
+    undone and a restarted server has it again. No row names a student: a block names an entry, and is
+    for whoever sent it."""
+    session: str
+    n: int                           # the act's number in its game, from 1: the order they are read back in
+    activity: str
+    step: str
+    act: str                         # hide approve merge unmerge show min block
+    epoch: int = 0                   # the step's, when it was done: what is shown is that epoch's
+    target: str | None = None        # a group's id (gid) - of a crowd graph: a term's key
+    role: str = ""                   # merge, unmerge: the term's role, node or label
+    entry: str | None = None         # hide: an entry; block: an entry of the student
+    onto: str | None = None          # merge: the term it is merged into
+    off: bool = False                # hide, approve, block: taken back
+    value: int | dict | list | None = None       # min: the number; block: {"hid": the entries it hid, "had": those
+    #                                              of the student it found hidden} - what its undo goes by
+    created: int = 0
+    undone: bool = False
+
+
 # as server/types.py has a type's ROWS: {dataclass: (table, columns, key, JSON columns)}
 ROWS = {
     StepRow: ("steps", ["session", "activity", "step", "epoch", "phase", "time_left", "paused_by", "seq"],
@@ -112,12 +139,14 @@ ROWS = {
     EntryRow: ("entries", ["id", "session", "activity", "step", "epoch", "player", "created", "input", "norm",
                            "state"], "session, activity, step, id", ("input",)),
     CheckRow: ("checks", ["session", "activity", "step", "norm", "status", "key", "parts", "verdict", "credit",
-                          "message", "at", "aside", "created"], "session, activity, step, norm",
-               ("parts", "message", "at")),
+                          "message", "at", "aside", "created", "form"], "session, activity, step, norm",
+               ("parts", "message", "at", "form")),
     DetailRow: ("details", ["session", "activity", "step", "key", "detail", "created"],
                 "session, activity, step, key", ("detail",)),
+    ModerationRow: ("moderation", ["session", "n", "activity", "step", "act", "epoch", "target", "role", "entry", "onto",
+                                   "off", "value", "created", "undone"], "session, n", ("value",)),
 }
-FLAGS = {CheckRow: ("aside",)}       # stored as 0 and 1
+FLAGS = {CheckRow: ("aside",), ModerationRow: ("off", "undone")}       # stored as 0 and 1
 # what a column that a file of an earlier version lacks is read as: the row's own default
 DEFAULTS = {cls: {f.name: f.default for f in dataclasses.fields(cls)
                   if f.default is not dataclasses.MISSING and f.default is not None} for cls in ROWS}
@@ -130,6 +159,15 @@ def norm(input: dict) -> str:
     and every check: changing it orphans them."""
     text = json.dumps(input, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(text.encode("utf-8", "backslashreplace")).hexdigest()[:32]
+
+
+def gid(status: str, key: str | None = None) -> str:
+    """A group's id, as the pictures and the moderation name it. Entries whose checks are ok group by
+    their key, the others by their status (the design's 6.3); the id is 16 hexadecimal digits of a hash
+    of both, since a key may be any text of up to 4,096 characters - a status's name among them. It is
+    stored with the acts on a group: changing it orphans them."""
+    text = "ok" + chr(0x1F) + (key or "") if status == "ok" else status
+    return hashlib.sha256(text.encode("utf-8", "backslashreplace")).hexdigest()[:16]
 
 
 def create(db: sqlite3.Connection) -> None:
@@ -303,6 +341,7 @@ class Loaded:
     entries: list[EntryRow] = field(default_factory=list)
     checks: list[CheckRow] = field(default_factory=list)
     details: list[DetailRow] = field(default_factory=list)
+    moderation: list[ModerationRow] = field(default_factory=list)       # in the order of the acts
 
 
 def _rows(db: sqlite3.Connection, cls, sessions: list[str]) -> list:
@@ -310,7 +349,8 @@ def _rows(db: sqlite3.Connection, cls, sessions: list[str]) -> list:
     flags, defaults = FLAGS.get(cls, ()), DEFAULTS[cls]
     marks = ", ".join("?" * len(sessions))
     out = []
-    for r in db.execute(f"SELECT {', '.join(cols)} FROM {table} WHERE session IN ({marks}) ORDER BY rowid", sessions):
+    order = "session, n" if cls is ModerationRow else "rowid"
+    for r in db.execute(f"SELECT {', '.join(cols)} FROM {table} WHERE session IN ({marks}) ORDER BY {order}", sessions):
         values = {}
         for c, v in zip(cols, r):
             if v is None and c in defaults:               # a column that came later: the row's default
@@ -326,7 +366,7 @@ def load(db: sqlite3.Connection, sessions: Iterable[str]) -> Loaded:
     if not sessions:
         return Loaded()
     return Loaded(_rows(db, StepRow, sessions), _rows(db, EntryRow, sessions), _rows(db, CheckRow, sessions),
-                  _rows(db, DetailRow, sessions))
+                  _rows(db, DetailRow, sessions), _rows(db, ModerationRow, sessions))
 
 
 # ------------------------------------------------------------------ the move of F1's data (the plan of F2, 4.10)
@@ -344,27 +384,73 @@ def _f1_check(session: str, activity: str, row: dict, input: dict) -> CheckRow |
     if status not in F1_FINAL:
         return None
     if status != "ok":
-        return CheckRow(*base, FROM_F1.get(status, status), created=row["created"])
+        return CheckRow(*base, FROM_F1.get(status, status), created=row["created"], form=input)
     if not row["key"] or not isinstance(row["key"], str):
         return None
     fields = input.get("fields")
     if fields is None:
-        return CheckRow(*base, "ok", key=row["key"], created=row["created"])
+        return CheckRow(*base, "ok", key=row["key"], created=row["created"], form=input)
     keys = row["key"].split("\x1f")
     if len(keys) != len(fields):
         return None
     parts = [{"key": k, "text": f, "literal": cleaning.is_literal(f)} for k, f in zip(keys, fields)]
-    return CheckRow(*base, "ok", key=row["key"], parts=parts, created=row["created"])
+    return CheckRow(*base, "ok", key=row["key"], parts=parts, created=row["created"], form=input)
 
 
-def move(db: sqlite3.Connection, stages: dict[str, dict]) -> dict[str, int]:
+def _f1_acts(session: str, activity: str, st: dict, n: int, item: dict | None = None) -> list[ModerationRow]:
+    """What F1 kept of the lecturer's acts in an activity's state, as acts - numbered from n: the crowd
+    graph's minimum, merges, hidden and approved terms, and the result shown on the projector. item: the
+    activity's item of the deck, if the caller has it - a minimum that is the deck's own is no act of the
+    lecturer's (F1 wrote the deck's into every graph's state). What F1 never wrote makes no act: a minimum
+    beyond MIN_MAX, a term twice, a merge that leads back to its own term - which no undo could pass."""
+    def text(v) -> bool:
+        return isinstance(v, str) and bool(v)
+    rows: list[ModerationRow] = []
+
+    def act(name: str, **more) -> None:
+        rows.append(ModerationRow(session, n + len(rows), activity, ONE, name, **more))
+
+    def listed(name: str) -> list:
+        return st[name] if isinstance(st.get(name), list) else []
+    least = st.get("min")
+    if isinstance(least, int) and not isinstance(least, bool) and 1 <= least <= MIN_MAX \
+            and not (isinstance(item, dict) and item.get("min", 1) == least):
+        act("min", value=least)                               # (first: the last act is the first to be undone)
+    merged: dict[tuple[str, str], str] = {}
+    for m in listed("merges"):
+        if isinstance(m, (list, tuple)) and len(m) == 3 and m[0] in ("node", "label") and text(m[1]) and text(m[2]):
+            role, term, onto = m
+            end, seen = onto, set()
+            while end != term and (role, end) in merged and end not in seen:
+                seen.add(end)
+                end = merged[(role, end)]
+            if end != term:                                   # (else: it leads back to the term itself)
+                merged[(role, term)] = onto
+                act("merge", target=term, role=role, onto=onto)
+    for name, kept in (("hide", "hidden"), ("approve", "approved")):
+        for term in dict.fromkeys(t for t in listed(kept) if text(t)):
+            act(name, target=term)
+    shown = st.get("shown")
+    if text(shown):                                           # a result's key - or F1's word for what is none
+        final = shown in F1_FINAL and shown != "ok"
+        act("show", target=gid(FROM_F1.get(shown, shown)) if final else gid("ok", shown))
+    return rows
+
+
+def move(db: sqlite3.Connection, stages: dict[str, dict], decks: dict[str, dict] | None = None) -> dict[str, int]:
     """F1's rows of these games - `contributions`, `results`, and each activity's phase in the game's
     stage (stages: {session: its stage}) - as the core's: entries (one step, epoch 0, the ids kept),
-    checks (a status and a key per distinct input; F1's words for an error stay behind), details (the
-    summaries) and steps, the activity the phones showed being the current one. An activity that has
-    a step already is not moved again; the old tables stay as they are. Everything in one
-    transaction. How many rows of each were made."""
-    made = {"steps": 0, "entries": 0, "checks": 0, "details": 0}
+    checks (a status and a key per distinct input, the text as F1 cleaned it as its form; F1's words
+    for an error stay behind), details (the summaries), steps, the activity the phones showed being the
+    current one, and the lecturer's acts (moderation: the crowd graph's minimum, merges, hidden and
+    approved terms, the result that was shown; decks: {session: its deck's items}, so that a minimum
+    which is the deck's own makes no act). An activity that has a step already is not moved again; the
+    old tables stay as they are. Everything in one transaction. How many rows of each were made.
+
+    A game is moved before its acts are loaded (moderation.py: load) and before any act is made: the
+    moved acts are numbered after the table's, which knows nothing of acts that are only in memory. Who
+    was blocked in F1 is the server's (a player's `muted`), and stays there: package 6 asks both."""
+    made = {"steps": 0, "entries": 0, "checks": 0, "details": 0, "moderation": 0}
     if not stages:
         return made
     create(db)
@@ -404,13 +490,22 @@ def move(db: sqlite3.Connection, stages: dict[str, dict]) -> dict[str, int]:
             seen.add((session, activity))
             rows.append(DetailRow(session, activity, ONE, key, json.loads(summary), created))
             made["details"] += 1
+    acts = dict(db.execute(f"SELECT session, MAX(n) FROM moderation WHERE session IN ({marks}) GROUP BY session",
+                           sessions).fetchall())
     for session, stage in stages.items():
-        state = (stage or {}).get("activity") or {}
-        items = state.get("items") or {}
-        for activity in sorted({a for s, a in seen if s == session} | set(items)):
+        state = stage.get("activity") if isinstance(stage, dict) else None
+        state = state if isinstance(state, dict) else {}
+        items = state["items"] if isinstance(state.get("items"), dict) else {}
+        deck = (decks or {}).get(session)
+        for activity in sorted({a for s, a in seen if s == session} | {a for a in items if isinstance(a, str)}):
             if (session, activity) in done:
                 continue
-            st = items.get(activity) or {}
+            st = items[activity] if isinstance(items.get(activity), dict) else {}      # (else: not what F1 writes)
+            item = deck.get(activity) if isinstance(deck, dict) else None
+            moved = _f1_acts(session, activity, st, acts.get(session, 0) + 1, item)
+            acts[session] = acts.get(session, 0) + len(moved)
+            rows += moved
+            made["moderation"] += len(moved)
             phase = "revealed" if st.get("revealed") else st.get("phase") if st.get("phase") in ("open", "closed") \
                 else "ready"
             rows.append(StepRow(session, activity, ONE, 0, phase, seq=1 if activity == state.get("current") else 0))

@@ -71,7 +71,8 @@ def test_a_text_is_normalized_once_and_a_form_checked_once():
     assert got == [e1, e2, e3]
     row, detail = saved.take()
     assert row == CheckRow("g1", A, S, form, "ok", key="k1", verdict="correct", credit=1,
-                           message={"code": "rows", "args": {"n": 1}}, at=[1, 8], created=5000)
+                           message={"code": "rows", "args": {"n": 1}}, at=[1, 8], created=5000,
+                           form={"text": "SELECT 1"})          # with its normalized text: what its group is shown by
     assert detail == DetailRow("g1", A, S, "k1", OK["detail"], 5000) and cs.detail(A, S, "k1") == OK["detail"]
     assert cs.of(e2) is row and cs.state(e3) == "checked"
     assert cs.counts(StepRow("g1", A)) == {"waiting": 0, "unchecked": 0, "forms": 1, "full": False}

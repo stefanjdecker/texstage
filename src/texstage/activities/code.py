@@ -17,6 +17,7 @@ import time
 
 from texstage.activities.kind import (
     ARGUMENT_MAX,
+    COMPARED,
     FROM_F1,
     Built,
     Check,
@@ -156,5 +157,5 @@ class CodeKind(Kind):
         check.canonical, check.rows = result["canonical"], result["rows"]
         check.detail = result["summary"]
         if prepared.rows is not None:
-            check.detail["diff"] = common.compare(result["rows"], prepared.rows)
+            check.detail[COMPARED] = common.compare(result["rows"], prepared.rows)
         return check
