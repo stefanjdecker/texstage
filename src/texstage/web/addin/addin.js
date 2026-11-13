@@ -338,6 +338,14 @@ function connect() {
         slow = setTimeout(() => { status = words().connecting; setup(""); }, 2000);
       }
     },
+    // its hello again after a break, refused - a newer build of the deck is played (its PowerPoint file is
+    // another), ... -, or the game is over: in the status bar; the slide shown next connects anew
+    onBye: (m) => {
+      if (client !== mine) return;
+      disconnect();
+      status = errorText(pageLanguage(), { code: m.reason, message: m.message });
+      setup("");
+    },
   });
   client.login({ t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle }).catch((err) => {
     status = errorText(pageLanguage(), err);

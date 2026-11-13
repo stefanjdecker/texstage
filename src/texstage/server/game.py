@@ -277,13 +277,20 @@ class Engine:
                 return pin
 
     # ------------------------------------------------------------ sessions (host)
-    def open_session(self, deck: str, bundle_id: str, now: int, owner: str = "") -> Session:
+    def open_session(self, deck: str, bundle_id: str, now: int, owner: str = "", chosen: bool = False) -> Session:
         """The lecturer's active session of a deck - a new one if there is none, if it is
         stale (idle for hours: the next lecture) or if it plays an older build of the deck.
-        Lecturers never share a game, even of decks with the same name."""
+        A window of an older build than the game's (built before - Bundle.built -: opened before a
+        rebuild, and now it connects again or is reloaded) is refused, the game left alone - its
+        phones would lose it -, unless the lecturer chose that build (`chosen`: the presenter
+        window's deck page, texstage present). Lecturers never share a game, even of decks with
+        the same name."""
         b = self.bundles.get(bundle_id)
         if b is None or b.deck != deck:
             raise GameError("unknown-bundle", f"deck {deck}, bundle {bundle_id} is not on this server")
+        if not chosen and any(self._newer(s, b, now) for s in self.sessions.values()
+                              if s.deck == deck and s.owner == owner and s.ended is None):
+            raise GameError("newer-build", "a newer build of this deck is being played - open that build instead")
         last, ended = None, set()
         for s in list(self.sessions.values()):
             if s.deck == deck and s.owner == owner and s.ended is None:
@@ -302,6 +309,14 @@ class Engine:
             self._release(bid)                       # (the package 4 review: it was dropped, then prepared again)
         self._commit()
         return s
+
+    def _newer(self, s: Session, b: Bundle, now: int) -> bool:
+        """Whether game s - of b's deck, not stale - plays a build made after b (the time its
+        deck.json has: Bundle.built; a build of the same time is not older)."""
+        if s.bundle == b.id or now - s.last_active >= self.settings.stale_ms:
+            return False
+        playing = self.bundles.get(s.bundle)
+        return playing is not None and playing.built > b.built
 
     def _create(self, b: Bundle, now: int, owner: str, last: Session | None = None) -> Session:
         """A new game. From the deck's last one (`last`, not ended yet) it takes over the

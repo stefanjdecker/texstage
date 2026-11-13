@@ -4,6 +4,9 @@
 cycle, scoring, the views' answer leaks, restart recovery."""
 from __future__ import annotations
 
+import os
+import time
+
 import pytest
 
 from fake_bundle import make_bundle
@@ -388,6 +391,45 @@ def test_a_rebuilt_deck_replaces_the_old_build(tmp_path):
     store.scanned = 0
     assert store.get(new.id) is not None
     assert [b.id for b in store.current()] == [new.id] and store.get(old.id) is not None
+
+
+def built(fb, at: float):
+    """deck.json's time (s), which is the build's (Bundle.built): the tests' builds come within a second."""
+    os.utime(fb.path / "deck.json", (at, at))
+    return fb
+
+
+def test_a_window_of_an_older_build_leaves_the_game_alone(tmp_path):
+    """A deck rebuilt in the lecture, its folder replaced: the new build's hello replaces the game (the
+    PowerPoint file built anew, the presenter window). A window of the build before - opened before the
+    rebuild, now connecting again or reloaded - is refused while that game runs, the game and its
+    phones left alone (2026-11-13: it ended the game, and a new PIN came), unless the lecturer chose
+    that build; a game gone stale (the next lecture) ends as ever."""
+    hour_ago = int(time.time()) - 3600
+    before = built(make_bundle(tmp_path / "b", title="Deck"), hour_ago)
+    store = BundleStore([tmp_path / "b"])
+    e = Engine(store, None, Settings())
+    old = e.open_session("test", before.id, T0)
+    after = built(make_bundle(tmp_path / "b", title="Deck", time=30), hour_ago + 3540)   # the same folder: replaced
+    store.scanned = 0
+    assert store.get(after.id).built - store.get(before.id).built == 3_540_000    # the old build: its own time
+    new = e.open_session("test", after.id, T0 + 1000)
+    assert old.ended == T0 + 1000 and new.bundle == after.id
+    with pytest.raises(GameError, match="newer build") as refused:
+        e.open_session("test", before.id, T0 + 2000)
+    assert refused.value.code == "newer-build" and new.ended is None and list(e.sessions) == [new.id]
+    assert e.open_session("test", after.id, T0 + 3000) is new                 # the new build's windows: its game
+    theirs = e.open_session("test", before.id, T0 + 3000, owner="ann")        # (another lecturer's game: apart)
+    assert theirs.bundle == before.id and new.ended is None
+    chosen = e.open_session("test", before.id, T0 + 4000, chosen=True)        # the deck page: Present
+    assert chosen.bundle == before.id and new.ended == T0 + 4000 and theirs.ended is None
+    again = e.open_session("test", after.id, T0 + 5000)
+    later = e.open_session("test", before.id, T0 + 5000 + Settings().stale_ms)    # the next lecture
+    assert later.bundle == before.id and again.ended == T0 + 5000 + Settings().stale_ms
+    built(make_bundle(tmp_path / "b", title="Deck"), hour_ago + 3600)         # the build before, made again
+    store.scanned = 0
+    store.get("0" * 16)                                                       # (an unknown ID: the store looks again)
+    assert store.get(before.id).built > store.get(after.id).built            # now it is the newest
 
 
 def test_late_answers_within_the_grace_period(w):

@@ -113,6 +113,9 @@ async function load(b) {
         else laser.move(m.x, m.y);
       }
     },
+    // its hello again after a break, refused - a newer build of the deck is played (the presenter window
+    // opens it, and this window follows) -, or the game is over: said, not left to look like a frozen slide
+    onBye: (m) => { if (own === client) hint(why({ code: m.reason, message: m.message }), true); },
   });
   book = new InkBook(client);
   ink = new InkLayer(book, aspect);

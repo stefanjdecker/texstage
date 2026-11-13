@@ -703,16 +703,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
         else laser.move(m.x, m.y);
       }
     },
-    onBye: (m) => {
-      client.close();
-      if (m.reason === "removed") {                // a device removed in the presenter window
-        forget();
-        speak(null);
-        keyForm(T.presenter.removed);
-      } else {
-        showDecks().catch(() => keyForm());
-      }
-    },
+    onBye: (m) => refused({ code: m.reason, message: m.message }),
   });
   book = new InkBook(client);
   agent?.destroy();
@@ -764,7 +755,6 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
       notice(e.data.click === "sound" ? T.presenter.videoSound : T.presenter.videoStart);
     }
   };
-  follow.postMessage({ type: "deck", bundle: deck.bundle });     // an open projector window: this deck now
   $("#prev").onclick = () => move(-1);
   $("#next").onclick = () => move(1);
   $("#timer").onclick = toggleTimer;
@@ -813,11 +803,37 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   clearInterval(ticker);
   ticker = setInterval(tickClock, 250);
   const credentials = typeof auth === "string" ? { key: auth } : { device: auth.device };
-  const welcome = await client.login({ t: "hello", role: "stage", ...credentials, deck: deck.deck, bundle: deck.bundle });
+  const hello = { t: "hello", role: "stage", ...credentials, deck: deck.deck, bundle: deck.bundle };
+  const mine = client;
+  let welcome;
+  try {
+    // chosen (Present clicked, texstage present): this build's game even where a newer build's runs - not so
+    // a reload in the lecture, nor this hello again after a break (a window of an older build: newer-build)
+    welcome = await client.login(chosen ? { ...hello, chosen: true } : hello);
+  } catch (err) {
+    if (client === mine) refused(err);            // (not when this window has opened another deck meanwhile)
+    return;
+  }
+  if (chosen) mine.relogin(hello);                 // after a break: the same hello, no choice any more
+  follow.postMessage({ type: "deck", bundle: deck.bundle });     // an open projector window: this deck now - its
+  //                                                               hello after this one's, which may have chosen it
   clearInterval(pinger);
   pinger = setInterval(ping, 5000);
   ping();
   if (chosen && welcome?.earlier && !welcome.presenters) await newOrContinued(welcome.earlier);
+}
+
+// The server would not give this window its game, or took it away: a newer build of the deck is played (a
+// window of a build before it, connected again), the device was removed, ... - the deck page, and why.
+function refused(err) {
+  client.close();
+  if (err?.code === "removed") {                   // a device removed in the presenter window
+    forget();
+    speak(null);
+    keyForm(T.presenter.removed);
+  } else {
+    showDecks().then(() => tell(why(err)), () => keyForm());
+  }
 }
 
 async function newOrContinued(e) {

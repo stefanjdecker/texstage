@@ -149,6 +149,7 @@ export default {
     busy: "Die Frage ist noch nicht aufgelöst.",
     "no-round": "Es wurde noch keine Frage gestellt.",
     "unknown-bundle": "Dieser Foliensatz ist nicht auf diesem Server.",
+    "newer-build": "Ein neuerer Build dieses Foliensatzes wird gerade gespielt – öffnen Sie stattdessen diesen.",
     "unknown-quiz": "Dieses Quiz gibt es in diesem Foliensatz nicht.",
     "too-many-polls": "Dieses Spiel hatte genug Umfragen.",
     "too-many-boards": "Diese Vorlesung hat genug Whiteboard-Seiten.",

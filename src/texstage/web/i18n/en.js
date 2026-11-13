@@ -165,6 +165,7 @@ export default {
     busy: "The question has not been revealed yet.",
     "no-round": "No question has been asked yet.",
     "unknown-bundle": "This deck is not on this server.",
+    "newer-build": "A newer build of this deck is being played – open that build instead.",
     "unknown-quiz": "This deck has no such quiz.",
     "too-many-polls": "This game has had enough polls.",
     "too-many-boards": "This lecture has enough whiteboard pages.",

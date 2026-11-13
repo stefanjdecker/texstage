@@ -115,6 +115,49 @@ test('a rejected reconnect clears stale commands and tells the page the session 
   assert.equal(socket.sent.some((m) => m.t === 'answer'), false);
 });
 
+// The end of the presenter window's openDeck (presenter.js), run as it is: its hello - chosen when Present
+// was clicked or texstage present opened the deck -, then the projector told of the deck, or the refusal.
+function presenterHello(t) {
+  const presenter = source('stage/presenter.js');
+  const from = presenter.indexOf('  const credentials = typeof auth');
+  const to = presenter.indexOf('\n}\n', from);       // (openDeck's end)
+  assert.ok(from > 0 && to > from, 'presenter.js: the hello at the end of openDeck');
+  const told = [], refusals = [];
+  Object.assign(t.context, {auth: 'key', deck: {deck: 'demo', bundle: 'b1'}, client: t.client, pinger: 0,
+    follow: {postMessage: (m) => told.push(m)}, refused: (err) => refusals.push(err), ping() {},
+    setInterval: () => 0, clearInterval() {}, newOrContinued: async () => {}});
+  vm.runInContext(`globalThis.helloOf = async function (chosen) {\n${presenter.slice(from, to)}\n};`, t.context);
+  return {open: (chosen) => t.context.helloOf(chosen), told, refusals};
+}
+
+test('the presenter window chooses its build once: after a break its hello takes no newer game away', async () => {
+  const t = transport();
+  const p = presenterHello(t);
+  const opened = p.open(true);
+  t.sockets[0].open();
+  assert.equal(t.sockets[0].sent[0].chosen, true);
+  assert.equal(p.told.length, 0);                  // the projector's hello comes after this one's (it does not choose)
+  t.welcome(t.sockets[0]); await opened;
+  assert.deepEqual(p.told.map((m) => [m.type, m.bundle]), [['deck', 'b1']]);
+  const socket = t.reconnect();
+  assert.deepEqual(socket.sent.map((m) => [m.t, m.bundle, 'chosen' in m]), [['hello', 'b1', false]]);
+  t.welcome(socket);
+  assert.equal(t.client.ready, true);
+});
+
+test('a presenter window refused at its hello - a newer build is played - says so and moves no projector', async () => {
+  const t = transport();
+  const p = presenterHello(t);
+  const opened = p.open(false);
+  t.sockets[0].open();
+  const hello = t.sockets[0].sent[0];
+  assert.equal('chosen' in hello, false);          // a reload in the lecture: no choice
+  t.sockets[0].message({t: 'error', re: hello.id, error: 'newer-build', message: 'a newer build is being played'});
+  await opened;
+  assert.deepEqual(p.refusals.map((err) => err.code), ['newer-build']);
+  assert.equal(p.told.length, 0);
+});
+
 test('an initial login rejection remains a form error, not a game-over event', async () => {
   const byes = [];
   const t = transport(() => {}, (m) => byes.push(m));
