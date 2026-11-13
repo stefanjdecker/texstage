@@ -617,6 +617,99 @@ Left for the packages that follow:
   0.6 MB when all are full.
 - **The kinds' normalize takes comments out** - done on 2026-11-12, before package 6 (4.7).
 
+The fourth part, as built (package 6: `activities/play.py`, `server/activities.py`, and what
+`server/worker.py`, `pool.py`, `types.py`, `game.py` and `app.py` have of it) and as it is after
+its review - five faults and five doubts, fixed:
+
+- **Beside F1's type, not in its place.** 3 says that no server carries both, and none does: a
+  server runs one of the two (`types.py`: `use`; `ServerConfig.activities`, `f1` or `core`), and
+  F1's is the one it runs unless it is told otherwise. The core's type is `server/activities.py` -
+  `server/activity.py` is F1's still, untouched -, so that `main` keeps its lectures' type while
+  the windows and the build learn the core's (packages 7 and 8); F1's tests pass as before. Taking
+  F1's type out, and the switch with it, is a step of its own, for when the browser speaks AF
+  10.4. No command line option chooses the core yet: without its windows nobody could use it.
+- **The pool's processes prepare and check through the kinds** (`worker.py`: `_OfKind`): an
+  activity whose module is named `kind:<name>` has the kind's `prepare`, its `copy` for every
+  process, the first too, its references, each compared with none, and its checks - a check's
+  outcome is `Check.sent()`, held against the contract's rules first (`validated`): one that
+  breaks them, and whatever a kind's check raises, is `internal`. The pool's own queue did not
+  change: a job's text is the normalized input as JSON, its seed `{item, keys, files}`. F1's
+  engines run beside, for F1's type.
+- **One game's core as one** (`activities/play.py`: `Play`): whoever changes an entry tells the
+  reductions, whoever moves a step the pictures, and every job a part asks for goes out at once.
+  An entry is taken in its step as it is after a tick. `Part` is what a game reads of an activity
+  of its deck: the item, the keys, the kind - for a deck built before kinds are named (package 7),
+  the one of its `input` and `engine` -, the step's setup, and `feedback=`.
+- **`feedback=`** (AF 5.3) is read here: `none` - received, no more -, `status` - the default: it
+  runs, or the error with its line -, `verdict`, `full` - with what the kind's detail says of the
+  reference. At the reveal every phone has its verdict. An `internal` check tells a phone nothing
+  but that the entry is unchecked; an entry the lecturer hid is the student's as before.
+- **The messages** are AF 10.4's, and `activity.undo {activity, act?}` for 13's "every moderation
+  can be undone". `activity.moderate` keeps the design's names - `group`, `into`, `on` -, the
+  rows' are `target`, `onto`, `off`. `activity.open` and `activity.time` take seconds. A step
+  other than `main` is refused: steps are F3's.
+- **An entry is acknowledged once it is written** (AF 10.1): the hook's reply carries what is to
+  be called then (`types.WRITTEN`), the app answers - and remembers the answer for a message sent
+  again - only when the writer has committed the row. Until then the same message is asked
+  again, and gets the entry that is there. No session is stored for an entry: the engine saved
+  the game and committed for every phone's message.
+- **What the windows are told** is the type's part of the game's stage - under a name of its own,
+  `activities`, so that F1's `activity` stays as F1 left it, for the move and for going back -:
+  the current activity, and of each step the game's core knows - one that moved, or was looked
+  at - its phase, epoch, time, and the version
+  the windows are told, at most four times a second. A time that runs is told once, with when it
+  was read; told with every tick, every window and phone would get its state ten times a second.
+- **`activity.step`:** the step's own part of a phone's state - phase, kind, input, limit,
+  `feedback`, time, the prompt, the fields and what they offer, the tokens - is one text per
+  game, serialized once and sent to every phone as it is (`Conn.text`), at once when a step
+  moves, else at most once a second: what a field offers grows with the graph. A phone that
+  comes gets what the others have. A phone's own entries stay in its `state`.
+- **The tick** (`Engine.pulse`, every 100 ms): every game's steps - a time that ran out closes
+  its step, a sleep pauses it -, a quiz round that began or ended, what the windows and the
+  phones are to be told, and the pool's answers that nobody woke the engine for. It stores no
+  session; a step's row goes to the writer as its time runs out, and every 5 s while it runs.
+  One game's fault in it is that game's: the others' time goes on, and the log says it once.
+- **The lead window:** the first presenter window that sends `activity.layout` leads for 15 s
+  and again with each layout; another window's layout is not taken, and it is told so (`lead`);
+  `activity.view` says whether the asking window leads. A window that goes leads no more, and
+  a layout that is none takes no lease.
+- **The references are a game's whenever they come** (the review: the pool prepares a deck as
+  its game comes, long before anybody shows an activity - and a game got them only if it had
+  its core by then, so a deck's first game had no verdicts): a game's core takes what is known
+  of its deck as it is made, and what comes later as it comes - and then every phone gets its
+  state again, since a verdict may be new.
+- **A refused message that found a step changed** - its time ran out as a phone sent, or as the
+  lecturer pressed *Pause* - tells the phones at once and the windows with the next tick: the
+  engine and the app tell nobody after a refusal (the review: the panel showed an open step at
+  0:00 until something else happened).
+- **What is not prepared says so:** a seed that does not load, a kind that is not installed, a
+  pool that is broken - in the game's host view, as F1's, and in the panel's picture
+  (`failed`). A job the pool does not take - it is closed, there is none - is answered as one
+  it could not do: its entries are unchecked, never waiting for ever, and the same text sent
+  again is asked for again. A game that ends takes what it still waited for out of the queue.
+- **F1's games move one at a time** when the core's type first starts on their store: one that
+  does not move takes none of the others' rows back with it.
+- **A restart:** the type's book begins once the engine has its games - the core's tables, the
+  writer, then per game the move if it is F1's, the steps, entries, checks and acts
+  (`Play.load`); the references are checked again as the deck is prepared, and what was unchecked
+  is asked for once the pool runs.
+- **The panel says when nothing is written:** `activity.view` in the presenter window has the
+  writer's failures and its last error while there is one.
+- **The archive:** `activity-<id>.csv` with step and epoch, without names; the final picture as
+  JSON; a crowd graph as SVG, drawn by F1's `graph_svg` from the core's picture.
+- **What the engine asks a type besides** (`types.py`): `begin`, `deck`, `resume`, `shown` - a
+  slide change with the game -, `pulse`, a book's `apply` - the pool's answers - and `release`,
+  each only where a type has it.
+
+Left after package 6:
+
+- **The slides reveal nothing yet:** until the build records what a page is of its step
+  (package 7), every page of an activity is its question's - it opens and closes.
+- **The deck list's failed references** are F1's still (`app.py`); the panel's picture has the
+  core's.
+- **Not there, and not F2's:** `activity.next`, the acts `pick` and `approve` (F3).
+- **No load run yet** with the core's type: package 13's.
+
 ### 4.4 The build and LaTeX
 
 - **`texactivity.sty`** knows the core's keys that F2 uses - `id`, `kind`, `limit`, `counts`,
@@ -969,7 +1062,10 @@ the review left to the kinds is done too (2026-11-12): their normalize takes a t
 mended in F1's code: SERVICE got past its refusal - where the server checks, which is no lecture
 yet (2.3; 4.7). Two more faults of F1's checks, which the review met, are mended with it: a text with a
 base of its own for a seed with relative prefixes, and how Oxigraph reads a Turtle text's end
-(4.7).
+(4.7). Package 6 is built on it (2026-11-13), not reviewed yet: the core's type with AF 10.4's
+messages, `activity.step` and the lead window, the pool's processes checking through the kinds -
+beside F1's type, which a server runs unless it is told otherwise (4.3): it rewires nothing for
+the lectures.
 
 ### 4.13 Risks
 

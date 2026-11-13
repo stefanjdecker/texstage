@@ -329,8 +329,12 @@ class Pool:
                 language: str | None = None) -> cf.Future:
         """Every worker, the spare too, prepares the activity - its seed loaded, its references checked
         in their order, first on one process. The future: their outcomes, a `timeout` for one that ran
-        away - or the seed's error (ValueError). Preparing it again cancels the earlier future."""
-        module = self.engines.get(engine)
+        away - or the seed's error (ValueError). Preparing it again cancels the earlier future.
+
+        engine: an engine's name - or "kind:<name>", a kind of the contract (worker.py: _OfKind): its seed
+        is {item, keys, files}, and a text to check (submit) the normalized input as JSON."""
+        of_kind = isinstance(engine, str) and engine.startswith(worker.KIND)
+        module = engine if of_kind else self.engines.get(engine)
         if module is None:
             raise ValueError(f"no engine {engine!r}")
         resolve = []
@@ -345,7 +349,8 @@ class Pool:
             refs = list(references)
             self.gens += 1
             a = {"act": act, "gen": self.gens, "module": module, "seed": seed, "texts": refs,
-                 "language": language, "options": {"heap_allowance": self.heap_allowance} if engine == "sql" else {},
+                 "language": language,
+                 "options": {"heap_allowance": self.heap_allowance} if engine == "sql" or of_kind else {},
                  "outcomes": [None] * len(refs), "rows_from": None, "phase": "lead", "lead": None, "deaths": 0,
                  "loaded": False, "image": None, "failed": None,                # loaded: on some process
                  "future": cf.Future()}

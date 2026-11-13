@@ -31,6 +31,11 @@ and, as it needs them,
     FILES, FILE_TYPES                     bundle files it serves as the pictures are (a pattern of their
                                           names; deck.json lists them) and their media types by suffix
     MEDIA, POSTER, TYPES, media(items)    (the video) the bundle files it serves: by ticket, or as pictures
+    shown(call, before, after)            a slide change, for a type whose data are not the stage's
+    deck(call, bundle), resume(call)      a game comes to a deck; the server started again
+    pulse(engine, now)                    a few times a second: the games whose windows need their state
+    Book: begin(engine), apply(now),      once the engine has its games; the pool's answers, applied;
+      release(bundle), casts, steps       a build's last game ended; a text for every phone of a game
 
 A deck that names a type not here is refused (bundles.py).
 """
@@ -69,20 +74,51 @@ class Call:
     changed: bool = True                 # False: nothing to store (the session is not saved)
 
 
-# The types (after Refused and Call, which they use)
-from texstage.server import activity, video  # noqa: E402
+WRITTEN = "__written__"                  # in a hook's reply: a function that takes what is to be called once the
+#                                          hook's rows are written - the reply is sent then, not before (app.py)
 
-TYPES = {video.NAME: video, activity.NAME: activity}
-KNOWN = {"quiz", *TYPES}
-MESSAGES = {m: t for t in TYPES.values() for m in t.MESSAGES}
-READS = {m for t in TYPES.values() for m in getattr(t, "READS", ())}
-QUIET = {m for t in TYPES.values() for m in getattr(t, "QUIET", ())}
-PLAYER_MESSAGES = {m: t for t in TYPES.values() for m in getattr(t, "PLAYER_MESSAGES", ())}
-ROWS = {cls: spec for t in TYPES.values() for cls, spec in getattr(t, "ROWS", {}).items()}
-FILE_TYPES = {suffix: mime for t in TYPES.values() for suffix, mime in getattr(t, "FILE_TYPES", {}).items()}
-FILES = [t.FILES for t in TYPES.values() if hasattr(t, "FILES")]               # patterns of names
-ARCHIVE = [t.ARCHIVE for t in TYPES.values() if hasattr(t, "ARCHIVE")]
-assert READS <= set(MESSAGES), "a read is one of the type's messages"
+# The types (after Refused and Call, which they use)
+from texstage.server import activities, activity, video  # noqa: E402
+
+# Live activities: F1's type, or the activity framework's core (activities.py; the plan of F2, package 6) -
+# one of the two in a server, never both: they take the same messages and the same decks.
+ACTIVITIES = {"f1": activity, "core": activities}
+TYPES: dict = {}
+KNOWN = {"quiz", video.NAME, activity.NAME}
+MESSAGES: dict = {}
+READS: set = set()
+QUIET: set = set()
+PLAYER_MESSAGES: dict = {}
+ROWS = {cls: spec for t in (video, activity, activities) for cls, spec in getattr(t, "ROWS", {}).items()}
+FILE_TYPES = {suffix: mime for t in (video, activity) for suffix, mime in getattr(t, "FILE_TYPES", {}).items()}
+FILES = [t.FILES for t in (video, activity) if hasattr(t, "FILES")]             # patterns of names
+ARCHIVE = [t.ARCHIVE for t in (video, activity) if hasattr(t, "ARCHIVE")]
+using = ""
+
+
+def use(which: str = "f1") -> None:
+    """The activity type this server runs: "f1" or "core". What the engine and the app read of the types
+    - by name, as they need it - is the chosen one's from here on; the tables, the files a type serves
+    and the archive's names are both types' alike."""
+    global using
+    if which not in ACTIVITIES:
+        raise ValueError(f"activities: one of {', '.join(ACTIVITIES)}, not {which!r}")
+    types = {video.NAME: video, activity.NAME: ACTIVITIES[which]}
+    TYPES.clear()
+    TYPES.update(types)
+    MESSAGES.clear()
+    MESSAGES.update({m: t for t in types.values() for m in t.MESSAGES})
+    READS.clear()
+    READS.update(m for t in types.values() for m in getattr(t, "READS", ()))
+    QUIET.clear()
+    QUIET.update(m for t in types.values() for m in getattr(t, "QUIET", ()))
+    PLAYER_MESSAGES.clear()
+    PLAYER_MESSAGES.update({m: t for t in types.values() for m in getattr(t, "PLAYER_MESSAGES", ())})
+    assert READS <= set(MESSAGES), "a read is one of the type's messages"
+    using = which
+
+
+use("f1")
 
 
 def bundle_file(rel: str) -> bool:

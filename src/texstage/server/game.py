@@ -209,6 +209,9 @@ class Engine:
             for name, book in self.books.items():
                 book.load([row for cls in getattr(stage_types.TYPES[name], "ROWS", {})
                            for row in store.load_rows(cls, list(self.sessions))])
+        for book in self.books.values():                 # (a type whose data are its own tables: activities.py)
+            if hasattr(book, "begin"):
+                book.begin(self)
 
     def _restarted(self, s: Session, now: int) -> bool:
         """The content types' part for a game as the server starts again (activity.py: restarted - what
@@ -336,15 +339,22 @@ class Engine:
 
     def _release(self, bundle_id: str):
         """The build's last game ended: the pool lets go of its activities."""
-        if self.checks is not None and not any(o.bundle == bundle_id for o in self.sessions.values()):
-            self.checks.release(bundle_id)
+        if not any(o.bundle == bundle_id for o in self.sessions.values()):
+            if self.checks is not None:
+                self.checks.release(bundle_id)
+            for book in self.books.values():
+                if hasattr(book, "release"):
+                    book.release(bundle_id)
 
     # ------------------------------------------------------------ the server's checks (checking.py)
     def _check_deck(self, s: Session, b: Bundle, now: int) -> bool:
         """A game of a deck whose activities the server checks: every process of the pool prepares the
         build's code activities - once for all games of it -, and the references' outcomes are the
         game's at once if they are known, else when they come (apply_checks). Whether the game changed."""
-        if self.checks is None:
+        for kind in stage_types.TYPES.values():          # a type that prepares its deck itself (activities.py)
+            if hasattr(kind, "deck"):
+                kind.deck(self._call(s, kind, now), b)
+        if self.checks is None or not hasattr(stage_types.TYPES["activity"], "checked"):
             return False
         self.checks.prepare(b)
         changed = False
@@ -386,9 +396,12 @@ class Engine:
         texts' contributions and the references, as the presenter window's results were, the phones they
         concern due; in the mode both compared with the window's only. The games that changed, for the
         server to push their windows."""
-        if self.checks is None:
-            return set()
         changed: set[str] = set()
+        for book in self.books.values():                 # a type that takes the pool's answers itself
+            if hasattr(book, "apply"):
+                changed |= book.apply(now)
+        if self.checks is None:
+            return changed
         for answer in self.checks.answers():
             try:
                 self._apply_answer(answer, now, changed)
@@ -447,10 +460,13 @@ class Engine:
                 continue
             if self._restarted(s, now):
                 self._save(s)
-            if self.checks is None:
-                continue
             if self._check_deck(s, b, now):
                 self._save(s)
+            for kind in stage_types.TYPES.values():      # (what was unchecked is asked for: activities.py)
+                if hasattr(kind, "resume"):
+                    kind.resume(self._call(s, kind, now))
+            if self.checks is None or not hasattr(book, "shelf"):
+                continue
             for aid, item in (b.items.get("activity") or {}).items():
                 if item.get("input") != "code" or book is None:
                     continue
@@ -1007,8 +1023,13 @@ class Engine:
         a type whose phones show its state has them get it again."""
         for name, kind in stage_types.TYPES.items():
             old = s.stage
-            s.stage = kind.slide(s.stage, b.items.get(name, {}), before.shows.get(name, ()) if before else (),
-                                 after.shows.get(name, ()) if after else (), now)
+            was, comes = before.shows.get(name, ()) if before else (), after.shows.get(name, ()) if after else ()
+            if hasattr(kind, "shown"):                   # (its data are not the stage's: activities.py)
+                call = self._call(s, kind, now)
+                kind.shown(call, was, comes)
+                self._due(s.id, call.phones)
+            else:
+                s.stage = kind.slide(s.stage, b.items.get(name, {}), was, comes, now)
             if s.stage is not old and hasattr(kind, "player_view"):
                 self._due(s.id, True)
 
@@ -1063,10 +1084,39 @@ class Engine:
         except ValueError as err:
             raise GameError("invalid", str(err)) from None
         s.last_active = now
-        self._save(s)
-        self._commit()
+        if call.changed:                                 # (False: its rows are its writer's - activities.py)
+            self._save(s)
+            self._commit()
         self._due(s.id, call.phones)
         return reply
+
+    def pulse(self, now: int) -> set[str]:
+        """A few times a second (app.py): the types that count time themselves - a step's time that ran
+        out, what their windows are told. The games whose windows need their state; nothing is stored."""
+        changed: set[str] = set()
+        for kind in stage_types.TYPES.values():
+            if hasattr(kind, "pulse"):
+                changed |= kind.pulse(self, now)
+        return changed
+
+    def round_on(self, sid: str) -> bool:
+        """Whether a quiz round runs in the game: it gets ready, or is open."""
+        s = self.sessions.get(sid)
+        return s is not None and any(r.phase in ("get-ready", "open") for r in s.rounds.values())
+
+    def take_casts(self) -> dict[str, str]:
+        """What every phone of a game is to be sent, as text - a type's message that is the same for all
+        of them, serialized once (activities.py: activity.step)."""
+        casts: dict[str, str] = {}
+        for book in self.books.values():
+            if getattr(book, "casts", None):
+                casts.update(book.casts)
+                book.casts.clear()
+        return casts
+
+    def cast(self, sid: str) -> list[str]:
+        """... and what a phone that comes to the game is sent of it: what the others have."""
+        return [book.steps[sid][0] for book in self.books.values() if sid in getattr(book, "steps", {})]
 
     def type_archive(self, sid: str, now: int) -> dict[str, str]:
         """The content types' files for the game's folder in the lecture archive: {name: text}."""
@@ -1482,7 +1532,11 @@ class Engine:
         for some of the game's activities: {mode, failing: {activity: why}} (the presenter window's panel)."""
         if self.checks is None:
             return {"mode": "browser"}
-        return {"mode": self.checks.mode, "failing": self.checks.problems(s.bundle)}
+        failing = dict(self.checks.problems(s.bundle))
+        for book in self.books.values():                 # a type that prepares its deck itself (activities.py)
+            if hasattr(book, "problems"):
+                failing |= book.problems(s.bundle)
+        return {"mode": self.checks.mode, "failing": failing}
 
     def results_table(self, sid: str) -> list[list]:
         """The game as a table (the host's CSV export): a row per player in rank order; per

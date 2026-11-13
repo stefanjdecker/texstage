@@ -133,6 +133,7 @@ export default {
     "bad-key": "This presenter key is not accepted.",
     "key-required": "This needs the presenter key.",
     "read-only": "The projector window only shows the slides.",
+    time: "A step's time is between 1 second and 4 hours.",
     busy: "The question has not been revealed yet.",
     "no-round": "No question has been asked yet.",
     "unknown-bundle": "This deck is not on this server.",

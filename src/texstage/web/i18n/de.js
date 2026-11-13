@@ -116,6 +116,7 @@ export default {
     "bad-key": "Dieser Präsentationsschlüssel wird nicht angenommen.",
     "key-required": "Dafür braucht es den Präsentationsschlüssel.",
     "read-only": "Das Projektorfenster zeigt nur die Folien.",
+    time: "Die Zeit eines Schritts liegt zwischen 1 Sekunde und 4 Stunden.",
     busy: "Die Frage ist noch nicht aufgelöst.",
     "no-round": "Es wurde noch keine Frage gestellt.",
     "unknown-bundle": "Dieser Foliensatz ist nicht auf diesem Server.",

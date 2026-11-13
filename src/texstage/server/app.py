@@ -123,6 +123,7 @@ from texstage.server.store import Store
 
 log = logging.getLogger("texstage.server")
 HOST_PUSH_S = 0.2           # live counts to the hosts: at most 5 updates a second
+PULSE_S = 0.1               # the types that count time themselves are asked this often (Engine.pulse)
 QA_PUSH_S = 0.5             # the audience's questions and votes to the phones that show them
 READS = {"ink.load", "ink.all", "sketch.list", "sketch.get"}    # answered anew, not from the reply cache
 MESSAGE_MAX = 16 * 1024
@@ -297,6 +298,8 @@ class ServerConfig:
     checks: str = "browser"              # who checks the activities' texts (checking.py, MODES): server, browser, both
     workers: int | None = None           # the server's pool: its worker processes (default: the cores less two)
     pool: dict = field(default_factory=dict)     # (the tests': the pool's engines and budgets)
+    activities: str = "f1"               # the activity type (types.py: use): F1's, or "core" - the activity
+    #                                      framework's, which the server always checks for (the plan of F2, package 6)
 
 
 class Conn:
@@ -327,6 +330,11 @@ class Conn:
         self.state = state
         self.ready.set()
 
+    def text(self, text: str):
+        """A message that is serialized already - the same for every phone of a game (a type's cast)."""
+        self.outbox.append(text)
+        self.ready.set()
+
     def bye(self, reason: str, message: str):
         self.send({"t": "bye", "reason": reason, "message": message})
         self.closing = True
@@ -337,7 +345,8 @@ class Conn:
                 await self.ready.wait()
                 self.ready.clear()
                 while self.outbox:
-                    await self.ws.send_json(self.outbox.popleft())
+                    msg = self.outbox.popleft()
+                    await (self.ws.send_text(msg) if isinstance(msg, str) else self.ws.send_json(msg))
                 if self.state is not None:
                     state, self.state = self.state, None
                     await self.ws.send_json(state)
@@ -411,8 +420,9 @@ class Server:
         self.store = Store(config.data_dir / "texquiz.sqlite3")   # its name since 0.1: the games, archives
         if config.checks not in MODES:
             raise ValueError(f"checks: one of {', '.join(MODES)}, not {config.checks!r}")
-        self.checks = None if config.checks == "browser" else Checks(config.checks, workers=config.workers,
-                                                                     **config.pool)
+        stage_types.use(config.activities)           # F1's activity type, or the core's (before the engine is made)
+        mode = "server" if config.activities == "core" else config.checks      # (the core has no window that checks)
+        self.checks = None if mode == "browser" else Checks(mode, workers=config.workers, **config.pool)
         if self.checks is not None:                  # (the mode both: the differences, in the game's archive folder)
             self.checks.compare_file = lambda s: archive.folder(config.data_dir, s) / "checks-compare.csv"
         self.checks_due = False
@@ -527,12 +537,33 @@ class Server:
         self.qa_dirty.add(sid)
 
     def push_due(self):
-        """The phones a content type's change concerns get their state (game.py: take_due)."""
+        """The phones a content type's change concerns get their state (game.py: take_due) - and what a
+        type sends every phone of a game alike, as the text it is (take_casts)."""
+        for sid, text in self.engine.take_casts().items():
+            for c in list(self.conns.get(sid, ())):
+                if c.role == "player":
+                    c.text(text)
         for sid, who in self.engine.take_due().items():
             self.push(sid, hosts=False, only=None if who is True else who)
 
+    async def pulser(self):
+        """A few times a second: the types that count time themselves (Engine.pulse) - their windows soon,
+        their phones now."""
+        while True:
+            await asyncio.sleep(PULSE_S)
+            try:
+                for sid in self.engine.pulse(now_ms()):
+                    self.dirty.add(sid)
+                self.push_due()
+            except Exception:                        # a bug must not stop the clock
+                log.exception("pulse failed")
+
     async def start(self):
-        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher())]
+        self.tasks = [asyncio.create_task(self.ticker()), asyncio.create_task(self.flusher()),
+                      asyncio.create_task(self.pulser())]
+        for book in self.engine.books.values():      # a type that writes its own rows (activities.py: the core's)
+            if getattr(book, "writer", None) is not None:
+                self.tasks.append(asyncio.create_task(book.writer.run()))
         if self.checks is not None:                  # the pool starts; the open games' decks are prepared, and
             self.loop = asyncio.get_running_loop()   # what still waits is checked (Engine.resume_checks)
             self.checks.start(wake=self._wake_checks)
@@ -571,6 +602,7 @@ class Server:
     async def stop(self):
         for t in self.tasks:
             t.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)      # (a writer writes what is left)
         if self.checks is not None:                  # (what still waits is checked after the next start)
             await asyncio.to_thread(self.checks.close)
         self.store.close()
@@ -699,12 +731,19 @@ class Server:
                     raise GameError("read-only", "the projector window only shows the slides")
                 if mid is None and t == "pointer":      # sent without an id: no answer wanted
                     return
+                written = (reply or {}).pop(stage_types.WRITTEN, None)
                 reply = {"t": "ok", "re": mid, **(reply or {})}
-                if mid is not None and t not in READS and t not in stage_types.READS and t != "pointer":
-                    cache[mid] = reply                   # (the laser's answer: the next may go)
-                    while len(cache) > REPLY_CACHE:
-                        cache.popitem(last=False)
-                conn.send(reply)
+
+                def answer(reply=reply, cache=cache):
+                    if mid is not None and t not in READS and t not in stage_types.READS and t != "pointer":
+                        cache[mid] = reply               # (the laser's answer: the next may go)
+                        while len(cache) > REPLY_CACHE:
+                            cache.popitem(last=False)
+                    conn.send(reply)
+                if written is None:
+                    answer()
+                else:                                    # once the hook's rows are written, not before: until
+                    written(answer)                      # then the message sent again is asked again (types.py)
         except GameError as err:
             conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
         except Exception as err:                         # a bug: report it, keep the connection
@@ -782,6 +821,8 @@ class Server:
         if token:
             welcome["token"] = token
         conn.send(welcome)
+        for text in self.engine.cast(p.session):          # what every phone of the game has (a type's cast)
+            conn.text(text)
         self.push(p.session, hosts=False, only=p.id)
         self.dirty.add(p.session)
 

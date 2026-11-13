@@ -25,6 +25,9 @@ What the pool sends and what the worker answers, through its pipe - in order, on
     ("drop", act)
     ("exit",)
 
+module: an engine's (texstage.checks.sql) - or "kind:<name>", a kind of the contract (_OfKind): then the
+seed is {item, keys, files}, a text to check the normalized input as JSON, and an outcome what the kind's
+check says (activities/kind.py: Check.sent), held against the contract's rules.
 image: None, the seed is run; a number, to the first process: the seed is run, and the database it left -
 at most that many bytes, where the engine makes one (checks/sql.py: image) - goes back, and this process
 checks on a copy of it too, as every other will; "follows": such a database, in the seed's place. A
@@ -47,6 +50,7 @@ import threading
 import time
 
 STACK = 64 * 2**20
+KIND = "kind:"                          # a module's name that is none: a kind of the contract (_OfKind)
 
 
 def main(conn, options: dict) -> None:
@@ -125,6 +129,53 @@ def _outcome(result: dict, reference_rows: list | None, end: float) -> dict:
     return out
 
 
+class _OfKind:
+    """A kind of the contract where an engine's module is (F2's plan, 4.3; texstage/activities/kind.py): an
+    activity whose module is named "kind:<name>". Its seed is {item, keys, files} - the public item, the
+    keys, the bundle's files by the names the item gives them -, a text to check the normalized input as
+    JSON, a reference its text. What goes back of a check is what the kind's check says (Check.sent), held
+    against the contract's rules first: one that breaks them is internal, never the student's - as is
+    whatever a kind's check raises."""
+
+    def __init__(self, name: str):
+        from texstage.activities import registry
+        self.kind = registry.kind(name)
+        self.item: dict = {}
+        self.keys: dict = {}
+
+    def load(self, seed: dict, image: bytes | None = None, **limits):
+        self.item, self.keys = seed["item"], seed["keys"]
+        return self.kind.prepare(self.item, self.keys, seed["files"], limits or None, copy=image)
+
+    def image(self, prepared, most: int) -> bytes | None:
+        return self.kind.copy(prepared, most)
+
+    def check(self, prepared, rows: list | None, text: str, language: str | None, budget_s: float,
+              reference: bool = False) -> tuple[dict, list | None]:
+        """The outcome, and a result's rows - which stay in the worker. rows: the reference's, which a
+        result is compared with; a reference itself is compared with none."""
+        import json
+
+        from texstage.activities.kind import Check, Entry, Prepared, Step, validated
+        step = Step(self.item, self.keys, language, budget_s)
+        try:
+            if reference:
+                entry = Entry(text=text)
+            else:
+                sent = json.loads(text)
+                fields = sent.get("fields")
+                entry = Entry(text=sent.get("text"), fields=tuple(fields) if isinstance(fields, list) else None)
+            check = validated(self.kind, self.kind.check(Prepared(prepared.state, rows), step, entry), step)
+        except MemoryError:
+            return {"status": "error", "memory": True}, None
+        except Exception:  # noqa: BLE001 - a kind's check raises for nothing a student can send: the core's
+            check = Check("internal")
+        out = check.sent()
+        if check.memory:
+            out["memory"] = True
+        return out, check.rows if check.status == "ok" else None
+
+
 def _normalize(name: str, item: dict, keys: dict, language: str | None, input: dict) -> dict:
     """A kind's normalize for an input as it was sent (F2's plan, 4.3): {"input": the normalized input} -
     entries that normalize alike are checked once -, {"refused": the phone's code} where the kind does
@@ -151,7 +202,7 @@ def _prepare(conn, states: dict, msg: tuple) -> None:
     conn.send(("loading", act, gen))
     t = time.perf_counter()
     try:
-        module = importlib.import_module(name)
+        module = _OfKind(name[len(KIND):]) if name.startswith(KIND) else importlib.import_module(name)
         state = module.load(seed, **options) if data is None else module.load(seed, image=data, **options)
         data = None                                      # let go of before "prepared": the watchdog counts from it
         if isinstance(image, int) and hasattr(module, "image") and (data := module.image(state, image)):
@@ -169,24 +220,31 @@ def _prepare(conn, states: dict, msg: tuple) -> None:
         why = "the seed: out of memory" if isinstance(e, MemoryError) else str(e).split("\n")[0] or type(e).__name__
         conn.send(("prepared", act, gen, why, time.perf_counter() - t, False))
         return
-    rows = None
+    rows, of_kind = None, isinstance(module, _OfKind)
     if rows_ref is not None:                             # the reference another process found the rows in
         conn.send(("reference", act, gen, rows_ref[0], False))
-        result, _ = _evaluate(module, state, rows_ref[1], language, budget_s)
-        if result["status"] != "ok":                     # not here: its diffs would differ from the others'
+        if of_kind:
+            outcome, rows = module.check(state, None, rows_ref[1], language, budget_s, reference=True)
+            status = outcome["status"]
+        else:
+            result, _ = _evaluate(module, state, rows_ref[1], language, budget_s)
+            status, rows = result["status"], result.get("rows")
+        if status != "ok":                               # not here: its diffs would differ from the others'
             states.pop(act, None)
-            why = f"its reference {rows_ref[0] + 1} gives no rows here ({result['status']})"
+            why = f"its reference {rows_ref[0] + 1} gives no rows here ({status})"
             conn.send(("prepared", act, gen, why, time.perf_counter() - t, True))
             return
-        rows = result["rows"]
     for i, text in references:                           # in their order; the first that gives a result is
         conn.send(("reference", act, gen, i, True))      # the one to compare with, unless one before it was
-        result, end = _evaluate(module, state, text, language, budget_s)
-        outcome = _outcome(result, None, end)
+        if of_kind:
+            outcome, found = module.check(state, None, text, language, budget_s, reference=True)
+        else:
+            result, end = _evaluate(module, state, text, language, budget_s)
+            outcome, found = _outcome(result, None, end), result.get("rows")
         first = rows is None and outcome["status"] == "ok"
         conn.send(("referenced", act, gen, i, outcome, first))
         if first:
-            rows = result["rows"]
+            rows = found
     states[act] = (module, state, rows)
     conn.send(("prepared", act, gen, None, time.perf_counter() - t, False))
 
@@ -211,8 +269,12 @@ def _serve(conn) -> None:
                 continue
             module, state, rows = states[act]
             cpu = time.thread_time()
-            result, end = _evaluate(module, state, text, language, budget_s)
-            conn.send(("done", job, _outcome(result, rows, end), time.thread_time() - cpu))
+            if isinstance(module, _OfKind):
+                outcome, _ = module.check(state, rows, text, language, budget_s)
+            else:
+                result, end = _evaluate(module, state, text, language, budget_s)
+                outcome = _outcome(result, rows, end)
+            conn.send(("done", job, outcome, time.thread_time() - cpu))
         elif kind == "normalize":
             conn.send(("normalized", msg[1], _normalize(*msg[2:])))
         elif kind == "drop":
