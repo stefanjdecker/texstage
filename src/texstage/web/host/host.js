@@ -154,6 +154,7 @@ const textOf = (table, key) => (Object.prototype.hasOwnProperty.call(table, key)
 function refused(err) {
   client.close();
   client = null;
+  state = null;                                    // (the keys move no slide of the game left)
   try { sessionStorage.removeItem(LAST); } catch { /* ignore */ }
   showDecks().then(() => alertError(err),
     (e) => keyForm(e?.status === 403 ? T.errors["bad-key"] : errorText(pageLanguage(), e)));
@@ -186,7 +187,7 @@ function update() {
 
 function render() {
   const slide = deck.slides[slideIndex(local)];
-  stage.show(slide, deck, state, () => client.now());
+  stage.show(slide, deck, state, () => (client ? client.now() : Date.now()));   // (its clock runs on when the game is left)
   const i = slideIndex(local);
   const H = T.host, L = T.lecturer;
   const live = slide.phase ? ` · ${textOf(L.phase, slide.phase)}${slide.quiz ? ` · ${slide.quiz}` : ""}` : "";
