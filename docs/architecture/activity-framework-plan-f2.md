@@ -790,7 +790,8 @@ with its comments until the core replaces it.
   (As a reference, which is not normalized, the text stays an error.) Keeping the comment there
   would show it to the class, and tell a student that a comment is a mistake.
 - **Two more the review found were faults of F1's checks, older than the comments, and are mended
-  there** (2026-11-12, on the user's word) - the lectures' checks change with it:
+  there** (2026-11-12, on the user's word) - where the server checks; in the lectures the phones
+  check until lecture-tools takes F1 (2.3), with the browser's engines, which have both still:
   - *A text's own base* (`checks/sparql.py`, `turtle.py`: `_completed`). The checks put the
     seed's declarations in front of a text that does not make them itself. For a seed with `@base`
     and a prefix relative to it - `@prefix : <> .`, as the lectures' seeds have - and a text with
@@ -824,8 +825,14 @@ with its comments until the core replaces it.
   - the brackets and the two faults above, the SPARQL lines, a speed that was said too low, two tests that were
   missing, and what follows.
 - **Found by it in F1's check, and mended: SERVICE got past its refusal** (`checks/sparql.py`:
-  `names_service`), in the lectures too, so that a student's query could have the server ask an
-  address of the student's choosing. A pattern read the text one way; four texts were read
+  `names_service`), so that a student's query could have the server ask an address of the
+  student's choosing - wherever the server checks, which so far is the load runs and the laptop's
+  runs, and no lecture: the lectures' copy of texstage (2.3) has no server's checks yet (looked at
+  on 2026-11-13: lecture-tools has no `src/texstage/checks`), there the phones check, and a
+  browser's Oxigraph has no network and refuses the word. The mending reaches a lecture with F1,
+  when lecture-tools takes it from a `main` that has it - the branch `f1-server-checks` has not.
+  (This paragraph said "in the lectures too" until 2026-11-13, and the commit's message says so
+  still: it was not looked up.) A pattern read the text one way; four texts were read
   otherwise by Oxigraph, which then ran the word: a name's escape (`ex:a\#b` - the `#` began a
   comment for the pattern, and `ex:a\'b` a string), an IRI with a no-break space or a `\u`
   escape in front of its `#`, a long string with an escaped quote at its end (`'''a\''''`), and
@@ -958,9 +965,9 @@ findings, fixed (4.3, 4.6). Package 5 is built on it (2026-11-11): the reduction
 crowd graph, the tally -, the pictures and their versions, and the lecturer's acts with their undo
 (4.3). It rewires nothing. Its review is done (2026-11-12) - twenty findings, fixed (4.3). What
 the review left to the kinds is done too (2026-11-12): their normalize takes a text's comments out
-(4.7) - F1's type, which runs the lectures, shows them as before. Its own review found a fault of
-F1's check that the lectures run with, and it is mended in F1's code: SERVICE got past its refusal
-(4.7). Two more faults of F1's checks, which the review met, are mended with it: a text with a
+(4.7) - F1's type shows them as before. Its own review found a fault of F1's check, and it is
+mended in F1's code: SERVICE got past its refusal - where the server checks, which is no lecture
+yet (2.3; 4.7). Two more faults of F1's checks, which the review met, are mended with it: a text with a
 base of its own for a seed with relative prefixes, and how Oxigraph reads a Turtle text's end
 (4.7).
 
