@@ -338,7 +338,7 @@ class FakePool:
     """A pool whose answers the test gives, when it wants to."""
 
     def __init__(self):
-        self.calls, self.waiting, self.closed, self.broken = [], [], False, None
+        self.calls, self.waiting, self.closed, self.broken, self.budgets = [], [], False, None, []
 
     def _take(self, *call):
         if self.closed:
@@ -354,6 +354,7 @@ class FakePool:
         return self._take("normalize", kind, json.dumps(input, sort_keys=True))
 
     def submit(self, act, text, owner=None, budget_s=1.0, language=None):
+        self.budgets.append(budget_s)
         return self._take("submit", act, text)
 
     def withdraw(self, act, text):
@@ -649,3 +650,169 @@ def test_without_a_pool_an_entry_is_unchecked_not_waiting(tmp_path):
     assert w.engine.pulse(w.tick(100)) == {w.s.id}
     assert w.phone(ada)["mine"]["entries"][0]["check"] == "unchecked" and w.picture("query", "stage")["unchecked"] == 1
     w.engine.store.close()
+
+
+
+# ------------------------------------------------------------------ what the build says since package 7
+MARKED = {"shows": {257: "crowd", 258: "crowd", 259: "query", 260: "query"},
+          "phases": {257: "revealed", 258: "open", 259: "open", 260: "revealed"}}
+
+
+def test_the_pages_the_build_marks_open_and_reveal_their_step_with_the_decks_time(tmp_path):
+    """A page says what it is of its activity (the build: \\reveal<n>): one marked open opens its step with
+    the deck's time=, one marked revealed reveals it - if it was opened: paging onto the reveal of a step
+    nobody answered reveals nothing, and paging back leaves a revealed step revealed. A check gets the
+    deck's budget=."""
+    w, pool, book = core_world(tmp_path, query={"time": 30, "budget": 300}, **MARKED)
+    (ada,) = w.join("Ada")
+    w.show(257)
+    assert w.item("crowd")["phase"] == "ready"
+    w.show(258)
+    assert (w.item("crowd")["phase"], w.item("crowd")["time"]) == ("open", None)
+    w.show(259)                                             # the crowd's pages go: it closes; the query opens, timed
+    assert w.item("crowd")["phase"] == "closed"
+    assert (w.item("query")["phase"], w.item("query")["time"]) == ("open", 30_000)
+    w.engine.type_player_message(ada, "activity.enter", {"activity": "query", "entry": "entry-00001", "text": RIGHT},
+                                 w.tick(100))               # (more than 5 s between two ticks: a sleep, which pauses)
+    pool.answer("normalize", {"input": {"text": RIGHT}})
+    w.engine.apply_checks(w.now)
+    assert pool.calls[-1][0] == "submit" and pool.budgets == [0.3]
+    w.show(260)
+    assert w.item("query")["phase"] == "revealed"
+    w.show(259)
+    assert w.item("query")["phase"] == "revealed"
+    w.engine.store.close()
+
+
+def test_the_lecturers_open_takes_the_decks_time_the_first_time(tmp_path):
+    """open=manual: the lecturer opens the step - with the deck's time=, unless they give one; opened again
+    after it was closed, it goes on without, as the lecturer says (the plan of F2, 4.3)."""
+    w, pool, book = core_world(tmp_path, query={"time": 30, "open": "manual"}, crowd={"time": 45})
+    w.show(259)
+    assert w.item("query")["phase"] == "ready"
+    w.stage("activity.open", activity="query")
+    assert (w.item("query")["phase"], w.item("query")["time"]) == ("open", 30_000)
+    w.stage("activity.close", activity="query")
+    w.stage("activity.open", activity="query")
+    assert (w.item("query")["phase"], w.item("query")["time"]) == ("open", None)
+    w.stage("activity.open", activity="crowd", time=10)                # the lecturer's own time comes first
+    assert (w.item("crowd")["phase"], w.item("crowd")["time"]) == ("open", 10_000)
+    w.engine.store.close()
+
+
+def test_an_item_whose_time_or_budget_is_none_is_refused(tmp_path):
+    w, pool, book = core_world(tmp_path, query={"time": 0}, crowd={"budget": 5000})
+    refused("invalid", w.stage, "activity.open", activity="query")
+    refused("invalid", w.stage, "activity.open", activity="crowd")
+    w.engine.store.close()
+
+
+def kinds_of(*names, **more) -> dict:
+    """deck.json's kinds as the build writes them, of the kinds installed here."""
+    found = {f.name: f for f in registry.found()}
+    return {"kinds": {n: {"package": found[n].package, "version": found[n].version, "api": found[n].api} | more
+                      for n in names}}
+
+
+def test_a_server_of_the_cores_type_refuses_a_deck_of_a_kind_it_lacks(tmp_path, monkeypatch):
+    """The deck's kinds (deck.json, the build's): a server of the core's type refuses the deck - and says
+    which package to install - when it lacks one, cannot use it, has it with another API or another major
+    version, or older than the build's (the design's 7.2). F1's type needs no kinds: it takes the deck."""
+    from texstage.server.bundles import BundleError, load_bundle
+    folder = tmp_path / "bundles" / "act.bundle"
+    have = {f.name: f for f in registry.found()}["sparql-query"]
+    major = int(have.version.split(".")[0])
+    stage_types.use("core")
+    for more, said in (
+            ({}, None),
+            ({"version": "0.0.1"}, None),                    # an older build: this server knows its keys
+            ({"version": f"{major}.999.0"}, f"this server has {have.version} - install texstage-kinds-rdf "
+                                            f"{major}.999.0 or later where the server runs"),
+            ({"version": f"{major + 1}.0.0"}, f"this server has {have.version}"),
+            ({"api": 1}, f"with API 1, this server's texstage-kinds-rdf {have.version} has API 0"),
+            ({"version": "unknown"}, None)):
+        make_activity_bundle(folder, deck_more=kinds_of("triples", "sparql-query", **more))
+        if said is None:
+            assert load_bundle(folder).items["activity"]
+            continue
+        with pytest.raises(BundleError, match="the deck's activities are of the kind") as e:
+            load_bundle(folder)
+        assert said in str(e.value), str(e.value)
+    make_activity_bundle(folder, deck_more=kinds_of("triples", "sparql-query"))
+    rest = tuple(f for f in registry.found() if f.name != "sparql-query")
+    monkeypatch.setattr(registry, "found", lambda: rest)
+    with pytest.raises(BundleError) as e:
+        load_bundle(folder)
+    assert str(e.value).endswith(f"the deck's activities are of the kind sparql-query, which this server does not have - "
+                                 f"install texstage-kinds-rdf {have.version} or later where the server runs")
+    monkeypatch.setattr(registry, "found", lambda: rest + (registry.Found("sparql-query", "texstage-kinds-rdf", have.version, 0,
+                                                                          None, "it cannot be made - ImportError: pyoxigraph"),))
+    with pytest.raises(BundleError, match="cannot be used for: it cannot be made - ImportError: pyoxigraph"):
+        load_bundle(folder)
+    stage_types.use("f1")
+    assert load_bundle(folder).items["activity"]                    # F1's type: as before
+    stage_types.use("core")
+    make_activity_bundle(folder)                                       # a deck built before kinds were named: as before
+    assert load_bundle(folder).items["activity"]
+
+
+@pytest.mark.parametrize("server, built, refused", [
+    ("2.0.0", "1.4.0", True),             # a newer major version: its keys may mean other things (the review: taken)
+    ("1.2", "1.2.0", False),              # 1.2 is 1.2.0 (it was refused)
+    ("1.2.0", "1.2", False),
+    ("1.2.0rc1", "1.2.0", True),          # a release before the build's
+    ("1.2.0", "1.2.0rc1", False),
+    ("1.2.0.dev3", "1.2.0", True),
+    ("0.10.0", "0.9.0", False),
+    ("1.3.0+local", "1.2.0", False),
+])
+def test_the_versions_a_server_compares(server, built, refused, monkeypatch):
+    have = {f.name: f for f in registry.found()}["sql-query"]
+    found = tuple(f if f.name != "sql-query" else registry.Found(f.name, f.package, server, f.api, f.kind, f.fault)
+                  for f in registry.found())
+    monkeypatch.setattr(registry, "found", lambda: found)
+    said = activities.refuses({"kinds": {"sql-query": {"package": have.package, "version": built, "api": 0}}})
+    assert bool(said) == refused, said
+
+
+def test_the_deck_list_says_a_reference_that_gives_another_result_than_at_the_build(tmp_path):
+    """The build records the references' keys; the deck list says where this server's engine gives another one -
+    another SQLite, say -, or where a reference does not run here (the design's 9)."""
+    w, pool, book = core_world(tmp_path, query_keys={"referenceKeys": ["k1"]})
+    w.join("Ada")
+    pool.answer("prepare", [OK1], "query")
+    w.engine.apply_checks(w.now)
+    assert book.failing(w.bid) == [] == stage_types.failing(w.engine, w.s)
+    w.engine.end(w.s.id, w.now)
+    # a reference whose two runs at build gave two keys (random()) has none: it is not compared
+    w, pool, book = core_world(tmp_path / "random", query_keys={"referenceKeys": [None]})
+    w.join("Ada")
+    pool.answer("prepare", [OK1], "query")
+    w.engine.apply_checks(w.now)
+    assert book.failing(w.bid) == []
+    w.engine.end(w.s.id, w.now)
+    w, pool, book = core_world(tmp_path / "again", query_keys={"referenceKeys": ["the build's"]})
+    w.join("Ada")
+    pool.answer("prepare", [OK1, {"status": "invalid", "message": {"code": "at", "args": {
+        "line": 1, "column": 8, "message": "expected WHERE"}}, "at": [1, 8]}], "query")
+    w.engine.apply_checks(w.now)
+    failing = stage_types.failing(w.engine, w.s)
+    assert [(f["activity"], f["reference"]) for f in failing] == [("query", 1), ("query", 2)]
+    assert failing[0]["error"].startswith("it gives another result here than when the deck was built - another engine")
+    assert "line 1" in failing[1]["error"] and "expected WHERE" in failing[1]["error"]
+    w.engine.store.close()
+
+
+def test_the_deck_list_over_http_has_the_cores_failing_references(tmp_path):
+    """A server of the core's type (its pool, the kinds): the build's key of the reference is not this server's -
+    the deck list says so as the game starts, before the lecture."""
+    bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle", query_keys={"referenceKeys": ["0000000000000000"]})
+    with TestClient(create_app(config_of(tmp_path))) as client, client.websocket_connect("/ws") as st:
+        st.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": bid, "id": 1})
+        recv(st, "welcome")
+        end = time.monotonic() + 60
+        while not (failing := client.get("/api/decks", headers={"X-Texquiz-Key": KEY}).json()[0]["failing"]):
+            assert time.monotonic() < end, "the deck list never said so"
+            time.sleep(0.05)
+        assert [(f["activity"], f["reference"]) for f in failing] == [("query", 1)]
+        assert "another result here" in failing[0]["error"]

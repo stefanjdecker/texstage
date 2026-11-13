@@ -23,9 +23,11 @@ __all__ = ["CORE", "PRESETS", "Choice", "File", "Flag", "Int", "Named", "Option"
 
 WORD_MAX = 60                               # a field's label, a suggestion, a token
 WORDS_MAX = 40                              # suggestions, tokens
-CORE = ("id", "input", "engine", "kind", "limit", "open")     # the keys that are the core's: no kind takes them
-PRESETS = {"fields": ["Subject", "Predicate", "Object"]}      # what a key is when a deck does not give it
-#                                             (texactivity.sty): not counted as given
+CORE = ("id", "input", "engine", "kind", "limit", "counts", "gap", "time", "budget", "feedback", "projector",
+        "solution", "open", "width", "height")             # the keys that are the core's (texactivity.sty): no kind takes them
+PRESETS = {"fields": ["Subject", "Predicate", "Object"]}      # what a key is when a deck does not give it - the
+#                                             kind's default, which texactivity.sty wrote before package 7 of F2: given so,
+#                                             not counted as given
 
 
 class Unbuildable(ValueError):
@@ -67,8 +69,15 @@ class Int(Option):
 
 
 class Flag(Option):
+    """On or off: true or false - as a deck writes it (review=false), or a key written without a value (review),
+    which the build gives as True."""
+
     def read(self, key: str, given, files) -> bool:
-        return bool(given)
+        if given is None or isinstance(given, bool):
+            return bool(given)
+        if given in ("true", "false"):
+            return given == "true"
+        raise Unbuildable(f"{key}={given} - true or false")
 
 
 class Choice(Option):
@@ -133,7 +142,7 @@ class Options:
             value = self._given.get(key)
             if key in self._declared or key in CORE:
                 continue
-            if key in PRESETS and list(value or []) == PRESETS[key]:
+            if key in PRESETS and isinstance(value, (list, tuple)) and list(value) == PRESETS[key]:
                 continue
             if value or body.get(key):
                 out.append(key)

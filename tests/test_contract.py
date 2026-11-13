@@ -219,6 +219,10 @@ def test_a_number():
 
 def test_a_flag_and_a_choice():
     assert Flag().read("review", True, None) is True and Flag().read("review", None, None) is False
+    assert Flag().read("review", "true", None) is True and Flag().read("review", "false", None) is False   # as written
+    for wrong in ("maybe", "TRUE", "1", ["true"]):
+        with pytest.raises(Unbuildable, match="true or false"):
+            Flag().read("review", wrong, None)
     terms = Choice("exact", "loose")
     assert terms.read("terms", "", None) == "exact" and terms.read("terms", None, None) == "exact"
     assert terms.read("terms", "loose", None) == "loose" and terms.values == ("exact", "loose")
@@ -267,7 +271,8 @@ def test_a_kinds_options_are_read_once_when_it_asks():
     fine = Options(fixed(min=Counted(1000)), {"min": "3"})
     Counted.reads = 0
     assert (fine["min"], fine["min"], Counted.reads) == (3, 3, 1)
-    assert option_types.CORE == ("id", "input", "engine", "kind", "limit", "open")
+    assert option_types.CORE == ("id", "input", "engine", "kind", "limit", "counts", "gap", "time", "budget", "feedback",
+                                 "projector", "solution", "open", "width", "height")     # texactivity.sty's own
     given = {"min": "3"}
     held = Options(fixed(min=Int(1000)), given)
     given["min"] = "many"                                           # what a deck gave is read as it was given
@@ -275,6 +280,8 @@ def test_a_kinds_options_are_read_once_when_it_asks():
     declared = fixed(suggest=Words())
     assert Options(declared, {"fields": ["Subject", "Predicate", "Object"]}).unused() == []
     assert Options(declared, {"fields": ["Object", "Predicate", "Subject"]}).unused() == ["fields"]       # no preset
+    assert Options(declared, {"fields": True}).unused() == ["fields"]                  # a key without a value: given
+    assert Options(declared, {"fields": "Subject, Predicate, Object"}).unused() == ["fields"]       # (a text: no list)
     assert Options(declared, {}).unused({"seed": "x", "references": ["y"]}) == ["seed", "reference"]
     assert Options(declared, {"reference": "r.sql"}).unused({"seed": "x"}) == ["reference", "seed"]
 

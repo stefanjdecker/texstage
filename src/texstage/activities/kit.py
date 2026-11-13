@@ -42,8 +42,10 @@ A file is one kind's: a folder may hold several kinds' files, and a file for a k
 is said - its name may be misspelt."""
 from __future__ import annotations
 
+import gzip
 import inspect
 import json
+import re
 import threading
 import time
 from dataclasses import dataclass, field
@@ -137,6 +139,37 @@ def rules(kind: Kind, name: str | None = None) -> list[str]:
 def folder_of(kind: Kind) -> Path:
     """Where a kind's fixtures are: tests/ beside its module."""
     return Path(inspect.getfile(type(kind))).parent / "tests"
+
+
+# ------------------------------------------------------------------ what a phone loads of a kind
+PHONE = ("web/hint.js", "web/input.js")         # a kind's modules for the phones (the design's 7.3)
+IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.{1,2}/[^"']+)["']""")
+
+
+def phone_files(kind: Kind) -> list[Path]:
+    """What a phone loads of a kind (the design's 7.3): its modules for the phones, what they import from
+    beside them, and its texts (texts/*.js). The four kinds have none of them yet: they come with the browser
+    (the plan of F2, package 8), whose half of the kit measures them as a phone gets them."""
+    home = Path(inspect.getfile(type(kind))).parent.resolve()
+    todo = [home / p for p in PHONE if (home / p).is_file()]
+    seen: list[Path] = []
+    while todo:
+        f = todo.pop(0).resolve()
+        if f in seen:
+            continue
+        seen.append(f)
+        for m in IMPORT.finditer(f.read_text(encoding="utf-8", errors="replace")):
+            target = (f.parent / m.group(1)).resolve()
+            if target.is_file() and home in target.parents:
+                todo.append(target)
+    return seen + sorted(p.resolve() for p in (home / "texts").glob("*.js"))
+
+
+def phone_bytes(*kinds: Kind) -> int:
+    """What a phone loads of these kinds, compressed as the server sends it (gzip): each file once - kinds of
+    one package share theirs."""
+    files = dict.fromkeys(f for kind in kinds for f in phone_files(kind))
+    return sum(len(gzip.compress(f.read_bytes(), 9)) for f in files)
 
 
 def _a_text(text) -> bool:

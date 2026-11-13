@@ -400,6 +400,9 @@ def _int(msg: dict, key: str, default=None) -> int | None:
 class Server:
     def __init__(self, config: ServerConfig):
         self.config = config
+        stage_types.use(config.activities)           # F1's activity type, or the core's: before the bundles are
+        #                                              read (the core's refuses a deck of a kind it lacks) and
+        #                                              before the engine is made
         self.published = config.data_dir / "bundles"         # texstage publish puts bundles here
         self.published.mkdir(parents=True, exist_ok=True)
         self.incoming = config.data_dir / "incoming"         # uploads being unpacked (not scanned)
@@ -420,7 +423,6 @@ class Server:
         self.store = Store(config.data_dir / "texquiz.sqlite3")   # its name since 0.1: the games, archives
         if config.checks not in MODES:
             raise ValueError(f"checks: one of {', '.join(MODES)}, not {config.checks!r}")
-        stage_types.use(config.activities)           # F1's activity type, or the core's (before the engine is made)
         mode = "server" if config.activities == "core" else config.checks      # (the core has no window that checks)
         self.checks = None if mode == "browser" else Checks(mode, workers=config.workers, **config.pool)
         if self.checks is not None:                  # (the mode both: the differences, in the game's archive folder)
@@ -1361,7 +1363,7 @@ def create_app(config: ServerConfig) -> Starlette:
                         "complete": b.complete(), "stage": b.stage_pdf() is not None,
                         "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id}
                         if s and s.bundle == b.id else None,
-                        "failing": stage_types.activity.failed_references(s.stage) if s and s.bundle == b.id else [],
+                        "failing": stage_types.failing(server.engine, s) if s and s.bundle == b.id else [],
                         "folder": entry.get("folder"), "label": entry.get("label"),
                         "uploaded": bool(uploaded_builds(lect, b.deck))})   # deleting deletes them
         out.sort(key=lambda d: (d["name"].casefold(), -d["built"]))

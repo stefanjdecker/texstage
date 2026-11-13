@@ -580,11 +580,13 @@ ACTIVITY_DECK = r"""\documentclass[aspectratio=169]{beamer}
 
 
 def test_an_activity_deck(tmp_path):
-    """Live activities (docs/live-activities-design.md, section 6): their items in deck.json - a
-    tuple's fields, suggestions and minimum, a query's engine, its tokens (the engine's added) and
-    its seed, a file in data/ -, the references in keys.json only, the prompt as the phones'
-    picture; the box on the slides that show it; PowerPoint gets the slide pictures alone - no
-    add-in, no first slide."""
+    """Live activities (docs/live-activities-design.md, section 6; the activity framework's build: the
+    plan of F2, 4.4): their items in deck.json - each its kind, through the aliases (input=tuple,
+    engine=sparql), and F1's input beside it; a tuple's fields, suggestions and minimum, a query's
+    engine, its tokens (the engine's added) and its seed, a file in data/ -, the deck's kinds with
+    their packages, the references in keys.json only, with their keys as the server's checks give
+    them, the prompt as the phones' picture; the box on the slides that show it, each of them a page
+    that opens it; PowerPoint gets the slide pictures alone - no add-in, no first slide."""
     seed = "@prefix : <http://example.org/> .\n:kant :name \"Kant\" .\n"
     (tmp_path / "uni.ttl").write_text(seed, encoding="utf-8")
     (tmp_path / "alt.rq").write_text("SELECT ?n\nWHERE { ?p :name ?n }\n", encoding="utf-8")
@@ -596,20 +598,28 @@ def test_an_activity_deck(tmp_path):
     assert deck["types"] == ["activity"] and r.first is None and r.warnings == []
     crowd, join = deck["items"]["activity"]["crowd"], deck["items"]["activity"]["join"]
     assert {k: v for k, v in crowd.items() if k != "prompt"} == {
-        "input": "tuple", "limit": 10, "fields": ["Subject", "Predicate", "Object"], "suggest": [":KG"], "min": 2,
-        "review": True, "terms": "exact"}
-    assert join["engine"] == "sparql" and join["limit"] == 5 and "fields" not in join and "terms" not in join
+        "kind": "triples", "input": "tuple", "limit": 10, "fields": ["Subject", "Predicate", "Object"],
+        "suggest": [":KG"], "min": 2, "review": True, "terms": "exact"}
+    assert (join["kind"], join["input"], join["engine"], join["limit"]) == ("sparql-query", "code", "sparql", 5)
+    assert "fields" not in join and "terms" not in join
+    assert {name: k["package"] for name, k in deck["kinds"].items()} == {
+        "sparql-query": "texstage-kinds-rdf", "triples": "texstage-kinds-rdf"}
+    assert all(k["api"] == 0 and k["version"] for k in deck["kinds"].values())
     assert join["tokens"] == ["SELECT", "{", "}", "?", ".", ";", ":"]
     assert join["seed"].startswith("data/") and (r.bundle / join["seed"]).read_text(encoding="utf-8") == seed
     for item in (crowd, join):
         assert (r.bundle / item["prompt"]["image"]).is_file() and item["prompt"]["image"].startswith("phone/")
-    assert keys["items"]["activity"] == {"join": {"reference": ["SELECT ?n WHERE {\n  ?p :name ?n .\n}",
-                                                               "SELECT ?n\nWHERE { ?p :name ?n }"]}}
-    assert "?p :name" not in json.dumps(deck)
+    join_keys = keys["items"]["activity"]["join"]
+    assert list(keys["items"]["activity"]) == ["join"] and join_keys["reference"] == [
+        "SELECT ?n WHERE {\n  ?p :name ?n .\n}", "SELECT ?n\nWHERE { ?p :name ?n }"]
+    (one, two) = join_keys["referenceKeys"]
+    assert one == two and len(one) == 16                 # two spellings of one result: one key
+    assert "?p :name" not in json.dumps(deck) and one not in json.dumps(deck)
     shown = [[b["item"] for b in s.get("live", [])] for s in deck["slides"]]
     assert shown == [[], ["crowd"], ["join"], ["join"]]
     box = deck["slides"][1]["live"][0]
     assert box["type"] == "activity" and set(box["rects"]) == {"box"} and 0.7 < box["rects"]["box"]["w"] < 0.9
+    assert [b["phase"] for s in deck["slides"] for b in s.get("live", [])] == ["open", "open", "open"]
     for path in (r.pptx, r.static):
         slides = list(Presentation(path).slides)
         assert len(slides) == 4 and all(addin_properties(s, DEFAULT_SERVER) is None for s in slides)
@@ -663,11 +673,13 @@ def test_an_sql_activity(tmp_path):
     r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
     item = json.loads((r.bundle / "deck.json").read_text(encoding="utf-8"))["items"]["activity"]["names"]
     keys = json.loads((r.bundle / "keys.json").read_text(encoding="utf-8"))
-    assert item["engine"] == "sql" and item["tokens"] == ["SELECT", "FROM", "*", ",", "(", ")", "=", "'", "."]
+    assert (item["kind"], item["engine"]) == ("sql-query", "sql")
+    assert item["tokens"] == ["SELECT", "FROM", "*", ",", "(", ")", "=", "'", "."]
     assert item["seed"].startswith("data/") and item["seed"].endswith(".sql")
     assert (r.bundle / item["seed"]).read_text(encoding="utf-8") == (
         "CREATE TABLE professor (id INTEGER PRIMARY KEY, name TEXT);\nINSERT INTO professor VALUES (1, 'Kant'), (2, 'Socrates');\n")
-    assert keys["items"]["activity"] == {"names": {"reference": ["SELECT name FROM professor WHERE name LIKE 'K%';"]}}
+    assert keys["items"]["activity"]["names"]["reference"] == ["SELECT name FROM professor WHERE name LIKE 'K%';"]
+    assert len(keys["items"]["activity"]["names"]["referenceKeys"]) == 1
 
 
 TURTLE_DECK = r"""\documentclass[aspectratio=169]{beamer}
@@ -707,11 +719,13 @@ def test_a_turtle_activity(tmp_path):
     assert r.warnings == []
     item = json.loads((r.bundle / "deck.json").read_text(encoding="utf-8"))["items"]["activity"]["berlin"]
     keys = json.loads((r.bundle / "keys.json").read_text(encoding="utf-8"))
-    assert item["engine"] == "turtle" and item["limit"] == 5
+    assert (item["kind"], item["engine"], item["limit"]) == ("turtle-graph", "turtle", 5)
     assert item["tokens"] == ["dbr:Berlin", "rdfs:label", "^^xsd:integer", "@de",
                               ":", ".", ";", ",", '"', "@", "^^", "<", ">", "_:", "[", "]", "(", ")"]
     assert item["seed"].startswith("data/") and item["seed"].endswith(".ttl")
     assert (r.bundle / item["seed"]).read_text(encoding="utf-8") == TURTLE_PREFIXES
+    (one, two) = keys["items"]["activity"]["berlin"].pop("referenceKeys")
+    assert one == two                                    # two spellings of one graph: one key
     assert keys["items"]["activity"] == {"berlin": {"reference": [
         'dbr:Berlin rdfs:label "Berlin"@de , "Berlino"@it ;\n  dbo:populationTotal 3596999 ;\n  geo:lat 52.52 .',
         '<http://dbpedia.org/resource/Berlin> <http://www.w3.org/2000/01/rdf-schema#label> "Berlin"@de, "Berlino"@it ;\n'
@@ -740,6 +754,77 @@ def test_activity_build_errors(tmp_path, change, message):
     tex.write_text(ACTIVITY_DECK.replace(*change), encoding="utf-8")
     with pytest.raises(BuildError) as err:
         build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
+    assert message in str(err.value), str(err.value)
+
+
+KINDS_DECK = r"""\documentclass[aspectratio=169]{beamer}
+\usepackage{texactivity}
+\begin{document}
+\begin{frame}[t,fragile]{Query}
+\begin{activity}[id=names, kind=sql-query, seed=people.sql, tokens={SELECT}, limit=3, counts=all, gap=2.5,
+                 time=90, budget=500, feedback=verdict, projector=count, solution=mark, open=manual]
+  \prompt{The names.}
+  \reference{SELECT name FROM person}
+  \reveal<2>
+\end{activity}
+\end{frame}
+\begin{frame}[t]{Graph}
+\begin{activity}[id=graph, kind=triples, fields={Who, Knows}, review=false, colour=red]\prompt{Pairs.}\end{activity}
+\end{frame}
+\end{document}
+"""
+PEOPLE = "CREATE TABLE person (name TEXT);\nINSERT INTO person VALUES ('Ada'), ('Bea');\n"
+
+
+def kinds_deck(tmp_path, *change: str) -> Path:
+    (tmp_path / "people.sql").write_text(PEOPLE, encoding="utf-8")
+    tex = tmp_path / "kinds.tex"
+    tex.write_text(KINDS_DECK.replace(*change) if change else KINDS_DECK, encoding="utf-8")
+    return tex
+
+
+def test_a_deck_that_names_its_kinds(tmp_path):
+    """The activity framework's build (the plan of F2, 4.4): an activity names its kind; the core's keys go
+    into its item - limit always, the others where the deck gives them -, F1's input beside them for F1's
+    type; every other key is the kind's, which takes it or warns of it; the references run as the server
+    runs them; the page \\reveal names reveals its activity, the page before opens it."""
+    r = build(kinds_deck(tmp_path), tmp_path / "out", BuildOptions(check=False, key="test-key"))
+    deck = json.loads((r.bundle / "deck.json").read_text(encoding="utf-8"))
+    keys = json.loads((r.bundle / "keys.json").read_text(encoding="utf-8"))
+    names, graph = deck["items"]["activity"]["names"], deck["items"]["activity"]["graph"]
+    assert {k: v for k, v in names.items() if k not in ("seed", "prompt")} == {
+        "kind": "sql-query", "input": "code", "limit": 3, "engine": "sql", "tokens": ["SELECT", "*", ",", "(", ")", "=", "'", "."],
+        "counts": "all", "gap": 2.5, "time": 90, "budget": 500, "feedback": "verdict", "projector": "count",
+        "solution": "mark", "open": "manual"}
+    assert {k: v for k, v in graph.items() if k != "prompt"} == {
+        "kind": "triples", "input": "tuple", "limit": 10, "fields": ["Who", "Knows"], "min": 1, "terms": "exact"}
+    assert r.warnings == ["activity graph: colour - not for kind=triples"]
+    assert keys["items"]["activity"]["names"]["reference"] == ["SELECT name FROM person"]
+    assert len(keys["items"]["activity"]["names"]["referenceKeys"]) == 1 and "graph" not in keys["items"]["activity"]
+    assert sorted(deck["kinds"]) == ["sql-query", "triples"] and deck["kinds"]["sql-query"]["package"] == "texstage-kinds-sql"
+    assert [(b["item"], b["phase"]) for s in deck["slides"] for b in s.get("live", [])] == [
+        ("names", "open"), ("names", "revealed"), ("graph", "open")]
+    assert (r.activities.references, r.activities.phone_bytes) == (1, 0)          # (the kinds have no phone files yet)
+
+
+@pytest.mark.parametrize("change, message", [
+    (("\\reveal<2>", "\\reference{SELEC name}\n  \\reveal<2>"), "activity names: reference 2 does not run - "),
+    (("seed=people.sql", "seed=broken.sql"), "activity names: the seed does not load - "),
+    (("kind=sql-query", "kind=no-such-kind"), "activity names: kind=no-such-kind - no kind no-such-kind is installed"),
+    (("kind=sql-query", "kind=sql-query, input=tuple"), "kind=sql-query and input=tuple name two kinds"),
+    (("time=90", "time=0"), "activity names: time=0 - a number from 1 to 14400"),
+    (("gap=2.5", "gap=-1"), "activity names: gap=-1 - seconds from 0 to 3600"),
+    (("budget=500", "budget=5000"), "activity names: budget=5000 - a number from 1 to 1000"),
+    (("review=false", "review=maybe"), "activity graph: review=maybe - true or false"),
+    (("fields={Who, Knows}", "fields={Who}"), "activity graph: 1 fields - an activity of input=tuple has 2 or 3"),
+])
+def test_what_a_deck_of_kinds_cannot_build(tmp_path, change, message):
+    """A reference that does not run, or a seed that does not load, stops the build - not the lecture; a
+    kind that is not installed, two kinds named at once, a core's key out of its bounds, a kind's key the
+    kind refuses."""
+    (tmp_path / "broken.sql").write_text("CREATE TABLE (\n", encoding="utf-8")
+    with pytest.raises(BuildError) as err:
+        build(kinds_deck(tmp_path, *change), tmp_path / "out", BuildOptions(check=False, key="test-key"))
     assert message in str(err.value), str(err.value)
 
 
@@ -803,3 +888,18 @@ def test_the_bundle_names_the_decks_language(demo):
     demo's is English, as the format names it for a deck without babel."""
     _, deck, _ = demo
     assert deck["language"] == "en"
+
+
+def test_an_activity_that_no_slide_opens_is_warned_of(tmp_path):
+    """\\reveal<1>: every slide of the activity reveals it, and nothing opens it - unless the lecturer does
+    (open=manual)."""
+    tex = tmp_path / "first.tex"
+    tex.write_text(r"""\documentclass{beamer}
+\usepackage{texactivity}
+\begin{document}
+\begin{frame}[t]{R}\begin{activity}[id=r]\reveal<1>\end{activity}\end{frame}
+\begin{frame}[t]{M}\begin{activity}[id=m, open=manual]\reveal<1>\end{activity}\end{frame}
+\end{document}
+""", encoding="utf-8")
+    r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
+    assert r.warnings == ["activity r: no slide opens it - its \\reveal<n> reveals it from the first one on"]

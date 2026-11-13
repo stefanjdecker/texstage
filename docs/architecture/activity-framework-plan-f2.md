@@ -704,9 +704,10 @@ its review - five faults and five doubts, fixed:
 Left after package 6:
 
 - **The slides reveal nothing yet:** until the build records what a page is of its step
-  (package 7), every page of an activity is its question's - it opens and closes.
+  (package 7), every page of an activity is its question's - it opens and closes. Done with
+  package 7 (4.4).
 - **The deck list's failed references** are F1's still (`app.py`); the panel's picture has the
-  core's.
+  core's. Done with package 7: the deck list asks the type (`types.py`: `failing`).
 - **Not there, and not F2's:** `activity.next`, the acts `pick` and `approve` (F3).
 - **No load run yet** with the core's type: package 13's.
 
@@ -725,6 +726,96 @@ Left after package 6:
   (AF 17).
 - **Where the decks are built:** with lecture-tools' copy (2.3) - so the KG lecture's decks build
   unchanged when lecture-tools has taken F2 and its environment has the kinds (package 11).
+
+As built (package 7: `latex/texactivity.sty`, `build/activity.py`, and what `build/builder.py`,
+`cli.py`, `activities/options.py`, `activities/kit.py`, the kind `triples`, `server/bundles.py`,
+`types.py`, `game.py`, `app.py`, `activities/play.py` and `server/activities.py` have of it) and as it
+is after its review - four faults, four doubts and seven small findings, fixed:
+
+- **texactivity.sty** knows the core's keys - `id`, `kind`, `limit`, `counts`, `gap`, `time`,
+  `budget`, `feedback`, `projector`, `solution`, `open`, `width`, `height` -, the aliases `input`
+  and `engine`, and `seed` and `reference`, whose files it reads for the solutions; every other key
+  is recorded for the kind as written and as a list, a key without a value too, so that a new kind
+  needs no change of LaTeX. It checks what it can tell: an id, a kind's name, the choices of
+  `counts`, `feedback`, `projector`, `solution` and `open`, an engine for `input=code` and none for
+  a tuple. A key it does not know is no LaTeX error any more: the build warns of one the kind does
+  not take (`colour - not for kind=triples`). It no longer presets `fields=`: Subject, Predicate,
+  Object are the kind's default now.
+- **What F1's texactivity.sty read, it reads alike** (the review: it did not): a value that is one
+  macro - `limit=\mylimit`, `min=\mymin`, `engine=\myengine` - is what the macro holds, as F1 expanded
+  them; a list's items stay as written, as F1's did. The same id names one activity however its
+  keys are written: the definitions are compared with the kind's keys in any order and as lists, a
+  key without a value as true, the input a tuple's where nothing names another, `fields=` F1's
+  preset where none are given (the review: the same activity in another order was refused).
+- **`\reveal<n>`**, once inside the environment, n a slide's number: the frame's slides from the
+  n-th on - Beamer overlays - reveal the activity, the slides before it open it (the review: only
+  the n-th did, and a step nobody had opened opened after its reveal). A page's record says which
+  (`G|activity|<id>|open` or `revealed`), and so does its live box (`phase`); a server of the core's
+  type moves the step by it (`shown`, with the marks of the new page). Without `\reveal`, every page
+  opens its activity, as before; F1's type pages as before. An activity that no slide opens - and
+  that the lecturer does not open by hand (`open=manual`) - is warned of.
+- **The records name their fields** (`activity|id=...|kind=...`, `activityoption|id=|key=|value=|items=`,
+  `activityref|id=|text=`, `activityseed|id=|text=`) and one function reads them (`build/activity.py`:
+  `read`); a deck that loads an older texactivity.sty, whose records have no names, is told so.
+- **The build asks the kind:** `kind=`, or the kind its `input` and `engine` name (the aliases); two
+  that disagree, or a kind that is not installed - with the package to install -, stop the build.
+  The kind's build gives the item, the keys and the files; the core's keys come before it - `limit`
+  always (F1's type needs it), the others only where the deck gives them, `open` where it is
+  `manual` -, then F1's `input` (`tuple`, `code`) beside the kind: the item is F1's item and its
+  kind, and F1's type, which a server runs unless it is told otherwise, plays the deck as before.
+  Held against a frozen copy of F1's build (`tests/f1_build.py`), 49 records of every shape, written
+  as LaTeX writes them, give the same items, keys, files and warnings - which name the keys in the
+  deck's order, not F1's -, or the same refusal, word for word. A key the kind does not take is read
+  as the kind that takes it reads it, a list as a list, a flag as on or off: F1 took `fields=`,
+  F1's own preset of fields and `review=false` on a query quietly (the review: the first ended the
+  build, the others were warned of). A kind's build that gives one of the core's keys, or raises
+  where it should refuse, is the kind's fault, and stops the build. The core's keys are checked by
+  the build too, not only by LaTeX's choices.
+- **The references run at build as the server runs them:** by a pool of one worker - the server's
+  worker, through the kind (`worker.py`: `_OfKind`) -, under the references' budget of 10 s and the
+  pool's watchdog, so that a reference that runs away cannot hold the build up. One that does not
+  run, or a seed that does not load - an activity without references too -, stops the build, not the
+  lecture. A seed has 60 s to load at build (the server's pool gives it 120 s): one that runs away
+  ends its process, and once more a fresh one, and the build says so (the review: it waited three
+  minutes and said nothing). A pool starts in 0.14 s on the development machine, and checks a deck's
+  first references in 0.6 s. Their keys go into keys.json (`referenceKeys`), each where two runs of
+  the seed, each anew, give it: a seed with `random()` gives another key every time, and its key would
+  make the bundle another with every build and the server say another result (the review: it did) -
+  such a reference has none (`null`). A seed that depends on the day still gives the same key twice,
+  and so a bundle that is another from day to day: the deck list then says so, rightly. A server of
+  the core's type holds its own keys against the build's once a game of the deck has had it prepared,
+  and the deck list says where they differ - another engine, or data that change - or fail
+  (`failing`). The solutions do not show a reference's result yet. The pool's processes start with
+  spawn on every system: a program that runs the build in its own process - lecture-tools' scripts
+  do, with texstage's `main` - needs Python's `if __name__ == "__main__":`, which theirs have, and
+  the build names it when the pool's processes do not start. The kinds are needed where decks are
+  built (2.3; `docs/installation.md` says so now).
+- **deck.json's kinds** (AF 7.2), with package, version and API: a server of the core's type refuses
+  a deck whose kind it lacks, cannot use, has with another API or another major version, or older
+  than the build's, and says which package to install (`types.py`: `refuses`); F1's type needs no
+  kinds and takes the deck. A version is compared as its numbers - 1.2 is 1.2.0 - and a release
+  before the build's (1.2.0rc1, a development version) is older (the review: 1.2 was refused, rc1
+  taken). The server chooses its type before it reads the bundles now.
+- **`time=` and `budget=`** reach the core: a page that opens a step opens it with the deck's time,
+  and so does the lecturer's *Open* of a ready step - not of a closed one, which the lecturer opens
+  again with a time of their own or none; a check gets the deck's budget, at most the kind's. An item
+  whose time or budget is none is refused (`Part`).
+- **What a phone loads** of the deck's kinds' own files - `web/hint.js`, `web/input.js`, what they
+  import, `texts/*.js` (`kit.py`: `phone_files`) - the build says, compressed, each file once: kinds
+  of one package share theirs. 0 KB for the four kinds, which have none yet (package 8).
+- **The manual** names the new keys and `\reveal`, as CI's check of the LaTeX reference wants every
+  key named; it says that the activity type `texstage serve` runs today leaves the new keys aside.
+
+Also from the review: the seed's error was said quoted; `server/activities.py` imported first ended in
+a cycle of imports (since package 6); CI's check of the LaTeX reference names `\reveal` among the
+environment's commands. Left as it is: `review=` with no value is on - texactivity.sty cannot tell it
+from `review`, which F1's refused.
+
+Left after package 7: the solutions showing a reference's result (AF 9); the server checking the
+references when a bundle comes rather than when a game of it does - preparing every bundle the
+server finds would hold the pool for decks nobody plays; `\activitysetup`, a deck's defaults (AF
+8.1), and `\activitystep` and `\activityview`, which are F3's; the KG lecture's decks built with
+lecture-tools once it has taken F2 (package 11).
 
 ### 4.5 The browser
 
@@ -1062,10 +1153,14 @@ the review left to the kinds is done too (2026-11-12): their normalize takes a t
 mended in F1's code: SERVICE got past its refusal - where the server checks, which is no lecture
 yet (2.3; 4.7). Two more faults of F1's checks, which the review met, are mended with it: a text with a
 base of its own for a seed with relative prefixes, and how Oxigraph reads a Turtle text's end
-(4.7). Package 6 is built on it (2026-11-13), not reviewed yet: the core's type with AF 10.4's
+(4.7). Package 6 is built on it (2026-11-13): the core's type with AF 10.4's
 messages, `activity.step` and the lead window, the pool's processes checking through the kinds -
 beside F1's type, which a server runs unless it is told otherwise (4.3): it rewires nothing for
-the lectures.
+the lectures. Its review is done (2026-11-13) - five faults and five doubts, fixed (4.3). Package 7 is
+built on it (2026-11-13): texactivity.sty with the core's keys and every other key the kind's,
+`\reveal<n>`, records that name their fields, the build asking the kind and running the references
+as the server does, deck.json's kinds, which a server of the core's type must have (4.4). Its review
+is done - four faults, four doubts and seven small findings, fixed (4.4).
 
 ### 4.13 Risks
 

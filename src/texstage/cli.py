@@ -93,6 +93,13 @@ def cmd_build(args: argparse.Namespace) -> int:
                                                    "ones: start the slideshow there" if r.first else ""))
     print(f"{r.static}: the same slides without the quiz (any PC, no server)")
     print(f"{r.bundle}: deck {r.deck_id}, bundle {r.bundle_id}")
+    acts = r.activities
+    if acts is not None and acts.items:
+        kinds = ", ".join(f"{name} ({k['package']} {k['version']})" for name, k in acts.kinds.items())
+        n, refs = len(acts.items), acts.references
+        print(f"  {n} live {'activity' if n == 1 else 'activities'} of the kind{'' if len(acts.kinds) == 1 else 's'} "
+              f"{kinds}: {refs} {'reference runs' if refs == 1 else 'references run'} as the server runs them; a phone "
+              f"loads {acts.phone_bytes / 1024:.0f} KB of the kinds' own files")
     print(f"{r.zip}: the same as one file - a server without the deck takes it in its deck list (Upload a deck)")
     if r.stage is not None:
         notes = sum(p.note is not None for p in r.stage.pages)

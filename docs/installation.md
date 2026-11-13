@@ -110,6 +110,13 @@ python -m pip install --no-deps --no-build-isolation .
 
 The first two commands install the tested dependency versions and packaging tools. The third installs this source copy. Keep the requirements files from the same candidate. If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.
 
+Decks with live activities also need the kinds of activities - packages of their own in kinds/ - where they are built and where they are served: the build asks an activity's kind, and runs its references as the server does.
+
+```
+python -m pip install --no-deps --no-build-isolation ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf
+texstage kinds
+```
+
 ```
 texstage --help
 python -m pip check

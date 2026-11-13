@@ -6,6 +6,7 @@ a rule fails it with the reason; the kinds' fixtures are what tests/fixtures/che
 the golden fixtures."""
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import json
 import time
@@ -661,3 +662,29 @@ def test_texstage_kinds_check_tells_the_kit_which_kinds_are_installed(capsys, mo
     monkeypatch.setattr(kit, "check", check)
     assert cli.main(["kinds", "check", "triples"]) == 0
     assert seen == [("triples", set(FOUR))] and "warning" not in capsys.readouterr().out
+
+
+def test_what_a_phone_loads_of_a_kind(tmp_path, monkeypatch):
+    """The kind's modules for the phones, what they import from beside them, its texts - not the windows' box.js,
+    not a file outside the kind's folder; two kinds of one package count their files once (the review of
+    package 7: the build would have counted them twice)."""
+    home = tmp_path / "phonekinds"
+    (home / "web").mkdir(parents=True)
+    (home / "texts").mkdir()
+    (home / "__init__.py").write_text("from texstage.activities.kind import Kind\n\n\nclass One(Kind):\n    NAME = 'one'\n\n\n"
+                                      "class Two(Kind):\n    NAME = 'two'\n", encoding="utf-8")
+    (home / "web" / "hint.js").write_text('import { cut } from "./cut.js";\nexport function hint() { return cut(); }\n',
+                                          encoding="utf-8")
+    (home / "web" / "cut.js").write_text('import "../../outside.js";\nexport const cut = () => null;\n// ' + "x" * 5000 + "\n",
+                                         encoding="utf-8")
+    (home / "web" / "box.js").write_text("export function group() {}\n", encoding="utf-8")
+    (home / "texts" / "en.js").write_text("export default {said: 'Said.'};\n", encoding="utf-8")
+    (tmp_path / "outside.js").write_text("export const no = 1;\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    import phonekinds
+    one, two = phonekinds.One(), phonekinds.Two()
+    files = kit.phone_files(one)
+    assert [f.relative_to(home.resolve()).as_posix() for f in files] == ["web/hint.js", "web/cut.js", "texts/en.js"]
+    each = sum(len(gzip.compress(f.read_bytes(), 9)) for f in files)
+    assert kit.phone_bytes(one) == kit.phone_bytes(one, two) == each > 0
+    assert kit.phone_bytes() == 0

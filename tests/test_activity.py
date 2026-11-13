@@ -46,9 +46,13 @@ K1 = "0123456789abcdef"
 
 
 def make_activity_bundle(folder: Path, crowd: dict | None = None, query: dict | None = None,
-                         reference: str = REFERENCE, seed: bytes = SEED) -> str:
+                         reference: str = REFERENCE, seed: bytes = SEED, shows: dict[int, str] | None = None,
+                         phases: dict[int, str] | None = None, deck_more: dict | None = None,
+                         query_keys: dict | None = None) -> str:
     """A format-2 bundle as build/activity.py writes one: a crowd graph on slides 257 and 258 (its
-    frame's two steps), a query on 259; 256 and 260 ordinary slides."""
+    frame's two steps), a query on 259; 256 and 260 ordinary slides. shows: other slides of the activities
+    (slide -> activity); phases: what a slide is of its activity, as the build marks it since package 7 of
+    F2 - none, as before; deck_more: more of deck.json (its kinds); query_keys: more of the query's keys."""
     pngs = {f"slides/{hashlib.sha256(d).hexdigest()[:16]}.png": d for d in (b"one", b"two")}
     s1, s2 = list(pngs)
     seed_name = f"data/{hashlib.sha256(seed).hexdigest()[:16]}.ttl"
@@ -56,15 +60,16 @@ def make_activity_bundle(folder: Path, crowd: dict | None = None, query: dict | 
                        "suggest": [":KG"], "min": 1} | (crowd or {}),
              "query": {"input": "code", "limit": 3, "engine": "sparql", "tokens": ["SELECT", "{", "}"],
                        "seed": seed_name} | (query or {})}
+    shows = shows or {257: "crowd", 258: "crowd", 259: "query"}
 
-    def live(item):
-        return [{"type": "activity", "item": item, "rects": {"box": BOX}}]
+    def live(sid):
+        box = {"type": "activity", "item": shows[sid], "rects": {"box": BOX}}
+        return [box | ({"phase": phases[sid]} if phases and sid in phases else {})]
     deck = {"format": 2, "deck": "act", "name": "Act", "types": ["activity"], "image": {"width": 1920, "height": 1080},
-            "slides": [{"id": 256, "image": s1}, {"id": 257, "image": s2, "live": live("crowd")},
-                       {"id": 258, "image": s2, "live": live("crowd")}, {"id": 259, "image": s2, "live": live("query")},
-                       {"id": 260, "image": s1}],
-            "items": {"activity": items}}
-    keys = {"format": 2, "deck": "act", "items": {"activity": {"query": {"reference": [reference]}}}}
+            "slides": [{"id": sid, "image": s2 if sid in shows else s1} | ({"live": live(sid)} if sid in shows else {})
+                       for sid in (256, 257, 258, 259, 260)],
+            "items": {"activity": items}} | (deck_more or {})
+    keys = {"format": 2, "deck": "act", "items": {"activity": {"query": {"reference": [reference]} | (query_keys or {})}}}
     bid = bundle_id(deck, keys)
     for rel, data in {**pngs, seed_name: seed}.items():
         (folder / rel).parent.mkdir(parents=True, exist_ok=True)

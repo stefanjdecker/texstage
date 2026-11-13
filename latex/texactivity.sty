@@ -1,48 +1,64 @@
 % SPDX-FileCopyrightText: 2026 Stefan Decker
 % SPDX-License-Identifier: Apache-2.0
 %% texactivity.sty -- a live activity on a Beamer slide: the class builds something together on
-%% the phones while the slide shows it grow (docs/live-activities-design.md, section 5).  Built on
-%% the core, texstage.sty.
+%% the phones while the slide shows it grow (docs/live-activities-design.md, section 5; the
+%% activity framework's keys: docs/architecture/activity-framework-design.md, section 8).  Built
+%% on the core, texstage.sty.
 %%
-%%   \begin{activity}[id=lecture-graph, input=tuple, fields={Subject, Predicate, Object},
+%%   \begin{activity}[id=lecture-graph, kind=triples, fields={Subject, Predicate, Object},
 %%                    suggest={:KG, :teaches}, limit=10]
 %%     \prompt{Add triples about this lecture: who teaches it, who attends, what it is about.}
 %%   \end{activity}
 %%
 %%   \begin{frame}[t,fragile]{Exercise 2, live}
-%%   \begin{activity}[id=prof-lectures, input=code, engine=sparql, seed=data.ttl,
+%%   \begin{activity}[id=prof-lectures, kind=sparql-query, seed=data.ttl, time=180,
 %%                    tokens={SELECT, WHERE, :Professor, ?name, ?title}]
 %%     \prompt{For every professor, the titles of the lectures they teach.}
 %%     \reference{SELECT ?name ?title WHERE {
 %%       ?professor a :Professor ; :name ?name .
 %%       ?lecture :taughtBy ?professor ; :title ?title . }}
+%%     \reveal<2>
 %%   \end{activity}
 %%   \end{frame}
 %%
 %% The environment stands where its box goes.  Every PDF shows the box with "Live activity" and
 %% the prompt; the solutions add the reference queries.  \reference{...} and \seed{...} are read
 %% verbatim, so their frame is fragile; reference=FILE and seed=FILE name files beside the deck
-%% instead.  In present mode the box, the activity's record and its references go to the .tqz
-%% (build/activity.py), and the prompt is typeset for the phones (an extra page, X|activity:<id>):
-%%   activity|id|input|engine|fields|suggest|tokens|limit|min|review|open|terms|seed
-%%           |reference file|tex file|line
-%%   activityref|id|query          activityseed|id|text
-%% (texts hex-encoded - in a verbatim text a line ends with "\obeyedline ", as xparse's +v gives
-%% it; a list: its items hex-encoded, each followed by a comma).
-%% Keys: id (required; lowercase letters, digits, dashes), input=tuple|code (default tuple),
-%% width, height (the box; default the line's width, 0.6 of the text height), limit
-%% (contributions per student), open=auto|manual (auto: when its frame comes); tuple: fields
-%% (two or three; default Subject, Predicate, Object), suggest, min (students a triple needs
-%% for the projector), review, terms=exact|loose (default exact: a term as written, as RDF
-%% compares IRIs, so :kg and :KG are two nodes; loose: case, accents and spacing do not
-%% count, as the word cloud groups answers - for plain words); code: engine (sparql: a Turtle
-%% seed; sql: a seed of SQL statements, the queries SQLite's; turtle: the students write a graph
-%% in Turtle, a Turtle seed gives the @base and @prefix lines they need not write, a reference is
-%% Turtle), tokens (the buttons over the phone's keyboard; \{ \} \# \% \^ for those characters),
-%% seed, reference.
+%% instead.  \reveal<n>, once in the environment: the frame's slides from the n-th on reveal the
+%% activity, the slides before it open it (Beamer's overlays; without \reveal, the frame opens it
+%% and leaving it closes it).
+%%
+%% The core's keys: id (required; lowercase letters, digits, dashes), kind (the activity's kind,
+%% as a package of kinds names it: triples, sql-query, sparql-query, turtle-graph), limit (entries
+%% per student), counts=latest|all (the latest entry replaces a student's earlier ones, or all
+%% count), gap (seconds between two entries), time (seconds: its slide opens it with this time),
+%% budget (a check's CPU time in ms, at most the kind's), feedback=none|status|verdict|full (what
+%% a phone learns before the reveal), projector=live|count|hidden (what the class sees while it
+%% runs), solution=show|mark (what the reveal shows), open=auto|manual (auto: when its frame
+%% comes), width, height (the box; default the line's width, 0.6 of the text height), seed and
+%% reference (files beside the deck - the solutions show the reference's text).  Not given, a
+%% key is the kind's default.  Every other key is the kind's: recorded as it is written, and
+%% checked by the kind when the deck is built - fields, suggest, min, review, terms for triples
+%% (the first and the last field a node, a middle one the edge's label; terms=exact: a term as
+%% written, as RDF compares IRIs; loose: case, accents and spacing do not count), tokens for the
+%% queries' kinds (the buttons over the phone's keyboard; \{ \} \# \% \^ for those characters).
+%% The keys of before kinds were named stay: input=tuple is kind=triples, input=code with
+%% engine=sparql, engine=sql or engine=turtle is kind=sparql-query, sql-query or turtle-graph;
+%% without kind and input, an activity is one of triples.
+%%
+%% In present mode the box, the activity's records and its references go to the .tqz
+%% (build/activity.py), and the prompt is typeset for the phones (an extra page, X|activity:<id>).
+%% The records name their fields, a text hex-encoded:
+%%   activity|id=|kind=|input=|engine=|limit=|counts=|gap=|time=|budget=|feedback=|projector=
+%%           |solution=|open=|seed=|reference=|file=|line=
+%%   activityoption|id=|key=|value=|items=     (a key of the kind's: as written, and as a list -
+%%                                              its items hex-encoded, each followed by a comma)
+%%   activityref|id=|text=          activityseed|id=|text=
+%% (in a verbatim text a line ends with "\obeyedline ", as xparse's +v gives it), and every slide
+%% that shows it says what it is of the activity: G|activity|<id>|open or revealed|page.
 %% One id, one activity: it may come again (\againframe) as it was; one activity per frame.
 \NeedsTeXFormat{LaTeX2e}[2023-06-01]
-\ProvidesExplPackage{texactivity}{2026-10-17}{0.1.0}{A live activity on a Beamer slide (texstage)}
+\ProvidesExplPackage{texactivity}{2026-11-13}{0.2.0}{A live activity on a Beamer slide (texstage)}
 % the core, texstage.sty: from this folder, or by name if loaded through TEXINPUTS
 \tl_set:Ne \l_tmpa_tl { \CurrentFilePath }
 \tl_if_empty:NTF \l_tmpa_tl
@@ -51,18 +67,25 @@
 
 \msg_new:nnn { texactivity } { general } { Activity~'#1':~#2 }
 \tl_new:N \l__ta_id_tl
+\tl_new:N \l__ta_kind_tl
 \tl_new:N \l__ta_input_tl
 \tl_new:N \l__ta_engine_tl
-\clist_new:N \l__ta_fields_clist
-\clist_new:N \l__ta_suggest_clist
-\clist_new:N \l__ta_tokens_clist
 \tl_new:N \l__ta_limit_tl
-\tl_new:N \l__ta_min_tl
-\bool_new:N \l__ta_review_bool
+\tl_new:N \l__ta_counts_tl
+\tl_new:N \l__ta_gap_tl
+\tl_new:N \l__ta_time_tl
+\tl_new:N \l__ta_budget_tl
+\tl_new:N \l__ta_feedback_tl
+\tl_new:N \l__ta_projector_tl
+\tl_new:N \l__ta_solution_tl
 \tl_new:N \l__ta_open_tl
-\tl_new:N \l__ta_terms_tl
 \tl_new:N \l__ta_seed_tl
 \tl_new:N \l__ta_reffile_tl
+\prop_new:N \l__ta_options_prop        % the kind's keys, as written (a macro alone expanded), in the deck's order
+\tl_new:N \l__ta_value_tl
+\clist_new:N \l__ta_items_clist
+\seq_new:N \l__ta_defs_seq              % the kind's keys in an activity's definition: sorted, as lists
+\tl_new:N \l__ta_slide_tl
 \dim_new:N \l__ta_wd_dim
 \dim_new:N \l__ta_ht_dim
 \box_new:N \l__ta_box
@@ -75,6 +98,8 @@
 \tl_new:N \g__ta_prompt_tl              % set by the body's commands (inside a box: globally)
 \seq_new:N \g__ta_refs_seq
 \str_new:N \g__ta_seedtext_str
+\tl_new:N \g__ta_mark_tl                % what this slide is of the activity: open, or revealed (\reveal)
+\bool_new:N \g__ta_reveal_bool          % the body has its \reveal
 \prop_new:N \g__ta_defs_prop            % id -> its definition (keys, prompt, references)
 \prop_new:N \g__ta_frames_prop          % a frame's first page -> the activity on it
 \ior_new:N \g__ta_ior
@@ -84,33 +109,77 @@
 \keys_define:nn { texactivity }
   {
     id .tl_set:N = \l__ta_id_tl ,
+    kind .tl_set:N = \l__ta_kind_tl ,
     input .choices:nn = { tuple , code } { \tl_set_eq:NN \l__ta_input_tl \l_keys_choice_tl } ,
-    fields .clist_set:N = \l__ta_fields_clist ,
-    suggest .clist_set:N = \l__ta_suggest_clist ,
-    tokens .clist_set:N = \l__ta_tokens_clist ,
     engine .tl_set:N = \l__ta_engine_tl ,
+    limit .tl_set:N = \l__ta_limit_tl ,
+    counts .choices:nn = { latest , all } { \tl_set_eq:NN \l__ta_counts_tl \l_keys_choice_tl } ,
+    gap .tl_set:N = \l__ta_gap_tl ,
+    time .tl_set:N = \l__ta_time_tl ,
+    budget .tl_set:N = \l__ta_budget_tl ,
+    feedback .choices:nn = { none , status , verdict , full }
+      { \tl_set_eq:NN \l__ta_feedback_tl \l_keys_choice_tl } ,
+    projector .choices:nn = { live , count , hidden } { \tl_set_eq:NN \l__ta_projector_tl \l_keys_choice_tl } ,
+    solution .choices:nn = { show , mark } { \tl_set_eq:NN \l__ta_solution_tl \l_keys_choice_tl } ,
+    open .choices:nn = { auto , manual } { \tl_set_eq:NN \l__ta_open_tl \l_keys_choice_tl } ,
     seed .tl_set:N = \l__ta_seed_tl ,
     reference .tl_set:N = \l__ta_reffile_tl ,
-    limit .tl_set:N = \l__ta_limit_tl ,
-    min .tl_set:N = \l__ta_min_tl ,
-    review .bool_set:N = \l__ta_review_bool ,
-    review .default:n = true ,
-    open .choices:nn = { auto , manual } { \tl_set_eq:NN \l__ta_open_tl \l_keys_choice_tl } ,
-    terms .choices:nn = { exact , loose } { \tl_set_eq:NN \l__ta_terms_tl \l_keys_choice_tl } ,
     width .dim_set:N = \l__ta_wd_dim ,
     height .dim_set:N = \l__ta_ht_dim ,
-    unknown .code:n = \__ta_error:n { unknown~key~'\l_keys_key_str'. }
+    unknown .code:n = \__ta_option:n {#1}        % the kind's: it checks them when the deck is built
+  }
+% A key of the kind's: its value as written - where it is one macro, what the macro holds, as F1's
+% texactivity.sty read min=\mymin (and limit=\mylimit, engine=\myengine: \__ta_check:).
+\cs_new_protected:Npn \__ta_option:n #1
+  {
+    \tl_set:Nn \l__ta_value_tl {#1}
+    \bool_lazy_and:nnT { \tl_if_single_token_p:n {#1} } { \__ta_if_macro_p:n {#1} }
+      { \tl_set:Ne \l__ta_value_tl {#1} }
+    \exp_args:NNVV \prop_put:Nnn \l__ta_options_prop \l_keys_key_str \l__ta_value_tl
+  }
+\prg_new_conditional:Npnn \__ta_if_macro:n #1 { p }      % a control sequence that is a macro
+  {
+    \token_if_cs:NTF #1
+      { \token_if_macro:NTF #1 { \prg_return_true: } { \prg_return_false: } }
+      { \prg_return_false: }
   }
 
-% The body's commands, \prompt, \reference and \seed: only inside the environment.
+% The body's commands, \prompt, \reference, \seed and \reveal: only inside the environment.
 \NewDocumentCommand \TexactivityPrompt { +m } { \tl_gset:Nn \g__ta_prompt_tl {#1} }
 \NewDocumentCommand \TexactivityReference { +v } { \seq_gput_right:Nn \g__ta_refs_seq {#1} }
 \NewDocumentCommand \TexactivitySeed { +v } { \str_gset:Nn \g__ta_seedtext_str {#1} }
+\NewDocumentCommand \TexactivityReveal { d<> }
+  {
+    \bool_if:NT \g__ta_reveal_bool
+      { \__ta_error:n { an~activity~has~one~\iow_char:N \\reveal. } }
+    \bool_gset_true:N \g__ta_reveal_bool
+    \IfNoValueTF {#1}
+      { \__ta_error:n { \iow_char:N \\reveal<n>~names~the~slide~that~reveals~the~activity:~\iow_char:N \\reveal<2>. } }
+      {
+        \regex_match:nnTF { \A \s* [1-9] [0-9]* \s* -? \s* \Z } {#1}
+          {
+            \tl_set:Nn \l__ta_slide_tl {#1}
+            \tl_remove_all:Nn \l__ta_slide_tl { - }
+            \tl_trim_spaces:N \l__ta_slide_tl
+            \exp_args:NV \__ta_reveal_from:n \l__ta_slide_tl
+          }
+          {
+            \__ta_error:n
+              {
+                \iow_char:N \\reveal<n>~names~the~slide~from~which~the~activity~is~revealed~-~a~number,~as~
+                \iow_char:N \\reveal<2>,~not~'#1'.
+              }
+          }
+      }
+  }
+% The frame's slides from the n-th on reveal the activity; the ones before it open it.
+\cs_new_protected:Npn \__ta_reveal_from:n #1
+  { \alt<#1-> { \tl_gset:Nn \g__ta_mark_tl { revealed } } { } }
 
 \NewDocumentEnvironment { activity } { O{} }
   {
     \__ta_begin:n {#1}
-    \vbox_set:Nw \l__ta_body_box          % the body only sets the prompt and the references
+    \vbox_set:Nw \l__ta_body_box          % the body only sets the prompt, the references, the reveal
   }
   {
     \vbox_set_end:
@@ -119,19 +188,19 @@
 
 \cs_new_protected:Npn \__ta_begin:n #1
   {
-    \tl_set:Nn \l__ta_input_tl { tuple }
     \tl_set:Nn \l__ta_open_tl { auto }
-    \tl_clear:N \l__ta_terms_tl                % (not given: the build's default, exact)
-    \clist_set:Nn \l__ta_fields_clist { Subject , Predicate , Object }
     \dim_set:Nn \l__ta_wd_dim { \linewidth }
     \dim_set:Nn \l__ta_ht_dim { 0.6 \textheight }
     \keys_set:nn { texactivity } {#1}
     \tl_gclear:N \g__ta_prompt_tl
     \seq_gclear:N \g__ta_refs_seq
     \str_gclear:N \g__ta_seedtext_str
+    \tl_gset:Nn \g__ta_mark_tl { open }
+    \bool_gset_false:N \g__ta_reveal_bool
     \cs_set_eq:NN \prompt \TexactivityPrompt
     \cs_set_eq:NN \reference \TexactivityReference
     \cs_set_eq:NN \seed \TexactivitySeed
+    \cs_set_eq:NN \reveal \TexactivityReveal
   }
 
 \cs_new_protected:Npn \__ta_end:
@@ -140,7 +209,7 @@
     \__ta_static_box:
     \texstage_if_mode:nTF { present }
       {
-        \texstage_page_record:nnn { activity } { \l__ta_id_tl } { box }
+        \texstage_page_record:nnn { activity } { \l__ta_id_tl } { \g__ta_mark_tl }
         \par \noindent
         \texstage_rect:nnnnn { \l__ta_id_tl } { box } { box }
           { \box_wd:N \l__ta_box } { \box_ht:N \l__ta_box + \box_dp:N \l__ta_box }
@@ -152,30 +221,77 @@
   }
 
 % The keys that must agree, the id once per activity, one activity per frame.  A frame body is
-% typeset once per slide: the record and the phones' picture come with the first.
+% typeset once per slide: the record and the phones' picture come with the first.  Whether a
+% kind is installed, and what its keys say, the build asks the kind (build/activity.py).  The
+% definitions are compared as F1's were: the values as they expand - limit=\mylimit is limit=4 -,
+% the kind's keys in any order and as lists (suggest={a,b} is suggest={a, b}), a key without a value
+% as true, the input a tuple's where nothing names another, fields= a triple's where none are given.
+\cs_new_protected:Npn \__ta_def_options:
+  {
+    \seq_clear:N \l__ta_defs_seq
+    \prop_if_in:NnF \l__ta_options_prop { fields }
+      { \seq_put_right:Nn \l__ta_defs_seq { fields = Subject,Predicate,Object } }
+    \prop_map_inline:Nn \l__ta_options_prop
+      {
+        \clist_set:Nn \l__ta_items_clist {##2}
+        \seq_put_right:Ne \l__ta_defs_seq
+          {
+            \tl_to_str:n {##1} =
+            \clist_if_empty:NTF \l__ta_items_clist { true }
+              { \exp_args:Ne \tl_to_str:n { \clist_use:Nn \l__ta_items_clist { , } } }
+          }
+      }
+    \seq_sort:Nn \l__ta_defs_seq
+      { \str_compare:eNeTF {##1} > {##2} { \sort_return_swapped: } { \sort_return_same: } }
+  }
 \cs_new_protected:Npn \__ta_check:
   {
+    \tl_set:Ne \l__ta_kind_tl { \l__ta_kind_tl }       % (as F1 read limit and engine: expanded)
+    \tl_set:Ne \l__ta_engine_tl { \l__ta_engine_tl }
+    \tl_set:Ne \l__ta_limit_tl { \l__ta_limit_tl }
+    \tl_set:Ne \l__ta_gap_tl { \l__ta_gap_tl }
+    \tl_set:Ne \l__ta_time_tl { \l__ta_time_tl }
+    \tl_set:Ne \l__ta_budget_tl { \l__ta_budget_tl }
     \tl_if_empty:NT \l__ta_id_tl
       { \__ta_error:n { an~activity~needs~an~id~(id=<lowercase~letters,~digits,~dashes>). } }
     \regex_match:nVF { \A [a-z0-9] [a-z0-9-]{0,62} \Z } \l__ta_id_tl
       { \__ta_error:n { an~id~has~lowercase~letters,~digits~and~dashes. } }
-    \str_if_eq:VnTF \l__ta_input_tl { code }
+    \tl_if_empty:NTF \l__ta_kind_tl
       {
-        \tl_if_empty:NT \l__ta_engine_tl
-          { \__ta_error:n { input=code~needs~an~engine~(engine=sparql,~engine=sql~or~engine=turtle). } }
+        \str_if_eq:VnTF \l__ta_input_tl { code }
+          {
+            \tl_if_empty:NT \l__ta_engine_tl
+              {
+                \__ta_error:n
+                  { input=code~needs~an~engine~(engine=sparql,~engine=sql~or~engine=turtle)~-~or~a~kind. }
+              }
+          }
+          {
+            \tl_if_empty:NF \l__ta_engine_tl
+              { \__ta_error:n { input=tuple~takes~no~engine~(that~is~for~input=code). } }
+          }
       }
       {
-        \tl_if_empty:NF \l__ta_engine_tl
-          { \__ta_error:n { input=tuple~takes~no~engine~(that~is~for~input=code). } }
+        \regex_match:nVF { \A [a-z] [a-z0-9]* (- [a-z0-9]+)* \Z } \l__ta_kind_tl
+          {
+            \__ta_error:n
+              { kind=~names~a~kind:~lowercase~letters~and~digits,~dashes~between~them~(kind=sql-query). }
+          }
       }
+    \__ta_def_options:
     \tl_set:Ne \l__ta_def_tl
       {
-        \l__ta_input_tl | \l__ta_engine_tl | \clist_use:Nn \l__ta_fields_clist { , }
-        | \clist_use:Nn \l__ta_suggest_clist { , } | \clist_use:Nn \l__ta_tokens_clist { , }
-        | \l__ta_limit_tl | \l__ta_min_tl | \bool_if:NTF \l__ta_review_bool { 1 } { 0 }
-        | \l__ta_open_tl | \l__ta_terms_tl | \tl_to_str:N \l__ta_seed_tl | \tl_to_str:N \l__ta_reffile_tl
+        \tl_to_str:N \l__ta_kind_tl
+        | \tl_if_empty:NTF \l__ta_input_tl { \tl_if_empty:NT \l__ta_kind_tl { tuple } } { \tl_to_str:N \l__ta_input_tl }
+        | \tl_to_str:N \l__ta_engine_tl
+        | \tl_to_str:N \l__ta_limit_tl | \tl_to_str:N \l__ta_counts_tl | \tl_to_str:N \l__ta_gap_tl
+        | \tl_to_str:N \l__ta_time_tl | \tl_to_str:N \l__ta_budget_tl | \tl_to_str:N \l__ta_feedback_tl
+        | \tl_to_str:N \l__ta_projector_tl | \tl_to_str:N \l__ta_solution_tl | \tl_to_str:N \l__ta_open_tl
+        | \tl_to_str:N \l__ta_seed_tl | \tl_to_str:N \l__ta_reffile_tl
+        | \seq_use:Nn \l__ta_defs_seq { ; }
         | \tl_to_str:N \g__ta_prompt_tl | \seq_use:Nn \g__ta_refs_seq { | }
       }
+    \tl_set:Ne \l__ta_def_tl { \tl_to_str:N \l__ta_def_tl }  % (one string: tuple and true as the deck's are)
     \bool_set_true:N \l__ta_new_bool
     \prop_get:NVNT \g__ta_defs_prop \l__ta_id_tl \l__ta_seen_tl
       {
@@ -247,25 +363,35 @@
     \hbox:n { \strut \l__ta_line_tl }
   }
 
-% The activity's records and its picture for the phones (present mode, once).
+% The activity's records and its picture for the phones (present mode, once).  Each field names
+% itself; a text is hex-encoded, a list's items each, with a comma after it.
 \cs_new:Npn \__ta_hex_item:n #1 { \texstage_hex:n {#1} , }
 \cs_new_protected:Npn \__ta_record:
   {
     \texstage_emit:n
       {
-        activity | \l__ta_id_tl | \l__ta_input_tl | \l__ta_engine_tl
-          | \clist_map_function:NN \l__ta_fields_clist \__ta_hex_item:n
-          | \clist_map_function:NN \l__ta_suggest_clist \__ta_hex_item:n
-          | \clist_map_function:NN \l__ta_tokens_clist \__ta_hex_item:n
-          | \l__ta_limit_tl | \l__ta_min_tl | \bool_if:NTF \l__ta_review_bool { true } { false }
-          | \l__ta_open_tl | \l__ta_terms_tl | \texstage_hex:V \l__ta_seed_tl | \texstage_hex:V \l__ta_reffile_tl
-          | \texstage_hex:e { \CurrentFilePath / \CurrentFile }
-          | \int_use:N \tex_inputlineno:D
+        activity | id = \l__ta_id_tl | kind = \texstage_hex:V \l__ta_kind_tl | input = \l__ta_input_tl
+          | engine = \texstage_hex:V \l__ta_engine_tl | limit = \texstage_hex:V \l__ta_limit_tl
+          | counts = \l__ta_counts_tl | gap = \texstage_hex:V \l__ta_gap_tl
+          | time = \texstage_hex:V \l__ta_time_tl | budget = \texstage_hex:V \l__ta_budget_tl
+          | feedback = \l__ta_feedback_tl | projector = \l__ta_projector_tl | solution = \l__ta_solution_tl
+          | open = \l__ta_open_tl | seed = \texstage_hex:V \l__ta_seed_tl
+          | reference = \texstage_hex:V \l__ta_reffile_tl
+          | file = \texstage_hex:e { \CurrentFilePath / \CurrentFile }
+          | line = \int_use:N \tex_inputlineno:D
+      }
+    \prop_map_inline:Nn \l__ta_options_prop
+      {
+        \texstage_emit:n
+          {
+            activityoption | id = \l__ta_id_tl | key = \texstage_hex:n {##1} | value = \texstage_hex:n {##2}
+              | items = \clist_map_function:nN {##2} \__ta_hex_item:n
+          }
       }
     \seq_map_inline:Nn \g__ta_refs_seq
-      { \texstage_emit:n { activityref | \l__ta_id_tl | \texstage_hex:n {##1} } }
+      { \texstage_emit:n { activityref | id = \l__ta_id_tl | text = \texstage_hex:n {##1} } }
     \str_if_empty:NF \g__ta_seedtext_str
-      { \texstage_emit:n { activityseed | \l__ta_id_tl | \texstage_hex:V \g__ta_seedtext_str } }
+      { \texstage_emit:n { activityseed | id = \l__ta_id_tl | text = \texstage_hex:V \g__ta_seedtext_str } }
     \tl_if_empty:NF \g__ta_prompt_tl
       { \texstage_asset:nnnn { activity: \l__ta_id_tl } { prompt } { 7cm } { \g__ta_prompt_tl } }
   }

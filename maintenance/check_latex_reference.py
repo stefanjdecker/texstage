@@ -33,7 +33,7 @@ def inventory():
         if name=="latex/texquiz.sty":
             commands.update(("choice","explain","accept","step"))
         if name=="latex/texactivity.sty":
-            commands.update(("prompt","reference","seed"))
+            commands.update(("prompt","reference","seed","reveal"))
         environments=sorted(set(re.findall(
             r"\\(?:newenvironment|renewenvironment|newtcolorbox|renewtcolorbox|NewDocumentEnvironment)\s*\{\s*([A-Za-z]+)\s*\}",source)))
         styles=sorted(set(x.strip() for x in re.findall(

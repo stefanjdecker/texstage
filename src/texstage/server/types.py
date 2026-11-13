@@ -31,13 +31,16 @@ and, as it needs them,
     FILES, FILE_TYPES                     bundle files it serves as the pictures are (a pattern of their
                                           names; deck.json lists them) and their media types by suffix
     MEDIA, POSTER, TYPES, media(items)    (the video) the bundle files it serves: by ticket, or as pictures
-    shown(call, before, after)            a slide change, for a type whose data are not the stage's
+    shown(call, before, after, marks)     a slide change, for a type whose data are not the stage's; marks:
+                                          what the new page is of each item it shows (a live box's phase)
     deck(call, bundle), resume(call)      a game comes to a deck; the server started again
     pulse(engine, now)                    a few times a second: the games whose windows need their state
     Book: begin(engine), apply(now),      once the engine has its games; the pool's answers, applied;
       release(bundle), casts, steps       a build's last game ended; a text for every phone of a game
+    refuses(deck)                         why this server cannot play a deck of the type: refuses()
+    failing(book, session)                the references of the game's deck that fail: failing()
 
-A deck that names a type not here is refused (bundles.py).
+A deck that names a type not here is refused (bundles.py), and so is one a type here refuses.
 """
 from __future__ import annotations
 
@@ -124,3 +127,25 @@ use("f1")
 def bundle_file(rel: str) -> bool:
     """Whether a bundle file is one a type serves as the pictures are served."""
     return any(re.fullmatch(p, rel) for p in FILES)
+
+
+def refuses(deck: dict) -> str | None:
+    """Why this server cannot play a deck whose types it knows - what a type it runs says of the deck's
+    deck.json (its hook refuses: the core's type, of a kind it lacks; server/bundles.py refuses the deck)."""
+    for kind in TYPES.values():
+        check = getattr(kind, "refuses", None)
+        why = check(deck) if check is not None else None
+        if why:
+            return why
+    return None
+
+
+def failing(engine, s) -> list[dict]:
+    """The references of a game's deck that fail, for the deck list (app.py): [{activity, reference (from
+    1), error}] - the activity type's own way to tell them (F1's: from the game's stage)."""
+    kind = TYPES.get(activity.NAME)
+    if kind is None or s is None:
+        return []
+    if hasattr(kind, "failing"):
+        return kind.failing(engine.books.get(kind.NAME), s)
+    return kind.failed_references(s.stage)

@@ -10,7 +10,9 @@ crowd graph, a tally (reduce.py) -, the pictures the windows draw (views.py), th
 their undo (moderation.py), and the storage - the tables, the writer that commits every 50 ms, what a
 restart reads back, the move of F1's rows (store.py) -, all of it as one for a game (play.py). The
 server's type for it is server/activities.py; a server runs it only where it is told to: F1's activity
-type (server/activity.py) runs the lectures until the windows speak the core's messages.
+type (server/activity.py) runs the lectures until the windows speak the core's messages. The build asks
+the kinds since package 7 (build/activity.py): a kind builds an activity's item, and its references run
+as the server runs them.
 
     from texstage.activities import Kind, Built, Prepared, Check, Entry, Step, Message, fixed    # what a kind is written with
     from texstage.activities.options import File, Words, Int, Flag, Choice                    # ... and its options' types

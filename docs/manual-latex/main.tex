@@ -1086,14 +1086,17 @@ The full command contract is in texvideo.\allowbreak{}sty and src/\allowbreak{}t
 \texttt{\textbackslash{}\allowbreak{}prompt\{\allowbreak{}formatted text\}} & Activity instruction.\allowbreak{} Used in the static box and rendered for phones.\allowbreak{} One prompt per activity is the supported authoring pattern. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}reference\{\allowbreak{}verbatim text\}} & Code activity reference answer; may be repeated for alternative solutions.\allowbreak{} Use a fragile frame for inline verbatim.\allowbreak{} File form: reference=\allowbreak{}answer.\allowbreak{}rq or an engine-\allowbreak{}appropriate text file. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}seed\{\allowbreak{}verbatim text\}} & Inline code-\allowbreak{}activity data.\allowbreak{} Use a fragile frame, or prefer seed=\allowbreak{}data.\allowbreak{}ttl /\allowbreak{} seed=\allowbreak{}data.\allowbreak{}sql.\allowbreak{} If a seed file and inline seed are both supplied, the file takes precedence. \\ \addlinespace[3pt]
+\texttt{\textbackslash{}\allowbreak{}reveal<n>} & Inside activity, at most once, n a slide's number: the frame's slides from the n-\allowbreak{}th on -\allowbreak{} Beamer overlays -\allowbreak{} reveal the activity, and the slides before it open it.\allowbreak{} Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. \\ \addlinespace[3pt]
 \texttt{id} & Required, 1-\allowbreak{}63 lower-\allowbreak{}case letters/\allowbreak{}digits/\allowbreak{}hyphens, starting with a letter or digit.\allowbreak{} Same id must keep the same definition. \\ \addlinespace[3pt]
-\texttt{input} & tuple (default) or code.\allowbreak{} Code input requires engine and seed data. \\ \addlinespace[3pt]
+\texttt{kind} & The activity's kind, as an installed package of kinds names it: triples, sql-\allowbreak{}query, sparql-\allowbreak{}query, turtle-\allowbreak{}graph (texstage-\allowbreak{}kinds-\allowbreak{}rdf, texstage-\allowbreak{}kinds-\allowbreak{}sql).\allowbreak{} texstage build asks the kind, which checks its own keys -\allowbreak{} every key texactivity does not know is the kind's, and the build warns of one the kind does not take. \\ \addlinespace[3pt]
+\texttt{input} & tuple (default) or code: the activity's kind as decks named it before kinds -\allowbreak{} input=\allowbreak{}tuple is kind=\allowbreak{}triples, input=\allowbreak{}code with engine=\allowbreak{}sql, sparql or turtle is kind=\allowbreak{}sql-\allowbreak{}query, sparql-\allowbreak{}query or turtle-\allowbreak{}graph.\allowbreak{} Code input requires engine and seed data. \\ \addlinespace[3pt]
 \texttt{width, height} & Default linewidth and 0.\allowbreak{}6 textheight.\allowbreak{} Size the box to leave room for the frame title and other material. \\ \addlinespace[3pt]
 \texttt{open} & auto (default) opens when the frame is reached; manual waits for the presenter. \\ \addlinespace[3pt]
 \texttt{limit} & Contributions per student: 1-\allowbreak{}50.\allowbreak{} Default 10 for tuple, 5 for code. \\ \addlinespace[3pt]
+\texttt{counts, gap, time, budget, feedback, projector, solution} & The activity framework's keys, F2 (in development): counts=\allowbreak{}latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=\allowbreak{}none, status, verdict or full, projector=\allowbreak{}live, count or hidden, solution=\allowbreak{}show or mark.\allowbreak{} The build records and checks them; the activity type texstage serve runs today leaves them aside. \\ \addlinespace[3pt]
 \end{longtable}}
 
-The exported TexactivityPrompt, TexactivityReference and TexactivitySeed commands are the implementation backing for the local prompt/\allowbreak{}reference/\allowbreak{}seed aliases.\allowbreak{} Use the local names inside activity.\allowbreak{} Arbitrary body text is not a substitute for prompt.\par
+The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/\allowbreak{}reference/\allowbreak{}seed/\allowbreak{}reveal aliases.\allowbreak{} Use the local names inside activity.\allowbreak{} Arbitrary body text is not a substitute for prompt.\par
 
 \manualsection{Tuple activities: options and example}
 {\small
@@ -1220,7 +1223,7 @@ For ordinary course files, prefer seed=\allowbreak{}people.\allowbreak{}sql and 
 \bottomrule
 \endlastfoot
 \texttt{texstage pdf -\allowbreak{}-\allowbreak{}solutions} & Shows activity references and quiz answers.\allowbreak{} Verify that long code and explanations fit the frame. \\ \addlinespace[3pt]
-\texttt{texstage build} & Validates the .\allowbreak{}tqz records, seed files, media and public/\allowbreak{}private bundle split.\allowbreak{} It also checks quiz layout in present and solutions modes. \\ \addlinespace[3pt]
+\texttt{texstage build} & Validates the .\allowbreak{}tqz records, seed files, media and public/\allowbreak{}private bundle split.\allowbreak{} It also checks quiz layout in present and solutions modes.\allowbreak{} Each activity's kind builds it: the kinds must be installed where decks are built.\allowbreak{} Every reference runs as the server runs it -\allowbreak{} a reference that does not run, or a seed that does not load, stops the build. \\ \addlinespace[3pt]
 \texttt{Browser rehearsal} & Open one activity, submit synthetic input, inspect results and reveal behavior.\allowbreak{} Compilation alone is not a browser/\allowbreak{}Office interoperability test. \\ \addlinespace[3pt]
 \end{longtable}}
 

@@ -1026,7 +1026,7 @@ class Engine:
             was, comes = before.shows.get(name, ()) if before else (), after.shows.get(name, ()) if after else ()
             if hasattr(kind, "shown"):                   # (its data are not the stage's: activities.py)
                 call = self._call(s, kind, now)
-                kind.shown(call, was, comes)
+                kind.shown(call, was, comes, after.marks.get(name, {}) if after else {})
                 self._due(s.id, call.phones)
             else:
                 s.stage = kind.slide(s.stage, b.items.get(name, {}), was, comes, now)

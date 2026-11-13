@@ -4,9 +4,11 @@
 hand over to the core (texstage/activities: play.py) and to the pool
 (docs/architecture/activity-framework-design.md, 10 and 13; the plan of F2, 4.3, package 6).
 
-It stands beside F1's type (activity.py) until the windows and the build speak it too (packages 7 and 8):
-a server runs one of the two (types.py: use). The messages, one namespace for every kind (the design's
-10.4):
+It stands beside F1's type (activity.py) until the windows speak it too (package 8): a server runs one of
+the two (types.py: use). The build speaks it since package 7: an item names its kind, a page says what it
+is of its activity (open, revealed), the deck names its kinds - which a server of this type must have
+(refuses) - and keys.json the references' keys, which the deck list holds against this server's (failing).
+The messages, one namespace for every kind (the design's 10.4):
 
     phone      activity.enter {activity, step?, entry, text | fields} -> {entry, state}, once it is written
                activity.withdraw {activity, step?, entry}
@@ -34,17 +36,22 @@ import io
 import json
 import logging
 import queue
+import re
 import sys
 import time
 
+from texstage.activities import registry
 from texstage.activities import store as core
 from texstage.activities.checks import Leave, Normalize, Run
+from texstage.activities.code import words
+from texstage.activities.kind import Message
+from texstage.activities.phases import MARKS
 from texstage.activities.phases import Refused as CoreRefused
 from texstage.activities.play import MOVES, Part, Play
 from texstage.activities.store import ONE, EntryRow, Writer
 from texstage.checks.texts import ENGINES as TEXTS
-from texstage.server import activity as f1
-from texstage.server.types import WRITTEN, Refused
+from texstage.server.types import WRITTEN, Refused  # (first: types imports this module, and F1's, which needs it)
+from texstage.server import activity as f1  # noqa: I001
 
 log = logging.getLogger("texstage.activities")
 
@@ -182,6 +189,28 @@ class Book:
         return {p["aid"]: broken or p["failed"] for p in self.prepared.values()
                 if p["bundle"] == bundle_id and (broken or p["failed"])}
 
+    def failing(self, bundle_id: str) -> list[dict]:
+        """The build's references that do not run here, or give another result than when the deck was built -
+        another SQLite, say (the design's 9): [{activity, reference (from 1), error}], which the deck list
+        says, before the lecture too, once a game of the deck has had it prepared."""
+        out = []
+        for p in self.prepared.values():
+            if p["bundle"] != bundle_id or not p["outcomes"]:
+                continue
+            part = self.parts.get((bundle_id, p["aid"]))
+            built = (part.keys.get("referenceKeys") if part is not None else None) or []
+            b = self.engine.bundles.get(bundle_id) if self.engine is not None else None
+            for i, o in enumerate(p["outcomes"]):
+                if not isinstance(o, dict) or o.get("status") != "ok":
+                    out.append({"activity": p["aid"], "reference": i + 1,
+                                "error": _said(o, b.language if b is not None else None)})
+                elif i < len(built) and isinstance(built[i], str) and o.get("key") != built[i]:
+                    out.append({"activity": p["aid"], "reference": i + 1,       # (None: it gave two at build)
+                                "error": "it gives another result here than when the deck was built - another "
+                                         "engine (another SQLite, say), or data that change from day to day; "
+                                         "the verdicts are this server's"})
+        return out
+
     def part(self, bundle_id: str, aid: str, item: dict, keys: dict | None) -> Part:
         key = (bundle_id, aid)
         if key not in self.parts:
@@ -257,8 +286,8 @@ class Book:
                         self.prepare(b)
                     text = json.dumps(job.input, sort_keys=True)
                     self.asked[(sid, job.activity, job.step, job.norm)] = (act, text)
-                    fut = self.pool.submit(act, text, owner=job.owner or None, budget_s=part.kind.BUDGET_S,
-                                           language=b.language)
+                    fut = self.pool.submit(act, text, owner=job.owner or None, budget_s=part.budget_s or part.kind.BUDGET_S,
+                                           language=b.language)                        # (budget=: the deck's)
                     fut.add_done_callback(lambda f, j=job: self._wake(("checked", sid, j.activity, j.step, j.norm, f)))
                 elif isinstance(job, Leave):
                     asked = self.asked.pop((sid, job.activity, job.step, job.norm), None)
@@ -342,7 +371,69 @@ class Book:
         return part.kind if part is not None else None
 
 
-MEMORY = {words["tooMuchMemory"] for words in TEXTS.values()}      # the pool's words for it, in every language
+MEMORY = {catalog["tooMuchMemory"] for catalog in TEXTS.values()}      # the pool's words for it, in every language
+
+
+def _said(outcome, language: str | None) -> str:
+    """What a reference's check said, in words (the engines' texts; a kind's own code as it is)."""
+    if not isinstance(outcome, dict):
+        return repr(outcome)[:300]
+    m = outcome.get("message")
+    if isinstance(m, dict) and isinstance(m.get("code"), str):
+        try:
+            return words(Message(m["code"], dict(m.get("args") or {})), language)
+        except (KeyError, IndexError, ValueError):
+            return f"{outcome.get('status')}: {m['code']}"
+    return str(outcome.get("error") or outcome.get("status"))[:300]
+
+
+PRE = re.compile(r"[-_.]?(a|b|c|rc|alpha|beta|pre|preview|dev)", re.IGNORECASE)
+
+
+def _version(text) -> tuple[int, ...]:
+    """A package's version, to compare: its numbers, four of them - 1.2 is 1.2.0 -, then 0 for a release before
+    it (1.2.0rc1, 1.2.0.dev3) and 1 for the release; () where it begins with no number."""
+    m = re.match(r"(\d+(?:\.\d+)*)(.*)", str(text or "").strip())
+    if not m:
+        return ()
+    numbers = tuple(int(n) for n in m.group(1).split("."))[:4]
+    return numbers + (0,) * (4 - len(numbers)) + (0 if PRE.match(m.group(2)) else 1,)
+
+
+def refuses(deck: dict) -> str | None:
+    """Why this server cannot play the deck's activities: a kind the deck names (deck.json's kinds, as the
+    build had them) that it lacks, cannot use, or has with another API, another major version or an older
+    version than the build's - whose keys it may not know (the design's 7.2) -, and which package to
+    install. A deck built before kinds were named has none, and is played as before."""
+    wanted = deck.get("kinds")
+    if not wanted:
+        return None
+    if not isinstance(wanted, dict):
+        return "deck.json's kinds are no table of kinds"
+    found = {f.name: f for f in registry.found()}
+    for name, need in sorted(wanted.items()):
+        need = need if isinstance(need, dict) else {}
+        package, version, api = need.get("package") or "its package", str(need.get("version") or ""), need.get("api")
+        install = f"install {package}{f' {version} or later' if version else ''} where the server runs"
+        f = found.get(name)
+        if f is None:
+            return f"the deck's activities are of the kind {name}, which this server does not have - {install}"
+        if f.kind is None:
+            return f"the deck's activities are of the kind {name}, which this server's {f.package} {f.version} " \
+                   f"cannot be used for: {f.fault}"
+        if api is not None and f.api != api:
+            return f"the deck's activities are of the kind {name} with API {api}, this server's {f.package} " \
+                   f"{f.version} has API {f.api} - {install}"
+        have, built = _version(f.version), _version(version)
+        if have and built and (have[0] != built[0] or have < built):
+            return f"the deck's activities are of the kind {name} of {package} {version}, this server has " \
+                   f"{f.version} - {install}"
+    return None
+
+
+def failing(book, s) -> list[dict]:
+    """The references of a game's deck that fail, for the deck list (types.py: failing)."""
+    return book.failing(s.bundle) if book is not None and s is not None else []
 
 
 def _fit(kind, outcome: dict) -> dict:
@@ -465,17 +556,30 @@ def slide(stage: dict, items: dict, before: tuple, after: tuple, now: int) -> di
     return stage
 
 
-def shown(call, before: tuple, after: tuple) -> None:
-    """The projector shows another slide: an activity whose frame it leaves closes; one whose frame
-    comes for the first time opens, unless the deck opens it by hand (open=manual). Until the build
-    records what a page is of its step (package 7), every page of an activity is its question's."""
+def shown(call, before: tuple, after: tuple, marks: dict | None = None) -> None:
+    """The projector shows another slide (the design's 8.2): an activity whose frame it leaves closes; one
+    whose page comes for the first time opens - with the deck's time= -, unless the deck opens it by hand
+    (open=manual); a page the build marks revealed (\\reveal<n>) reveals it, if it was opened. marks: what
+    the new page is of each activity it shows - a deck built before package 7 has none: every page of an
+    activity opens it."""
     here = [aid for aid in (*before, *after) if aid in call.items]
     if not here or (call.session.id not in call.book.plays and not any(aid in call.items for aid in after)):
         return
     play = _play(call)
+    marks = marks or {}
     manual = [(aid, ONE) for aid in here if call.items[aid].get("open", "auto") != "auto"]
+    times = {}
+    for aid in after:
+        if aid in call.items:
+            try:
+                time_ms = _part(call, aid).time_ms
+            except Refused:                              # its kind is not here: it opens without (and fails)
+                time_ms = None
+            if time_ms is not None:
+                times[(aid, ONE)] = time_ms
     rows = play.move("slide", [(aid, ONE, "open") for aid in before if aid in call.items],
-                     [(aid, ONE, "open") for aid in after if aid in call.items], now=call.now, manual=manual)
+                     [(aid, ONE, marks[aid] if marks.get(aid) in MARKS else "open") for aid in after if aid in call.items],
+                     now=call.now, manual=manual, times=times)
     _told(call, play, moved=bool(rows))
 
 
@@ -508,6 +612,10 @@ def handle(call, t: str, msg: dict) -> dict | None:
             more = {}
             if name == "open" and msg.get("time") is not None:
                 more["time_ms"] = _seconds(msg["time"], "a step's time")
+            elif name == "open" and part.time_ms is not None:      # the deck's time=, for the step's first opening
+                st = play.phases.get(aid, ONE)
+                if st is None or st.phase == "ready":
+                    more["time_ms"] = part.time_ms
             elif name == "time":
                 more = {"stop": True} if msg.get("stop") is True else {"add_ms": _seconds(msg.get("add"), "more time")}
             rows = play.move(name, aid, now=call.now, **more)

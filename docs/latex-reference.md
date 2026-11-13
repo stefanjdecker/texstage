@@ -288,13 +288,16 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | `\prompt{formatted text}` | Activity instruction. Used in the static box and rendered for phones. One prompt per activity is the supported authoring pattern. |
 | `\reference{verbatim text}` | Code activity reference answer; may be repeated for alternative solutions. Use a fragile frame for inline verbatim. File form: reference=answer.rq or an engine-appropriate text file. |
 | `\seed{verbatim text}` | Inline code-activity data. Use a fragile frame, or prefer seed=data.ttl / seed=data.sql. If a seed file and inline seed are both supplied, the file takes precedence. |
+| `\reveal<n>` | Inside activity, at most once, n a slide's number: the frame's slides from the n-th on - Beamer overlays - reveal the activity, and the slides before it open it. Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. |
 | `id` | Required, 1-63 lower-case letters/digits/hyphens, starting with a letter or digit. Same id must keep the same definition. |
-| `input` | tuple (default) or code. Code input requires engine and seed data. |
+| `kind` | The activity's kind, as an installed package of kinds names it: triples, sql-query, sparql-query, turtle-graph (texstage-kinds-rdf, texstage-kinds-sql). texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
+| `input` | tuple (default) or code: the activity's kind as decks named it before kinds - input=tuple is kind=triples, input=code with engine=sql, sparql or turtle is kind=sql-query, sparql-query or turtle-graph. Code input requires engine and seed data. |
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
 | `limit` | Contributions per student: 1-50. Default 10 for tuple, 5 for code. |
+| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2 (in development): counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; the activity type texstage serve runs today leaves them aside. |
 
-The exported TexactivityPrompt, TexactivityReference and TexactivitySeed commands are the implementation backing for the local prompt/reference/seed aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.
+The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.
 
 
 ## Tuple activities: options and example
@@ -374,7 +377,7 @@ For ordinary course files, prefer seed=people.sql and reference=names.sql. This 
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `texstage pdf --solutions` | Shows activity references and quiz answers. Verify that long code and explanations fit the frame. |
-| `texstage build` | Validates the .tqz records, seed files, media and public/private bundle split. It also checks quiz layout in present and solutions modes. |
+| `texstage build` | Validates the .tqz records, seed files, media and public/private bundle split. It also checks quiz layout in present and solutions modes. Each activity's kind builds it: the kinds must be installed where decks are built. Every reference runs as the server runs it - a reference that does not run, or a seed that does not load, stops the build. |
 | `Browser rehearsal` | Open one activity, submit synthetic input, inspect results and reveal behavior. Compilation alone is not a browser/Office interoperability test. |
 
 Runnable examples and an isolated validation command are provided in [examples/reference/README.md](../examples/reference/README.md). They use dedicated output/data directories and do not load existing courses.

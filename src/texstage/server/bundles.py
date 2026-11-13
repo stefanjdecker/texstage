@@ -58,6 +58,8 @@ class SlideInfo:
     phase: str | None         # join read question reveal answer leaderboard podium, None: ordinary
     quiz: str | None
     shows: dict[str, tuple[str, ...]] = field(default_factory=dict)   # per content type its items on it
+    marks: dict[str, dict[str, str]] = field(default_factory=dict)    # per type what the page is of an item: its
+    #                                                                   live box's phase (an activity's: open, revealed)
 
 
 @dataclass
@@ -152,6 +154,9 @@ def load_bundle(path: Path) -> Bundle:
         if unknown:
             raise BundleError(f"{path}: the deck needs {', '.join(unknown)}, which this server does not know - "
                               f"update texstage")
+        why = stage_types.refuses(deck)                  # (the core's type: a kind this server lacks)
+        if why:
+            raise BundleError(f"{path}: {why}")
         public, private = deck.get("items", {}).get("quiz", {}), keys.get("items", {}).get("quiz", {})
         view = client_view(deck)
     quizzes = {}
@@ -166,12 +171,16 @@ def load_bundle(path: Path) -> Bundle:
         if s.get("quiz") and s["quiz"] not in quizzes:
             raise BundleError(f"{path}: slide {i} names an unknown quiz {s['quiz']}")
         shows: dict[str, list[str]] = {}
+        marks: dict[str, dict[str, str]] = {}
         for box in s.get("live", []):
             if box.get("type") in stage_types.TYPES:
                 if box.get("item") not in items.get(box["type"], {}):
                     raise BundleError(f"{path}: slide {i} names an unknown {box['type']} {box.get('item')}")
                 shows.setdefault(box["type"], []).append(box["item"])
-        slides[s["id"]] = SlideInfo(s["id"], i, s.get("phase"), s.get("quiz"), {k: tuple(v) for k, v in shows.items()})
+                if isinstance(box.get("phase"), str):
+                    marks.setdefault(box["type"], {})[box["item"]] = box["phase"]
+        slides[s["id"]] = SlideInfo(s["id"], i, s.get("phase"), s.get("quiz"), {k: tuple(v) for k, v in shows.items()},
+                                    marks)
     return Bundle(bid, deck["deck"], deck.get("name", deck["deck"]), path, slides, quizzes, view, keys,
                   items=items)
 

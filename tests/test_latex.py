@@ -714,17 +714,18 @@ def test_a_live_activity(tmp_path):
     tex.write_text(ACTIVITY_DECK, encoding="utf-8")
     p = compile_deck(tex, "present", tmp_path / "p")
     t = Tqz.read(p.tqz)
-    assert [(n, [(i.kind, i.id) for i in page.items]) for n, page in sorted(t.pages.items())] == [
-        (1, [("activity", "crowd")]), (2, [("activity", "join")]), (3, [("activity", "join")]),
-        (4, [("activity", "crowd")])]
+    assert [(n, [(i.kind, i.id, i.phase) for i in page.items]) for n, page in sorted(t.pages.items())] == [
+        (1, [("activity", "crowd", "open")]), (2, [("activity", "join", "open")]), (3, [("activity", "join", "open")]),
+        (4, [("activity", "crowd", "open")])]
     assert set(t.pages[1].items[0].rects) == {"box"}
     assert t.pages[2].items[0].rects["box"].h == pytest.approx(4 / 2.54 * 72, abs=0.5)     # height=4cm
     assert [(a.item, a.key) for a in t.assets] == [("activity:crowd", "prompt"), ("activity:join", "prompt")]
     acts = read(t)
-    assert (acts["crowd"].fields, acts["crowd"].suggest, acts["crowd"].min) == (
-        ["Subject", "Predicate", "Object"], [":KG", ":teaches"], "2")
-    assert (acts["join"].input, acts["join"].engine, acts["join"].tokens, acts["join"].seed) == (
-        "code", "sparql", ["SELECT", "{"], "uni.ttl")
+    assert acts["crowd"].options == {"suggest": (":KG, :teaches", [":KG", ":teaches"]), "min": ("2", ["2"])}
+    assert (acts["crowd"].core["kind"], acts["crowd"].core["input"], acts["crowd"].core["open"]) == ("", "", "auto")
+    join = acts["join"]
+    assert (join.core["input"], join.core["engine"], join.core["seed"]) == ("code", "sparql", "uni.ttl")
+    assert join.options == {"tokens": ("SELECT, {", ["SELECT", "{"])}
     assert acts["join"].references == ["SELECT ?n WHERE {\n  ?p :name ?n .   # REFERENCECOMMENT\n}"]
     with Pdf(p.pdf) as d:
         assert len(d) == 4 + 2                                  # four slides, two phone pictures
@@ -735,19 +736,73 @@ def test_a_live_activity(tmp_path):
     assert "?p :name ?n . # REFERENCECOMMENT" in " ".join(pdf_text(s.pdf).split()) and s.overfull == 0
 
 
+KIND_DECK = r"""\documentclass[aspectratio=169]{beamer}
+\usepackage{texactivity}
+\begin{document}
+\begin{frame}[t,fragile]{Query}
+\begin{activity}[id=join, kind=sparql-query, seed=uni.ttl, tokens={SELECT, \{}, time=90, counts=all, gap=2.5,
+                 budget=500, feedback=verdict, projector=count, solution=mark, limit=3, open=manual]
+  \prompt{The professors with their lectures.}
+  \reference{SELECT ?n WHERE { ?p :name ?n }}
+  \reveal<3>
+\end{activity}
+\pause Next step.
+\end{frame}
+\begin{frame}[t]{Graph}
+\begin{activity}[id=crowd, review, colour=red, nested={a,{b,c}}, empty=, fields={Who, Knows}]
+  \prompt{Who knows whom?}
+\end{activity}
+\end{frame}
+\end{document}
+"""
+
+
+def test_an_activity_of_a_kind_and_its_reveal(tmp_path):
+    """The activity framework's keys (the plan of F2, 4.4): the core's on the activity's record, by name;
+    every other key the kind's - recorded as written and as a list, a key without a value too, one that
+    nobody knows too: the kind checks them at build -; and \\reveal<3>: the frame's third slide reveals the
+    activity, the slides before it open it (Beamer's overlays - \\pause and \\reveal make three)."""
+    from texstage.build.activity import read
+    tex = tmp_path / "kind.tex"
+    tex.write_text(KIND_DECK, encoding="utf-8")
+    p = compile_deck(tex, "present", tmp_path / "p")
+    t = Tqz.read(p.tqz)
+    assert [(n, [(i.kind, i.id, i.phase) for i in page.items]) for n, page in sorted(t.pages.items())] == [
+        (1, [("activity", "join", "open")]), (2, [("activity", "join", "open")]),
+        (3, [("activity", "join", "revealed")]), (4, [("activity", "crowd", "open")])]
+    acts = read(t)
+    join, crowd = acts["join"], acts["crowd"]
+    assert {k: v for k, v in join.core.items() if v} == {
+        "kind": "sparql-query", "limit": "3", "counts": "all", "gap": "2.5", "time": "90", "budget": "500",
+        "feedback": "verdict", "projector": "count", "solution": "mark", "open": "manual", "seed": "uni.ttl"}
+    assert join.options == {"tokens": ("SELECT, {", ["SELECT", "{"])}
+    assert join.references == ["SELECT ?n WHERE { ?p :name ?n }"]
+    assert {k: v for k, v in crowd.core.items() if v} == {"open": "auto"}
+    assert crowd.options == {"review": ("", []), "colour": ("red", ["red"]), "nested": ("a,{b,c}", ["a", "b,c"]),
+                             "empty": ("", []), "fields": ("Who, Knows", ["Who", "Knows"])}
+    assert [(a.item, a.key) for a in t.assets] == [("activity:join", "prompt"), ("activity:crowd", "prompt")]
+
+
 @pytest.mark.parametrize("body, message", [
     (r"\begin{activity}\prompt{x}\end{activity}", "an activity needs an id"),
     (r"\begin{activity}[id=Bad]\end{activity}", "an id has lowercase letters"),
     (r"\begin{activity}[id=a, input=code]\end{activity}", "input=code needs an engine"),
     (r"\begin{activity}[id=a, engine=sparql]\end{activity}", "input=tuple takes no engine"),
-    (r"\begin{activity}[id=a, colour=red]\end{activity}", "unknown key 'colour'"),
+    (r"\begin{activity}[id=a, kind=SQL]\end{activity}", "kind= names a kind: lowercase letters and digits"),
+    (r"\begin{activity}[id=a]\reveal\end{activity}", "\\reveal<n> names the slide that reveals the activity"),
+    (r"\begin{activity}[id=a]\reveal<x>\end{activity}", "names the slide from which the activity is revealed - a number"),
+    (r"\begin{activity}[id=a]\reveal<2,4>\end{activity}", "names the slide from which the activity is revealed - a number"),
+    (r"\begin{activity}[id=a]\reveal<2>\reveal<3>\end{activity}", "an activity has one \\reveal"),
+    (r"\begin{activity}[id=a, feedback=all]\end{activity}", "feedback"),
     (r"\begin{activity}[id=a]\end{activity}\begin{activity}[id=b]\end{activity}", "a frame has one activity"),
     (r"\begin{activity}[id=a]\end{activity}\end{frame}\begin{frame}\begin{activity}[id=a, min=3]\end{activity}",
      "the id names another activity"),
 ])
 def test_activity_authoring_errors(tmp_path, body, message):
-    """texactivity.sty refuses what it can tell: an id, an engine for code and none for a tuple,
-    one activity per frame, one id for one activity."""
+    """texactivity.sty refuses what it can tell: an id, an engine for code and none for a tuple, a
+    kind's name, a \\reveal without its slide or twice, a core's key of another value, one activity
+    per frame, one id for one activity. A key it does not know is the kind's: the build asks the kind
+    (tests/test_build.py)."""
     tex = tmp_path / "err.tex"
     tex.write_text(f"\\documentclass{{beamer}}\n\\usepackage{{texactivity}}\n\\begin{{document}}\n"
                    f"\\begin{{frame}}{body}\\end{{frame}}\n\\end{{document}}\n", encoding="utf-8")
@@ -807,3 +862,32 @@ def test_the_core_loads_without_the_quiz(tmp_path):
     assert (page.kind, page.quiz, page.phase) == ("video", "clip", "show") and set(page.rects) == {"box"}
     assert abs(page.rects["box"].w - 4 / 2.54 * 72) < 0.5
     assert "texquiz-check: page 1" in r.log.read_text(encoding="latin-1")
+
+
+AS_F1_READ_IT = r"""\documentclass{beamer}
+\usepackage{texactivity}
+\newcommand\mylimit{4}\newcommand\mymin{2}\newcommand\myengine{sql}
+\begin{document}
+\begin{frame}[t]{M}\begin{activity}[id=m, limit=\mylimit, min=\mymin, suggest={a, b}, review]\end{activity}\end{frame}
+\begin{frame}[t]{Again}\begin{activity}[id=m, review=true, suggest={a,b}, min=\mymin, input=tuple, limit=\mylimit,
+  fields={Subject, Predicate, Object}]\end{activity}\end{frame}
+\begin{frame}[t,fragile]{E}\begin{activity}[id=e, input=code, engine=\myengine]\seed{CREATE TABLE t(x);}\end{activity}
+\end{frame}
+\begin{frame}[t]{R}\begin{activity}[id=r]\reveal<2>\end{activity}\only<3>{More.}\end{frame}
+\end{document}
+"""
+
+
+def test_texactivity_reads_values_and_definitions_as_f1_did(tmp_path):
+    """A macro's value - limit=\\mylimit, min=\\mymin, engine=\\myengine -, as F1's texactivity.sty read them;
+    the same activity written in another order, with a key as true or bare, a list with other spaces, the
+    input and the fields F1 preset: one activity (the review of package 7: refused). And \\reveal<2>: the
+    frame's slides from the second on reveal it, not the second alone."""
+    from texstage.build.activity import read
+    tex = tmp_path / "f1.tex"
+    tex.write_text(AS_F1_READ_IT, encoding="utf-8")
+    t = Tqz.read(compile_deck(tex, "present", tmp_path / "p").tqz)
+    acts = read(t)
+    assert (acts["m"].core["limit"], acts["m"].options["min"]) == ("4", ("2", ["2"]))
+    assert acts["e"].core["engine"] == "sql"
+    assert [i.phase for n, page in sorted(t.pages.items()) for i in page.items if i.id == "r"] == ["open", "revealed", "revealed"]

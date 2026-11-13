@@ -96,6 +96,7 @@ class BuildResult:
     findings: list[Finding] = field(default_factory=list)
     stage: Stage | None = None   # with --stage: the stage PDF, its pages and frames
     first: int | None = None     # the live PPTX's first slide (its ID), which prepares the live slides
+    activities: activity.Activities | None = None    # the deck's activities: their kinds, what a phone loads
 
     @property
     def zip(self) -> Path:
@@ -216,7 +217,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     try:
         videos, video_files, media = video.entries(tqz, tex.parent, warnings)
         activity.check_slides(slides)
-        activities, activity_keys, activity_files = activity.entries(tqz, tex.parent, phone, warnings)
+        acts = activity.entries(tqz, tex.parent, phone, warnings)        # (each asks its kind; references run)
     except (video.VideoError, activity.ActivityError) as err:
         raise BuildError(str(err)) from None
 
@@ -233,14 +234,15 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     items, secret = ({quiz.NAME: public}, {quiz.NAME: private}) if public else ({}, {})
     if videos:
         items[video.NAME] = videos
-    if activities:
-        items[activity.NAME] = activities
-    if activity_keys:
-        secret[activity.NAME] = activity_keys
+    if acts.items:
+        items[activity.NAME] = acts.items
+    if acts.keys:
+        secret[activity.NAME] = acts.keys
     used = sorted({b["type"] for s in slides for b in s.live} | set(items))
     language = bnd.language_tag(tqz.language)           # what the live views speak (English without it)
     deck = {"format": bnd.FORMAT, "deck": deck_id, "name": name, **({"language": language} if language else {}),
-            "types": used, "image": {"width": size[0], "height": size[1]},
+            "types": used, **({"kinds": acts.kinds} if acts.kinds else {}),     # (a server without one refuses it)
+            "image": {"width": size[0], "height": size[1]},
             "slides": [], "items": items}
     keys = {"format": bnd.FORMAT, "deck": deck_id, "items": secret}
     for s, sid in zip(slides, ids):
@@ -254,7 +256,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
         deck["pdf"] = stage.deck_entry()
     bid = bnd.bundle_id(deck, keys)
     deck["bundle"] = keys["bundle"] = bid
-    files = {s.image: pngs[s.page] for s in slides} | phone_files | video_files | activity_files
+    files = {s.image: pngs[s.page] for s in slides} | phone_files | video_files | acts.files
     if stage is not None:
         files[stage.file] = stage_pdf
     bundle_dir = out_dir / f"{name}.bundle"
@@ -311,7 +313,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
             raise BuildError(f"{path} is locked - probably open in PowerPoint; close it and build again")
 
     result = BuildResult(pptx, static_pptx, bundle_dir, bid, deck_id, slides, len(tqz.questions), warnings,
-                         stage=stage, first=first)
+                         stage=stage, first=first, activities=acts)
     if opts.check:
         result.findings = check(tex, present, pictures, work, opts, stage)
     return result

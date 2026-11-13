@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Today's four kinds as classes of the contract (texstage/activities/kind.py; the packages in kinds/;
 docs/architecture/activity-framework-plan-f2.md, packages 1 and 2): what they give is
-what F1 gives - F1's golden fixtures through their checks, byte for byte; their build what the
-build's activity module makes of the same record; a tuple's key and literals the activity type's; a
+what F1 gives - F1's golden fixtures through their checks, byte for byte; the build through them what
+F1's build made of the same record (tests/f1_build.py); a tuple's key and literals the activity type's; a
 check's outcome, and the first worker's preparing, a worker's of F1's pool. What the cleaning itself
 does is tests/test_cleaning.py's: here the kinds and the activity type are only shown to clean alike -
 and what the kinds do beyond it: a text's comments out, checked as the text with them.
@@ -31,6 +31,7 @@ for src in sorted(KINDS.glob("*/src")):
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
 
+import f1_build  # noqa: E402 - F1's build of activities, frozen
 import test_checks as f1  # noqa: E402 - the fixtures, and how a record is held against them
 from texstage_kinds_rdf import SparqlQuery, Triples, TurtleGraph  # noqa: E402
 from texstage_kinds_sql import SqlQuery  # noqa: E402
@@ -38,10 +39,11 @@ from texstage_kinds_sql import SqlQuery  # noqa: E402
 import texstage.activities  # noqa: E402
 from texstage import checks  # noqa: E402
 from texstage.activities import kind as contract  # noqa: E402
+from texstage.activities import registry  # noqa: E402
 import texstage.activities.options as option_types  # noqa: E402
 from texstage.activities.code import CodeKind, words  # noqa: E402
-from texstage.activities.kind import Entry, Message, Prepared, Step, Unbuildable, Unfit  # noqa: E402
-from texstage.activities.options import Int, Options  # noqa: E402
+from texstage.activities.kind import Entry, Message, Prepared, Step, Unfit  # noqa: E402
+from texstage.activities.options import Options  # noqa: E402
 from texstage.build import activity as build  # noqa: E402
 from texstage.build.tqz import Tqz  # noqa: E402
 from texstage.checks import common  # noqa: E402
@@ -459,12 +461,12 @@ def test_the_kinds_say_what_the_engines_table_and_the_build_say():
         assert kind.ENGINE == engine and kind.MODULE == f"texstage.checks.{engine}"
         assert kind.SEED == ENGINES[engine]["seed"] and kind.TOKENS == ENGINES[engine]["tokens"]
         assert kind.TEXT == ENGINES[engine]["text"]
-        assert (kind.INPUT, kind.REDUCTION, kind.LIMIT) == ("code", "groups", build.LIMITS["code"])
+        assert (kind.INPUT, kind.REDUCTION, kind.LIMIT) == ("code", "groups", f1_build.LIMITS["code"])
         assert kind.OPTIONS["seed"].suffixes == tuple(kind.SEED) and list(kind.OPTIONS) == ["tokens", "seed", "reference"]
     triples = Triples()
-    assert (triples.INPUT, triples.REDUCTION, triples.LIMIT) == ("fields", "crowd", build.LIMITS["tuple"])
-    assert (triples.FIELDS, triples.TERMS) == (build.FIELDS, build.TERMS)
-    assert (option_types.WORD_MAX, option_types.WORDS_MAX) == (build.WORD_MAX, build.WORDS_MAX)
+    assert (triples.INPUT, triples.REDUCTION, triples.LIMIT) == ("fields", "crowd", f1_build.LIMITS["tuple"])
+    assert (triples.FIELDS, triples.TERMS) == (f1_build.FIELDS, f1_build.TERMS)
+    assert (option_types.WORD_MAX, option_types.WORDS_MAX) == (f1_build.WORD_MAX, f1_build.WORDS_MAX)
     assert {k.NAME for k in ALL} == {"sql-query", "sparql-query", "turtle-graph", "triples"}
     keys = {"fields", "suggest", "tokens", "min", "review", "terms", "seed", "reference"}      # a record's, that are a kind's
     assert all(k.API == 0 for k in ALL) and keys == set().union(*(k.OPTIONS for k in ALL))
@@ -475,8 +477,10 @@ def test_the_contracts_own_facts():
     assert contract.STATUSES == ("ok", "invalid", "error", "refused", "timeout", "internal")      # the design's 6.3
     assert contract.FROM_F1 == {"syntax": "invalid"}
     assert all(k.BUDGET_S == contract.BUDGET_S == pool.BUDGET_S == 1.0 for k in ALL)      # seconds, as a step's
-    assert "{ " + " , ".join(option_types.PRESETS["fields"]) + " }" in (ROOT / "latex" / "texactivity.sty").read_text(
-        encoding="utf-8")
+    # a triple's fields when a deck gives none: the kind's since package 7 - texactivity.sty presets no key of a kind's
+    assert Triples().build(Options(Triples.OPTIONS, {}), {}).item["fields"] == option_types.PRESETS["fields"] == [
+        "Subject", "Predicate", "Object"]
+    assert "fields_clist" not in (ROOT / "latex" / "texactivity.sty").read_text(encoding="utf-8")
     for kind in ALL:                                                # a kind's options are its own, and fixed
         with pytest.raises(TypeError):
             kind.OPTIONS["more"] = "words"
@@ -788,8 +792,8 @@ def listed(items) -> str:
     return "".join(hexed(x) + "," for x in items)
 
 
-def tqz(tmp_path, a: dict) -> Tqz:
-    """A build's record of one activity, as texactivity.sty writes it (build/activity.py: read)."""
+def f1_tqz(tmp_path, a: dict) -> Tqz:
+    """A deck's record of one activity, as F1's texactivity.sty wrote it - by position (tests/f1_build.py)."""
     fields = ["act", a.get("input", "code"), a.get("engine", ""), listed(a.get("fields", [])),
               listed(a.get("suggest", [])), listed(a.get("tokens", [])), a.get("limit", ""), a.get("min", ""),
               "true" if a.get("review") else "false", a.get("open", ""), a.get("terms", ""),
@@ -798,36 +802,55 @@ def tqz(tmp_path, a: dict) -> Tqz:
     records += [f"activityref|act|{hexed(r)}" for r in a.get("references", [])]
     if "body" in a:
         records.append(f"activityseed|act|{hexed(a['body'])}")
-    path = tmp_path / "deck.tqz"
+    path = tmp_path / "f1.tqz"
     path.write_text("\n".join(records) + "\n", encoding="utf-8")
     return Tqz.read(path)
 
 
-def by_kind(tmp_path, a: build.Activity) -> tuple[dict, dict, dict, list[str]]:
-    """What the core will do around a kind's build (package 7): the keys that are its own - input, limit,
-    open -, the activity's name in front of a refusal, the keys the kind does not take as a warning."""
-    kind = Triples() if a.input == "tuple" else CODE[a.engine]
+OPTIONS = ("fields", "suggest", "tokens", "min", "review", "terms")         # a kind's keys, which LaTeX records as written
 
-    def files(name: str, what: str) -> str:
-        path = tmp_path / name
-        if not path.is_file():
-            raise Unbuildable(f"the {what} {name} is not there (paths are the deck's)")
-        return path.read_text(encoding="utf-8-sig")
 
-    options = Options(kind.OPTIONS, {"fields": a.fields, "suggest": a.suggest, "tokens": a.tokens, "min": a.min,
-                                     "review": a.review, "terms": a.terms, "seed": a.seed, "reference": a.reference_file},
-                      files)
-    bodies = {"seed": a.seed_text, "references": a.references}
-    try:
-        item = {"input": a.input, "limit": Int(build.LIMIT_MAX, kind.LIMIT).read("limit", a.limit, None)}
-        built = kind.build(options, bodies)
-    except Unbuildable as e:
-        raise build.ActivityError(f"activity {a.id}: {e}") from None
-    item.update(built.item)
-    if a.open == "manual":
-        item["open"] = "manual"
-    extra = options.unused(bodies)
-    return item, built.keys, built.files, [f"activity {a.id}: {', '.join(extra)} - not for input={a.input}"] if extra else []
+def core_tqz(tmp_path, a: dict) -> Tqz:
+    """The same activity as texactivity.sty records it since package 7: its fields named, the core's keys on the
+    activity's line, a kind's keys each a line of its own, in the order the deck wrote them - as written, and as
+    a list; review=false as written, a list given empty as empty (the review of package 7: the records were
+    written in F1's order, without what F1 took quietly, and two faults passed)."""
+    core = {"id": "act", "kind": hexed(a.get("kind", "")), "input": a.get("input", "" if "kind" in a else "code"),
+            "engine": hexed(a.get("engine", "")), "limit": hexed(a.get("limit", "")), "open": a.get("open", "auto"),
+            "seed": hexed(a.get("seed", "")), "reference": hexed(a.get("reference", "")), "file": hexed("deck.tex"),
+            "line": "1", **{k: hexed(a.get(k, "")) for k in ("gap", "time", "budget")},
+            **{k: a.get(k, "") for k in ("counts", "feedback", "projector", "solution")}}
+    records = ["activity|" + "|".join(f"{k}={v}" for k, v in core.items())]
+    for key in a:
+        if key in OPTIONS:
+            value = a[key]
+            items = value if isinstance(value, list) else [] if value is True else ["false"] if value is False else [value]
+            written = ", ".join(items) if isinstance(value, list) else "" if value is True else "false" if value is False else value
+            records.append(f"activityoption|id=act|key={hexed(key)}|value={hexed(written)}|items={listed(items)}")
+    records += [f"activityref|id=act|text={hexed(r)}" for r in a.get("references", [])]
+    if "body" in a:
+        records.append(f"activityseed|id=act|text={hexed(a['body'])}")
+    path = tmp_path / "core.tqz"
+    path.write_text("\n".join(records) + "\n", encoding="utf-8")
+    return Tqz.read(path)
+
+
+def every_reference_runs(act, name, item, keys, files, language):
+    """A checker that takes every reference: the items, keys and files alone are held against F1's here -
+    whether a reference runs is the next tests'."""
+    return [{"status": "ok", "key": f"key-{i}"} for i, _ in enumerate(keys.get("reference") or [])]
+
+
+def built_by_kind(tmp_path, a: dict, checker=every_reference_runs):
+    warnings: list[str] = []
+    acts = build.entries(core_tqz(tmp_path, a), tmp_path, {}, warnings, checker=checker)
+    return acts, warnings
+
+
+@pytest.fixture
+def installed_kinds():
+    if not {"triples", "sql-query", "sparql-query", "turtle-graph"} <= set(registry.kinds()):
+        pytest.skip("the kinds are not installed: pip install -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf")
 
 
 SPO = ["Subject", "Predicate", "Object"]
@@ -849,6 +872,12 @@ ACTIVITIES = {
     "a tuple with a query's bodies": (BUILT, {"input": "tuple", "fields": SPO, "body": SEED_TTL, "reference": "ref.sql"}),
     "a query with a tuple's keys": (BUILT, {"engine": "sql", "seed": "seed.sql", "fields": ["a", "b"], "suggest": ["x"],
                                             "min": "3", "review": True, "terms": "loose"}),
+    "a query with a tuple's keys in another order": (BUILT, {"engine": "sql", "seed": "seed.sql", "terms": "loose", "min": "2",
+                                                             "review": True}),
+    "a query with fields= given empty": (BUILT, {"engine": "sql", "seed": "seed.sql", "fields": []}),
+    "a query with a triple's fields": (BUILT, {"engine": "sql", "seed": "seed.sql", "fields": SPO}),
+    "a query with review=false": (BUILT, {"engine": "sql", "seed": "seed.sql", "review": False}),
+    "a tuple with review=false": (BUILT, {"input": "tuple", "fields": SPO, "review": False}),
     # the bounds themselves, and what comes first where a deck gives both
     "a tuple at its bounds": (BUILT, {"input": "tuple", "fields": ["a" * 60, "b", "c"], "min": "1000", "limit": "50",
                                       "suggest": [f"s{i}" for i in range(40)]}),
@@ -880,6 +909,7 @@ ACTIVITIES = {
     "a reference too long": (REFUSED, {"engine": "sql", "seed": "seed.sql", "references": ["SELECT 1", "x" * 2001]}),
     "an empty reference file": (REFUSED, {"engine": "sql", "seed": "seed.sql", "reference": "empty.sql"}),
     "a reference file that is not there": (REFUSED, {"engine": "sql", "seed": "seed.sql", "reference": "missing.sql"}),
+    "an engine texstage does not run": (REFUSED, {"engine": "prolog", "seed": "seed.sql"}),
     # two faults at once: which one is said
     "a limit and the fields": (REFUSED, {"input": "tuple", "fields": ["One"], "limit": "0"}),
     "a label and a suggestion": (REFUSED, {"input": "tuple", "fields": ["a", "b" * 61, "c"], "suggest": ["s" * 61]}),
@@ -894,40 +924,60 @@ ACTIVITIES = {
 }
 
 
-@pytest.mark.parametrize("name", list(ACTIVITIES))
-def test_a_kinds_build_is_what_the_build_makes_of_the_same_record(tmp_path, name):
-    for file, text in (("seed.sql", "CREATE TABLE t(x);\nINSERT INTO t VALUES (1);\n"), ("SEED.SQL", "CREATE TABLE u(y);\n"),
+def deck_files(tmp_path) -> None:
+    """The deck's files. seed.sql and SEED.SQL are one file on Windows: they have the same text."""
+    for file, text in (("seed.sql", "CREATE TABLE t(x);\nINSERT INTO t VALUES (1);\n"),
+                       ("SEED.SQL", "CREATE TABLE t(x);\nINSERT INTO t VALUES (1);\n"),
                        ("seed.ttl", SEED_TTL), ("ref.sql", "\ufeffSELECT x FROM t\n\n"), ("empty.sql", " \n")):
         (tmp_path / file).write_text(text, encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", list(ACTIVITIES))
+def test_the_build_through_the_kinds_is_f1s_build(tmp_path, name, installed_kinds):
+    """The decks build unchanged (the plan of F2, package 7): for every record F1's build took - and every
+    one it refused - the build that asks the kinds makes the same item, key for key and in its order, but
+    for the kind it names; the same keys, but for the references' keys; the same files and warnings - or
+    the same refusal, word for word."""
+    deck_files(tmp_path)
     builds, activity = ACTIVITIES[name]
-    records = tqz(tmp_path, activity)
     warnings: list[str] = []
     try:
-        items, keys, files = build.entries(records, tmp_path, {}, warnings)
-    except build.ActivityError as e:
+        items, keys, files = f1_build.entries(f1_tqz(tmp_path, activity), tmp_path, {}, warnings)
+    except f1_build.ActivityError as e:
         assert not builds, f"a record that should build: {e}"
         with pytest.raises(build.ActivityError) as mine:
-            by_kind(tmp_path, build.read(records)["act"])
+            built_by_kind(tmp_path, activity)
         assert str(mine.value) == str(e)
         return
     assert builds, "a record that should not build"
-    item, mine_keys, mine_files, mine_warnings = by_kind(tmp_path, build.read(records)["act"])
+    acts, mine_warnings = built_by_kind(tmp_path, activity)
+    item = dict(acts.items["act"])
+    assert item.pop("kind") == build.ALIASES[(activity.get("input", "code"), activity.get("engine", ""))]
     assert item == items["act"] and list(item) == list(items["act"])       # deck.json's entry, key for key
-    assert mine_keys == keys.get("act", {}) and mine_files == files and mine_warnings == warnings
+    mine_keys = dict(acts.keys.get("act", {}))
+    assert mine_keys.pop("referenceKeys", []) == [f"key-{i}" for i in range(len(keys.get("act", {}).get("reference", [])))]
+    assert mine_keys == keys.get("act", {}) and acts.files == files
+    assert said_keys(mine_warnings) == said_keys(warnings)              # (F1 named them in an order of its own)
 
 
-def test_what_the_build_makes_of_the_records_that_show_an_order(tmp_path):
+def said_keys(warnings: list[str]) -> list[set[str]]:
+    """What warnings say a key is not for: per warning its keys, as a set."""
+    return [set(w.split(": ", 1)[1].split(" - not for ")[0].split(", ")) for w in warnings]
+
+
+def test_what_the_build_makes_of_the_records_that_show_an_order(tmp_path, installed_kinds):
     """The comparison above holds two sides against each other; these are written out."""
     (tmp_path / "seed.sql").write_text("CREATE TABLE t(x);\n", encoding="utf-8")
     (tmp_path / "ref.sql").write_text("SELECT x FROM t\n", encoding="utf-8")
 
     def built(name):
-        return by_kind(tmp_path, build.read(tqz(tmp_path, ACTIVITIES[name][1]))["act"])
+        acts, warnings = built_by_kind(tmp_path, ACTIVITIES[name][1])
+        return acts.items["act"], acts.keys.get("act", {}), acts.files, warnings
 
     item, keys, files, warnings = built("a seed file and a seed in the body: the file")
     assert list(files.values()) == [b"CREATE TABLE t(x);\n"] and warnings == []
     _, keys, _, _ = built("references in the body and a reference file: the file's last")
-    assert keys == {"reference": ["SELECT 1", "SELECT 2", "SELECT x FROM t"]}
+    assert keys["reference"] == ["SELECT 1", "SELECT 2", "SELECT x FROM t"]
     item, _, files, _ = built("a query at its bounds")
     assert len(next(iter(files.values()))) == MB2 and len(item["tokens"]) == 40 + len(ENGINES["sql"]["tokens"])
     _, _, _, warnings = built("a tuple with a query's bodies")
@@ -940,10 +990,239 @@ def test_what_the_build_makes_of_the_records_that_show_an_order(tmp_path):
                        ("a seed too large and a reference too long", "the seed has 2048 KB - at most 2 MB, which the "
                                                                     "presenter's browser loads"),
                        ("a tuple, min a superscript two", "min=\u00b2 - a number from 1 to 1000"),
-                       ("a tuple, min an Arabic three", "min=\u0663 - a number from 1 to 1000")):
+                       ("a tuple, min an Arabic three", "min=\u0663 - a number from 1 to 1000"),
+                       ("an engine texstage does not run", "engine=prolog - texstage runs sparql, sql, turtle")):
         with pytest.raises(build.ActivityError) as e:
             built(name)
         assert str(e.value) == f"activity act: {said}", name
+
+
+CORE_KEYS = {"kind": "sql-query", "seed": "seed.sql", "references": ["SELECT x FROM t"], "limit": "3"}
+
+
+@pytest.mark.parametrize("more, said", [
+    ({}, None),
+    ({"kind": "triples", "input": "tuple", "fields": SPO, "seed": "", "references": []}, None),
+    ({"engine": "sql"}, None),                                              # an alias that agrees
+    ({"input": "code", "engine": "sql"}, None),
+    ({"input": "code"}, None),                                              # an input that is the kind's
+    ({"kind": "triples", "fields": SPO, "seed": "", "references": [], "input": "code"},
+     "kind=triples and input=code name two kinds - give one of them"),
+    ({"input": "tuple"}, "kind=sql-query and input=tuple name two kinds - give one of them"),
+    ({"engine": "sparql"}, "kind=sql-query and engine=sparql name two kinds - give one of them"),
+    ({"input": "code", "engine": "sparql"}, "kind=sql-query and input=code, engine=sparql name two kinds - give one of them"),
+    ({"kind": "no-such-kind"}, "kind=no-such-kind - no kind no-such-kind is installed"),
+    ({"input": "code", "engine": "", "kind": ""}, "input=code needs an engine (engine=sparql, engine=sql or engine=turtle) - or a kind"),
+])
+def test_a_kind_named_and_its_aliases(tmp_path, more, said, installed_kinds):
+    deck_files(tmp_path)
+    activity = {k: v for k, v in (CORE_KEYS | more).items() if v != ""}
+    if said is None:
+        acts, warnings = built_by_kind(tmp_path, activity)
+        assert acts.items["act"]["kind"] == activity.get("kind", "sql-query") and warnings == []
+        return
+    with pytest.raises(build.ActivityError) as e:
+        built_by_kind(tmp_path, activity)
+    assert str(e.value).startswith(f"activity act: {said}"), str(e.value)
+
+
+def test_what_a_kind_not_installed_says_to_install(tmp_path, monkeypatch, installed_kinds):
+    deck_files(tmp_path)
+    found = [f for f in registry.found() if f.name != "sql-query"]
+    monkeypatch.setattr(registry, "found", lambda: tuple(found))
+    with pytest.raises(build.ActivityError) as e:
+        built_by_kind(tmp_path, CORE_KEYS)
+    assert str(e.value).endswith("- install texstage-kinds-sql (in texstage's source: pip install -e kinds/texstage-kinds-sql)")
+
+
+def test_the_references_run_as_the_server_runs_them(tmp_path, installed_kinds):
+    """The build's checker: a pool of one worker, the kind's prepare and check under the references' budget - its
+    keys are the server's (test_pool_kinds.py); one that does not run stops the build, and so does a seed that
+    does not load. One pool for the deck, closed at the end."""
+    deck_files(tmp_path)
+    checker = build.Checker()
+    try:
+        acts, _ = built_by_kind(tmp_path, CORE_KEYS | {"references": ["SELECT x FROM t", "select X from T"]}, checker=checker)
+        one, two = acts.keys["act"]["referenceKeys"]
+        assert one == two and len(one) == 16 and acts.references == 2
+        sql = SqlQuery()
+        mine, _ = contract.first(sql, acts.items["act"], acts.keys["act"], acts.files)
+        assert one == contract.referenced(sql, mine, Step(acts.items["act"], acts.keys["act"]))[0].key
+        for refs, said in ((["SELECT x FROM t", "SELEC x"], "reference 2 does not run - "),
+                           (["SELECT nope FROM t"], "reference 1 does not run - no such column: nope"),
+                           (["WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM r) SELECT count(*) FROM r"],
+                            "reference 1 does not run - it runs longer than the 10 s a reference has")):
+            if "RECURSIVE" in refs[0]:
+                checker.pool.reference_budget = 0.5        # (the pool's budget, made short for the test)
+            with pytest.raises(build.ActivityError) as e:
+                built_by_kind(tmp_path, CORE_KEYS | {"references": refs}, checker=checker)
+            assert str(e.value).startswith(f"activity act: {said}"), str(e.value)
+        (tmp_path / "broken.sql").write_text("CREATE TABLE (\n", encoding="utf-8")
+        with pytest.raises(build.ActivityError) as e:
+            built_by_kind(tmp_path, CORE_KEYS | {"seed": "broken.sql"}, checker=checker)
+        assert str(e.value).startswith("activity act: the seed does not load - "), str(e.value)
+        pool = checker.pool
+    finally:
+        checker.close()
+    assert pool.closed
+
+
+def test_a_kind_whose_build_gives_the_cores_keys_is_at_fault(tmp_path, monkeypatch, installed_kinds):
+    triples = registry.kind("triples")
+    monkeypatch.setattr(type(triples), "build", lambda self, options, bodies: contract.Built({"fields": SPO, "limit": 3}))
+    with pytest.raises(build.ActivityError, match="the kind triples's build gives limit - the core's keys"):
+        built_by_kind(tmp_path, {"input": "tuple", "fields": SPO})
+
+
+@pytest.mark.parametrize("more, said", [
+    ({"counts": "many"}, "counts=many - latest or all"),
+    ({"gap": "3601"}, "gap=3601 - seconds from 0 to 3600"),
+    ({"gap": "-1"}, "gap=-1 - seconds from 0 to 3600"),
+    ({"time": "14401"}, "time=14401 - a number from 1 to 14400"),
+    ({"time": "0"}, "time=0 - a number from 1 to 14400"),
+    ({"budget": "1001"}, "budget=1001 - a number from 1 to 1000"),
+    ({"feedback": "all"}, "feedback=all - none or status or verdict or full"),
+    ({"projector": "dark"}, "projector=dark - live or count or hidden"),
+    ({"solution": "hide"}, "solution=hide - show or mark"),
+])
+def test_the_cores_keys_out_of_their_bounds(tmp_path, more, said, installed_kinds):
+    """The core's keys are checked by the build too, not only by texactivity.sty's choices (the review of
+    package 7: no test held their bounds)."""
+    deck_files(tmp_path)
+    with pytest.raises(build.ActivityError) as e:
+        built_by_kind(tmp_path, CORE_KEYS | more)
+    assert str(e.value) == f"activity act: {said}"
+    acts, _ = built_by_kind(tmp_path, CORE_KEYS | {"counts": "all", "gap": "3600", "time": "14400", "budget": "1000",
+                                                   "feedback": "full", "projector": "hidden", "solution": "mark"})
+    assert {k: acts.items["act"][k] for k in ("counts", "gap", "time", "budget", "feedback", "projector", "solution")} == {
+        "counts": "all", "gap": 3600, "time": 14400, "budget": 1000, "feedback": "full", "projector": "hidden",
+        "solution": "mark"}
+
+
+def test_a_record_of_an_activity_there_is_none_of(tmp_path):
+    path = tmp_path / "deck.tqz"
+    path.write_text(f"activityref|id=elsewhere|text={hexed('SELECT 1')}\n", encoding="utf-8")
+    with pytest.raises(build.ActivityError, match="a activityref record of the activity 'elsewhere', which has none"):
+        build.read(Tqz.read(path))
+
+
+class Differs:
+    """A checker whose runs give other keys each time - a seed with random() - but for the first reference."""
+    calls = 0
+
+    def __call__(self, act, name, item, keys, files, language):
+        Differs.calls += 1
+        return [{"status": "ok", "key": "same" if i == 0 else f"run-{Differs.calls}"}
+                for i, _ in enumerate(keys.get("reference") or [])]
+
+
+def test_a_reference_whose_two_runs_differ_has_no_key(tmp_path, installed_kinds):
+    """The seed runs twice at build, anew each time; a key is kept where both runs give it (the review of
+    package 7: a seed with random() made the bundle another with every build, and the server said another
+    result). With the pool: the same deck built twice gives the same keys - none, for random()."""
+    deck_files(tmp_path)
+    acts, _ = built_by_kind(tmp_path, CORE_KEYS | {"references": ["SELECT x FROM t", "SELECT 2"]}, checker=Differs())
+    assert acts.keys["act"]["referenceKeys"] == ["same", None] and acts.references == 2
+    (tmp_path / "random.sql").write_text("CREATE TABLE r (x);\nINSERT INTO r VALUES (random());\n", encoding="utf-8")
+    random_deck = CORE_KEYS | {"seed": "random.sql", "references": ["SELECT x FROM r", "SELECT count(*) FROM r"]}
+    checker = build.Checker()
+    try:
+        runs = [built_by_kind(tmp_path, random_deck, checker=checker)[0].keys["act"]["referenceKeys"] for _ in range(2)]
+    finally:
+        checker.close()
+    assert runs[0] == runs[1] and runs[0][0] is None and isinstance(runs[0][1], str)
+
+
+def test_the_seed_of_an_activity_without_references_is_loaded_at_build(tmp_path, installed_kinds):
+    """A seed that does not load stops the build, though the activity has no reference (the review: no test)."""
+    deck_files(tmp_path)
+    (tmp_path / "broken.sql").write_text("CREATE TABLE (\n", encoding="utf-8")
+    checker = build.Checker()
+    try:
+        with pytest.raises(build.ActivityError) as e:
+            built_by_kind(tmp_path, {"engine": "sql", "seed": "broken.sql"}, checker=checker)
+    finally:
+        checker.close()                            # (a pool left open: its processes outlive the test - the
+    said = str(e.value)                            #  normalizer's tests count processes, and failed)
+    assert said.startswith("activity act: the seed does not load - ") and "syntax error" in said
+    assert not said.split(" - ", 1)[1].startswith("'")        # the engine's words as they are (they were quoted)
+
+
+def test_a_seed_that_runs_away_is_said_so(tmp_path, installed_kinds):
+    """A seed whose loading never ends: the pool ends the process that loads it, and once more a fresh one, and
+    the build says so - not, three minutes later, a timeout without words (the review of package 7)."""
+    deck_files(tmp_path)
+    (tmp_path / "runaway.sql").write_text("CREATE TABLE t(x);\nINSERT INTO t WITH RECURSIVE r(n) AS (SELECT 1 UNION ALL "
+                                          "SELECT n + 1 FROM r) SELECT count(*) FROM r;\n", encoding="utf-8")
+    checker = build.Checker(seed_backstop_s=2)
+    try:
+        with pytest.raises(build.ActivityError, match="the seed does not load - it takes longer than the 2 s a seed has"):
+            built_by_kind(tmp_path, CORE_KEYS | {"seed": "runaway.sql"}, checker=checker)
+    finally:
+        checker.close()
+
+
+def test_the_build_closes_the_pool_it_starts(tmp_path, monkeypatch, installed_kinds):
+    deck_files(tmp_path)
+    made = []
+
+    class Mine(build.Checker):
+        def __init__(self):
+            super().__init__()
+            made.append(self)
+
+    monkeypatch.setattr(build, "Checker", Mine)
+    warnings: list[str] = []
+    build.entries(core_tqz(tmp_path, CORE_KEYS), tmp_path, {}, warnings)
+    (checker,) = made
+    assert checker.pool is not None and checker.pool.closed
+
+
+def test_a_kinds_build_that_raises_is_its_fault(tmp_path, monkeypatch, installed_kinds):
+    triples = registry.kind("triples")
+
+    def raises(self, options, bodies):
+        raise KeyError("fields")
+    monkeypatch.setattr(type(triples), "build", raises)
+    with pytest.raises(build.ActivityError, match=r"the kind triples's build failed - KeyError: 'fields' \(its fault"):
+        built_by_kind(tmp_path, {"input": "tuple", "fields": SPO})
+
+
+def test_a_pool_whose_processes_do_not_start_names_the_guard(tmp_path, installed_kinds):
+    """A program that runs the build without if __name__ == "__main__": every process of the pool runs it
+    again, and the pool breaks - the build says what to look for."""
+    deck_files(tmp_path)
+
+    class Broken:
+        class pool:
+            broken = "3 processes in a row died before they were ready"
+
+        def __call__(self, *args):
+            raise RuntimeError(self.pool.broken)
+    with pytest.raises(build.ActivityError, match='needs if __name__ == "__main__"'):
+        built_by_kind(tmp_path, CORE_KEYS, checker=Broken())
+
+
+def test_a_key_of_another_kind_is_read_as_that_kind_reads_it(tmp_path, installed_kinds):
+    """fields= given empty on a query ended the build (the review of package 7), and a triple's fields or
+    review=false on one were warned of, where F1 took them quietly: a key the kind does not take is read as the
+    kind that takes it reads it - a list as a list, a flag as on or off."""
+    deck_files(tmp_path)
+    for given, warned in (({"fields": []}, []), ({"fields": SPO}, []), ({"review": False}, []),
+                          ({"fields": ["a"], "review": True, "colour": "red"}, ["fields", "review", "colour"]),
+                          ({"colour": True}, ["colour"])):
+        a = {"engine": "sql", "seed": "seed.sql"} | {k: v for k, v in given.items() if k != "colour"}
+        records = core_tqz(tmp_path, a)
+        if "colour" in given:                                        # (a key no kind takes)
+            value = given["colour"]
+            line = (f"activityoption|id=act|key={hexed('colour')}|value={hexed('' if value is True else value)}"
+                    f"|items={listed([] if value is True else [value])}")
+            (tmp_path / "core.tqz").write_text((tmp_path / "core.tqz").read_text(encoding="utf-8") + line + "\n",
+                                               encoding="utf-8")
+            records = Tqz.read(tmp_path / "core.tqz")
+        warnings: list[str] = []
+        build.entries(records, tmp_path, {}, warnings, checker=every_reference_runs)
+        assert said_keys(warnings) == ([set(warned)] if warned else []), given
 
 
 def test_the_keys_a_kind_does_not_take():

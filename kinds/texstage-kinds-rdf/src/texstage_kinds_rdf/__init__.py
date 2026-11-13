@@ -19,7 +19,7 @@ except ImportError as e:                                  # an older texstage: s
     raise ImportError("texstage-kinds-rdf needs a texstage with the activity framework's contract "
                       "(texstage.activities); this one has none") from e
 from texstage.activities.kind import Built, Check, Entry, Kind, Prepared, Step, Unbuildable, Unfit, fixed
-from texstage.activities.options import Choice, File, Flag, Int, Options, Words
+from texstage.activities.options import PRESETS, Choice, File, Flag, Int, Options, Words
 from texstage.checks import cleaning
 
 __all__ = ["SparqlQuery", "Triples", "TurtleGraph"]
@@ -64,11 +64,13 @@ class Triples(Kind):
     TERMS = OPTIONS["terms"].values
 
     def build(self, options: Options, bodies: dict) -> Built:
-        count = len(options.given("fields") or [])
+        """Without fields=, a triple's: Subject, Predicate, Object."""
+        given = options.given("fields")
+        count = len(given or []) if given is not None else len(PRESETS["fields"])
         if not self.FIELDS[0] <= count <= self.FIELDS[1]:
             raise Unbuildable(f"{count} fields - an activity of input=tuple has {self.FIELDS[0]} or "
                               f"{self.FIELDS[1]}: the first and the last a node, a middle one the edge's label")
-        item: dict = {"fields": options["fields"]}
+        item: dict = {"fields": options["fields"] if given is not None else list(PRESETS["fields"])}
         if options["suggest"]:
             item["suggest"] = options["suggest"]
         item["min"] = options["min"]

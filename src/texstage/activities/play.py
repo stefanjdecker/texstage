@@ -28,7 +28,7 @@ from texstage.activities.checks import Checks
 from texstage.activities.entries import Entered, Entries
 from texstage.activities.kind import COMPARED, Kind
 from texstage.activities.moderation import Done, Moderation
-from texstage.activities.phases import Phases, Refused
+from texstage.activities.phases import TIME_MAX_MS, Phases, Refused
 from texstage.activities.reduce import Reduced, Setup
 from texstage.activities.store import ONE, CheckRow, DetailRow, EntryRow, ModerationRow, StepRow
 from texstage.activities.views import Pictures
@@ -42,7 +42,8 @@ PUBLIC = ("prompt", "fields", "suggest", "tokens", "engine")      # of an item: 
 
 def kind_of(item: dict) -> Kind:
     """An item's kind: the one it names - or, for a deck built before kinds were named (the plan of F2,
-    4.4: package 7 names them), the one of its input and engine. LookupError: none is installed."""
+    4.4: the build names them since package 7), the one of its input and engine. LookupError: none is
+    installed."""
     name = item.get("kind") or F1_INPUTS.get(item.get("input"))
     if name is None and item.get("input") == "code":
         for found in registry.kinds().values():
@@ -56,13 +57,16 @@ def kind_of(item: dict) -> Kind:
 @dataclass(frozen=True)
 class Part:
     """What a game reads of one activity of its deck: the item (deck.json), the keys (keys.json), its
-    kind, and what the core makes of them."""
+    kind, and what the core makes of them - among them the step's time (time=, seconds: its slide opens
+    it with it; None: none) and a check's CPU time (budget=, ms, at most the kind's)."""
     activity: str
     item: dict
     keys: dict
     kind: Kind
     setup: Setup
     feedback: str = "status"
+    time_ms: int | None = None
+    budget_s: float | None = None
 
     @classmethod
     def of(cls, activity: str, item: dict, keys: dict | None = None, kind: Kind | None = None) -> Part:
@@ -70,7 +74,13 @@ class Part:
         feedback = item.get("feedback", "status")
         if feedback not in FEEDBACK:
             raise ValueError(f"feedback: one of {', '.join(FEEDBACK)}, not {feedback!r}")
-        return cls(activity, item, keys or {}, kind, Setup.of(item, kind, keys), feedback)
+        time, budget, most = item.get("time"), item.get("budget"), max(1, round(kind.BUDGET_S * 1000))
+        if time is not None and (isinstance(time, bool) or not isinstance(time, int) or not 1 <= time <= TIME_MAX_MS // 1000):
+            raise ValueError(f"time: 1 to {TIME_MAX_MS // 1000} seconds, not {time!r}")
+        if budget is not None and (isinstance(budget, bool) or not isinstance(budget, int) or not 1 <= budget <= most):
+            raise ValueError(f"budget: 1 to {most} ms - the kind's at most -, not {budget!r}")
+        return cls(activity, item, keys or {}, kind, Setup.of(item, kind, keys), feedback,
+                   None if time is None else time * 1000, kind.BUDGET_S if budget is None else budget / 1000)
 
 
 class Play:
