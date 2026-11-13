@@ -119,9 +119,16 @@ async function openGame(d) {
   client = new Client({
     onStatus: (s) => { $("#status").className = `status ${s}`; },
     onState: (m) => { state = m; update(); },
+    onBye: (m) => refused({ code: m.reason, message: m.message }),
   });
   stage = new Stage($("#stage"), { send: (cmd) => client.send(cmd).catch(alertError), controls: true });
-  await client.login({ t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle });
+  const mine = client;
+  try {
+    await client.login({ t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle });
+  } catch (err) {
+    if (client === mine) refused(err);            // (not when this console has left the game meanwhile)
+    return;
+  }
   $("#prev").onclick = () => move(-1);
   $("#next").onclick = () => move(1);
   $("#full").onclick = fullscreen;
@@ -139,6 +146,16 @@ async function openGame(d) {
 }
 
 const textOf = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : key);   // a phase's name, else itself
+
+// The server would not give this console its game, or took it away: a newer build of the deck is played (a
+// console of a build before it, connected again or reloaded), the game is over, ... - the decks, and why.
+function refused(err) {
+  client.close();
+  client = null;
+  try { sessionStorage.removeItem(LAST); } catch { /* ignore */ }
+  showDecks().then(() => alertError(err),
+    (e) => keyForm(e?.status === 403 ? T.errors["bad-key"] : errorText(pageLanguage(), e)));
+}
 
 function alertError(err) {
   if (err?.code !== "no-round") alert(errorText(pageLanguage(), err));

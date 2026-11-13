@@ -13,6 +13,7 @@ a rebuilt deck is picked up without a restart.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -74,6 +75,8 @@ class Bundle:
     keys: dict = field(repr=False, default_factory=dict)
     owners: set[str] | None = None       # the lecturers who uploaded it; None: open to every lecturer
     items: dict = field(repr=False, default_factory=dict)   # per content type its items (deck.json's)
+    built: int = 0                       # when it was built (ms): its deck.json's time - an upload and a
+    #                                      served copy keep the build's (app.py); the newest of its copies
 
     def open_to(self, lecturer: str | None) -> bool:
         return lecturer is not None and (self.owners is None or lecturer in self.owners)
@@ -135,7 +138,9 @@ def holds(b: Bundle) -> bool:
 
 def load_bundle(path: Path) -> Bundle:
     try:
-        deck = json.loads((path / "deck.json").read_text(encoding="utf-8"))
+        with (path / "deck.json").open(encoding="utf-8") as f:
+            deck = json.loads(f.read())
+            built = int(os.fstat(f.fileno()).st_mtime * 1000)     # (the file read: a rebuild may replace the folder)
         keys = json.loads((path / "keys.json").read_text(encoding="utf-8"))
     except (OSError, ValueError) as err:
         raise BundleError(f"{path}: {err}") from None
@@ -182,7 +187,7 @@ def load_bundle(path: Path) -> Bundle:
         slides[s["id"]] = SlideInfo(s["id"], i, s.get("phase"), s.get("quiz"), {k: tuple(v) for k, v in shows.items()},
                                     marks)
     return Bundle(bid, deck["deck"], deck.get("name", deck["deck"]), path, slides, quizzes, view, keys,
-                  items=items)
+                  items=items, built=built)
 
 
 def client_view(deck: dict) -> dict:
@@ -257,6 +262,7 @@ class BundleStore:
             b.owners = None if owner is None else {owner}
             self.bundles[b.id] = b
             return b
+        known.built = max(known.built, b.built)          # (built again unchanged - a change undone: the newest build)
         if owner is None:
             known.owners = None                          # (also) in a served folder: open
         elif known.owners is not None:

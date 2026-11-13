@@ -566,9 +566,12 @@ join slide - changing it needs no rebuild).
 
 **One running game per lecturer and deck.** The add-in's hello opens it: the lecturer's
 running game of the deck if it plays the same bundle and has been active in the last 6 hours,
-else a new one (the old one ends): the next lecture, or a rebuilt deck. After the podium, the
-join slide starts a new game for the next group; the host can also start one explicitly
-(`restart`).
+else a new one (the old one ends): the next lecture, or a rebuilt deck. A window of a build
+older than the running game's (its `deck.json` dated earlier) - opened before the rebuild, now
+connecting again or reloaded - is refused instead (`newer-build`), so the game and its phones
+stay; only the lecturer's choice of that build (Present on texstage's deck page, or
+`texstage present`: the hello's `chosen`) replaces the game. After the podium, the join slide
+starts a new game for the next group; the host can also start one explicitly (`restart`).
 
 **Lectures and versions.** A deck's ID names the lecture: `texstage-build.py` makes it
 `<course>-<chapter>` (`kg-06-sparql-semantics`; the course is `"course"` in `lecture.json`,

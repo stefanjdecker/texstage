@@ -5,8 +5,10 @@ restart recovery. Synthetic bundles (fake_bundle.py), get-ready off, real time."
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 
 import pytest
@@ -509,6 +511,68 @@ def test_a_new_presentation_or_the_lecture_continued(world):
             assert recv(dp, "ok", until=lambda m: m["re"] == 4)["strokes"][0]["id"].startswith("s1-")
             again.send_json({"t": "lecture.continue", "game": first["session"], "id": "a4"})
             assert recv(again, "error", until=lambda m: m["re"] == "a4")["error"] == "invalid"
+
+
+def built(fb, at: float):
+    """deck.json's time (s), which is the build's (Bundle.built): the tests' builds come within a second."""
+    os.utime(fb.path / "deck.json", (at, at))
+    return fb
+
+
+def say_hello(ws, fb, role: str = "host", mid=1, **more) -> dict:
+    """A window's hello: its welcome, or the error that refuses it."""
+    ws.send_json({"t": "hello", "role": role, "key": KEY, "deck": fb.deck, "bundle": fb.id, "id": mid, **more})
+    return recv(ws, until=lambda m: m["t"] in ("welcome", "error") and m.get("re") == mid)
+
+
+def test_a_window_of_the_build_before_a_rebuild_leaves_the_game_alone(tmp_path):
+    """A deck rebuilt in the lecture (its build folder holds the new build now): the presenter window opens
+    the new build, the game of the one before ends and a new one starts. A window still on the build
+    before - the host console, a presenter tab reloaded, the projector - that says hello again is refused
+    (newer-build): the new build's game, its PIN and its phones stay (2026-11-13: the host console ended
+    that game and started one of its own, under a new PIN - every phone lost the game)."""
+    hour_ago = int(time.time()) - 3600
+    before = built(make_bundle(tmp_path / "bundles"), hour_ago)
+    auth = {"X-Texquiz-Key": KEY}
+    with TestClient(create_app(config(tmp_path))) as client, client.websocket_connect("/ws") as console:
+        first = say_hello(console, before)
+        rebuilt = built(make_bundle(tmp_path / "bundles", time=30), hour_ago + 3540)
+        assert rebuilt.path == before.path and rebuilt.id != before.id
+        decks = client.get("/api/decks", headers=auth).json()             # the deck page: the new build too
+        assert {d["bundle"]: d["game"] and d["game"]["pin"] for d in decks} == {before.id: first["pin"], rebuilt.id: None}
+        with client.websocket_connect("/ws") as presenter, client.websocket_connect("/ws") as phone:
+            game = say_hello(presenter, rebuilt, role="stage")
+            assert game["t"] == "welcome" and game["pin"] != first["pin"]
+            assert recv(console, "state", until=lambda m: m["session"]["pin"] == game["pin"])   # (Server._sweep)
+            join(phone, game["pin"], "Ada")
+            for role in ("host", "stage", "display"):                     # the console, a presenter tab, the projector
+                with client.websocket_connect("/ws") as window:
+                    refused = say_hello(window, before, role=role)
+                    assert (refused["t"], refused.get("error")) == ("error", "newer-build"), role
+            decks = client.get("/api/decks", headers=auth).json()
+            assert [(d["bundle"], d["game"]["pin"]) for d in decks] == [(rebuilt.id, game["pin"])]
+            presenter.send_json({"t": "slide", "slide": rebuilt.slide("question", "pick"), "id": 2})
+            assert recv(phone, "state", until=round_phase("open"))["round"]["question"]["type"] == "single"
+
+
+def test_the_presenter_windows_choice_of_a_build_starts_its_game(tmp_path):
+    """Present on the deck page (or texstage present) is the lecturer's choice of a build: its game starts
+    though a newer build's runs (hello chosen). After a break the window says hello without it
+    (presenter.js): its own game goes on."""
+    hour_ago = int(time.time()) - 3600
+    older = built(make_bundle(tmp_path / "bundles", title="Test deck"), hour_ago)
+    newer = built(make_bundle(tmp_path / "bundles", title="Test deck v2"), hour_ago + 3540)
+    with TestClient(create_app(config(tmp_path))) as client, client.websocket_connect("/ws") as presenter:
+        first = say_hello(presenter, newer, role="stage")
+        with client.websocket_connect("/ws") as other:
+            assert say_hello(other, older, role="stage").get("error") == "newer-build"
+            chosen = say_hello(other, older, role="stage", mid=2, chosen=True)
+            assert chosen["t"] == "welcome" and chosen["pin"] != first["pin"]
+            recv(presenter, "state", until=lambda m: m["session"]["pin"] == chosen["pin"])   # its windows: the new game
+        with client.websocket_connect("/ws") as again:
+            assert say_hello(again, older, role="stage")["session"] == chosen["session"]
+        decks = client.get("/api/decks", headers={"X-Texquiz-Key": KEY}).json()
+        assert {d["bundle"]: d["game"] and d["game"]["pin"] for d in decks} == {newer.id: None, older.id: chosen["pin"]}
 
 
 def test_the_lecture_archive(world, tmp_path):

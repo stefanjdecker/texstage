@@ -14,6 +14,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import queue
 import re
 import sqlite3
@@ -1214,6 +1215,8 @@ def test_a_deck_built_again_lets_go_of_the_old_build(tmp_path, pool):
     the pool lets go of the old build - after the new game is there (the review of package 4's fixes: no
     test would have seen it held for ever)."""
     new = make_activity_bundle(tmp_path / "bundles" / "act2.bundle", seed=SEED + b":hume :name \"Hume\" .\n")
+    later = time.time() + 60                       # built after the lecture's build (World's, made next)
+    os.utime(tmp_path / "bundles" / "act2.bundle" / "deck.json", (later, later))
     w = World(tmp_path, checks=pool())
     w.settle()
     assert new != w.bid and list(w.checks.prepares) == [act_name(w.bid, "query")]

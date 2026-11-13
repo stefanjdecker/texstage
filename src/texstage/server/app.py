@@ -38,7 +38,9 @@ Protocol: one WebSocket per client, JSON messages {"t": type, ...}. A command ma
 with the same id (after a reconnect) is answered from a cache instead of being run twice
 (not the commands that only read: they run again).
 
-    any     hello {role: "host"|"stage"|"display", key | device, deck, bundle}   -> welcome {role, session}
+    any     hello {role: "host"|"stage"|"display", key | device, deck, bundle, chosen?}   -> welcome {role, session}
+                    (an older build than the deck's running game is refused - newer-build -, unless the
+                    lecturer chose it: chosen, the presenter window's deck page; Engine.open_session)
             join {pin, nickname, join_nonce?}         -> welcome {role, player, token}
             resume {token}                            -> welcome {role, player}
             ping                                      -> pong {now}
@@ -797,7 +799,7 @@ class Server:
         b = self.bundles.get(bid) if bid else None
         if b is None or not b.open_to(lecturer):          # another lecturer's deck: not here for this one
             raise GameError("unknown-bundle", f"deck {deck}, bundle {bid} is not on this server")
-        s = self.engine.open_session(deck, bid, now, owner=lecturer)
+        s = self.engine.open_session(deck, bid, now, owner=lecturer, chosen=msg.get("chosen") is True)
         try:
             self.snapshot(b)
         except OSError as err:                            # the game goes on from the build folder
@@ -1321,7 +1323,7 @@ def create_app(config: ServerConfig) -> Starlette:
         return endpoint
 
     def built_ms(b) -> int:
-        return int((b.path / "deck.json").stat().st_mtime * 1000)
+        return b.built                                   # (as Engine.open_session takes it: which build is newer)
 
     def uploaded_builds(lect: str, deck: str) -> list[Path]:
         """The builds of a deck this lecturer uploaded: bundles/<lecturer>/<deck>/<id>/."""
