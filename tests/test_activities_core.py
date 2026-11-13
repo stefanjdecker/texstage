@@ -48,6 +48,7 @@ except LookupError:
 @pytest.fixture(autouse=True)
 def f1_again():
     """The type a server runs is the process's (types.py: use): the tests after these have F1's again."""
+    SEEN.clear(), ASIDE.clear()                         # (a socket's id may be an earlier test's socket's)
     yield
     stage_types.use("f1")
 
@@ -59,11 +60,14 @@ def config_of(tmp_path) -> ServerConfig:
 
 
 SEEN: dict[int, set] = {}                               # a socket -> the kinds of message it was sent
+ASIDE: dict[int, list] = {}                             # a socket -> what came while an answer was waited for
 
 
-def recv(ws, t=None, until=None, tries: int = 200):
+def recv(ws, t=None, until=None, tries: int = 400):
+    """The socket's next message that is as asked for - of what was put aside first, in its order."""
+    aside = ASIDE.setdefault(id(ws), [])
     for _ in range(tries):
-        m = receive(ws)
+        m = aside.pop(0) if aside else receive(ws)
         SEEN.setdefault(id(ws), set()).add(m["t"])
         if (t is None or m["t"] == t) and (until is None or until(m)):
             return m
@@ -71,9 +75,19 @@ def recv(ws, t=None, until=None, tries: int = 200):
 
 
 def ask(ws, n: int, t: str, **msg) -> dict:
-    """A message and its answer - ok or error -, whatever else comes meanwhile."""
+    """A message and its answer - ok or error. What else comes meanwhile is put aside for the next recv, not
+    dropped: a check's outcome is pushed when the pool has it, the answer to its entry is sent once the
+    entry is written - either may be first (a run of 8176a03 at GitHub: the push was, and the test waited
+    30 s for a state that had come)."""
     ws.send_json({"t": t, "id": n, **msg})
-    return recv(ws, until=lambda m: m.get("re") == n and m["t"] in ("ok", "error"))
+    aside = ASIDE.setdefault(id(ws), [])
+    for _ in range(400):
+        m = receive(ws)
+        SEEN.setdefault(id(ws), set()).add(m["t"])
+        if m.get("re") == n and m["t"] in ("ok", "error"):
+            return m
+        aside.append(m)
+    raise AssertionError(f"no answer to {t}")
 
 
 def picture(ws, n: int, activity: str, until, tries: int = 100) -> dict:
