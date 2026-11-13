@@ -17,12 +17,14 @@ The messages, one namespace for every kind (the design's 10.4):
                activity.moderate {activity, act, group?, into?, entry?, role?, value?, on?} -> {act: its number}
                activity.undo {activity, act?: its number} -> {act}
                activity.layout {activity, at} -> {lead}     the lead window's positions of a crowd graph
-    presenter, activity.view {activity} -> {picture, lead}  (a read)
-    projector
+    presenter, activity.view {activity, window?: "display"} -> {picture, lead}   a read: a presenter window's
+    projector, picture, and the host console's - its counts -, unless it asks for the projector's, which may hold
+    host       the groups back (its box draws that one: the same in both windows, the design's 13); lead: true,
+               this window leads the layout, false, another does, null, nobody (Book.leader)
 
 What the windows get with their state (view): {current, items: {activity: {step, phase, epoch, time,
-version, layout}}} - a version they were told at most four times a second; a window that has another
-fetches the picture. What a phone gets: its own entries of the current step with its state (player_view:
+since, version, layout, entries}}} - a version they were told at most four times a second, with the step's
+entries then (the presenter's Activities button); a window that has another fetches the picture. What a phone gets: its own entries of the current step with its state (player_view:
 {mine}), and the step's own part - the same for every phone - as a message of its own, serialized once:
 {"t": "activity.step", "step": {...} | null} (Book.casts; app.py sends it).
 
@@ -228,6 +230,14 @@ class Book:
         if take:
             self.leads[(sid, aid)] = (conn, now + LEASE_MS)
         return take or free or holder is not None
+
+    def leader(self, sid: str, aid: str, conn: str | None, now: int) -> bool | None:
+        """What a window is told of the lead with a picture: True, it leads; False, another window does - it
+        follows the positions in the picture; None, nobody does - a presenter window may take it."""
+        holder = self.leads.get((sid, aid))
+        if holder is None or holder[1] <= now:
+            return None
+        return holder[0] == conn
 
     # -------------------------------------------------------------- to the pool
     def _wake(self, item: tuple) -> None:
@@ -498,7 +508,8 @@ def _told(call, play: Play, moved: bool = False) -> bool:
             left, since = was.get("time"), was.get("since")
         items[aid] = {"step": step, "phase": st.phase, "epoch": st.epoch, "time": left, "since": since,
                       "version": told["version"] if told else was.get("version", 0),
-                      "layout": told["layout"] if told else was.get("layout", 0)}
+                      "layout": told["layout"] if told else was.get("layout", 0),      # (the entries with the
+                      "entries": play.entries.counts(st)["entries"] if told else was.get("entries", 0)}   # version)
     current = play.phases.current()
     new = {"current": current.activity if current is not None and current.activity in call.items else None,
            "items": items}
@@ -586,9 +597,10 @@ def shown(call, before: tuple, after: tuple, marks: dict | None = None) -> None:
 def handle(call, t: str, msg: dict) -> dict | None:
     aid = _aid(call, msg)
     part, play, sid = _part(call, aid), _play(call), call.session.id
-    if t == "activity.view":
-        window = "stage" if call.role == "stage" else "display"
-        reply = {"picture": play.picture(part, window), "lead": call.book.lead(sid, aid, call.conn, call.now)}
+    if t == "activity.view":                         # the host console: the lecturer's picture too - its counts,
+        lecturer = call.role in ("stage", "host")    # whatever the projector holds back; a presenter window's box:
+        window = "stage" if lecturer and msg.get("window") != "display" else "display"   # the projector's (the design's 13)
+        reply = {"picture": play.picture(part, window), "lead": call.book.leader(sid, aid, call.conn, call.now)}
         writer = call.book.writer
         if window == "stage" and writer is not None and (writer.error or writer.dropped):
             reply["store"] = {"failures": writer.failures, "error": writer.error, "set_aside": writer.dropped}

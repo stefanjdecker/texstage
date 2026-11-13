@@ -20,6 +20,8 @@ import { PdfDeck, PdfSurface, fit, inkKey, linkable, shownSlide, zoomOverlay } f
 import { Pen } from "/static/stage/pen.js";
 import { VideoBox, mediaAddresses } from "/static/stage/video.js";
 import { ActivityBox } from "/static/stage/activity.js";
+import { StepAgent, StepBox } from "/static/stage/activities.js";
+import { Kinds } from "/static/kinds.js";
 
 const $ = (sel) => document.querySelector(sel);
 const KEY = "texquiz:presenter-key";
@@ -86,9 +88,11 @@ async function load(b) {
   $("#stage").replaceWith(box);
   stage = new Stage(box, { surface: new PdfSurface(pdf),
     sketches: (quiz, players) => client.send({ t: "sketch.get", quiz, players }).then((r) => r.sketches),
-    types: { video: VideoBox, activity: ActivityBox },   // a video with the sound; a click into this window, if the browser wants one
+    types: { video: VideoBox, activity: d.activities === "core" ? StepBox : ActivityBox },   // a video with the sound; a click into this window, if the browser wants one
     host: { role: "projector", media: mediaAddresses(d.bundle, key), click: (what) => channel?.postMessage({ type: "video", click: what }),
-      read: (msg) => client.send(msg) } });           // (an activity's picture: activity.view)
+      read: (msg) => client.send(msg),                // (an activity's picture: activity.view)
+      ...(d.activities === "core" ? { agent: new StepAgent({ send: (msg) => client.send(msg), role: "projector" }),
+        kinds: new Kinds(d.kindFiles, d.language || "en", "window") } : {}) } });
   fit(box, aspect);
   channel = new BroadcastChannel(`texstage:${deck.bundle}`);
   const own = client = new Client({

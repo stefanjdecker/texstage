@@ -1,8 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The kit: the test every kind passes, texstage's own ones too (docs/architecture/activity-framework-
-design.md, 7.5) - its Python half; the browser's - a kind's texts and modules, what a phone loads - comes
-with the browser (the plan of F2, 4.9).
+design.md, 7.5; the plan of F2, 4.9).
 
     texstage kinds check [name ...]
 
@@ -12,7 +11,8 @@ check, as the core will - twice, the second time in the other order on what was 
 check that changes what was prepared shows; every check against the rules a check must keep (fault); and
 for a kind of code, texts nested as deep as a text is long, which must come back as a check - whatever
 it says. It reports each fixture's time against the kind's budget, and gives a check up that does not
-come back.
+come back. Its browser half (browser) measures what a phone loads of the kind and loads the kind's texts
+and modules in Node (kit.mjs).
 
 A kind's fixtures are beside its module, tests/*.json - what the kind is prepared with (a setting), an
 entry, and what it must give:
@@ -45,7 +45,11 @@ from __future__ import annotations
 import gzip
 import inspect
 import json
+import os
 import re
+import secrets
+import shutil
+import subprocess
 import threading
 import time
 from dataclasses import dataclass, field
@@ -67,6 +71,11 @@ SETTING_KEYS = {"item", "keys", "files"}
 CASE_KEYS = {"setting", "entry", "check", "unfit", "direct", "language"}
 CHECK_KEYS = {"status", "key", "parts", "verdict", "credit", "message", "at", "detail"}
 BUILD_KEYS = {"options", "bodies", "files", "built", "refused"}
+PHONE_WARN = 200 * 1024                 # what a phone loads of a kind, compressed: a warning above (the design's 7.3)
+PHONE_MOST = 1024 * 1024                # ... and refused above
+MODULES = (("web/hint.js", "hint"), ("web/input.js", "input"), ("web/box.js", "group"))   # each with what it gives
+NODE_S = 60.0                           # the browser half's run in Node, at most
+NODE_FLAGS = ("--permission",)         # Node's permission model: the kind's modules read their folder alone
 
 
 @dataclass
@@ -81,6 +90,7 @@ class Report:
     slowest_s: float = 0.0
     slowest: str = ""
     budget_s: float = 0.0               # the kind's, which the slowest is held against
+    phone_bytes: int | None = None      # what a phone loads of the kind, compressed (the browser half)
 
     @property
     def ok(self) -> bool:
@@ -135,34 +145,79 @@ def rules(kind: Kind, name: str | None = None) -> list[str]:
     return faults
 
 
-# ------------------------------------------------------------------ the fixtures' files
+# ------------------------------------------------------------------ the kind's own folder
+def home_of(kind: Kind) -> Path:
+    """A kind's own folder, beside its module: its fixtures (tests/), its texts (texts/), its modules for the
+    browser (web/). TypeError for a class of no file."""
+    return Path(inspect.getfile(type(kind))).parent.resolve()
+
+
 def folder_of(kind: Kind) -> Path:
     """Where a kind's fixtures are: tests/ beside its module."""
-    return Path(inspect.getfile(type(kind))).parent / "tests"
+    return home_of(kind) / "tests"
 
 
 # ------------------------------------------------------------------ what a phone loads of a kind
 PHONE = ("web/hint.js", "web/input.js")         # a kind's modules for the phones (the design's 7.3)
-IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.{1,2}/[^"']+)["']""")
+SERVED = (".js", ".mjs", ".json", ".css")       # what the server serves of a kind's folder (server/kindfiles.py)
+IMPORT = re.compile(r"""(?:\bfrom\s*|\bimport\s*\(?\s*)(["'`])(\.{1,2}/[^"'`$\n]+)\1""")
+DYNAMIC = re.compile(r"\bimport\s*\(")         # what a module may load that the server cannot know of: an import()
+LITERAL = re.compile(r"""\s*(?:"[^"\n]*"|'[^'\n]*'|`[^`$\n]*`)\s*[,)]""")   # ... of anything but one literal,
+NEW_URL = re.compile(r"""\bnew\s+URL\s*\([^)]*\bimport\.meta\.url""")       # a file named by its URL
+
+
+def _lexical(path: Path) -> Path:
+    """A path as it is written - absolute, without . and .., a link in it not followed: as a browser asks."""
+    return Path(os.path.normpath(os.path.abspath(path)))
+
+
+def imported(modules: list[Path], home: Path) -> list[Path]:
+    """These modules and what they import from beside them, each once, in the order they are met - what is in
+    home, the kind's folder, by the path a browser asks for (a link in it is followed for what it holds, not for
+    its path), and of the types the server serves (SERVED): a name in a comment brings no Python file."""
+    home = _lexical(home)
+    todo = list(modules)
+    seen: list[Path] = []
+    while todo:
+        f = _lexical(todo.pop(0))
+        if f in seen or home not in f.parents or f.suffix.lower() not in SERVED or not f.is_file():
+            continue
+        seen.append(f)
+        if f.suffix.lower() in (".js", ".mjs"):
+            for m in IMPORT.finditer(f.read_text(encoding="utf-8", errors="replace")):
+                todo.append(f.parent / m.group(2))
+    return seen
+
+
+def unfollowed(files: list[Path], home: Path) -> list[str]:
+    """What these modules load that the server does not serve, since nothing names it as an import does - in
+    words, each with its file."""
+    said = []
+    for f in files:
+        if f.suffix.lower() not in (".js", ".mjs"):
+            continue
+        text = f.read_text(encoding="utf-8", errors="replace")
+        rel = f.relative_to(_lexical(home)).as_posix()
+        if any(not LITERAL.match(text, m.end()) for m in DYNAMIC.finditer(text)):
+            said.append(f"{rel} imports a name it computes - the server does not serve such a file")
+        if NEW_URL.search(text):
+            said.append(f"{rel} names a file by new URL(..., import.meta.url) - the server does not serve such a file")
+    return said
 
 
 def phone_files(kind: Kind) -> list[Path]:
     """What a phone loads of a kind (the design's 7.3): its modules for the phones, what they import from
-    beside them, and its texts (texts/*.js). The four kinds have none of them yet: they come with the browser
-    (the plan of F2, package 8), whose half of the kit measures them as a phone gets them."""
-    home = Path(inspect.getfile(type(kind))).parent.resolve()
-    todo = [home / p for p in PHONE if (home / p).is_file()]
-    seen: list[Path] = []
-    while todo:
-        f = todo.pop(0).resolve()
-        if f in seen:
-            continue
-        seen.append(f)
-        for m in IMPORT.finditer(f.read_text(encoding="utf-8", errors="replace")):
-            target = (f.parent / m.group(1)).resolve()
-            if target.is_file() and home in target.parents:
-                todo.append(target)
-    return seen + sorted(p.resolve() for p in (home / "texts").glob("*.js"))
+    beside them, and its texts (texts/*.js) - what the server serves for it (server/kindfiles.py)."""
+    home = home_of(kind)
+    modules = imported([home / p for p in PHONE], home)
+    return modules + [f for f in imported(sorted((home / "texts").glob("*.js")), home) if f not in modules]
+
+
+def window_files(kind: Kind) -> list[Path]:
+    """What the windows load of a kind besides a phone's files: its web/box.js and what it imports from beside it
+    (the design's 7.3)."""
+    home = home_of(kind)
+    return imported([home / "web" / "box.js"], home)
 
 
 def phone_bytes(*kinds: Kind) -> int:
@@ -466,6 +521,7 @@ def check(kind: Kind, name: str | None = None, folder: Path | None = None, known
     if not files:
         if not faults:
             report.faults.append(f"no fixtures: {kind.NAME} has none in tests/*.json beside its module")
+        browser(kind, report)                               # (what the phones get of it is held all the same)
         return report
     now = {"what": "", "since": time.monotonic()}
 
@@ -487,7 +543,81 @@ def check(kind: Kind, name: str | None = None, folder: Path | None = None, known
             report.faults.append(f"{now['what']}: not back after {HANG_S:g} s - it hangs, or takes no heed of its budget; "
                                  f"the kit gave the kind up there")
             break
+    browser(kind, report)
     return report
+
+
+# ------------------------------------------------------------------ the browser half
+def kb(n: int) -> str:
+    """A size in KB: to a tenth below 10 KB."""
+    return f"{n / 1024:.1f} KB" if n < 10 * 1024 else f"{n / 1024:.0f} KB"
+
+
+def browser(kind: Kind, report: Report) -> None:
+    """The kit's browser half (the design's 7.5): what a phone loads of the kind, compressed, against the sizes
+    (a warning above 200 KB, refused above 1 MB); what its modules load that the server cannot serve; its texts
+    in English and German (texts/en.js, de.js) - a text for every code of its MESSAGES, made with the code's
+    arguments, the same keys in both -; and its modules for the browser (web/hint.js, input.js, box.js), loaded
+    in Node as a phone has them, each with the function it is to give (kit.mjs). Without Node, the rest - and a
+    warning. The kit finds a kind's mistakes; it is no sandbox for a kind that means harm, whose Python runs on
+    the server anyway."""
+    try:
+        home = home_of(kind)
+    except (TypeError, OSError):
+        return
+    size = phone_bytes(kind)
+    report.phone_bytes = size
+    if size > PHONE_MOST:
+        report.faults.append(f"a phone loads {kb(size)} of the kind, compressed - at most {kb(PHONE_MOST)}")
+    elif size > PHONE_WARN:
+        report.warnings.append(f"a phone loads {kb(size)} of the kind, compressed - more than {kb(PHONE_WARN)}")
+    report.warnings += unfollowed(phone_files(kind) + window_files(kind), home)
+    messages = {code: list(names) for code, names in (_table(kind.MESSAGES) or {}).items()}
+    texts = {lang: home / "texts" / f"{lang}.js" for lang in ("en", "de")}
+    missing = [f"texts/{lang}.js" for lang, path in texts.items() if not path.is_file()]
+    if messages and missing:
+        report.faults.append(f"{' and '.join(missing)}: the words of its MESSAGES ({', '.join(messages)}) are not there")
+    modules = {rel: [str(home / rel), name] for rel, name in MODULES if (home / rel).is_file()}
+    job = {"home": str(home), "messages": messages, "modules": modules, "token": secrets.token_hex(16),
+           "texts": {lang: str(path) for lang, path in texts.items() if path.is_file()}}
+    if not job["texts"] and not modules:
+        return
+    node = shutil.which("node")
+    if node is None:
+        report.warnings.append("Node is not installed: the kind's texts and modules are not loaded")
+        return
+    script = Path(__file__).with_name("kit.mjs")
+    readable = [f"--allow-fs-read={home}", f"--allow-fs-read={script.parent}"]
+    found, why = _node([node, *NODE_FLAGS, *readable, str(script)], job)
+    if found is None and "bad option" in why:          # a Node before the permission model (22.13)
+        report.warnings.append("this Node has no permission model (--permission): the kind's modules were loaded "
+                               "with what the kit may do")
+        found, why = _node([node, str(script)], job)
+    if found is None:
+        report.faults.append(f"its texts and modules could not be loaded in Node - {why}")
+        return
+    report.faults += found.get("faults", [])
+    report.warnings += found.get("warnings", [])
+
+
+def _node(command: list[str], job: dict) -> tuple[dict | None, str]:
+    """kit.mjs run on the job: what it found - the line that begins with the job's token, which no module of the
+    kind knows -, or None and why not."""
+    try:
+        run = subprocess.run(command, input=json.dumps(job), capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", timeout=NODE_S)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return None, f"{type(e).__name__}: {e}"
+    for line in reversed((run.stdout or "").splitlines()):
+        if line.startswith(job["token"] + " ") and run.returncode == 0:
+            try:
+                found = json.loads(line[len(job["token"]) + 1:])
+            except ValueError:
+                break
+            if isinstance(found, dict):
+                return found, ""
+            break
+    return None, (run.stderr or "").strip()[-300:] or f"Node ended with {run.returncode} and said nothing of it"
 
 
 def said(report: Report, found=None) -> str:
@@ -499,5 +629,7 @@ def said(report: Report, found=None) -> str:
             head += f", {report.builds} builds"
         if report.slowest:
             head += f"; the slowest {report.slowest_s:.3f} s of {report.budget_s:g} s - {report.slowest}"
+    if report.phone_bytes is not None:
+        head += f"; a phone loads {kb(report.phone_bytes)} of it" if report.phone_bytes else "; a phone loads none of it"
     lines = [head] + [f"  warning: {w}" for w in report.warnings] + [f"  FAILS: {f}" for f in report.faults]
     return "\n".join(lines)

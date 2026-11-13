@@ -26,4 +26,4 @@ sql-query = "texstage_kinds_sql:SqlQuery"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["tests/*.json"]      # the fixtures the kit runs (texstage kinds check)
+"*" = ["tests/*.json", "texts/*.js", "web/**/*.js", "web/**/*.mjs", "web/**/*.json", "web/**/*.css"]   # the kit's fixtures; the browser's texts and files (what the server serves, kit.SERVED)

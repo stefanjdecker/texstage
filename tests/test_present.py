@@ -105,9 +105,12 @@ def test_present_starts_the_server(tmp_path, monkeypatch, opened):
     assert cli.main(["present", str(tex), str(tmp_path / "more"), "--port", "8475", "--no-tunnel"]) == 0
     (args,) = started
     assert args.bundles == [str(out), str(tmp_path / "more")] and args.port == 8475 and args.no_tunnel
+    assert args.activities is None                          # (serve: F1's type)
     assert opened == []                                     # not before the server answers
     args.opener()
     assert opened == [("browser", f"http://localhost:8475/stage?bundle={fb.id}")]
+    assert cli.main(["present", str(tex), "--no-tunnel", "--activities", "core"]) == 0
+    assert started[-1].activities == "core"                 # handed on to serve
 
 
 def test_present_builds_first(tmp_path, monkeypatch, opened):

@@ -1,14 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The kit - the test every kind passes (texstage/activities/kit.py; `texstage kinds check`;
-docs/architecture/activity-framework-plan-f2.md, package 2): the four kinds pass it; a kind that breaks
-a rule fails it with the reason; the kinds' fixtures are what tests/fixtures/checks/to_kinds.py makes of
-the golden fixtures."""
+docs/architecture/activity-framework-plan-f2.md, packages 2 and 8): the four kinds pass it; a kind that
+breaks a rule fails it with the reason; the kinds' fixtures are what tests/fixtures/checks/to_kinds.py
+makes of the golden fixtures; the browser half - a kind's texts and modules in Node, what a phone loads."""
 from __future__ import annotations
 
 import gzip
 import importlib.util
+import itertools
 import json
+import os
+import shutil
 import time
 from pathlib import Path
 
@@ -96,6 +99,29 @@ CASES = [
 ]
 
 
+ECHO_TEXTS = {
+    "en": 'export default {\n  empty: "There is no text.",\n  long: ({ n }) => `The text has ${n} characters - too long.`,\n};\n',
+    "de": 'export default {\n  empty: "Da ist kein Text.",\n  long: ({ n }) => `Der Text hat ${n} Zeichen - zu lang.`,\n};\n',
+}
+
+
+@pytest.fixture(autouse=True)
+def at_home(tmp_path_factory, monkeypatch):
+    """The kinds of these tests are at home beside this file, where none of their texts are: they get a folder of
+    their own with Echo's, in English and German - the kit's browser half wants the words of their MESSAGES."""
+    home = tmp_path_factory.mktemp("echo")
+    (home / "texts").mkdir()
+    for lang, text in ECHO_TEXTS.items():
+        (home / "texts" / f"{lang}.js").write_text(text, encoding="utf-8")
+    real = kit.home_of
+    monkeypatch.setattr(kit, "home_of", lambda kind: home.resolve() if type(kind).__module__ == __name__ else real(kind))
+
+
+def warned(report) -> list[str]:
+    """A report's warnings, but that Node is not there to load the texts in (as on a machine without it)."""
+    return [w for w in report.warnings if not w.startswith("Node is not installed")]
+
+
 def fixtures(tmp_path, cases=CASES, kind="echo", settings=None) -> Path:
     data = {"kind": kind, "settings": {"any": {}} if settings is None else settings, "cases": cases}
     (tmp_path / "echo.json").write_text(json.dumps(data), encoding="utf-8")
@@ -108,7 +134,7 @@ def faults(kind, tmp_path, cases=CASES, **more) -> list[str]:
 
 def test_a_kind_that_keeps_the_rules_passes(tmp_path):
     report = kit.check(Echo(), "echo", fixtures(tmp_path))
-    assert report.faults == [] and report.warnings == [] and report.fixtures == 4 and report.ok
+    assert report.faults == [] and warned(report) == [] and report.fixtures == 4 and report.ok
     assert kit.said(report).startswith("echo: 4 fixtures, twice and in both orders")
 
 
@@ -250,11 +276,11 @@ def test_a_slow_fixture_is_a_warning_and_the_slowest_is_named(tmp_path):
     cases = [{"setting": "any", "entry": {"text": "burn"}, "check": {"status": "ok"}}]
     report = kit.check(broken(check=slow, BUDGET_S=0.1, INPUT="text"), folder=fixtures(tmp_path, cases))
     assert report.ok and report.slowest_s >= 0.15 and report.slowest == 'echo.json, case 0 ("burn")'
-    assert len(report.warnings) == 1 and report.warnings[0].startswith('echo.json, case 0 ("burn"): 0.')
+    assert len(warned(report)) == 1 and report.warnings[0].startswith('echo.json, case 0 ("burn"): 0.')
     assert "over the kind's budget of 0.1 s" in report.warnings[0]
     assert "the slowest 0." in kit.said(report) and "of 0.1 s" in kit.said(report) and "  warning: " in kit.said(report)
     code = kit.check(broken(check=slow, BUDGET_S=0.1), folder=fixtures(tmp_path, cases))      # of code: the nested texts too
-    assert code.ok and len(code.warnings) == 4 and all("a text nested 1000 deep" in w for w in code.warnings[1:])
+    assert code.ok and len(warned(code)) == 4 and all("a text nested 1000 deep" in w for w in warned(code)[1:])
     assert code.slowest_s >= 0.15 and ("case 0" in code.slowest or "nested 1000 deep" in code.slowest)
 
 
@@ -361,7 +387,7 @@ def test_texstage_kinds_says_what_cannot_be_used_and_fails(capsys, monkeypatch, 
         "echo    some-kinds 2.0.0, API 0", "future  some-kinds 2.0.0, API 1 - cannot be used: it implements API 1, this texstage API 0"]
     assert cli.main(["kinds", "check"]) == 1                       # echo has no fixtures beside this file; future is not used
     out = capsys.readouterr().out
-    assert "echo (some-kinds 2.0.0, API 0)\n  FAILS: no fixtures: echo has none" in out
+    assert "echo (some-kinds 2.0.0, API 0); a phone loads " in out and "  FAILS: no fixtures: echo has none" in out
     assert "future (some-kinds 2.0.0): cannot be used - it implements API 1" in out
     monkeypatch.setattr(registry, "found", lambda: tuple(registry.read(points[:1])))
     assert cli.main(["kinds"]) == 0 and cli.main(["kinds", "check"]) == 1      # usable, and fails the kit: no fixtures
@@ -376,8 +402,9 @@ def one(text: str = "a") -> list[dict]:
 
 
 def test_the_bounds_of_a_class_that_keeps_the_rules(tmp_path):
-    assert faults(broken(BUDGET_S=10, LIMIT=50, NAME="e2-e", MESSAGES=fixed(aB1=("lineNumber",))), tmp_path) == [
-        "no fixtures: e2-e has none in tests/*.json beside its module"]              # (the file is echo's)
+    found = faults(broken(BUDGET_S=10, LIMIT=50, NAME="e2-e", MESSAGES=fixed(aB1=("lineNumber",))), tmp_path)
+    assert found[0] == "no fixtures: e2-e has none in tests/*.json beside its module"      # (the file is echo's)
+    assert all("no text for aB1" in f for f in found[1:])        # (the browser half all the same: Echo's texts)
 
 
 def test_a_check_that_fails_only_the_second_time_fails_the_kit(tmp_path):
@@ -489,7 +516,7 @@ def test_a_check_that_waits_is_slow_too(tmp_path):
         return Check("ok", key=entry.text)
 
     report = kit.check(broken(check=sleeping, BUDGET_S=0.1, INPUT="text"), folder=fixtures(tmp_path, one()))
-    assert report.ok and len(report.warnings) == 1 and report.slowest_s < 0.1
+    assert report.ok and len(warned(report)) == 1 and report.slowest_s < 0.1
     assert "s of them computing - over the kind's budget of 0.1 s" in report.warnings[0]
 
 
@@ -555,8 +582,8 @@ def test_a_key_twice_in_one_table_and_a_file_for_a_kind_that_is_not_installed(tm
     (tmp_path / "other.json").write_text(json.dumps({"kind": "other", "settings": {}, "cases": CASES}), encoding="utf-8")
     report = kit.check(Echo(), folder=tmp_path, known={"echo", "other"})
     assert report.ok and report.fixtures == 4
-    assert report.warnings == ["typo.json is for a kind 'ehco', which is not installed - is the name misspelt?"]
-    assert kit.check(Echo(), folder=tmp_path).warnings == []                    # (nobody said which are installed)
+    assert warned(report) == ["typo.json is for a kind 'ehco', which is not installed - is the name misspelt?"]
+    assert warned(kit.check(Echo(), folder=tmp_path)) == []                    # (nobody said which are installed)
     assert "  warning: typo.json is for a kind" in kit.said(report)
 
 
@@ -591,7 +618,9 @@ def builds(tmp_path, given) -> kit.Report:
 def test_a_kinds_builds_are_held_against_what_they_must_make_or_refuse(tmp_path):
     report = builds(tmp_path, BUILDS)
     assert report.faults == [] and (report.builds, report.fixtures) == (4, 0)
-    assert kit.said(report) == "echo: 0 fixtures, twice and in both orders, 4 builds"
+    assert kit.said(report) == f"echo: 0 fixtures, twice and in both orders, 4 builds; a phone loads {kit.kb(report.phone_bytes)} " \
+        "of it" + ("" if shutil.which("node") else "\n  warning: Node is not installed: the kind's texts and modules are not loaded")
+    assert 0 < report.phone_bytes < 1024                                    # (Echo's texts, in English and German)
     good = BUILDS[0]
     wrong = [
         ({**good, "built": {**good["built"], "item": {"tokens": []}}}, 'item: {"tokens": ["?"]}, not {"tokens": []}'),
@@ -661,7 +690,8 @@ def test_texstage_kinds_check_tells_the_kit_which_kinds_are_installed(capsys, mo
 
     monkeypatch.setattr(kit, "check", check)
     assert cli.main(["kinds", "check", "triples"]) == 0
-    assert seen == [("triples", set(FOUR))] and "warning" not in capsys.readouterr().out
+    said = [line for line in capsys.readouterr().out.splitlines() if "warning" in line and "Node is not installed" not in line]
+    assert seen == [("triples", set(FOUR))] and said == []                    # (a machine without Node: that warning)
 
 
 def test_what_a_phone_loads_of_a_kind(tmp_path, monkeypatch):
@@ -688,3 +718,166 @@ def test_what_a_phone_loads_of_a_kind(tmp_path, monkeypatch):
     each = sum(len(gzip.compress(f.read_bytes(), 9)) for f in files)
     assert kit.phone_bytes(one) == kit.phone_bytes(one, two) == each > 0
     assert kit.phone_bytes() == 0
+
+
+# ------------------------------------------------------------------ the browser half (package 8)
+NODE = pytest.mark.skipif(shutil.which("node") is None, reason="the kit's browser half loads the texts in Node")
+PACKAGES = itertools.count()
+SHOWN = {
+    "texts/en.js": ECHO_TEXTS["en"],
+    "texts/de.js": ECHO_TEXTS["de"],
+    "web/hint.js": 'import { cut } from "./cut.js";\nexport function hint(step, text) { return cut(text); }\n',
+    "web/cut.js": 'export const cut = (text) => (text.length > 100 ? { code: "long", args: { n: text.length } } : null);\n',
+    "web/input.js": "export function input(step, words, send) { return null; }\n",
+    "web/box.js": "export function group(detail) { return String(detail.length); }\n",
+}
+
+
+def shown(tmp_path, monkeypatch, changes: dict | None = None, messages: str = "fixed(empty=(), long=('n',))") -> kit.Report:
+    """A kind of a package of its own, written for the test: its module, and beside it the files of SHOWN as
+    changed (a path's None: not there) - and what the kit's browser half finds of it."""
+    name = f"shownkind{next(PACKAGES)}"                  # (a module is imported once: a name for each)
+    home = tmp_path / name
+    home.mkdir()
+    (home / "__init__.py").write_text("from texstage.activities.kind import Kind, fixed\n\n\nclass Shown(Kind):\n"
+                                      f"    NAME = 'shown'\n    MESSAGES = {messages}\n", encoding="utf-8")
+    for rel, text in (SHOWN | (changes or {})).items():
+        if text is not None:
+            (home / rel).parent.mkdir(parents=True, exist_ok=True)
+            (home / rel).write_bytes(text.encode("utf-8"))
+    (tmp_path / "outside.js").write_text("export const no = 1;\n", encoding="utf-8")
+    monkeypatch.syspath_prepend(str(tmp_path))
+    report = kit.Report("shown")
+    kit.browser(importlib.import_module(name).Shown(), report)
+    return report
+
+
+@NODE
+def test_the_browser_half_loads_a_kinds_texts_and_modules_as_a_phone_has_them(tmp_path, monkeypatch):
+    """Its texts in English and German, a text for every code made with the code's arguments; its modules with
+    the functions they give - a phone's and the windows' box.js; what a phone loads, compressed: not box.js."""
+    report = shown(tmp_path, monkeypatch)
+    assert report.faults == [] and report.warnings == []
+    phone = ("web/hint.js", "web/cut.js", "web/input.js", "texts/de.js", "texts/en.js")
+    assert report.phone_bytes == sum(len(gzip.compress(SHOWN[p].encode(), 9)) for p in phone)
+    assert kit.said(report) == f"shown; a phone loads {kit.kb(report.phone_bytes)} of it"
+
+
+@NODE
+@pytest.mark.parametrize("changes, said", [
+    ({"texts/de.js": None}, "texts/de.js: the words of its MESSAGES (empty, long) are not there"),
+    ({"texts/en.js": 'export default { empty: "No text." };\n'}, "texts/en.js: no text for long"),
+    ({"texts/en.js": 'export default { empty: "No text." };\n'},
+     "texts/en.js and texts/de.js have other keys: empty - empty long"),
+    ({"texts/en.js": 'export default { empty: "", long: ({ n }) => `${n}` };\n'}, "texts/en.js: empty gives no text"),
+    ({"texts/en.js": 'export default { empty: "x", long: () => { throw new Error("no words"); } };\n'},
+     "texts/en.js: long fails with its arguments - no words"),
+    ({"texts/en.js": 'export default "words";\n'}, "texts/en.js: its default is no table of texts"),
+    ({"texts/de.js": 'export default { empty: "x", long: ({ n }) => `${n}` ;\n'}, "texts/de.js does not load: "),
+    ({"web/hint.js": 'await fetch("https://example.org/");\nexport function hint() { return null; }\n'},
+     "web/hint.js does not load in Node, as a phone has it: a kind's module reaches no network"),
+    ({"web/input.js": 'import { request } from "node:http";\nexport function input() { return request; }\n'},
+     "web/input.js does not load in Node, as a phone has it: node:http: a kind's module imports only its own files"),
+    ({"web/cut.js": 'import "../../outside.js";\nexport const cut = () => null;\n'},
+     "web/hint.js does not load in Node, as a phone has it: ../../outside.js: a kind's module imports only its own files"),
+    ({"web/box.js": "export function draw() {}\n"}, "web/box.js: no function group"),
+    ({"web/input.js": 'console.log("{}");\nprocess.exit(0);\nexport function input() {}\n'},
+     "web/input.js does not load in Node, as a phone has it: process is not defined"),       # (a phone has none)
+    ({"web/box.js": "process.reallyExit(0);\nexport function group() {}\n"},
+     "web/box.js does not load in Node, as a phone has it: process is not defined"),
+    ({"web/hint.js": 'const http = process.getBuiltinModule("node:http");\nexport function hint() { return null; }\n'},
+     "web/hint.js does not load in Node, as a phone has it: process is not defined"),
+    ({"web/input.js": 'const b = Buffer.from("x");\nexport function input() {}\n'},
+     "web/input.js does not load in Node, as a phone has it: Buffer is not defined"),
+    ({"web/box.js": 'JSON.stringify = () => "{}";\nexport function group() {}\n',             # what the kit writes with
+      "texts/de.js": 'export default { empty: "Kein Text." };\n'}, "texts/de.js: no text for long"),
+    ({"web/hint.js": 'setTimeout(() => console.log(String.fromCharCode(10) + JSON.stringify({ faults: [], warnings: [] })));\n'
+                     "export function hint() { return null; }\n",                           # a line like the kit's
+      "texts/de.js": 'export default { empty: "Kein Text." };\n'}, "texts/de.js: no text for long"),
+])
+def test_what_the_browser_half_finds_wrong(tmp_path, monkeypatch, changes, said):
+    report = shown(tmp_path, monkeypatch, changes)
+    assert any(f.startswith(said) for f in report.faults), report.faults
+
+
+@NODE
+def test_a_text_that_does_not_say_its_argument_is_a_warning(tmp_path, monkeypatch):
+    report = shown(tmp_path, monkeypatch, {"texts/de.js": 'export default { empty: "Kein Text.", long: () => "Zu lang." };\n'})
+    assert report.faults == [] and report.warnings == ["texts/de.js: long does not say its n"]
+
+
+def test_what_a_phone_loads_is_held_against_the_sizes(tmp_path, monkeypatch):
+    """A warning above 200 KB compressed, a fault above 1 MB (the design's 7.3) - here above 1 KB and 4 KB; the
+    windows' box.js counts for neither."""
+    monkeypatch.setattr(kit, "PHONE_WARN", 1024)
+    monkeypatch.setattr(kit, "PHONE_MOST", 4 * 1024)
+
+    def noise(n: int) -> str:                            # (random: as good as incompressible)
+        return "// " + os.urandom(n).hex() + "\n"
+    more = shown(tmp_path, monkeypatch, {"web/cut.js": SHOWN["web/cut.js"] + noise(1500)})
+    assert more.faults == [] and len(warned(more)) == 1
+    assert warned(more)[0].startswith("a phone loads ") and warned(more)[0].endswith(" of the kind, compressed - more than 1.0 KB")
+    most = shown(tmp_path, monkeypatch, {"texts/en.js": SHOWN["texts/en.js"] + noise(6000)})
+    assert len(most.faults) == 1 and most.faults[0].endswith(" of the kind, compressed - at most 4.0 KB") and warned(most) == []
+    boxed = shown(tmp_path, monkeypatch, {"web/box.js": SHOWN["web/box.js"] + noise(6000)})
+    assert boxed.faults == [] and warned(boxed) == [] and boxed.phone_bytes < 1024
+
+
+def test_without_node_the_browser_half_measures_and_says_so(tmp_path, monkeypatch):
+    """Where Node is not installed: what Python sees - the sizes, a text missing - and a warning; a kind with no
+    files for the browser needs no Node."""
+    monkeypatch.setattr(kit.shutil, "which", lambda name: None)
+    report = shown(tmp_path, monkeypatch, {"texts/de.js": None, "web/box.js": "this is no JavaScript"})
+    assert report.faults == ["texts/de.js: the words of its MESSAGES (empty, long) are not there"]
+    assert report.warnings == ["Node is not installed: the kind's texts and modules are not loaded"]
+    assert report.phone_bytes > 0
+    bare = shown(tmp_path, monkeypatch, dict.fromkeys(SHOWN), messages="fixed()")
+    assert (bare.faults, bare.warnings, bare.phone_bytes) == ([], [], 0)
+    assert kit.said(bare) == "shown; a phone loads none of it"
+
+
+@NODE
+def test_a_module_that_never_loads_is_given_up(tmp_path, monkeypatch):
+    monkeypatch.setattr(kit, "NODE_S", 3.0)
+    report = shown(tmp_path, monkeypatch, {"web/hint.js": "setInterval(() => {}, 1000);\nawait new Promise(() => {});\n"
+                                                          "export function hint() { return null; }\n"})
+    assert len(report.faults) == 1 and report.faults[0].startswith(
+        "its texts and modules could not be loaded in Node - TimeoutExpired"), report.faults
+
+
+def test_what_a_phone_loads_by_the_imports_it_names_and_what_the_server_cannot_follow(tmp_path, monkeypatch):
+    """An import by a template literal is followed; an import() of a name the module computes and a file named by
+    new URL(..., import.meta.url) are said, since the server serves no such file; a comment that names a file of
+    another type brings none (the review of package 8: it brought __init__.py)."""
+    monkeypatch.setattr(kit.shutil, "which", lambda name: None)                   # (the Python side alone)
+    lazy = shown(tmp_path, monkeypatch, {
+        "web/hint.js": "const m = await import(`./lazy.js`);\nexport function hint() { return m.x; }\n",
+        "web/lazy.js": "export const x = null;\n",
+        "texts/en.js": SHOWN["texts/en.js"] + '// (not: import "../__init__.py")\n'})
+    assert lazy.warnings == ["Node is not installed: the kind's texts and modules are not loaded"]
+    mod = sorted((tmp_path).glob("shownkind*"))[-1].name
+    import importlib as il
+    kind = il.import_module(mod).Shown()
+    served = [f.relative_to(kit.home_of(kind)).as_posix() for f in kit.phone_files(kind)]
+    assert served == ["web/hint.js", "web/input.js", "web/lazy.js", "texts/de.js", "texts/en.js"]     # (no __init__.py)
+    computed = shown(tmp_path, monkeypatch, {"web/hint.js": 'const name = "lazy";\n'
+                                             'export async function hint() { return (await import("./" + name + ".js")).x; }\n'
+                                             'const words = new URL("./words.json", import.meta.url);\n'})
+    assert computed.warnings[:2] == [
+        "web/hint.js imports a name it computes - the server does not serve such a file",
+        "web/hint.js names a file by new URL(..., import.meta.url) - the server does not serve such a file"]
+
+
+@NODE
+def test_a_node_without_the_permission_model_loads_the_modules_and_says_so(tmp_path, monkeypatch):
+    monkeypatch.setattr(kit, "NODE_FLAGS", ("--a-flag-no-node-knows",))                 # (as an older Node answers)
+    report = shown(tmp_path, monkeypatch)
+    assert report.faults == []
+    assert report.warnings == ["this Node has no permission model (--permission): the kind's modules were loaded "
+                               "with what the kit may do"]
+
+
+def test_a_kind_without_fixtures_has_its_browser_half_held_all_the_same(tmp_path):
+    report = kit.check(Echo(), folder=tmp_path / "none")
+    assert report.faults == ["no fixtures: echo has none in tests/*.json beside its module"]
+    assert report.phone_bytes and report.phone_bytes > 0

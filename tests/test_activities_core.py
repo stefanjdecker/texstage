@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import concurrent.futures as cf
 import contextlib
+import dataclasses
 import io
 import json
 import sys
@@ -816,3 +817,109 @@ def test_the_deck_list_over_http_has_the_cores_failing_references(tmp_path):
             time.sleep(0.05)
         assert [(f["activity"], f["reference"]) for f in failing] == [("query", 1)]
         assert "another result here" in failing[0]["error"]
+
+
+# ------------------------------------------------------------------ the pages (package 8)
+def test_the_pages_learn_the_type_and_the_decks_kinds_and_get_their_files(tmp_path):
+    """The welcome - a presenter window's, a phone's - and the deck for the windows name the activity type and
+    the files of the deck's kinds (the crowd graph's triples, the query's sparql-query: the rdf package's
+    texts); the files come by their hash. The status says the type and that the server checks. The host
+    console reads a picture - the presenter window's: its counts, whatever the projector holds back - and
+    moves nothing."""
+    bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle", crowd={"projector": "hidden"})
+    with TestClient(create_app(config_of(tmp_path))) as client, client.websocket_connect("/ws") as st, \
+            client.websocket_connect("/ws") as host, client.websocket_connect("/ws") as dp, \
+            client.websocket_connect("/ws") as phone:
+        st.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": bid, "id": 1})
+        welcome = recv(st, "welcome")
+        files = welcome["kindFiles"]
+        assert welcome["activities"] == "core" and set(files) == {"triples", "sparql-query"}
+        assert files["sparql-query"]["phone"] == files["triples"]["phone"] == ["texts/de.js", "texts/en.js"]
+        assert files["sparql-query"]["window"] == [] and files["sparql-query"]["hash"] == files["triples"]["hash"]
+        phone.send_json({"t": "join", "pin": welcome["pin"], "nickname": "Ada", "id": "j"})
+        hers = recv(phone, "welcome")
+        assert hers["activities"] == "core" and hers["kindFiles"] == files
+        de = client.get(f"/kinds/{files['sparql-query']['hash']}/texts/de.js")     # (one package: one URL for both)
+        assert de.status_code == 200 and "Zeile" in de.text and de.headers["cache-control"].endswith("immutable")
+        deck = client.get(f"/api/deck/{bid}", headers={"X-Texquiz-Key": KEY}).json()
+        assert (deck["activities"], deck["kindFiles"], deck["deck"]) == ("core", files, "act")
+        # a deck built before kinds were named: the windows are told each activity's kind (the review of package 8)
+        assert {aid: item.get("kind") for aid, item in deck["items"]["activity"].items()} == {
+            "crowd": "triples", "query": "sparql-query"}
+        status = client.get("/api/status").json()
+        assert (status["activities"], status["checks"]) == ("core", "server")
+        for n, (w, role) in enumerate(((host, "host"), (dp, "display")), 2):
+            w.send_json({"t": "hello", "role": role, "key": KEY, "deck": "act", "bundle": bid, "id": n})
+            assert recv(w, "welcome")["kindFiles"] == files
+        assert ask(st, 3, "slide", slide=257)["t"] == "ok"                    # the crowd graph opens
+        seen = ask(host, 4, "activity.view", activity="crowd")
+        assert seen["t"] == "ok" and seen["lead"] is None                     # (nobody lays it out yet)
+        assert seen["picture"]["phase"] == "open" and "held" not in seen["picture"] and seen["picture"]["entries"] == 0
+        assert ask(dp, 5, "activity.view", activity="crowd")["picture"]["held"] == "hidden"     # (the projector's)
+        moved = ask(host, 6, "activity.close", activity="crowd")
+        assert moved["t"] == "error" and moved["error"] == "unknown-command"
+        assert "held" not in ask(st, 7, "activity.view", activity="crowd")["picture"]      # the panel's picture,
+        box = ask(st, 8, "activity.view", activity="crowd", window="display")              # and the box's: the
+        assert box["picture"]["held"] == "hidden" and box["picture"]["phase"] == "open"     # projector's
+        # an entry: the windows' state says the step's entries with its version (the Activities button's count)
+        got = ask(phone, 9, "activity.enter", activity="crowd", entry="ada-entry-0001", fields=[":A", ":p", ":B"])
+        assert got["t"] == "ok"
+        told = recv(st, "state", until=lambda m: ((m["stage"].get("activity") or {}).get("items") or {}).get(
+            "crowd", {}).get("entries") == 1)["stage"]["activity"]["items"]["crowd"]
+        assert told["version"] >= 1 and told["phase"] == "open"
+
+
+def test_the_picture_says_who_lays_a_crowd_graph_out(tmp_path):
+    """With a picture: true - this window leads; false - another does, and this one follows; null - nobody, and a
+    presenter window may take the lead (the review of package 8: a refused window took it back by its clock)."""
+    bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle")
+    with TestClient(create_app(config_of(tmp_path))) as client, client.websocket_connect("/ws") as st, \
+            client.websocket_connect("/ws") as st2:
+        for n, w in enumerate((st, st2), 1):
+            w.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": bid, "id": n})
+            recv(w, "welcome")
+        assert ask(st, 3, "slide", slide=257)["t"] == "ok"
+        assert ask(st, 4, "activity.view", activity="crowd")["lead"] is None
+        assert ask(st, 5, "activity.layout", activity="crowd", at={})["lead"] is True
+        assert ask(st, 6, "activity.view", activity="crowd")["lead"] is True
+        assert ask(st2, 7, "activity.view", activity="crowd", window="display")["lead"] is False
+
+
+def test_a_server_of_f1s_type_tells_the_pages_so_and_names_no_kinds(tmp_path):
+    bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle")
+    config = dataclasses.replace(config_of(tmp_path), activities="f1")
+    with TestClient(create_app(config)) as client, client.websocket_connect("/ws") as st, \
+            client.websocket_connect("/ws") as phone:
+        st.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": bid, "id": 1})
+        welcome = recv(st, "welcome")
+        assert welcome["activities"] == "f1" and "kindFiles" not in welcome
+        phone.send_json({"t": "join", "pin": welcome["pin"], "nickname": "Ada", "id": "j"})
+        hers = recv(phone, "welcome")
+        assert hers["activities"] == "f1" and "kindFiles" not in hers
+        deck = client.get(f"/api/deck/{bid}", headers={"X-Texquiz-Key": KEY}).json()
+        assert deck["activities"] == "f1" and "kindFiles" not in deck
+        status = client.get("/api/status").json()
+        assert (status["activities"], status["checks"]) == ("f1", "browser")
+
+
+def test_texstage_serve_runs_the_type_it_is_told(tmp_path, monkeypatch):
+    """--activities core: the core's type - its pool, its kinds, the new panel and phone screen; without it,
+    F1's, as the lectures have it."""
+    from texstage import cli
+    from texstage.server import app as server_app
+
+    class Made(Exception):
+        pass
+    made = []
+
+    def create(config):
+        made.append(config)
+        raise Made
+    monkeypatch.setattr(server_app, "create_app", create)
+    base = ["serve", str(tmp_path), "--no-tunnel", "--data", str(tmp_path / "data"), "--key", "k" * 24]
+    for more, which in (([], "f1"), (["--activities", "core"], "core"), (["--activities", "f1"], "f1")):
+        with pytest.raises(Made):
+            cli.main(base + more)
+        assert made[-1].activities == which
+    with pytest.raises(SystemExit):
+        cli.main(base + ["--activities", "f2"])

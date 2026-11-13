@@ -34,6 +34,13 @@ export default {
     students: (n) => `${n} ${n === 1 ? "student" : "students"}`, waiting: (n) => `${n} waiting`,
     unchecked: (n) => `${n} could not be checked`,
     more: (n) => `and ${n} more`, others: "others", noTriplesYet: "Waiting for the first triples …", noTriples: "No triples.",
+    // a step's picture as the activity framework draws it (stage/activities.js)
+    held: { hidden: "The answers come with the reveal.", waiting: "Waiting for the first entries …", none: "Nothing was sent.",
+      count: (students, entries) => `${students} ${students === 1
+      ? "student has" : "students have"} sent ${entries} ${entries === 1 ? "entry" : "entries"}.` },
+    verdict: { correct: "right", partial: "partly right", incorrect: "not right" }, solution: "The reference",
+    status2: { ok: "runs", invalid: "syntax error", error: "error", timeout: "ran too long", refused: "not run",
+      internal: "could not be checked" },
   },
 
   // the phone (play/play.js)
@@ -75,6 +82,27 @@ export default {
       match: "The same graph as the reference ✓", differ: "A different graph than the reference", query: "Your Turtle",
       typeFirst: "Please type your Turtle first.",
     },
+  },
+
+  // a step of a live activity on the phone, as the activity framework has it (play/activities.js;
+  // a server run with --activities core): the step's state, a student's entries and what their checks say
+  steps: {
+    send: "Send", add: "Add", mine: "Yours", withdraw: "Take back", of: (n, m) => `${n} of ${m}`,
+    yourText: "Your text", empty: "Nothing yet.", left: (time) => `${time} left`, hint: "Hint",
+    phase: { ready: "Not open yet.", paused: "Paused - wait a moment.", closed: "Closed.", revealed: "Revealed." },
+    blocked: "The lecturer has closed contributions for you.",
+    sending: "Sending …", received: "Received", waiting: "Being checked …",
+    unchecked: "Could not be checked - not your fault.",
+    status: { ok: "It runs ✓", invalid: "Syntax error", error: "Error", timeout: "It ran too long.",
+      refused: "That is not run", internal: "Could not be checked - not your fault." },
+    fieldsOk: "In ✓",
+    verdict: { correct: "Right ✓", partial: "Partly right", incorrect: "Not right" },
+    state: { replaced: "replaced by a later one", withdrawn: "taken back", hidden: "hidden by the lecturer" },
+    refused: { closed: "The activity is closed.", paused: "The activity is paused.", revealed: "The activity is revealed.",
+      blocked: "The lecturer has closed contributions for you.", "too-fast": "Please wait a few seconds before you send again.",
+      "too-many": "You have sent as many as you may.", full: "The activity takes no more entries.",
+      duplicate: "You have sent this one already.", text: "Please type your text first.",
+      field: "Please fill in every field.", "too-long": "That is too long." },
   },
 
   // what a live activity's evaluation says besides its engine's own words (engines/*.js, run by
@@ -341,6 +369,34 @@ export default {
     },
     // the deck's live activities (Activities; stage/activity.js): many and one are what the box
     // calls the contributions (box.code: queries, or Turtle texts)
+    // the panel of the activity framework (stage/activities.js; a server run with --activities core)
+    steps: {
+      title: "Activities", closeTitle: "close the panel",
+      phase: { ready: "not opened yet", open: "open - the phones send", paused: "paused", closed: "closed",
+        revealed: "revealed" },
+      open: "Open", close: "Close", pause: "Pause", resume: "Resume", more: "+30 s", noTime: "No time",
+      reveal: "Reveal", reset: "Reset", undo: "Undo", left: (time) => `${time} left`,
+      revealAsk: "Reveal the activity - in every window, and on the phones their verdicts?",
+      resetAsk: "Start the activity anew? What was sent so far no longer counts.",
+      entries: (n) => `${n} ${n === 1 ? "entry" : "entries"}`, checked: (n) => `${n} checked`,
+      full: "full - new texts wait", hidden: (n) => `${n} hidden`,
+      show: "Show", unshow: "Off the projector", showTitle: "show this group on the projector",
+      hide: "Hide", unhide: "Show again", block: "Block", blockTitle: "the student who sent the text shown sends no more",
+      blockAsk: "Block whoever sent this? What they sent is hidden, and they cannot send any more here.",
+      merge: "Merge…", into: "← into this", unmerge: "Unmerge", approve: "Approve", unapprove: "Unapprove",
+      mergeInto: (term) => `Merge ${term} into …`, node: "node", label: "label",
+      from: "On the projector from", on: (n) => `${n === 1 ? "student" : "students"} on`,
+      moreNodes: (n) => `${n} more nodes than the projector shows.`, noTriples: "No triples yet.",
+      none: "Nothing sent yet.", others: (n) => `and ${n} in smaller groups`,
+      refIn: (i, n) => `Reference ${i}: the group of ${n} ✓`, refAlone: (i) => `Reference ${i}: nobody has its result yet`,
+      refFailed: (i, why) => `Reference ${i} does not run here: ${why}`, refPending: (i) => `Reference ${i}: being checked …`,
+      noRef: "No reference: the groups have no verdict.",
+      failed: (why) => `Nothing of it is checked: ${why}`, store: (n, why) => `The server could not write ${n} times: ${why}`,
+      acts: "Last acts", undone: "undone",
+      act: { hide: "hidden", approve: "approved", merge: "merged", unmerge: "unmerged", show: "shown", min: "minimum",
+        block: "blocked" },
+      lead: "This window lays the graph out.",
+    },
     activity: {
       title: "Activities", closeTitle: "close the panel",
       revealAsk: "Reveal the reference's result - in every window, and on the phones whether theirs is the same?",
@@ -443,6 +499,9 @@ export default {
     players: "Players", playersOf: (n, online) => `Players (${n}, ${online} online)`, quizzes: "Quizzes",
     nobody: "Nobody has joined yet.", rename: "rename", remove: "remove",
     renameAsk: "New nickname", removeAsk: (name) => `Remove ${name} from the game?`, slideOf: (n, m) => `slide ${n} / ${m}`,
+    // the deck's live activities, with --activities core: each one's phase, the open one's counts
+    activities: "Activities", counts: (students, entries, waiting) => `${students} ${students === 1 ? "student" : "students"}`
+      + ` · ${entries} ${entries === 1 ? "entry" : "entries"}${waiting ? ` · ${waiting} being checked` : ""}`,
   },
 
   // the PowerPoint add-in (addin/addin.js): its status bar in the editing view, the file's first

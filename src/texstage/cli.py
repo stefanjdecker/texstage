@@ -97,9 +97,10 @@ def cmd_build(args: argparse.Namespace) -> int:
     if acts is not None and acts.items:
         kinds = ", ".join(f"{name} ({k['package']} {k['version']})" for name, k in acts.kinds.items())
         n, refs = len(acts.items), acts.references
+        from texstage.activities.kit import kb
         print(f"  {n} live {'activity' if n == 1 else 'activities'} of the kind{'' if len(acts.kinds) == 1 else 's'} "
               f"{kinds}: {refs} {'reference runs' if refs == 1 else 'references run'} as the server runs them; a phone "
-              f"loads {acts.phone_bytes / 1024:.0f} KB of the kinds' own files")
+              f"loads {kb(acts.phone_bytes)} of the kinds' own files")
     print(f"{r.zip}: the same as one file - a server without the deck takes it in its deck list (Upload a deck)")
     if r.stage is not None:
         notes = sum(p.note is not None for p in r.stage.pages)
@@ -180,7 +181,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
     config = ServerConfig(bundles=[Path(b) for b in args.bundles] or [Path.cwd()], data_dir=data,
                           public_url=public, presenter_key=args.key or load_presenter_key(data),
                           owner=own_name(args.owner), settings=Settings(max_players=most) if most else Settings(),
-                          checks=getattr(args, "checks", None) or "browser", workers=getattr(args, "workers", None))
+                          checks=getattr(args, "checks", None) or "browser", workers=getattr(args, "workers", None),
+                          activities=getattr(args, "activities", None) or "f1")
     app = create_app(config)
     server = app.state.server
     for b in sorted(server.bundles.bundles.values(), key=lambda b: (b.deck, str(b.path))):
@@ -379,7 +381,7 @@ def cmd_present(args: argparse.Namespace) -> int:
         bundles=[str(out), *more], host=args.host, port=args.port, public_url=args.public_url, tunnel=args.tunnel,
         no_tunnel=args.no_tunnel, data=args.data, key=None, owner=None, show_key=False, present=False,
         opener=opener, log_level=args.log_level, forwarded_allow_ips=None, checks=args.checks,
-        workers=args.workers, max_players=args.max_players))
+        workers=args.workers, max_players=args.max_players, activities=args.activities))
 
 
 def own_name(name: str | None) -> str:
@@ -721,6 +723,10 @@ def checks_options(parser: argparse.ArgumentParser, starting: str = "") -> None:
     parser.add_argument("--workers", type=_positive,
                         help=f"{starting}the worker processes that check on the server (default: the cores less two)")
     parser.add_argument("--max-players", type=_positive, help=f"{starting}phones a game takes at most (default 1000)")
+    parser.add_argument("--activities", choices=["f1", "core"], default=None,
+                        help=f"{starting}the live activities' type: f1 (default, as the lectures have it) or core - the "
+                             "activity framework's, with its kinds, the server's checks, the new panel and phone screen "
+                             "(docs/architecture/activity-framework-plan-f2.md)")
 
 
 if __name__ == "__main__":

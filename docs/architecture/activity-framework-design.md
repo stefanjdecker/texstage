@@ -382,26 +382,34 @@ them. The students' texts are not trusted (section 11).
 ```js
 // on the phones: JavaScript, public data only, no network (the pages' CSP); their size: below
 // web/hint.js - in a Web Worker, so that a slow hint never holds up typing
-export function hint(step, text, words) {}     // -> null | {code, args, at}: while the student types
+export function hint(step, text, words) {}     // -> null | {code, args, at}: while the student types;
+                                               //    words: {language} - data, as a worker gets it
 // web/input.js - (optional) in the page: an input of its own instead of the core's
-export function input(step, words, send) {}    // draws the input; send(entry) sends what it holds
+export function input(element, step, words, send) {}   // draws the input into element; send(entry)
+                                               //    sends what it holds - a promise: taken or not
 
 // web/box.js - in the presenter and projector windows
-export function group(detail, words) {}        // a group's detail: rows as a table, a graph
+export function group(detail, words) {}        // a group's detail as HTML: rows as a table, a graph
 export function view(picture, words) {}        // (optional) the whole box instead of the core's view
 ```
 
+A group's detail carries what students' queries gave: `group` escapes what it puts in. The windows
+put its HTML in as it comes - they trust a kind's code as the server trusts its Python. (`view`
+is not built in F2: the four kinds and texstage's own need none.)
+
 The server serves a kind's files from its package under the hash of their contents
-(`/kinds/<name>/<hash>/...`): cached long and immutable, as a bundle's pictures are
-(`server/app.py:1090`), gzip-compressed once when it starts, and never stale - a kind installed
-from source changes without a new version, and its hash changes with it. A phone loads the files
-of the deck's kinds in the background when it joins - not in the second a step opens on 1,000
-phones (section 15.2).
+(`/kinds/<hash>/...`): cached long and immutable, as a bundle's pictures are, gzip-compressed once
+when it starts, and never stale - a kind installed from source changes without a new version, and
+its hash changes with it. The kinds of one package share their folder, so their hash: a file they
+share comes once. A phone loads all of the deck's kinds' files in the background when it joins -
+its hints too, which their worker takes from the browser's cache - not in the second a step opens
+on 1,000 phones (section 15.2).
 
 Every page gets a Content-Security-Policy - scripts and connections from the server only -, so
-that a kind's modules reach no network in fact, not by convention. Today only the evaluator's
-worker has one (`server/app.py:167`), and it goes with the evaluator in F1; F2 fits the new one to
-today's pages - KaTeX's inline styles, the add-in's Office.js - before the kinds' modules come
+that a kind's modules reach no network in fact, not by convention. Today the evaluator's worker
+has one, and the hints' worker since F2's package 8 (`default-src 'none'; script-src 'self'`: a
+worker's `import()` is a script's, so blocking `fetch` alone is not enough); F2 fits the pages'
+own to today's pages - KaTeX's inline styles, the add-in's Office.js
 ([activity-framework-plan.md](activity-framework-plan.md), 4.12).
 
 A hint knows what the phone knows: the step's public item - its tokens, the seed's table and
@@ -427,7 +435,10 @@ its hints -; and Oxigraph's engine alone is 1.4 MB compressed - above the limit,
 
 A kind's texts join the core's catalogs under `kinds.<name>` (`web/i18n`); the phones and the
 windows speak the deck's language, in English where a kind lacks a text. A check's `message` is a
-code into those texts, so the server sends no words.
+code into those texts, so the server sends no words. As built (F2, package 8): a kind's package has
+`texts/en.js` and `texts/de.js` - a function of the message's arguments for each code -, and a key
+`<kind>:<status>` there is the kind's own word for a check's status in place of the core's: a
+Turtle text is valid, it does not run (`"turtle-graph:ok": "Valid Turtle ✓"`).
 
 ### 7.5 The kit
 
@@ -436,9 +447,11 @@ kind, checks its options, runs its fixtures (an entry and the check it must give
 and references) - among them the entries that must neither reach out nor bring a worker down:
 for SPARQL `SERVICE` in every spelling, `\u` escapes too, and for every kind nesting beyond its
 parser's cap (11) -, compares its texts in English and German, loads its browser modules in Node
-without network, measures what a phone loads for the kind - a warning above 200 KB compressed, a
-refusal above 1 MB (7.3) -, and reports each fixture's time against the budget. A kind's own
-tests come on top.
+as a phone has them - no network, imports from its folder alone, none of Node's own globals, under
+Node's permission model -, measures what a phone loads for the kind - a warning above 200 KB
+compressed, a refusal above 1 MB (7.3) -, and reports each fixture's time against the budget. A
+kind's own tests come on top. The kit finds a kind's mistakes; it is no sandbox for a kind that
+means harm, whose Python runs on the server anyway.
 
 ## 8. In LaTeX
 

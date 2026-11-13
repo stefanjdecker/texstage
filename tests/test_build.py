@@ -804,7 +804,9 @@ def test_a_deck_that_names_its_kinds(tmp_path):
     assert sorted(deck["kinds"]) == ["sql-query", "triples"] and deck["kinds"]["sql-query"]["package"] == "texstage-kinds-sql"
     assert [(b["item"], b["phase"]) for s in deck["slides"] for b in s.get("live", [])] == [
         ("names", "open"), ("names", "revealed"), ("graph", "open")]
-    assert (r.activities.references, r.activities.phone_bytes) == (1, 0)          # (the kinds have no phone files yet)
+    from texstage.activities import kit, registry
+    assert r.activities.references == 1                                           # what a phone loads: their texts
+    assert r.activities.phone_bytes == kit.phone_bytes(registry.kind("sql-query"), registry.kind("triples")) > 0
 
 
 @pytest.mark.parametrize("change, message", [

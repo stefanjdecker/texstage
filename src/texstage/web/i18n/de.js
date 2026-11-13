@@ -29,6 +29,13 @@ export default {
     students: (n) => `${n} ${n === 1 ? "Person" : "Personen"}`, waiting: (n) => `${n} ${n === 1 ? "wartet" : "warten"}`,
     unchecked: (n) => `${n} ${n === 1 ? "ließ" : "ließen"} sich nicht prüfen`,
     more: (n) => `und ${n} weitere`, others: "andere", noTriplesYet: "Warten auf die ersten Tripel …", noTriples: "Keine Tripel.",
+    // das Bild eines Schritts, wie das Aktivitäts-Framework es zeichnet (stage/activities.js)
+    held: { hidden: "Die Antworten kommen mit der Auflösung.", waiting: "Warten auf die ersten Beiträge …",
+      none: "Nichts geschickt.", count: (students, entries) => `${students} ${students === 1
+      ? "Person hat" : "Personen haben"} ${entries} ${entries === 1 ? "Beitrag" : "Beiträge"} geschickt.` },
+    verdict: { correct: "richtig", partial: "teilweise richtig", incorrect: "nicht richtig" }, solution: "Die Referenz",
+    status2: { ok: "läuft", invalid: "Syntaxfehler", error: "Fehler", timeout: "lief zu lange", refused: "nicht ausgeführt",
+      internal: "ließ sich nicht prüfen" },
   },
 
   phone: {
@@ -67,6 +74,28 @@ export default {
       match: "Derselbe Graph wie die Referenz ✓", differ: "Ein anderer Graph als die Referenz", query: "Ihr Turtle",
       typeFirst: "Bitte tippen Sie zuerst Ihr Turtle.",
     },
+  },
+
+  // ein Schritt einer Live-Aktivität auf dem Handy, wie das Aktivitäts-Framework ihn hat (play/activities.js)
+  steps: {
+    send: "Abschicken", add: "Hinzufügen", mine: "Ihre Beiträge", withdraw: "Zurücknehmen", of: (n, m) => `${n} von ${m}`,
+    yourText: "Ihr Text", empty: "Noch nichts.", left: (time) => `noch ${time}`, hint: "Hinweis",
+    phase: { ready: "Noch nicht geöffnet.", paused: "Pausiert – einen Moment bitte.", closed: "Geschlossen.",
+      revealed: "Aufgelöst." },
+    blocked: "Die Lehrperson hat Beiträge für Sie gesperrt.",
+    sending: "Wird geschickt …", received: "Angekommen", waiting: "Wird geprüft …",
+    unchecked: "Ließ sich nicht prüfen – nicht Ihre Schuld.",
+    status: { ok: "Läuft ✓", invalid: "Syntaxfehler", error: "Fehler", timeout: "Lief zu lange.",
+      refused: "Das wird nicht ausgeführt", internal: "Ließ sich nicht prüfen – nicht Ihre Schuld." },
+    fieldsOk: "Angekommen ✓",
+    verdict: { correct: "Richtig ✓", partial: "Teilweise richtig", incorrect: "Nicht richtig" },
+    state: { replaced: "durch einen späteren ersetzt", withdrawn: "zurückgenommen", hidden: "von der Lehrperson ausgeblendet" },
+    refused: { closed: "Die Aktivität ist geschlossen.", paused: "Die Aktivität ist pausiert.",
+      revealed: "Die Aktivität ist aufgelöst.", blocked: "Die Lehrperson hat Beiträge für Sie gesperrt.",
+      "too-fast": "Bitte warten Sie ein paar Sekunden, bevor Sie wieder etwas schicken.",
+      "too-many": "Sie haben so viele geschickt, wie Sie dürfen.", full: "Die Aktivität nimmt keine Beiträge mehr an.",
+      duplicate: "Das haben Sie schon geschickt.", text: "Bitte tippen Sie zuerst Ihren Text.",
+      field: "Bitte füllen Sie jedes Feld aus.", "too-long": "Das ist zu lang." },
   },
 
   engines: {
@@ -303,6 +332,35 @@ export default {
       none: "Noch keine Fragen.", closed: "Fragen sind geschlossen – öffnen Sie sie, und die Handys bekommen einen Tab dafür.",
       answered: "Beantwortet",
     },
+    // das Panel des Aktivitäts-Frameworks (stage/activities.js)
+    steps: {
+      title: "Aktivitäten", closeTitle: "Panel schließen",
+      phase: { ready: "noch nicht geöffnet", open: "offen – die Handys schicken", paused: "pausiert", closed: "geschlossen",
+        revealed: "aufgelöst" },
+      open: "Öffnen", close: "Schließen", pause: "Pause", resume: "Weiter", more: "+30 s", noTime: "Ohne Zeit",
+      reveal: "Auflösen", reset: "Zurücksetzen", undo: "Rückgängig", left: (time) => `noch ${time}`,
+      revealAsk: "Die Aktivität auflösen – in allen Fenstern, und auf den Handys ihre Bewertung?",
+      resetAsk: "Die Aktivität neu beginnen? Was bisher geschickt wurde, zählt nicht mehr.",
+      entries: (n) => `${n} ${n === 1 ? "Beitrag" : "Beiträge"}`, checked: (n) => `${n} geprüft`,
+      full: "voll – neue Texte warten", hidden: (n) => `${n} ausgeblendet`,
+      show: "Zeigen", unshow: "Vom Projektor", showTitle: "diese Gruppe auf dem Projektor zeigen",
+      hide: "Ausblenden", unhide: "Wieder zeigen", block: "Sperren", blockTitle: "wer den gezeigten Text schickte, schickt nichts mehr",
+      blockAsk: "Wer dies schickte, sperren? Was die Person schickte, wird ausgeblendet, und sie kann hier nichts mehr schicken.",
+      merge: "Zusammenführen…", into: "← hierhin", unmerge: "Trennen", approve: "Freigeben", unapprove: "Zurücknehmen",
+      mergeInto: (term) => `${term} zusammenführen mit …`, node: "Knoten", label: "Kante",
+      from: "Auf dem Projektor ab", on: (n) => `${n === 1 ? "Person" : "Personen"}`,
+      moreNodes: (n) => `${n} Knoten mehr, als der Projektor zeigt.`, noTriples: "Noch keine Tripel.",
+      none: "Noch nichts geschickt.", others: (n) => `und ${n} in kleineren Gruppen`,
+      refIn: (i, n) => `Referenz ${i}: die Gruppe von ${n} ✓`, refAlone: (i) => `Referenz ${i}: niemand hat ihr Ergebnis`,
+      refFailed: (i, why) => `Referenz ${i} läuft hier nicht: ${why}`, refPending: (i) => `Referenz ${i}: wird geprüft …`,
+      noRef: "Keine Referenz: die Gruppen haben keine Bewertung.",
+      failed: (why) => `Nichts davon wird geprüft: ${why}`,
+      store: (n, why) => `Der Server konnte ${n}-mal nicht schreiben: ${why}`,
+      acts: "Letzte Eingriffe", undone: "rückgängig gemacht",
+      act: { hide: "ausgeblendet", approve: "freigegeben", merge: "zusammengeführt", unmerge: "getrennt", show: "gezeigt",
+        min: "Minimum", block: "gesperrt" },
+      lead: "Dieses Fenster legt den Graphen aus.",
+    },
     activity: {
       title: "Aktivitäten", closeTitle: "die Leiste schließen",
       revealAsk: "Das Ergebnis der Referenz auflösen – in jedem Fenster, und auf den Handys, ob das eigene dasselbe ist?",
@@ -390,6 +448,9 @@ export default {
   sketch: { label: (number) => (number ? `Skizze ${number}` : "Skizze") },
 
   host: {
+    // die Live-Aktivitäten des Decks, mit --activities core: die Phase jeder, die Zahlen der offenen
+    activities: "Aktivitäten", counts: (students, entries, waiting) => `${students} ${students === 1 ? "Person" : "Personen"}`
+      + ` · ${entries} ${entries === 1 ? "Beitrag" : "Beiträge"}${waiting ? ` · ${waiting} in Prüfung` : ""}`,
     title: "texstage-Host",
     intro: (build, script) => `Gebaut mit ${build} / ${script}; ein jetzt gebauter Foliensatz erscheint nach dem Neuladen.`,
     resume: "Fortsetzen", start: "Starten", prev: "vorherige Folie (←)", next: "nächste Folie (→)", full: "Vollbild (F)",

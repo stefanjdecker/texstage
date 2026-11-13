@@ -60,3 +60,4 @@ packages = ["texstage", "texstage.activities", "texstage.build", "texstage.check
 [tool.setuptools.package-data]
 texstage = ["web/**/*"]      # the pages the server serves (phone, host console, live views, texstage)
 "texstage.latex" = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]
+"texstage.activities" = ["kit.mjs"]      # the kit's browser half, run in Node (kit.py: browser)

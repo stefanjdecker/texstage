@@ -31,6 +31,8 @@
                                              only deck.json lists, and deck.json only hosts
                                              get - reveal slides stay with the hosts
     GET /join/<pin>.svg                      QR code of the join URL
+    GET /kinds/<hash>/<path>                 a kind's own files for the browser - texts, hints, its input and
+                                             box (kindfiles.py); the welcome names them (the core's type)
     WS  /ws                                  the game (below)
 
 Protocol: one WebSocket per client, JSON messages {"t": type, ...}. A command may carry an
@@ -119,6 +121,7 @@ from texstage.server.devices import PAIR_MS, Devices
 from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
 from texstage.server.game import Engine, GameError, Settings, clean_nickname, token_hash
+from texstage.server.kindfiles import Kinds
 from texstage.server.store import Store
 
 log = logging.getLogger("texstage.server")
@@ -156,6 +159,8 @@ mimetypes.add_type("text/javascript", ".mjs")      # PDF.js's modules (web/vendo
                                                     # may say text/plain, and browsers refuse that
 mimetypes.add_type("application/wasm", ".wasm")    # Oxigraph's engine (web/vendor/oxigraph): compiled as it comes
 EVALUATOR = "evaluator-worker.js"                   # a live activity's queries run there: no network (web/stage)
+HINTS = "hint-worker.js"                            # a kind's hints run there: no network either (web/play)
+HINTS_POLICY = "default-src 'none'; script-src 'self'"   # (a worker's import() is a script's: script-src)
 
 
 class Static(StaticFiles):
@@ -165,13 +170,41 @@ class Static(StaticFiles):
     def file_response(self, *args, **kwargs):
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "no-cache"
-        if str(args[0] if args else kwargs.get("full_path", "")).endswith(EVALUATOR):
+        name = str(args[0] if args else kwargs.get("full_path", ""))
+        if name.endswith(EVALUATOR):
             response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
+        elif name.endswith(HINTS):                    # nor does a kind's hint: no fetch, no import from elsewhere
+            response.headers["Content-Security-Policy"] = HINTS_POLICY
         return response
 
 
 def now_ms() -> int:
     return int(time.time() * 1000)
+
+
+def named(item: dict) -> dict:
+    """An activity's item with its kind's name, which a deck built before kinds were named leaves to the server
+    (play.kind_of): what the windows look its texts and box.js up by."""
+    if item.get("kind"):
+        return item
+    from texstage.activities.play import kind_of
+    try:
+        return dict(item, kind=kind_of(item).NAME)
+    except LookupError:                               # (the server refuses or fails the activity: its problems)
+        return item
+
+
+def gzip_taken(accepted: str) -> bool:
+    """Whether a request's Accept-Encoding takes gzip: named - or else as * - and not with q=0."""
+    weights = {}
+    for part in accepted.split(","):
+        name, *params = (p.strip() for p in part.split(";"))
+        q = next((p.partition("=")[2] for p in params if p.lower().startswith("q=")), "1")
+        try:
+            weights.setdefault(name.lower(), float(q))
+        except ValueError:
+            weights.setdefault(name.lower(), 0.0)
+    return weights.get("gzip", weights.get("*", 0.0)) > 0
 
 
 def refuse(code: str, message: str, status: int, **more) -> JSONResponse:
@@ -425,6 +458,7 @@ class Server:
             raise ValueError(f"checks: one of {', '.join(MODES)}, not {config.checks!r}")
         mode = "server" if config.activities == "core" else config.checks      # (the core has no window that checks)
         self.checks = None if mode == "browser" else Checks(mode, workers=config.workers, **config.pool)
+        self.kinds = Kinds()                         # the kinds' own files for the browser (/kinds/...)
         if self.checks is not None:                  # (the mode both: the differences, in the game's archive folder)
             self.checks.compare_file = lambda s: archive.folder(config.data_dir, s) / "checks-compare.csv"
         self.checks_due = False
@@ -804,7 +838,10 @@ class Server:
             log.warning("could not keep a copy of %s: %s", b.path, err)
         conn.role, conn.deck, conn.lecturer = role, s.deck, lecturer
         self._attach(conn, s.id)
-        welcome = {"t": "welcome", "re": mid, "role": role, "session": s.id, "pin": s.pin}
+        welcome = {"t": "welcome", "re": mid, "role": role, "session": s.id, "pin": s.pin,
+                   "activities": stage_types.using}              # (the activity type: the windows' modules for it)
+        if stage_types.using == "core":                   # the deck's kinds: their files for the windows
+            welcome["kindFiles"] = self.kinds.deck(b.items.get("activity") or {})
         if role == "stage":                               # a new presentation, or the lecture continued?
             welcome["earlier"] = self.engine.earlier(s.id)
             welcome["presenters"] = sum(1 for c in self.conns[s.id] if c is not conn and c.role == "stage")
@@ -819,7 +856,11 @@ class Server:
             self.engine.connect(p.id, +1)
         conn.role, conn.player = "player", p.id
         self._attach(conn, p.session)
-        welcome = {"t": "welcome", "re": mid, "role": "player", "player": p.id, "nickname": p.nickname}
+        welcome = {"t": "welcome", "re": mid, "role": "player", "player": p.id, "nickname": p.nickname,
+                   "activities": stage_types.using}
+        if stage_types.using == "core":                   # the deck's kinds: a phone loads their files now
+            b = self.bundles.get(self.engine.session(p.session).bundle)
+            welcome["kindFiles"] = self.kinds.deck(b.items.get("activity") or {}) if b is not None else {}
         if token:
             welcome["token"] = token
         conn.send(welcome)
@@ -866,6 +907,8 @@ class Server:
             new = e.restart(sid, now)
             self._sweep()
             return {"session": new.id, "pin": new.pin}
+        elif t in stage_types.READS:                     # what a content type shows - an activity's picture,
+            return e.type_message(sid, t, msg, now, role=conn.role, conn=conn.key)    # as the projector has it
         else:
             raise GameError("unknown-command", f"unknown command {t!r}")
         self.push(sid)
@@ -1099,7 +1142,8 @@ def create_app(config: ServerConfig) -> Starlette:
     async def status(request: Request):
         return JSONResponse({"server": "texstage", "version": __version__, "join": f"{config.public_url}/play",
                              "instance": server.instance, "bundles": len(server.bundles.bundles),
-                             "games": len(server.engine.sessions), "checks": config.checks})
+                             "games": len(server.engine.sessions), "activities": stage_types.using,
+                             "checks": server.checks.mode if server.checks is not None else "browser"})   # (core: server)
 
     async def presenter_key(request: Request):
         # Only to the machine itself, asked as localhost: not through a proxy (behind Caddy
@@ -1172,6 +1216,18 @@ def create_app(config: ServerConfig) -> Starlette:
             packed.unlink(missing_ok=True)
         log.info("published by %s: %s %s (%s)", lect, b.deck, b.id, target)
         return JSONResponse(bundle_info(b) | {"new": True}, status_code=201)
+
+    async def kind_file(request: Request):
+        """A kind's own file for the browser (kindfiles.py): by its hash, cached for ever, compressed."""
+        p = request.path_params
+        found = server.kinds.file(p["digest"], p["path"])
+        if found is None:
+            return PlainTextResponse("not found", status_code=404)
+        data, packed, mime = found
+        headers = {"Cache-Control": "public, max-age=31536000, immutable", "Vary": "Accept-Encoding"}
+        if gzip_taken(request.headers.get("accept-encoding", "")):
+            return Response(packed, media_type=mime, headers=headers | {"Content-Encoding": "gzip"})
+        return Response(data, media_type=mime, headers=headers)
 
     async def picture(request: Request):
         b = server.bundles.get(request.path_params["bundle"])
@@ -1467,7 +1523,12 @@ def create_app(config: ServerConfig) -> Starlette:
         b = server.bundles.get(request.path_params["bundle"])
         if b is None or not b.open_to(lect):
             return refuse("unknown-bundle", "no such bundle", 404)
-        return JSONResponse(b.deck_json)
+        view = dict(b.deck_json, activities=stage_types.using)       # (the windows' modules for the activity type)
+        if stage_types.using == "core":                   # the deck's kinds: their files for the windows -
+            acts = b.items.get("activity") or {}
+            view["kindFiles"] = server.kinds.deck(acts)
+            view["items"] = dict(view.get("items") or {}, activity={aid: named(item) for aid, item in acts.items()})
+        return JSONResponse(view)
 
     async def deck_pdf(request: Request):
         """The stage PDF (texstage): every page of the deck, reveal pages too, so for hosts
@@ -1705,6 +1766,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/bundles/{bundle}", publish, methods=["PUT"]),
         Route("/api/bundles", upload, methods=["POST"]),
         Route("/bundle/{bundle}/{kind}/{file}", picture),
+        Route("/kinds/{digest}/{path:path}", kind_file),
         Route("/join/{pin}.svg", join_qr),
         WebSocketRoute("/ws", ws_endpoint),
     ], lifespan=lifespan)

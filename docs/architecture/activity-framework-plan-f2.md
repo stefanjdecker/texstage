@@ -256,7 +256,8 @@ archive's files.
   - *Messages are codes* (AF 6.3, 7.4): a check says `Message(code, args)`, a kind lists its codes
     and their arguments (`MESSAGES`), and `engine` is the code for an engine's own words, cut to
     300 characters. Until the phones say them (package 8), `activities/code.py` words a message as
-    F1's catalog does - which is how the golden fixtures still hold. F1's checks carry the codes
+    F1's catalog does - which is how the golden fixtures still hold. Since package 8 the phones and
+    windows of the core's type say them in the kind's words (`texts/en.js`, `de.js`; 4.5). F1's checks carry the codes
     only when a kind asks (`checks/texts.py`: `coded()`); F1's worker gets plain text as before.
   - *The base of three kinds* (`code.py`) is a helper beside the contract, not a part of it.
   - *By input, not by kind:* the pause between entries and whether a new entry stands beside the
@@ -802,7 +803,8 @@ is after its review - four faults, four doubts and seven small findings, fixed:
   whose time or budget is none is refused (`Part`).
 - **What a phone loads** of the deck's kinds' own files - `web/hint.js`, `web/input.js`, what they
   import, `texts/*.js` (`kit.py`: `phone_files`) - the build says, compressed, each file once: kinds
-  of one package share theirs. 0 KB for the four kinds, which have none yet (package 8).
+  of one package share theirs. For the four kinds their texts since package 8: under 1 KB a
+  package.
 - **The manual** names the new keys and `\reveal`, as CI's check of the LaTeX reference wants every
   key named; it says that the activity type `texstage serve` runs today leaves the new keys aside.
 
@@ -838,6 +840,83 @@ lecture-tools once it has taken F2 (package 11).
   strictest, allowing workers from the server for the hints; the add-in's allows Office.js from
   Microsoft's CDN, and the pages whose KaTeX and `web/shared/live.js` write inline styles allow
   those; tried in the app's Chromium and in PowerPoint before it lands.
+
+As built (package 8, 2026-11-13): the core's type has browser code of its own beside F1's, which
+F1's type keeps as it is. A page learns the type from its welcome and from the deck's view
+(`activities`: `f1` or `core`) and takes that type's modules; `texstage serve --activities core`
+runs the core's type, `texstage present` hands the option on - F1's stays the default (4.3).
+
+- **The phone** (`web/play/activities.js`): one screen for the current step - its picture, the
+  time left, the phase; the input `code` with the deck's tokens, `fields` with what the graph
+  offers, or the kind's `input.js`; *Send*, and the student's entries, each with its state in the
+  deck's language - sending, received, being checked, could not be checked, the check's status
+  with its message in the kind's words; replaced, withdrawn, hidden; after the reveal its verdict.
+  A refusal is said in words (too fast, too many, closed, ...). A kind may name its own word for
+  a status (AF 7.4: a Turtle text is valid, it does not run). The inputs `choice`, `number` and
+  `text` come with the kinds that have them (4.8, package 9). A kind's `input.js` draws into an
+  element of its own, beside the core's form (AF 7.3). A kind's `hint.js` runs in a module worker
+  (`web/play/hint-worker.js`; its policy, `default-src 'none'; script-src 'self'`, lets it fetch
+  nothing and import from the server alone), asked 300 ms after the last key or token, with data
+  alone - the step's public part, the text, the deck's language; a hint for a text that is gone is
+  dropped. The deck's kinds stay the phone's across a reconnect to its deck, and a screen made
+  before they came takes them when they come.
+- **The box** (`web/stage/activities.js`: `StepBox`): the projector's picture, in both windows
+  (`activity.view` with `window: "display"`; AF 13) - bars for groups and a tally with each group's
+  result, a group shown with its detail (the kind's `box.js`, else the core's table), after the
+  reveal the marks and the references' results; the crowd graph as F1 draws it, laid out by the
+  lead window (`StepAgent`: the projector never leads; with every picture the server says who
+  does - this window, another, nobody -, and a presenter window that another leads drops its own
+  positions and follows the picture's until nobody leads); what the projector holds back
+  (`projector=hidden`, `count`) is held back on the presenter's slide too. A histogram comes with
+  the kind of numbers (package 9).
+- **The panel** (`openStepPanel`): the lecturer's picture - the phase and the time, the counts
+  (students, entries, checked, waiting, unchecked; full, hidden), the controls, the references'
+  standing, the groups with their messages, details and buttons (*Show*, *Hide*, *Block*), the
+  crowd graph's terms (*Merge*, *Unmerge*, *Hide*, *Approve*, the minimum), the acts that hold,
+  the latest first, each with *Undo*. The controls are keys of the presenter window too, for the
+  activity on the slide: O open (a paused step: resume), C close, S pause or resume, R reveal and
+  X reset (both ask first, as their buttons do), + 30 s, - no time; the buttons' titles name them.
+  The small copy of what the projector shows is the slide itself, whose box draws the projector's
+  picture. Another activity picked while a picture comes is asked for, and nothing of the first
+  stays. The Activities button counts the current step's entries (the windows' state has them with
+  the step's version).
+- **The host console** (`web/host/acts.js`): a line per activity with its phase, and for the
+  current one its time, counting down, and its counts - from the lecturer's picture, whatever the
+  projector holds back, asked for at most every 2 s and a change that comes sooner when they are up.
+- **A kind's files** (`server/kindfiles.py`): under `/kinds/<hash>/<path>`, the hash that of the
+  files' paths and contents - the kinds of one package share it, so a file they share comes once -,
+  cached for a year (`immutable`), compressed once when the server starts and sent so where the
+  browser takes gzip; nothing for another hash or a file that is not the browser's. A phone loads
+  `web/hint.js`, `web/input.js`, what they import from beside them and `texts/*.js`; the windows
+  besides `web/box.js` and its imports - by the path a browser asks for (a link in the kind's
+  folder too), of the types the server serves (`.js`, `.mjs`, `.json`, `.css`), nothing outside the
+  folder. The welcome names the deck's kinds (`kindFiles`: {name: {hash, phone, window}}), and so
+  does the deck's view for the windows, which also names each activity's kind where a deck built
+  before kinds were named does not; `web/kinds.js` loads them all in the background when a phone
+  joins - the texts in the deck's language, English where a kind has no German, the rest into the
+  browser's cache, where the hints' worker finds them.
+- **The four kinds' texts**: `texts/en.js` and `de.js` in both packages, for every code of their
+  `MESSAGES` a text made with the code's arguments, and Turtle's own words for a status, as F1 said
+  them; they have no modules for the browser.
+- **Tried in the app's Chromium** (2026-11-13): a deck with an activity of each of the four kinds,
+  against a server of the core's type - the phone, the box, the panel and its keys, the host
+  console.
+
+Its review (2026-11-13: an independent reviewer, sixty planted faults - 56 caught -, and my own
+probes) found eleven faults, six doubts and nine nits; all are fixed, as the list above has it. The
+faults: the hints' worker imported from elsewhere, and so reached the network with the student's
+text; after a reconnect into another step the phone said codes, not words, and had no hints; the
+windows did not know the kind of a deck built before kinds were named; a refused presenter window
+took the lead back by its clock and drew stale positions; the panel kept the activity before's
+buttons while another's picture came; the phone put back a text the student had cleared; a screen
+that was gone wrote into the next; the host console's time did not run; a phone loaded `hint.js`
+when the step opened; the kit's Node half could be fooled - a module that wrote a result line, ended
+Node, replaced `JSON.stringify` or reached the network through `process`, and modules using Node's
+own globals passed; a Turtle text "ran". Found while fixing them: the phone sent the hints' worker
+its words with functions in them, which a worker cannot be sent - hints would never have come.
+
+Left: the pages' policy (package 10); the inputs and views of texstage's own kinds (package 9);
+a kind's `view()` for the whole box (AF 7.3); steps beyond the one (F3).
 
 ### 4.6 Short checks first (decided, from F0)
 
@@ -950,7 +1029,7 @@ with its comments until the core replaces it.
   the comments are out - where the same query typed without comments always was (the review).
   A text that began with a comment begins with an empty line: it is another form than the text
   without that line, checked for itself and counted for itself where a group's most frequent text
-  is asked for, and a window that draws a group's text may leave such lines out (package 8). The
+  is asked for, and the windows draw a group's text without such lines (package 8). The
   blank lines in front count to a text's 2,000 characters now.
 - **A text of nothing but comments is refused** (`Unfit`, the phone's code `text`: "a query is more
   than its comments") - it was a syntax error before; either way it is in the group of what is
@@ -1072,8 +1151,21 @@ statuses it may be, and of its other fields those it lists, or the code `normali
 entry with. A build gives a deck's keys, bodies and files, and what the kind makes of them or the
 words it refuses them with. The command fails when a kind fails, cannot be used, or none is there
 to check.
-Left for the browser half: the texts in English and German - the codes are listed in Python
-(`MESSAGES`), their words are not there yet -, the modules in Node, what a phone loads.
+The browser half, as built (package 8, `kit.py`: `browser`, run in Node by `kit.mjs`): what a phone
+loads of the kind, compressed, against the sizes - a warning above 200 KB, a fault above 1 MB; its
+texts, `texts/en.js` and `de.js`, both there when it has `MESSAGES`, a text for every code, made with
+the code's arguments - one that does not say an argument is a warning -, the same codes in both; its
+modules (`web/hint.js`, `input.js`, `box.js`), each loaded with its imports and holding the function
+it is to give (`hint`, `input`, `group`), in Node as a phone has them: a network that refuses,
+imports from the kind's folder alone - no Node module, no package -, none of Node's own globals
+(`process`, `Buffer`, ...), under Node's permission model, which lets it read the kind's folder and
+the kit's and write nothing (a Node before 22.13 has none: a warning). Its result is the line that
+begins with a token no module knows. A module that does not load or hangs (60 s) is a fault; what a
+module loads that the server cannot serve - an `import()` of a computed name, a file named by
+`new URL(..., import.meta.url)` - is a warning. Without Node the kit measures and says that it did
+not load them; a kind without fixtures has its browser half held all the same. It finds a kind's
+mistakes; it is no sandbox for a kind that means harm, whose Python runs on the server anyway
+(the review of package 8 fooled it four ways before). The four kinds pass it.
 
 ### 4.10 Moving the data
 
@@ -1160,7 +1252,13 @@ the lectures. Its review is done (2026-11-13) - five faults and five doubts, fix
 built on it (2026-11-13): texactivity.sty with the core's keys and every other key the kind's,
 `\reveal<n>`, records that name their fields, the build asking the kind and running the references
 as the server does, deck.json's kinds, which a server of the core's type must have (4.4). Its review
-is done - four faults, four doubts and seven small findings, fixed (4.4).
+is done - four faults, four doubts and seven small findings, fixed (4.4). Package 8 is built on it
+(2026-11-13): the core's type in the browser beside F1's - the phone's step screen, the box with the
+projector's picture, the panel and its keys, the host console's line -, a kind's files served by
+their hash, the four kinds' texts in English and German, and the kit's browser half (4.5, 4.9);
+tried in the app's Chromium with the four kinds. Its review is done - eleven faults, six doubts and
+nine nits, fixed (4.5). F1's type stays the server's default; whether the core's replaces it, and
+F1's browser code goes, is open.
 
 ### 4.13 Risks
 

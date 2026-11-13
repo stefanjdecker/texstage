@@ -11,6 +11,7 @@ import { errorText, pageLanguage, usePageLanguage } from "/static/i18n/i18n.js";
 import { Client, hostFetch } from "/static/shared/client.js";
 import { Stage } from "/static/shared/live.js";
 import { uploadButton } from "/static/shared/upload.js";
+import { ActsLine } from "/static/host/acts.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -114,7 +115,8 @@ async function openGame(d) {
       <div class="nav"><button id="prev" title="${esc(H.prev)}">◀</button><span class="where" id="where"></span>
       <button id="next" title="${esc(H.next)}">▶</button><button id="full" title="${esc(H.full)}">⛶</button></div></section>
     <aside class="side"><div class="panel"><h2 id="ptitle">${esc(H.players)}</h2><div class="players" id="players"></div></div>
-      <div class="panel"><h2>${esc(H.quizzes)}</h2><div class="quizzes" id="quizzes"></div></div></aside></div>`;
+      <div class="panel"><h2>${esc(H.quizzes)}</h2><div class="quizzes" id="quizzes"></div></div>
+      <div class="panel" id="actspanel" hidden><h2>${esc(H.activities)}</h2><div class="quizzes" id="acts"></div></div></aside></div>`;
   client?.close();
   client = new Client({
     onStatus: (s) => { $("#status").className = `status ${s}`; },
@@ -193,12 +195,38 @@ function render() {
     const tag = r ? `<span class="tag ${r.phase}">${esc(textOf(L.round, r.phase))}${r.phase === "open" || r.phase === "get-ready" ? ` · ${r.answered}` : ""}</span>` : "";
     return `<button class="quiz" data-quiz="${esc(id)}"><span class="title" title="${esc(q.title)}">${esc(id)}</span><span class="tag">${esc(q.type)}</span>${tag}</button>`;
   }).join("");
+  activities();
   $("#quizzes").querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => {
     // a quiz starts on its reading slide (the question alone); the next key starts the round
     const target = deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "read")
       || deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "question");
     if (target) go(target.id);
   });
+}
+
+// The deck's live activities, with --activities core (the deck's view says so): each one's phase - and of
+// the current one its time left, counting down, and its counts, from its picture as the presenter window has
+// it (acts.js: whatever the projector holds back; the design's 13).
+let actsLine = null;
+function activities() {
+  const box = $("#acts");
+  const items = deck?.items?.activity || {};
+  if (box) $("#actspanel").hidden = deck?.activities !== "core" || !Object.keys(items).length;
+  if (!box || !state || $("#actspanel").hidden) {        // (no game shown: nothing counts down)
+    actsLine?.destroy();
+    actsLine = null;
+    return;
+  }
+  const A = T.presenter.steps, H = T.host;
+  actsLine ??= new ActsLine({ read: (msg) => client.send(msg), now: () => client.now(), render: () => activities() });
+  const acts = state.stage?.activity || { current: null, items: {} };
+  actsLine.update(acts);
+  box.innerHTML = Object.keys(items).map((id) => {
+    const phase = acts.items?.[id]?.phase || "ready";
+    const more = actsLine.said(id, H);
+    return `<div class="quiz"><span class="title">${esc(id)}</span><span class="tag ${esc(phase)}">${esc(A.phase[phase] || phase)}</span>
+      ${more ? `<span class="tag">${esc(more)}</span>` : ""}</div>`;
+  }).join("");
 }
 
 function go(id) {

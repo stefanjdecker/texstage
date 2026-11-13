@@ -15,6 +15,8 @@
 
 import { browserLanguage, errorText, languageOf, markLanguage, supported, texts } from "/static/i18n/i18n.js";
 import { ActivityScreen } from "/static/play/activity.js";
+import { StepScreen } from "/static/play/activities.js";
+import { Kinds } from "/static/kinds.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
 import { PENS, SketchPad, sketchSVG } from "/static/shared/sketch.js";
@@ -33,6 +35,7 @@ const app = $("#app");
 const STORE = "texquiz:player";
 
 let state = null;        // the server's player view
+let welcomed = null;     // the server's welcome: its activity type, the deck's kinds
 let screenKey = "";
 let draft = {};          // per round: selection, order, value, text, strokes
 let joinError = "";
@@ -47,6 +50,14 @@ const redraw = () => { screenKey = ""; listed = ""; if (state) render(); };   //
 // the pushes:  new PHONE_TYPES[name]({root, client, T, state})  .update(state)  .destroy()
 const PHONE_TYPES = { activity: ActivityScreen };
 let typeScreen = null;
+// A server of the activity framework's type (--activities core; its welcome says so) sends a step's part as
+// a message of its own, the same text for every phone (activity.step), and the phone's own entries with
+// its state: the step's screen (play/activities.js) shows while the step is there and not ready. The
+// deck's kinds - their texts, their modules - load in the background when the phone joins (kinds.js).
+let activities = "f1";
+let step = null;         // the current step's part, as activity.step last said it
+let kinds = null;
+let kindsOf = "";        // ... of these files (the welcome's kindFiles)
 
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } })();
 const query = new URLSearchParams(location.search);
@@ -79,8 +90,31 @@ const client = new Client({
   },
   onState: (m) => {
     state = m;
-    if (speak(m.session?.language)) keepLanguage();
+    if (speak(m.session?.language)) { keepLanguage(); kinds = null; }
+    if (activities === "core" && !kinds) {
+      const mine = kinds = new Kinds(welcomed?.kindFiles, lang, "phone");
+      kindsOf = JSON.stringify(welcomed?.kindFiles || {});
+      mine.ready.then(() => {                            // the kinds' texts and modules are here
+        if (mine !== kinds || !(typeScreen instanceof StepScreen)) return;
+        if (typeScreen.kindsReady()) {                   // its kind's own input came after the screen was
+          screenKey = "";                                // made: made again with it
+          render();
+        }
+      });
+    }
     render();
+  },
+  onWelcome: (m) => {
+    welcomed = m;
+    activities = m.activities || "f1";
+    // the deck's kinds, in its language: with the first state - the ones there are, after a reconnect to the
+    // same deck (a screen made before the state comes has them; the cast comes first)
+    if (JSON.stringify(m.kindFiles || {}) !== kindsOf) kinds = null;
+  },
+  onEvent: (m) => {
+    if (m.t !== "activity.step") return;
+    step = m.step || null;
+    if (state) render();
   },
   onBye: (m) => {
     forget();
@@ -242,7 +276,20 @@ function render() {
   if (tab === "qa") questions();
   const r = state.round;
   const asking = r && (r.phase === "get-ready" || r.phase === "open");
-  const typed = state.session.finished || asking ? undefined : Object.keys(PHONE_TYPES).find((name) => state[name]);
+  if (activities === "core" && !state.session.finished && !asking && step && step.phase !== "ready") {
+    const k = `step:${step.activity}:${step.step}:${step.epoch}:${step.input}`;
+    if (k !== screenKey || !typeScreen) {
+      screenKey = k;
+      typeScreen?.destroy();
+      app.innerHTML = "";
+      typeScreen = new StepScreen({ root: app, client, state, step, language: lang, kinds: () => kinds });
+    }
+    typeScreen.update(state, step);
+    progress();
+    return;
+  }
+  const typed = activities === "core" || state.session.finished || asking ? undefined
+    : Object.keys(PHONE_TYPES).find((name) => state[name]);
   if (typed) {
     const k = `type:${typed}:${state[typed].id ?? ""}`;
     if (k !== screenKey || !typeScreen) {

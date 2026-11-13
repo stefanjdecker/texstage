@@ -47,6 +47,8 @@ import { BATCH, ERASER, MARKER, MARKERS, PENS, SIZES, deviceId } from "/static/s
 import { VideoBox, mediaAddresses } from "/static/stage/video.js";
 import { ActivityAgent, ActivityBox, codeWords, resultLabel, resultTable } from "/static/stage/activity.js";
 import { Evaluator } from "/static/stage/evaluator.js";
+import { StepAgent, StepBox, openStepPanel } from "/static/stage/activities.js";
+import { Kinds } from "/static/kinds.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -93,7 +95,9 @@ let recTicker = null;   // its time and the microphone's level, while it runs
 let qaPanel = null;     // the audience's questions while their panel is open (M6)
 let gallery = null;     // a sketch question's drawings while their gallery is open (M6)
 let agent = null;       // the deck's live activities: the lease, the layout, the evaluation (activity.js)
-let actPanel = null;    // their panel while it is open
+let actPanel = null;    // their panel while it is open (F1's here; the activity framework's: activities.js)
+let kinds = null;       // the deck's kinds, with --activities core: their texts and their box (kinds.js)
+const core = () => deck?.activities === "core";        // the server runs the activity framework's type
 let lang = "en";        // the window's language (speak): the open deck's, else the browser's
 let T = null;           // ... and all its texts (i18n.js texts): T.presenter, T.record, T.lecturer, T.errors
 const device = deviceId();
@@ -712,8 +716,10 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   });
   book = new InkBook(client);
   agent?.destroy();
-  agent = deck.items?.activity ? new ActivityAgent({ send: (msg) => client.send(msg) }) : null;
-  if (agent && Object.values(deck.items.activity).some((a) => a.input === "code")) {
+  kinds = core() ? new Kinds(deck.kindFiles, lang, "window") : null;
+  agent = !deck.items?.activity ? null : core() ? new StepAgent({ send: (msg) => client.send(msg), role: "presenter" })
+    : new ActivityAgent({ send: (msg) => client.send(msg) });
+  if (agent && !core() && Object.values(deck.items.activity).some((a) => a.input === "code")) {
     // the queries are evaluated here while this window has the lease (evaluator.js) - unless the
     // server checks them (activity.work: checks "server"), and then this window makes no evaluator
     const own = agent;
@@ -725,9 +731,9 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   }
   stage = new Stage($("#stage"), { send: (cmd) => client.send(cmd).catch(alertError), controls: true, surface: new PdfSurface(pdf),
     sketches: (quiz, players) => client.send({ t: "sketch.get", quiz, players }).then((r) => r.sketches),
-    types: { video: VideoBox, activity: ActivityBox },
+    types: { video: VideoBox, activity: core() ? StepBox : ActivityBox },
     host: { role: "presenter", send: (msg) => client.send(msg).catch(alertError), media: mediaAddresses(deck.bundle, auth),
-      read: (msg) => client.send(msg), agent } });
+      read: (msg) => client.send(msg), agent, kinds, ask } });      // (ask: a key's reveal or reset asks first)
   box = $("#stage");
   ink = new InkLayer(book, aspect);
   laser = new PointerLayer(aspect);
@@ -1600,8 +1606,9 @@ function renderInteraction() {
   const acts = state.stage?.activity;
   $("#actbtn").hidden = !deck.items?.activity;
   const current = acts?.items?.[acts.current];
-  $("#actcount").textContent = current?.count ?? 0;
-  $("#actcount").hidden = !current?.count;
+  const count = current?.count ?? current?.entries ?? 0;   // (F1's contributions, the core's entries)
+  $("#actcount").textContent = count;
+  $("#actcount").hidden = !count;
   $("#actbtn").classList.toggle("live", current?.phase === "open");
   if (actPanel) renderActivities();
 }
@@ -1757,6 +1764,14 @@ function renderQa() {
 
 // ------------------------------------------------------------------ live activities (activity.js)
 function openActivities() {
+  if (core()) {                         // the activity framework's panel (activities.js)
+    if (qaPanel) closeQa();
+    actPanel = openStepPanel({ dock, undock, ask, kinds, language: lang, send: (msg) => send(msg),
+      read: (msg) => client.send(msg), items: () => deck.items?.activity, state: () => state,
+      onSlide: () => itemFor(local)?.live?.find((b) => b.type === "activity")?.item, now: () => client.now(),
+      onClose: () => { actPanel = null; } });
+    return;
+  }
   actPanel = document.createElement("aside");
   actPanel.className = "qapanel actpanel";
   actPanel.innerHTML = `<div class="qahead"><h2>${esc(T.presenter.activity.title)}</h2><select id="actpick"></select>
@@ -1782,6 +1797,11 @@ function openActivities() {
 }
 
 function closeActivities() {
+  if (actPanel?.close) {
+    actPanel.close();
+    actPanel = null;
+    return;
+  }
   actPanel?.remove();
   actPanel = null;
   undock();
@@ -1841,6 +1861,7 @@ async function onActivityClick(e) {
 }
 
 function renderActivities() {
+  if (actPanel?.render) return actPanel.render();      // (the activity framework's: activities.js)
   // the chosen activity: its phase and buttons, and what the presenter window's picture holds
   const items = deck.items?.activity || {};
   const acts = state?.stage?.activity || { current: null, items: {} };

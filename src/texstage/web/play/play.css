@@ -155,6 +155,15 @@ textarea.code { font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; padding
 .actmine li span { flex: 1; overflow-wrap: anywhere; }
 .actmine li.empty { color: var(--muted); background: none; }
 .actmine li button { border: none; background: #f0edf6; color: var(--ink); width: 34px; height: 34px; border-radius: 50%; font-size: 20px; cursor: pointer; }
+/* a step of the activity framework (activities.js): its time, a kind's hint, each entry with its state */
+.steptime { margin-top: 10px; font-weight: 700; color: var(--muted); text-align: right; }
+form.act .hint { color: var(--muted); font-size: 15px; }
+.kindinput { margin-top: 12px; }
+.actmine li .entry { flex: 1; overflow-wrap: anywhere; }
+.actmine li .entry pre { margin: 0; white-space: pre-wrap; font: 14px ui-monospace, Menlo, Consolas, monospace; }
+.actmine li .said { flex: 0 1 45%; font-size: 14px; color: var(--muted); }
+.actmine li.good .said { color: var(--ok); font-weight: 600; }
+.actmine li.bad .said { color: var(--no); font-weight: 600; }
 .actstate { margin-top: 12px; }
 .actstate p { color: var(--ink); font-weight: 600; }
 .actstate.ok p:first-child { color: var(--ok); }
