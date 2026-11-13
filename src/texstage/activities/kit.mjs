@@ -30,10 +30,22 @@ const fold = (s) => (windows ? s.toLowerCase() : s);
 const refuse = () => { throw new Error("a kind's module reaches no network"); };
 for (const name of ["fetch", "WebSocket", "XMLHttpRequest", "EventSource"]) globalThis[name] = refuse;
 for (const name of ["process", "Buffer", "global", "setImmediate", "clearImmediate"]) delete globalThis[name];   // (a phone has none)
+const own = (specifier, parent) => {
+  // whether an import leads into the kind's folder - looked at before Node looks for it, which may not read a
+  // file elsewhere (the permission model) and would say so in its words: a path (./, ../, /) or a URL, never
+  // a package's name
+  if (!/^(\.{0,2}\/|[a-z][a-z0-9+.-]*:)/i.test(specifier)) return false;
+  try {
+    return fold(new URL(specifier, parent).href).startsWith(fold(home));
+  } catch {
+    return false;
+  }
+};
 if (typeof modules.registerHooks === "function") {
   modules.registerHooks({
     resolve(specifier, context, next) {
-      const found = next(specifier, context);
+      if (home && !own(specifier, context.parentURL)) throw new Error(`${specifier}: a kind's module imports only its own files`);
+      const found = next(specifier, context);     // (and where it led: a link out of the folder)
       if (home && !fold(found.url).startsWith(fold(home))) throw new Error(`${specifier}: a kind's module imports only its own files`);
       return found;
     },
