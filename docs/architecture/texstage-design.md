@@ -952,3 +952,63 @@ Reported after that, the same day:
   folder made, decks moved by the menu and by dragging (onto a folder, onto the path), renamed,
   searched, sorted, one taken off the list, the folder deleted, *Present* as before - no console
   or server errors.
+
+## 26. Decks without silent surprises (2026-11-14)
+
+- **Why:** a review of deck management found the places where a lecturer is not told what happens.
+  A rebuild in the break ended the running game unasked: new PIN, phones dropped, scores reset.
+  Once a game had ended, no window reached its results. A deck the server skipped, or a `present`
+  option a running server could not take, was never explained. And `present` could open another
+  deck of the same folder. The first package of its suggestions; the rest (earlier lectures in the
+  windows, the scan off the event loop, builds and rollback, cleaning the data folder) is still open.
+- **Ask before a build ends a game:** the presenter window's hello says `ask`. Where its build would
+  end a fresh game of another build of the deck that has something to lose - players, an answer, ink,
+  a whiteboard page, a question from the audience (`Engine._at_stake`) - the server refuses it with
+  `replaces-game`. The refusal's `detail` says what would end: PIN, build, players, questions asked,
+  ink, pages (`Engine.replaced`). The window asks: *Open this build* says hello again without `ask`;
+  the game ends, its phones are told. *Keep the running build* (and Esc) opens the build that game
+  plays. A stale game (the next lecture) or one with nothing at stake is replaced unasked, as before.
+  Windows that do not ask - the host console, the add-in, older windows - replace as before. The
+  window's hello after a break asks too: a window of a newer build no longer replaces silently the
+  older build another window chose. It goes to the deck page and says why.
+- **The archive when a game ends:** every game ends in `Engine._end` (a new build, New game, a new
+  presentation, the join slide after the podium, the next lecture, its deck deleted). `on_end` sees it
+  while it is still open, and the server writes what it leaves into its folder of the lecture
+  archive: the results, polls, questions, sketches and the types' files, as *Make the PDF* does
+  (`Server.ended`). A game that left nothing - no player, no answer, poll or question, no folder of its
+  own - gets none. The windows still reach only an open game's archive; listing earlier lectures is
+  open.
+- **Skipped decks:** the bundle store keeps why it skipped each folder (`Skipped`: the reason without
+  the folder in front, and the deck, name and bundle its `deck.json` gives). `GET /api/skipped` returns
+  those open to the lecturer, as the last scan found them - so the deck page asks for it after
+  `/api/decks`. An upload's go to its lecturer only, without a folder; others name theirs, relative to
+  the data folder where they are in it. The deck page shows them at the top, folded. The server's log
+  says a folder skipped that the last scan had not (`skipped: ...`; the first scan's `serve` prints).
+- **The deck `texstage present` names:** the presenter opens `?bundle=` also where the deck list does
+  not show it - an older build than the deck's newest, a deck taken off the list - if the server has
+  it (`/api/deck/<bundle>`). So does a reload in the lecture. Where it cannot, the deck page says why:
+  built without the stage PDF, a deck the server skips (its reason), or one it does not have.
+- **`texstage present` on a server that runs:** it says which options that server does not take
+  (`--activities` when it runs another type, `--tunnel`, `--no-tunnel`, `--public-url`, `--host`,
+  further folders; `--checks`, `--workers` and `--max-players` as before). With this machine's key
+  (`/api/presenter-key`) it asks whether the server lists the deck's build, or why not: skipped and
+  why, a build it has and does not list, one it does not have (another `--data`?). It also says when
+  the build would end a game of another build with players. A server older than these routes is not
+  asked.
+- **The deck's own build:** `present deck.tex` looks at `<out>/<deck_name>.bundle` alone. The decks of
+  one folder share its `texquiz-out`, and the folder's newest build was taken for the deck's.
+  `deck_name` moved to `build/bundle.py`, so that `present` needs none of the build's modules for it.
+  A build folder given to `present` still means its newest build (a chapter's holds one deck).
+- **Tested:** `test_game.py` (what a hello that asks is told, and when not), `test_server.py` (the
+  rebuild in the break over WebSockets: refused with the detail, the game on, then replaced, the phone
+  told, its results in the archive; a game that ends leaves its archive, an empty one none),
+  `test_library.py` (`/api/skipped`: reasons, folders, an upload's to its lecturer, the log once),
+  `test_present.py` (two decks in one folder; a running server's notes). In the browser pane, on a
+  test server with the manual's demo built, a copy of it rebuilt and a deck of an own kind: the skipped
+  deck at the top of the deck page; `?bundle=` of the older build (off the list) opened; a phone in its
+  game; *Present* of the newer build asked (PIN, 1 player), *Keep the running build* went back into that
+  game with its phone, *Open this build* started a new one, the phone was told, and the old game's
+  results were in its archive folder; `?bundle=` of the skipped deck and of one the server lacks said
+  why - in a tab that had presented before, the first try resumed that deck instead (fixed: a deck
+  named is never swapped for the tab's last one). `texstage present` against that server said each of
+  its notes.

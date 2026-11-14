@@ -331,20 +331,36 @@ async function devicesDialog() {
 // the lecturer's folders - none from a server older than the deck page (2026-10-13), which then lists
 // the decks as before: a reload in the lecture must not fail on them
 const folderList = () => hostFetch("/api/folders", auth).then((r) => r.json()).catch(() => []);
+// the decks the server found and does not play, each with why - as the deck list's scan found them, so asked
+// after it; none from a server older than the list (2026-11-14)
+const skippedList = () => hostFetch("/api/skipped", auth).then((r) => r.json()).catch(() => []);
+
+// a build the server has and does not list - an older one than its deck's newest, or a deck taken off the
+// list -, which texstage present or a reload in the lecture asks for: it opens all the same (null: not here)
+async function unlisted(bundle) {
+  try {
+    const d = await (await hostFetch(`/api/deck/${encodeURIComponent(bundle)}`, auth)).json();
+    return { bundle: d.bundle, deck: d.deck, name: d.name, stage: Boolean(d.pdf) };
+  } catch {
+    return null;
+  }
+}
 
 async function showDecks(resume = false, uploaded = "") {
   const [decks, folders] = await Promise.all([hostFetch("/api/decks", auth).then((r) => r.json()), folderList()]);
+  const skipped = await skippedList();
   const wanted = new URLSearchParams(location.search).get("bundle");    // texstage present: this deck
+  let missing = null;
   if (wanted) {
     history.replaceState(null, "", location.pathname + location.hash);  // a reload goes back into it as below
-    const d = decks.find((x) => x.bundle === wanted && x.stage);
-    if (d) return openDeck(d, true);
-  }
-  if (resume) {                        // a reload in the middle of a lecture: back into it
+    const d = decks.find((x) => x.bundle === wanted && x.stage) || await unlisted(wanted);
+    if (d?.stage) return openDeck(d, true);
+    missing = { bundle: wanted, here: d };          // the deck page says why it is not presented
+  } else if (resume) {                 // a reload in the middle of a lecture: back into it (not instead of a deck named)
     let last = null;
     try { last = sessionStorage.getItem(LAST); } catch { /* ignore */ }
-    const d = decks.find((x) => x.bundle === last && x.stage);
-    if (d) return openDeck(d);
+    const d = last ? decks.find((x) => x.bundle === last && x.stage) || await unlisted(last) : null;
+    if (d?.stage) return openDeck(d);
   }
   speak(null);                         // the deck page: the browser's language
   for (const id of ["deckname", "pin", "join", "actions"]) $(`#${id}`).textContent = "";
@@ -352,14 +368,25 @@ async function showDecks(resume = false, uploaded = "") {
   offline(false);
   state = null;
   renderRec();
-  library(decks, folders, uploaded);
+  library(decks, folders, uploaded, skipped);
+  if (missing) tell(absent(missing, skipped));
+}
+
+// why the deck that texstage present opened is not presented: built without the stage PDF, a deck the server
+// does not play (its reason), or one it does not have at all (the review of 2026-11-14: the deck page alone)
+function absent({ bundle, here }, skipped) {
+  const B = T.presenter.library;
+  if (here) return B.presentNoStage(here.name || here.deck || bundle);
+  const s = skipped.find((x) => x.bundle === bundle);
+  return s ? B.presentSkipped(s.name || s.deck || s.folder || bundle, s.error) : B.presentMissing(bundle);
 }
 
 // The deck page (server: library.py): folders, opened like a file browser with the path above, the
 // decks in them, a search over all of them, by name or newest build first. A card's ⋯ renames,
 // moves or deletes it; cards can also be dragged onto a folder or onto a step of the path. Delete
 // deletes an uploaded deck; a build on this computer only leaves the list (its next build is back).
-function library(decks, folders, uploaded = "") {
+// Above them, at the top: the decks the server found and does not play, each with why (skipped).
+function library(decks, folders, uploaded = "", skipped = []) {
   const B = T.presenter.library, L = T.lecturer;
   let byId = new Map(folders.map((f) => [f.id, f]));
   const pathOf = (fid) => {                       // the folder and the folders it is in, from the top
@@ -385,8 +412,10 @@ function library(decks, folders, uploaded = "") {
       <select class="libsort" aria-label="${esc(B.order)}"><option value="name">${esc(B.byName)}</option>
         <option value="newest">${esc(B.newest)}</option></select>
       <button class="secondary" id="newfolder">${esc(B.newFolder)}</button></div>
-    <div class="decks"></div></div>`;
+    <div class="skippedbox"></div><div class="decks"></div></div>`;
   const list = app.querySelector(".decks");
+  const skippedBox = app.querySelector(".skippedbox");
+  let skippedOpen = false;
   const crumbs = app.querySelector(".crumbs");
   const search = app.querySelector(".libsearch");
   const sort = app.querySelector(".libsort");
@@ -425,9 +454,19 @@ function library(decks, folders, uploaded = "") {
       .sort((a, b) => (sort.value === "newest" ? b.built - a.built : byName(shown(a), shown(b))));
     list.innerHTML = fs.map(folderCard).join("") + ds.map(deckCard).join("")
       || `<p class="empty">${esc(q ? B.noMatch : here ? B.empty : L.noDecks)}</p>`;
+    skippedBox.innerHTML = here || q || !skipped.length ? "" : `<details class="skipped"><summary>${esc(B.skipped(skipped.length))}</summary>
+      <ul>${skipped.map((s) => `<li><span class="name">${esc(s.name || s.deck || s.folder || s.bundle || "?")}</span>${
+    s.name && s.deck ? ` <span class="meta">${esc(s.deck)}</span>` : ""}: ${esc(s.error)}${
+    s.folder ? `<div class="meta">${esc(s.folder)}</div>` : ""}</li>`).join("")}</ul></details>`;
+    const details = skippedBox.querySelector("details");
+    if (details) {
+      details.open = skippedOpen;
+      details.ontoggle = () => { skippedOpen = details.open; };
+    }
   };
   const refresh = async () => {
     [decks, folders] = await Promise.all([hostFetch("/api/decks", auth).then((r) => r.json()), folderList()]);
+    skipped = await skippedList();
     byId = new Map(folders.map((f) => [f.id, f]));
     if (!byId.has(here)) here = null;
     render();
@@ -803,7 +842,9 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   clearInterval(ticker);
   ticker = setInterval(tickClock, 250);
   const credentials = typeof auth === "string" ? { key: auth } : { device: auth.device };
-  const hello = { t: "hello", role: "stage", ...credentials, deck: deck.deck, bundle: deck.bundle };
+  // ask: the server asks first where this build would end a game of another build that has players, answers or
+  // ink (replaces-game) - the lecturer chooses (replaceOrKeep); so does this hello again after a break
+  const hello = { t: "hello", role: "stage", ...credentials, deck: deck.deck, bundle: deck.bundle, ask: true };
   const mine = client;
   let welcome;
   try {
@@ -811,10 +852,19 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
     // a reload in the lecture, nor this hello again after a break (a window of an older build: newer-build)
     welcome = await client.login(chosen ? { ...hello, chosen: true } : hello);
   } catch (err) {
-    if (client === mine) refused(err);            // (not when this window has opened another deck meanwhile)
-    return;
+    if (client !== mine) return;                  // (this window has opened another deck meanwhile)
+    if (err?.code !== "replaces-game" || !err.detail) return refused(err);
+    const replace = await replaceOrKeep(err.detail);
+    if (client !== mine) return;
+    if (!replace) return openDeck({ ...d, bundle: err.detail.bundle, stage: true }, true);   // the running build
+    try {
+      welcome = await client.login({ ...hello, ask: false, ...(chosen ? { chosen: true } : {}) });
+    } catch (again) {
+      if (client === mine) refused(again);
+      return;
+    }
   }
-  if (chosen) mine.relogin(hello);                 // after a break: the same hello, no choice any more
+  mine.relogin(hello);                             // after a break: the same hello, no choice any more
   follow.postMessage({ type: "deck", bundle: deck.bundle });     // an open projector window: this deck now - its
   //                                                               hello after this one's, which may have chosen it
   clearInterval(pinger);
@@ -834,6 +884,16 @@ function refused(err) {
   } else {
     showDecks().then(() => tell(why(err)), () => keyForm());
   }
+}
+
+// This build would end the deck's game on another build (replaces-game: its PIN, players, questions asked, ink):
+// open this build - that game ends, its phones join the new one with a new PIN - or keep the running build
+// (true: open this one). Esc keeps it (the review of 2026-11-14: a rebuild in the break ended the game unasked).
+async function replaceOrKeep(e) {
+  const R = T.presenter.replace, E = T.presenter.earlier;
+  const what = [e.players ? T.lecturer.players(e.players) : "", e.asked ? R.asked(e.asked) : "",
+    e.frames ? E.ink(e.frames) : "", e.boards ? E.boards(e.boards) : ""].filter(Boolean).join(", ");
+  return ask(R.ask(e.built ? lectureTime(e.built) : "", e.pin, what, e.newer), R.open, R.keep);
 }
 
 async function newOrContinued(e) {

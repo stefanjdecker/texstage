@@ -108,9 +108,7 @@ class BuildResult:
         return [f for f in self.findings if f.problem]
 
 
-def deck_name(tex: Path) -> str:
-    """slides.tex of a course chapter is named after its folder."""
-    return tex.resolve().parent.name if tex.stem == "slides" else tex.stem
+deck_name = bnd.deck_name             # slides.tex of a course chapter is named after its folder
 
 
 def slug(name: str) -> str:

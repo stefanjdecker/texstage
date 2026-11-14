@@ -399,6 +399,44 @@ def built(fb, at: float):
     return fb
 
 
+def test_a_window_that_asks_learns_what_its_build_would_end(tmp_path):
+    """A rebuild in the break: the new build's hello ends the game of the build before - unless the window
+    asks first (ask: the presenter window), where that game has something to lose: players, an answer, ink,
+    a whiteboard page. Then it is refused with replaces-game, and the refusal's detail says what would end;
+    the game goes on until a hello without ask (the lecturer's choice). Nothing at stake, a stale game (the
+    next lecture) or the same build: no question. A window of an older build hears newer-build first (the
+    review of 2026-11-14)."""
+    hour_ago = int(time.time()) - 3600
+    before = built(make_bundle(tmp_path / "b", title="Deck"), hour_ago)
+    store = BundleStore([tmp_path / "b"])
+    e = Engine(store, None, Settings())
+    empty = e.open_session("test", before.id, T0, ask=True)
+    after = built(make_bundle(tmp_path / "b", title="Deck", time=30), hour_ago + 3540)
+    store.scanned = 0
+    assert store.get(after.id) is not None
+    new = e.open_session("test", after.id, T0 + 1000, chosen=True, ask=True)     # nothing at stake: unasked
+    assert empty.ended == T0 + 1000 and new.bundle == after.id
+    e.join(new.pin, "Ada", T0 + 2000)
+    for what in ("chosen", "reload"):                                              # Present, or a window's reload
+        with pytest.raises(GameError) as refused:
+            e.open_session("test", before.id, T0 + 3000, chosen=what == "chosen", ask=True)
+        assert refused.value.code == ("replaces-game" if what == "chosen" else "newer-build")
+    with pytest.raises(GameError) as refused:
+        e.open_session("test", before.id, T0 + 3000, chosen=True, ask=True)
+    detail = refused.value.detail
+    assert detail == {"game": new.id, "pin": new.pin, "bundle": after.id, "built": (hour_ago + 3540) * 1000,
+                      "newer": True, "players": 1, "asked": 0, "frames": 0, "boards": 0, "at": T0 + 1000}
+    assert new.ended is None and e.open_session("test", after.id, T0 + 4000, ask=True) is new   # its own build
+    chosen = e.open_session("test", before.id, T0 + 5000, chosen=True)            # the lecturer's choice: replaced
+    assert chosen.bundle == before.id and new.ended == T0 + 5000
+    e.join(chosen.pin, "Bob", T0 + 5000)
+    with pytest.raises(GameError) as refused:                                     # a window of the newer build
+        e.open_session("test", after.id, T0 + 6000, ask=True)                     # back after a break: no longer
+    assert refused.value.code == "replaces-game" and chosen.ended is None         # ends the build chosen
+    later = T0 + 5000 + Settings().stale_ms                                       # the next lecture: unasked
+    assert e.open_session("test", after.id, later, ask=True).bundle == after.id and chosen.ended == later
+
+
 def test_a_window_of_an_older_build_leaves_the_game_alone(tmp_path):
     """A deck rebuilt in the lecture, its folder replaced: the new build's hello replaces the game (the
     PowerPoint file built anew, the presenter window). A window of the build before - opened before the

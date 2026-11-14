@@ -4,7 +4,7 @@
 //
 //   const c = new Client({onState, onStatus, onBye});
 //   c.login({t: "join", pin, nickname});   // sent now and again after every reconnect
-//   await c.send({t: "answer", ...});      // resolves with the reply, rejects with {code, message}
+//   await c.send({t: "answer", ...});      // resolves with the reply, rejects with {code, message, detail?}
 //   c.raw({t: "pointer", x, y});           // once, now or never (no id, no answer)
 //   c.now()                                // the server's clock, for countdowns
 //
@@ -65,17 +65,17 @@ export class Client {
     if (loginReply && m.t === "error") {
       this.ready = false;
       this.loginMsg = null;
-      this.rejectPending({ code: m.error, message: m.message });
+      this.rejectPending({ code: m.error, message: m.message, detail: m.detail });
       // The first login has a caller to show its error. After a reconnect that promise has
       // already resolved: notify the page so an expired player/device can leave the old game.
-      if (!initialLogin) this.handlers.onBye({ t: "bye", reason: m.error, message: m.message });
+      if (!initialLogin) this.handlers.onBye({ t: "bye", reason: m.error, message: m.message, detail: m.detail });
       return;
     }
     if (m.t === "welcome" && !loginReply) return;    // a replaced login's late reply
     if (m.re !== undefined && m.re !== null && this.pending.has(m.re)) {
       const p = this.pending.get(m.re);
       this.pending.delete(m.re);
-      if (m.t === "error") p.reject({ code: m.error, message: m.message });
+      if (m.t === "error") p.reject({ code: m.error, message: m.message, detail: m.detail });
       else p.resolve(m);
     }
     if (m.t === "welcome") {

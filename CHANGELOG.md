@@ -2,6 +2,28 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Decks without silent surprises (a review of deck management):
+  - Before a build ends the deck's running game on another build - a rebuild
+    in the break, opened with `texstage present` - the presenter window asks:
+    the game's PIN, players, questions asked and ink, and that the phones
+    would join again with a new PIN. *Keep the running build* leaves it.
+  - Every game that ends writes its results, polls, questions and sketches to
+    the lecture archive. Before, only *Make the PDF* and *Download the
+    archive* did, and an ended game's results were out of every window's
+    reach.
+  - The deck page lists the decks the server does not play, with why (a kind
+    it lacks, a broken `deck.json`; `GET /api/skipped`), and the server's log
+    says when it finds a new one. The presenter opens a build that
+    `texstage present` names but the list does not show (an older build, a
+    deck taken off the list), and says why when it cannot.
+  - `texstage present` on a port where a server runs says which of its
+    options that server does not take (`--activities`, `--tunnel`,
+    `--public-url`, `--host`, further folders), whether that server has the
+    deck's build or why not, and when the build would end a game with
+    players.
+  - `texstage present deck.tex` looks at the deck's own build: the decks of
+    one folder share its `texquiz-out`, and another deck's build there made
+    it present that deck instead.
 - Presenter view, after a review of it: a lost connection is said across the
   window, not by a dot alone; the Activities panel shows the activity of the
   slide and stands in the column, with the notes below it, instead of over

@@ -8,11 +8,14 @@ found in the folders given to `texstage serve`: a folder is a bundle itself, or 
 bundles (searched three levels deep, e.g. a lecture chapter's build/texquiz/), and in the
 data folder: bundles/<lecturer>/<deck>/<id>/ (uploads, the lecturer's) and served/<deck>/<id>/
 (copies of served decks being played). An unknown bundle ID makes the store look again, so
-a rebuilt deck is picked up without a restart.
+a rebuilt deck is picked up without a restart. A folder it cannot play is skipped, and says why
+(Skipped): texstage serve prints those of its first look, the server's log a new one found later,
+and the deck list shows them (GET /api/skipped).
 """
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -22,6 +25,7 @@ from pathlib import Path
 from texstage.build.bundle import LANGUAGES, READS, bundle_id
 from texstage.server import types as stage_types
 
+log = logging.getLogger("texstage.server")
 FILE = re.compile(r"^((slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(jpg|png))$")   # pictures, posters
 STAGE_PDF = re.compile(r"^stage/[0-9a-f]{16}\.pdf$")
 KNOWN_TYPES = stage_types.KNOWN      # the content types this server knows: a deck that needs another is refused
@@ -118,6 +122,30 @@ class Bundle:
         carries (uploaded by its add-in) lacks the ordinary slides' pictures and the stage
         PDF."""
         return all((self.path / name).is_file() for name in bundle_files(self.deck_json, self.keys))
+
+
+@dataclass
+class Skipped:
+    """A folder with a deck.json that the server does not play: why, and what its deck.json says of
+    itself as far as it can be read - for the deck list (GET /api/skipped) and texstage present."""
+    path: Path
+    owner: str | None           # an upload's lecturer; None: open to every lecturer, as its bundle would be
+    error: str                  # why, without the folder in front
+    deck: str | None = None
+    name: str | None = None
+    bundle: str | None = None
+
+
+def skipped_folder(folder: Path, owner: str | None, err: BundleError) -> Skipped:
+    try:
+        deck = json.loads((folder / "deck.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        deck = {}
+
+    def text(key: str) -> str | None:
+        value = deck.get(key) if isinstance(deck, dict) else None
+        return value if isinstance(value, str) and len(value) <= 200 else None
+    return Skipped(folder, owner, str(err).removeprefix(f"{folder}: "), text("deck"), text("name"), text("bundle"))
 
 
 def bundle_files(*parts: dict) -> set[str]:
@@ -220,7 +248,9 @@ class BundleStore:
         self.published = published.resolve() if published else None
         self.bundles: dict[str, Bundle] = {}
         self.dropped: set[Path] = set()    # a cleanup can still be removing files asynchronously
-        self.problems: list[str] = []
+        self.problems: list[str] = []      # the folders skipped by the last scan, each with why
+        self.skipped: list[Skipped] = []   # ... the same, for the deck list
+        self.told: set[str] | None = None  # the problems said already (None: before the first scan)
         self.scanned = 0.0
         self.scan()
 
@@ -280,16 +310,24 @@ class BundleStore:
                     yield folder
 
     def scan(self):
+        """Every folder looked at again. A folder skipped that the last scan had not skipped is said in
+        the server's log (the first scan's: texstage serve prints them)."""
         self.scanned = time.monotonic()
-        self.problems = []
+        problems, found = [], []
         self.dropped = {p for p in self.dropped if p.exists()}
         for folder in self.folders():
             try:
                 b = load_bundle(folder)
             except BundleError as err:
-                self.problems.append(str(err))
+                problems.append(str(err))
+                found.append(skipped_folder(folder, self.owner(folder), err))
                 continue
             self._merge(b, self.owner(folder))
+        self.problems, self.skipped = problems, found
+        for problem in problems if self.told is not None else ():
+            if problem not in self.told:
+                log.warning("skipped: %s", problem)
+        self.told = set(problems)
 
     def current(self) -> list[Bundle]:
         """The bundles still on disk: a rebuilt deck replaces its build folder, and the old

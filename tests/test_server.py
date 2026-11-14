@@ -575,6 +575,60 @@ def test_the_presenter_windows_choice_of_a_build_starts_its_game(tmp_path):
         assert {d["bundle"]: d["game"] and d["game"]["pin"] for d in decks} == {newer.id: None, older.id: chosen["pin"]}
 
 
+def test_the_presenter_window_asks_before_a_rebuild_ends_the_running_game(tmp_path):
+    """A rebuild in the break, and texstage present opens the new build: its Present would end the game of
+    the build before - the phones join again with a new PIN, the scores start anew. The presenter window
+    asks first (ask): refused with replaces-game, the detail says what would end, and the game and its
+    phones go on; the lecturer's choice - the hello again without ask - replaces it, and the phones are
+    told. Its results are in the lecture archive then, unasked (Server.ended; the review of 2026-11-14)."""
+    hour_ago = int(time.time()) - 3600
+    before = built(make_bundle(tmp_path / "bundles"), hour_ago)
+    auth = {"X-Texquiz-Key": KEY}
+    with TestClient(create_app(config(tmp_path))) as client, client.websocket_connect("/ws") as presenter,             client.websocket_connect("/ws") as phone:
+        first = say_hello(presenter, before, role="stage", ask=True)
+        join(phone, first["pin"], "Ada")
+        rebuilt = built(make_bundle(tmp_path / "bundles", time=30), hour_ago + 3540)
+        assert {d["bundle"] for d in client.get("/api/decks", headers=auth).json()} == {before.id, rebuilt.id}
+        with client.websocket_connect("/ws") as window:
+            refused = say_hello(window, rebuilt, role="stage", chosen=True, ask=True)
+            assert refused["error"] == "replaces-game"
+            d = refused["detail"]
+            assert (d["game"], d["pin"], d["bundle"], d["built"], d["newer"], d["players"]) ==                 (first["session"], first["pin"], before.id, hour_ago * 1000, False, 1)
+            assert client.app.state.server.engine.sessions[first["session"]].ended is None    # it goes on
+            assert not (tmp_path / "data" / "archive").exists()
+            game = say_hello(window, rebuilt, role="stage", mid=2, chosen=True)               # Open this build
+            assert game["t"] == "welcome" and game["pin"] != first["pin"]
+            assert recv(phone, "bye")["reason"] == "no-session"
+        (folder,) = (tmp_path / "data" / "archive" / "test").iterdir()                       # the game before
+        assert folder.name.endswith(f"-{first['pin']}")
+        (results,) = folder.glob("*.csv")
+        assert "Ada" in results.read_text(encoding="utf-8-sig")
+        assert client.get(f"/api/results/{first['session']}.csv", headers=auth).status_code == 404   # (ended)
+
+
+def test_a_game_that_ends_leaves_its_archive(world, tmp_path):
+    """Whatever ends a game - here New game - its folder in the lecture archive gets what it leaves,
+    without Make the PDF or Download the archive: the results, the polls, the audience's questions. A game
+    that left nothing - no player, no answer, poll or question - gets no folder (a rehearsal's)."""
+    client, fb = world
+    archive = tmp_path / "data" / "archive" / "test"
+    with client.websocket_connect("/ws") as st:
+        empty = say_hello(st, fb, role="stage")
+        st.send_json({"t": "restart", "id": 2})
+        second = recv(st, "ok", until=lambda m: m["re"] == 2)
+        assert second["pin"] != empty["pin"] and not archive.exists()                     # nothing to keep
+        with client.websocket_connect("/ws") as phone:
+            join(phone, second["pin"], "Ada")
+            st.send_json({"t": "poll.create", "kind": "yesno", "prompt": "Ready?", "id": 3})
+            recv(st, "ok", until=lambda m: m["re"] == 3)
+            st.send_json({"t": "restart", "id": 4})
+            recv(st, "ok", until=lambda m: m["re"] == 4)
+    (folder,) = archive.iterdir()
+    assert folder.name.endswith(f"-{second['pin']}")
+    names = sorted(p.name for p in folder.iterdir())
+    assert "polls.csv" in names and any(n.startswith("test-") and n.endswith(".csv") for n in names)
+
+
 def test_the_lecture_archive(world, tmp_path):
     """texstage M4: the game's ink in one message (for the annotated PDF); the presenter window
     puts the PDF into the lecture archive - <data>/archive/<deck>/<date>-<pin>/, with the

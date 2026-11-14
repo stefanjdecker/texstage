@@ -4,14 +4,18 @@
 list - a laptop's build comes back with its next build, an uploaded deck is deleted."""
 from __future__ import annotations
 
+import json
+import logging
 import os
 import time
+from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
 
 from fake_bundle import make_bundle
 from test_server import KEY, config
+from texstage.build.bundle import bundle_id
 from texstage.publish import find_bundles, pack
 from texstage.server.app import create_app
 from texstage.server.bundles import BundleStore
@@ -198,3 +202,59 @@ def test_a_scan_during_cleanup_does_not_restore_a_dropped_copy(tmp_path):
     assert store.get(ada.id).path == bob.path
     store.add(ada.path)           # an explicit new upload restores this owner's copy
     assert store.get(ada.id).owners == {"ada", "bob"}
+
+
+# ------------------------------------------------------------------ the decks the server does not play
+def own_kind_deck(folder: Path) -> str:
+    """A deck of texstage's own kind choice, which F1's activity type (the default) does not run; its ID."""
+    deck = {"format": 2, "deck": "own", "name": "Own kinds", "types": ["quiz", "activity"],
+            "items": {"quiz": {}, "activity": {"a1": {"kind": "choice", "input": "choice"}}},
+            "slides": [{"id": 256, "image": "slides/0000000000000000.png"}]}
+    keys = {"format": 2, "deck": "own", "items": {}}
+    deck["bundle"] = keys["bundle"] = bid = bundle_id(deck, keys)
+    folder.mkdir(parents=True)
+    (folder / "deck.json").write_text(json.dumps(deck), encoding="utf-8")
+    (folder / "keys.json").write_text(json.dumps(keys), encoding="utf-8")
+    return bid
+
+
+def test_the_deck_page_says_which_decks_the_server_does_not_play(tmp_path, caplog):
+    """A deck the server finds and does not play - a kind its activity type lacks, a broken deck.json - is
+    on no list. GET /api/skipped says which and why, as the deck list's scan found them: a laptop's with
+    its folder (relative to the data folder if in it), an upload only to its lecturer, without its folder.
+    A scan that finds a new one says so in the server's log, once (the review of 2026-11-14: only texstage
+    serve's first look printed them, and nothing told the lecturer)."""
+    bob = {"X-Texquiz-Key": Lecturers(tmp_path / "data" / "lecturers.json").add("bob")}
+    make_bundle(tmp_path / "bundles" / "alpha", deck="alpha", title="Alpha")
+    own = own_kind_deck(tmp_path / "bundles" / "own" / "Own-kinds.bundle")
+    copy = tmp_path / "data" / "served" / "own" / own
+    own_kind_deck(copy)
+    broken = tmp_path / "bundles" / "broken" / "Broken.bundle"
+    broken.mkdir(parents=True)
+    (broken / "deck.json").write_text("{", encoding="utf-8")
+    upload = tmp_path / "data" / "bundles" / "bob" / "talk" / "0123456789abcdef"
+    upload.mkdir(parents=True)
+    (upload / "deck.json").write_text("{", encoding="utf-8")
+    with TestClient(create_app(config(tmp_path))) as client:
+        assert client.get("/api/skipped").status_code == 403
+        assert set(listed(client)) == {"alpha"}
+        skipped = client.get("/api/skipped", headers=HOST).json()
+        by = {s["folder"]: s for s in skipped}
+        assert set(by) == {str(tmp_path / "bundles" / "own" / "Own-kinds.bundle"), f"served/own/{own}", str(broken)}
+        assert by[f"served/own/{own}"] == {"deck": "own", "name": "Own kinds", "bundle": own, "folder": f"served/own/{own}",
+                                           "error": "the activity a1 is of the kind choice, which this server's activity "
+                                                    "type does not run - start it with texstage serve --activities core"}
+        assert by[str(broken)]["deck"] is None and by[str(broken)]["error"].startswith("Expecting property name")
+        assert all(str(tmp_path) not in s["error"] for s in skipped)              # (the folder: not in front)
+        theirs = client.get("/api/skipped", headers=bob).json()
+        assert len(theirs) == 4 and [s["folder"] for s in theirs if s["folder"] is None] == [None]   # Bob's upload
+        assert len(client.get("/api/skipped", headers=HOST).json()) == 3                            # not his
+        caplog.set_level(logging.WARNING, logger="texstage.server")
+        caplog.clear()
+        late = tmp_path / "bundles" / "late" / "Late.bundle"
+        late.mkdir(parents=True)
+        (late / "deck.json").write_text("[", encoding="utf-8")
+        listed(client)                                                           # a scan: a new one
+        listed(client)                                                           # ... said once
+        said = [r.getMessage() for r in caplog.records if r.getMessage().startswith("skipped:")]
+        assert len(said) == 1 and str(late) in said[0]

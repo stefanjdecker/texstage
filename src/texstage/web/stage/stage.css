@@ -97,6 +97,12 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .uploadbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .uploadbar .uploaded { color: var(--muted); font-size: 13px; }
 .page.dropping { outline: 2px dashed var(--ink); outline-offset: 10px; border-radius: 12px; }   /* a .bundle.zip dragged over the list */
+/* the decks the server found and does not play, each with why (presenter.js library: skipped) */
+.skipped { background: #2a1d0a; border: 1px solid #6b4a12; border-radius: 12px; padding: 10px 16px; color: #ffd28a; }
+.skipped summary { cursor: pointer; font-weight: 600; }
+.skipped ul { margin: 8px 0 2px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
+.skipped .name { font-weight: 700; }
+.skipped .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 /* the deck page's folders (presenter.js library): the path, the search, the order, the cards' ⋯ */
 .libbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; flex: 1 1 240px; min-width: 0; }

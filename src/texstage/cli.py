@@ -263,14 +263,25 @@ SOURCES = {".tex", ".sty", ".cls", ".bib", ".png", ".jpg", ".jpeg", ".svg", ".ep
 SKIP = {"build", "texquiz-out", ".git", "__pycache__", ".ipynb_checkpoints"}
 
 
-def needs_build(folder: Path, out: Path, ignore: tuple[str, ...] = ()) -> str | None:
+def deck_files(out: Path, name: str | None = None) -> list[Path]:
+    """The deck.json files of a build folder's builds: of the deck `name` alone (its <name>.bundle,
+    build/bundle.py deck_name), or every one in it."""
+    if name is not None:
+        own = out / f"{name}.bundle" / "deck.json"
+        return [own] if own.is_file() else []
+    return list(out.glob("*.bundle/deck.json"))
+
+
+def needs_build(folder: Path, out: Path, ignore: tuple[str, ...] = (), name: str | None = None) -> str | None:
     """Why the deck of `folder` must be built before it is presented, or None: its build in
     `out` is there, has the stage PDF and is newer than every source - a .tex, .sty, .bib or
     picture of the folder and its subfolders (not the builds in them). A PDF in the folder
     itself is a compiled deck, not a source; `ignore`: files written from the sources (a
-    chapter's slides.tex)."""
+    chapter's slides.tex). `name`: the deck's own build (<name>.bundle) - several decks of one
+    folder share its texquiz-out, and another deck's build is not this one's; without it, the
+    newest build in `out` (a chapter's build folder holds its deck alone)."""
     import json
-    decks = list(out.glob("*.bundle/deck.json"))
+    decks = deck_files(out, name)
     if not decks:
         return "not built yet"
     newest = max(decks, key=lambda p: p.stat().st_mtime)
@@ -294,18 +305,26 @@ def needs_build(folder: Path, out: Path, ignore: tuple[str, ...] = ()) -> str | 
     return None
 
 
-def built_deck(out: Path) -> tuple[str | None, Path | None]:
-    """The newest deck of a build folder: its bundle ID and its live PowerPoint file."""
+def built_deck(out: Path, name: str | None = None) -> tuple[str | None, Path | None]:
+    """The deck of a build folder - the one named (its <name>.bundle), else the newest: its bundle
+    ID and its live PowerPoint file."""
+    bid, _, pptx = built(out, name)
+    return bid, pptx
+
+
+def built(out: Path, name: str | None = None) -> tuple[str | None, str | None, Path | None]:
+    """As built_deck, with the deck's ID between: (bundle ID, deck ID, live PowerPoint file)."""
     import json
-    decks = sorted(out.glob("*.bundle/deck.json"), key=lambda p: p.stat().st_mtime)
+    decks = sorted(deck_files(out, name), key=lambda p: p.stat().st_mtime)
     if not decks:
-        return None, None
+        return None, None, None
     try:
-        bid = json.loads(decks[-1].read_text(encoding="utf-8")).get("bundle")
+        deck = json.loads(decks[-1].read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        bid = None
+        deck = {}
+    deck = deck if isinstance(deck, dict) else {}
     pptx = out / (decks[-1].parent.name.removesuffix(".bundle") + ".pptx")
-    return bid, pptx if pptx.is_file() else None
+    return deck.get("bundle"), deck.get("deck"), pptx if pptx.is_file() else None
 
 
 def server_up(port: int) -> bool:
@@ -319,16 +338,102 @@ def server_up(port: int) -> bool:
         return False
 
 
+def local_api(port: int, path: str, key: str | None = None, timeout: float = 10.0) -> tuple[int | None, object]:
+    """A GET of the quiz server on this machine's port: (HTTP status, its JSON answer) - (None, None)
+    when it cannot be reached or does not answer in JSON."""
+    import json
+    import urllib.error
+    import urllib.request
+    req = urllib.request.Request(f"http://localhost:{port}{path}", headers={"X-Texquiz-Key": key} if key else {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as err:
+        return err.code, None
+    except (OSError, ValueError):
+        return None, None
+
+
+def server_status(port: int) -> dict | None:
+    """The /api/status of the server that answers on this machine's port, or None."""
+    code, status = local_api(port, "/api/status", timeout=1.5)
+    return status if code == 200 and isinstance(status, dict) else None
+
+
 def server_checks(port: int) -> str | None:
     """Who checks the activities' texts of the server that answers on this machine's port (its
     /api/status), or None."""
-    import json
-    import urllib.request
-    try:
-        with urllib.request.urlopen(f"http://localhost:{port}/api/status", timeout=1.5) as r:
-            return json.loads(r.read()).get("checks") or "browser"
-    except (OSError, ValueError, AttributeError):
-        return None
+    status = server_status(port)
+    return None if status is None else status.get("checks") or "browser"
+
+
+# what texstage present hands to a server it starts - and a server that runs already does not take
+STARTING = (("tunnel", "--tunnel"), ("no_tunnel", "--no-tunnel"), ("public_url", "--public-url"), ("host", "--host"))
+
+
+def running_notes(args: argparse.Namespace, more: list[str], bid: str | None, deck: str | None) -> list[str]:
+    """What texstage present says of the quiz server that runs already on its port, which it uses as it
+    is: the options given for a server it starts (the review of 2026-11-14: --activities, the tunnel's
+    and the addresses' went unsaid), and - this deck's build - whether that server has it, or why not,
+    and the game of the deck that the build would end (deck_notes)."""
+    notes = []
+    mode = server_checks(args.port) if args.checks or args.workers or args.max_players else None
+    if mode is not None and ((args.checks and args.checks != mode) or args.workers or args.max_players):
+        notes.append(f"it checks with --checks {mode}: --checks, --workers and --max-players are for a server "
+                     "that present starts")                 # (the package 4 review: they went unsaid)
+    running = (server_status(args.port) or {}).get("activities") if args.activities else None
+    if running and running != args.activities:
+        notes.append(f"it runs the activity type {running}: --activities {args.activities} is for a server that present "
+                     "starts - stop the running server (Ctrl+C in its window), then present again")
+    given = [flag for attr, flag in STARTING if getattr(args, attr, None)]
+    if given:
+        notes.append(f"{', '.join(given)}: for a server that present starts - the running one keeps its own")
+    if more:
+        notes.append(f"it serves what it was started with and the builds recorded in its data folder, not "
+                     f"{', '.join(more)}")
+    if bid:
+        notes += deck_notes(args.port, bid, deck, powerpoint=args.powerpoint)
+    return notes
+
+
+def deck_notes(port: int, bid: str, deck: str | None, powerpoint: bool = False) -> list[str]:
+    """Whether the quiz server on this machine's port has the build `bid` on its deck list - or why
+    not: a deck it does not play (GET /api/skipped), a build it has but does not list, one it does not
+    have -, and the game of the deck on another build that this build would end. Asked with this
+    machine's presenter key (GET /api/presenter-key: only to the machine itself); a server that gives
+    none, or is older than these routes, is not asked."""
+    import time
+    code, given = local_api(port, "/api/presenter-key", timeout=2)
+    key = given.get("key") if code == 200 and isinstance(given, dict) else None
+    code, decks = local_api(port, "/api/decks", key) if key else (None, None)
+    if code != 200 or not isinstance(decks, list):
+        return []
+    notes = []
+    if not any(isinstance(d, dict) and d.get("bundle") == bid for d in decks):
+        code, skipped = local_api(port, "/api/skipped", key)
+        why = next((s.get("error") for s in skipped if isinstance(s, dict) and s.get("bundle") == bid), None) \
+            if code == 200 and isinstance(skipped, list) else None
+        if why:
+            notes.append(f"it does not play this deck: {why}")
+        else:
+            code, _ = local_api(port, f"/api/deck/{bid}", key)
+            if code == 200:
+                notes.append("it has this build but does not list it - an older build of the deck than its newest, or "
+                             "the deck was taken off the list: the presenter window opens it all the same")
+            elif code == 404:
+                notes.append("it does not have this build: it serves the folders it was started with and the builds "
+                             "recorded in its own data folder - is it started with another --data (present's is for a "
+                             "server it starts)? Or upload the deck's .bundle.zip in its deck list")
+    game = next((d for d in decks if isinstance(d, dict) and d.get("deck") == deck and d.get("bundle") != bid
+                 and isinstance(d.get("game"), dict) and d["game"].get("players")), None)
+    if game is not None:
+        when = time.strftime("%H:%M", time.localtime(game.get("built", 0) / 1000))
+        n = game["game"]["players"]
+        notes.append(f"a game of this deck runs on its build of {when} (PIN {game['game'].get('pin')}, "
+                     f"{n} {'player' if n == 1 else 'players'}): "
+                     + ("the live slides of this PowerPoint file end it - the phones join the new game with a new PIN"
+                        if powerpoint else "the presenter window asks before this build replaces it"))
+    return notes
 
 
 def open_file(path: Path):
@@ -351,19 +456,21 @@ def cmd_present(args: argparse.Namespace) -> int:
             print(f"texstage: no such file: {path}", file=sys.stderr)
             return 2
         out = Path(args.output_dir) if args.output_dir else path.parent / "texquiz-out"
-        why = "asked for" if args.build else None if args.no_build else needs_build(path.parent, out)
+        from texstage.build.bundle import deck_name
+        name = deck_name(path)                       # its own build: the decks of a folder share texquiz-out
+        why = "asked for" if args.build else None if args.no_build else needs_build(path.parent, out, name=name)
         if why:
             print(f"texstage present: building {path.name} ({why})", flush=True)
             code = cmd_build(argparse.Namespace(
                 tex=str(path), output_dir=str(out), server=f"http://localhost:{args.port}", key=None, deck=args.deck,
                 height=1080, no_check=args.no_check, max_shrink=15.0, passes=2, no_stage=False, data=args.data))
-            if code != 0 and needs_build(path.parent, out):
+            if code != 0 and needs_build(path.parent, out, name=name):
                 return code                                   # LaTeX or the build failed: nothing to present
             if code != 0:
                 print("texstage present: the check found problems in the quiz frames (above) - presenting the deck anyway")
     else:
-        out = path
-    bid, pptx = built_deck(out)
+        out, name = path, None
+    bid, deck, pptx = built(out, name)
     if args.powerpoint and pptx is None:
         print(f"texstage: no live PowerPoint file in {out}" + ("" if bid else " - build the deck first"), file=sys.stderr)
         return 2
@@ -371,10 +478,8 @@ def cmd_present(args: argparse.Namespace) -> int:
     opener = (lambda: open_file(pptx)) if args.powerpoint else (lambda: webbrowser.open(url))
     if server_up(args.port):                                 # it finds the build by itself (builds.json)
         print(f"texstage present: the quiz server on this machine runs already - {pptx if args.powerpoint else url}")
-        mode = server_checks(args.port) if args.checks or args.workers or args.max_players else None
-        if mode is not None and ((args.checks and args.checks != mode) or args.workers or args.max_players):
-            print(f"  it checks with --checks {mode}: --checks, --workers and --max-players are for a server "
-                  "that present starts")                 # (the package 4 review: they went unsaid)
+        for note in running_notes(args, more, bid, deck):
+            print(f"  {note}")
         opener()
         return 0
     return cmd_serve(argparse.Namespace(

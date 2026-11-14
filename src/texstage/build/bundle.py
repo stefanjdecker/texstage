@@ -36,6 +36,13 @@ FORMAT = 2                     # what the build writes
 READS = (1, 2)                 # what a server reads
 
 
+def deck_name(tex: Path) -> str:
+    """The name of a deck's build - <out>/<name>.bundle, <name>.pptx - and its shown name: the file's,
+    for a course chapter's slides.tex its folder's. Here, not in builder.py: texstage present looks for
+    the deck's own build without loading the build's modules (cli.py)."""
+    return tex.resolve().parent.name if tex.stem == "slides" else tex.stem
+
+
 def content_name(folder: str, data: bytes, suffix: str = ".png") -> str:
     return f"{folder}/{hashlib.sha256(data).hexdigest()[:16]}{suffix}"
 

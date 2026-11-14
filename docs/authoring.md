@@ -199,7 +199,14 @@ lecture's shared `dbis-style.sty`, build with `--build`), then uses the quiz ser
 running on this machine or starts one - over every chapter's build, with the remembered tunnel,
 as `texstage-serve.py` does; its window stays open for the lecture - and opens the deck: in
 texstage's presenter window, or with `--powerpoint` the live PowerPoint file. `texstage` is
-the same command by the browser presenter's name (`texstage deck.tex`).
+the same command by the browser presenter's name (`texstage deck.tex`). A server that runs
+already is used as it is: `present` says which of its options that server does not take
+(`--activities` when it runs the other type, `--tunnel`, `--public-url`, `--host`, further
+folders - stop it and present again to have them), whether it has the deck's build or why not
+(a kind it lacks, a server started with another `--data`), and when the build would end a game
+of the deck's build before that has players. **Built again in the lecture** (in the break, say):
+the presenter window then asks before the new build ends the running game - the phones would
+join again with a new PIN and the scores start anew; *Keep the running build* goes on with it.
 
 **In the browser instead of PowerPoint** (texstage): `texstage present` opens the presenter
 window on the deck (`http://localhost:8470/stage` lists all decks of the server); *Projector*
@@ -236,7 +243,10 @@ after the last one is lost - iPadOS keeps that touch for its handwriting. **Afte
 lecture**, *Make the PDF* gives the annotated PDF for the students - every frame as it was shown
 last, with your ink, and the whiteboard pages, without your notes - and keeps it with the quiz
 results in the server's archive (`archive/<deck>/<date>-<PIN>/` in its data folder), which
-*Download the archive* gives as one ZIP. **Recording the lecture:** *Record* in the presenter
+*Download the archive* gives as one ZIP. When the game ends - *New game*, a new build, the next
+lecture - its results, polls, questions and sketches go to that folder by themselves; the
+windows reach only the open game's archive, an earlier one is in the data folder.
+**Recording the lecture:** *Record* in the presenter
 window (on the laptop) - check in the dialog that the bar moves when you speak, choose another
 microphone if not, then *Start recording* and pick the projector's screen (or the projector
 window) in the browser's dialog. The video is what the hall sees - slides, ink, pointer, quizzes -
@@ -383,7 +393,11 @@ deck built on this computer off the list - its build folder stays, and its next 
 back -; a deck uploaded to the server is deleted instead (â‹¯ â€º *Delete*), not while a game of it
 is under way. A folder's â‹¯ renames, moves or deletes it (what it holds moves up; no deck is
 deleted). Folders and names are each lecturer's own, kept by the server (`library.json` in its
-data folder).
+data folder). A deck the server finds and does not play - a kind of activity it lacks (a deck of
+texstage's own kinds wants `--activities core`), a format it is too old for, a broken
+`deck.json` - is on no list; the page says at the top which and why, and so does the server's
+window when it finds a new one (`skipped: ...`). If `texstage present` names a deck the page
+cannot present, the page says why.
 
 ## Laptop or hosted server
 

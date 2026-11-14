@@ -570,8 +570,13 @@ else a new one (the old one ends): the next lecture, or a rebuilt deck. A window
 older than the running game's (its `deck.json` dated earlier) - opened before the rebuild, now
 connecting again or reloaded - is refused instead (`newer-build`), so the game and its phones
 stay; only the lecturer's choice of that build (Present on texstage's deck page, or
-`texstage present`: the hello's `chosen`) replaces the game. After the podium, the join slide
-starts a new game for the next group; the host can also start one explicitly (`restart`).
+`texstage present`: the hello's `chosen`) replaces the game. texstage's presenter window asks
+first (the hello's `ask`): where its build would end a fresh game of another build with players,
+answers, ink or whiteboard pages, it is refused with `replaces-game`, and the refusal's `detail`
+says what would end, so that the lecturer chooses (texstage-design.md, section 26). After the
+podium, the join slide starts a new game for the next group; the host can also start one
+explicitly (`restart`). Whatever ends a game, its results, polls, questions and sketches go to
+its folder of the lecture archive (`Server.ended`).
 
 **Lectures and versions.** A deck's ID names the lecture: `texstage-build.py` makes it
 `<course>-<chapter>` (`kg-06-sparql-semantics`; the course is `"course"` in `lecture.json`,

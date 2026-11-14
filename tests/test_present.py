@@ -26,14 +26,22 @@ def touch(path: Path, t: float):
     os.utime(path, (t, t))
 
 
-def built(tmp_path: Path):
-    """A deck and its up-to-date build (with the stage PDF and the live PowerPoint file)."""
+def built(tmp_path: Path, name: str = "talk"):
+    """A deck and its up-to-date build (with the stage PDF and the live PowerPoint file), named as the
+    build names them: <out>/<name>.bundle and <name>.pptx for <name>.tex."""
     out = tmp_path / "talk" / "texquiz-out"
-    fb = make_bundle(out, stage=True)
-    (out / "Test-deck.pptx").write_bytes(b"pptx")
-    tex = tmp_path / "talk" / "talk.tex"
+    fb = make_bundle(out, deck=name, stage=True, title=name)
+    (out / f"{name}.pptx").write_bytes(b"pptx")
+    tex = tmp_path / "talk" / f"{name}.tex"
     touch(tex, (fb.path / "deck.json").stat().st_mtime - 60)
     return tex, out, fb
+
+
+@pytest.fixture(autouse=True)
+def no_server(monkeypatch):
+    """No test asks a real server on this machine's port (the one a lecture may run): a server that runs
+    is the test's own, through cli.local_api."""
+    monkeypatch.setattr(cli, "local_api", lambda *args, **kwargs: (None, None))
 
 
 @pytest.fixture
@@ -94,7 +102,7 @@ def test_present_on_the_server_that_runs(tmp_path, monkeypatch, opened):
     assert cli.main(["present", str(tex)]) == 0
     assert opened == [("browser", f"http://localhost:8470/stage?bundle={fb.id}")]   # this deck, at once
     assert cli.main(["present", str(out), "--powerpoint"]) == 0            # a build folder, with PowerPoint
-    assert opened[-1] == ("file", "Test-deck.pptx")
+    assert opened[-1] == ("file", "talk.pptx")
 
 
 def test_present_starts_the_server(tmp_path, monkeypatch, opened):
@@ -144,7 +152,7 @@ def test_present_builds_first(tmp_path, monkeypatch, opened):
 
 def test_present_without_a_powerpoint_file(tmp_path, monkeypatch, opened, capsys):
     tex, out, fb = built(tmp_path)
-    (out / "Test-deck.pptx").unlink()
+    (out / "talk.pptx").unlink()
     monkeypatch.setattr(cli, "server_up", lambda port: True)
     assert cli.main(["present", str(tex), "--powerpoint"]) == 2 and opened == []
     assert "no live PowerPoint file" in capsys.readouterr().err
@@ -178,3 +186,85 @@ def test_a_build_has_the_stage_pdf_by_default(tmp_path, monkeypatch):
 
 
 
+
+
+def test_present_opens_its_own_deck_where_decks_share_a_build_folder(tmp_path, monkeypatch, opened):
+    """The decks of one folder share its texquiz-out: present of the one never built builds it - another
+    deck's build there is not its own - and each opens its own build, not the folder's newest (the review
+    of 2026-11-14: present week01.tex built nothing and opened week02)."""
+    tex2, out, week2 = built(tmp_path, "week02")
+    tex1 = tmp_path / "talk" / "week01.tex"
+    t = (week2.path / "deck.json").stat().st_mtime
+    touch(tex1, t - 60)
+    assert cli.needs_build(tex1.parent, out, name="week01") == "not built yet"
+    assert cli.needs_build(tex1.parent, out) is None                    # (the folder's newest build: week02's)
+    made = []
+
+    def build(args):
+        week1 = make_bundle(out, deck="week01", stage=True, title="week01")
+        os.utime(week1.path / "deck.json", (t + 60, t + 60))            # built after week02
+        made.append((Path(args.tex).name, week1.id))
+        return 0
+    monkeypatch.setattr(cli, "cmd_build", build)
+    monkeypatch.setattr(cli, "server_up", lambda port: True)
+    assert cli.main(["present", str(tex1)]) == 0
+    ((name, week1),) = made
+    assert name == "week01.tex" and opened[-1] == ("browser", f"http://localhost:8470/stage?bundle={week1}")
+    assert cli.main(["present", str(tex2)]) == 0 and len(made) == 1      # week02: its own build, as it is
+    assert opened[-1] == ("browser", f"http://localhost:8470/stage?bundle={week2.id}")
+    assert cli.built_deck(out)[0] == week1                               # (a build folder alone: its newest)
+
+
+class Running:
+    """The quiz server that runs on this machine's port, as cli.local_api asks it: path -> (status, JSON)."""
+
+    def __init__(self, answers: dict):
+        self.answers = answers
+
+    def __call__(self, port, path, key=None, timeout=10.0):
+        return self.answers.get(path, (None, None))
+
+
+def test_present_on_a_running_server_says_what_it_cannot_apply_and_why_the_deck_is_not_there(
+        tmp_path, monkeypatch, opened, capsys):
+    """The server that runs already is used as it is: present says which of its options that server does not
+    take (--activities, the tunnel's, the addresses', further folders), asks it with this machine's key
+    whether it lists the deck's build - or why not: a deck it does not play (its reason), a build it has
+    and does not list, one it does not have -, and says when the build would end a game of another build
+    with players (the review of 2026-11-14: --activities and the rest went unsaid, and the deck page opened
+    without the deck)."""
+    tex, out, fb = built(tmp_path)
+    monkeypatch.setattr(cli, "server_up", lambda port: True)
+    monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("the build is up to date"))
+    why = "the activity a1 is of the kind choice, which this server's activity type does not run"
+    running = Running({"/api/status": (200, {"server": "texstage", "activities": "f1", "checks": "browser"}),
+                       "/api/presenter-key": (200, {"key": "local-key"}), "/api/decks": (200, []),
+                       "/api/skipped": (200, [{"bundle": fb.id, "deck": "talk", "error": why}])})
+    monkeypatch.setattr(cli, "local_api", running)
+    more = str(tmp_path / "more")
+    assert cli.main(["present", str(tex), more, "--activities", "core", "--tunnel", "hall"]) == 0
+    said = capsys.readouterr().out
+    assert "it runs the activity type f1: --activities core is for a server that present starts" in said
+    assert "--tunnel: for a server that present starts" in said and f"not {more}" in said
+    assert f"it does not play this deck: {why}" in said
+    assert opened == [("browser", f"http://localhost:8470/stage?bundle={fb.id}")]    # its window says why, too
+    running.answers["/api/skipped"] = (200, [])
+    running.answers[f"/api/deck/{fb.id}"] = (200, {"bundle": fb.id})
+    assert cli.main(["present", str(tex), "--activities", "f1"]) == 0                # the type it runs: unsaid
+    said = capsys.readouterr().out
+    assert "activity type" not in said and "it has this build but does not list it" in said
+    running.answers[f"/api/deck/{fb.id}"] = (404, None)
+    assert cli.main(["present", str(tex)]) == 0
+    assert "it does not have this build" in capsys.readouterr().out
+    running.answers["/api/decks"] = (200, [                                          # listed - and the deck's game
+        {"bundle": fb.id, "deck": "talk", "built": 0, "game": None},                  # on the build before
+        {"bundle": "0123456789abcdef", "deck": "talk", "built": 1_800_000_000_000,
+         "game": {"pin": "123456", "players": 87, "session": "s"}}])
+    assert cli.main(["present", str(tex)]) == 0
+    said = capsys.readouterr().out
+    assert "does not" not in said and "(PIN 123456, 87 players): the presenter window asks before" in said
+    assert cli.main(["present", str(tex), "--powerpoint"]) == 0
+    assert "the live slides of this PowerPoint file end it" in capsys.readouterr().out
+    running.answers["/api/presenter-key"] = (403, None)                               # no key for present: not asked
+    assert cli.main(["present", str(tex)]) == 0
+    assert "PIN" not in capsys.readouterr().out

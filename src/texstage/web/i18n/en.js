@@ -169,6 +169,7 @@ export default {
     "no-round": "No question has been asked yet.",
     "unknown-bundle": "This deck is not on this server.",
     "newer-build": "A newer build of this deck is being played – open that build instead.",
+    "replaces-game": "A game of this deck runs on another build – choose here which build to present.",
     "unknown-quiz": "This deck has no such quiz.",
     "too-many-polls": "This game has had enough polls.",
     "too-many-boards": "This lecture has enough whiteboard pages.",
@@ -278,6 +279,11 @@ export default {
       deleteFolderAsk: (name) => `Delete the folder "${name}"? What it holds moves up one level - no deck is deleted.`,
       newFolderIn: (name) => `A new folder in "${name}"`, newFolderAsk: "A new folder", create: "Create",
       loading: (name) => `Loading ${name} ...`,
+      // the decks the server found and does not play; the deck texstage present opened and that is not presented
+      skipped: (n) => `${n === 1 ? "A deck is" : `${n} decks are`} not on the list: this server does not play ${n === 1 ? "it" : "them"} - why`,
+      presentSkipped: (name, why) => `texstage present opened "${name}", which this server does not play: ${why}`,
+      presentNoStage: (name) => `"${name}" was built without the stage PDF (--no-stage): build it again to present it here.`,
+      presentMissing: (bundle) => `The deck that texstage present opened (build ${bundle}) is not on this server. A server started with another data folder (--data) does not find it, nor does one that runs elsewhere: upload its .bundle.zip here, or start texstage present on a port where no server runs.`,
     },
     // the open deck: the top bar's buttons, the slide, the next step, the notes
     projector: "Projector", projectorTitle: "open the projector window (on the second screen)",
@@ -342,6 +348,12 @@ export default {
       ask: (when, what) => `The lecture ${when} left ${what}. Is this a new presentation, or does it continue that lecture?`,
       newGame: "A new presentation also starts a new game: the phones join with a new PIN.",
       fresh: "New presentation", goOn: "Continue that lecture",
+    },
+    // this build would end the deck's game on another build (replaces-game); when: earlier.today or earlier.on
+    replace: {
+      ask: (when, pin, what, newer) => `A game of this deck runs on its ${newer ? "newer " : ""}build${when ? ` ${when}` : ""} (PIN ${pin}${what ? `, ${what}` : ""}). Opening this build ends that game: the phones join again with a new PIN, the scores start anew, and its ink stays with its build. Its results stay in the archive.`,
+      asked: (n) => `${n} ${n === 1 ? "question" : "questions"} asked`,
+      open: "Open this build", keep: "Keep the running build",
     },
     // a poll typed now (Poll)
     poll: {

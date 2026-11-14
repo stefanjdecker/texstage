@@ -68,11 +68,13 @@ OVERLAYS = ("poll", "sketches")                    # shown instead of the slide,
 
 
 class GameError(Exception):
-    """A command that cannot be carried out; `code` is for clients, the message for people."""
+    """A command that cannot be carried out; `code` is for clients, the message for people, `detail`
+    (if any) what a window needs to ask its lecturer (replaces-game: the game that would end)."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, detail: dict | None = None):
         super().__init__(message)
         self.code = code
+        self.detail = detail
 
 
 @dataclass
@@ -192,6 +194,7 @@ class Engine:
         self.sessions: dict[str, Session] = {}
         self.players: dict[str, Player] = {}
         self.tokens: dict[str, str] = {}     # token hash -> player id
+        self.on_end = None                   # called with a game that ends, before it does (app.py: its archive)
         self.ink = InkBook()                 # texstage: the strokes on the slides (ink.py)
         # the content types' larger data of all games (types.py: Book), and the games whose phones
         # get their state again after a type's change (all: True, or these player ids; take_due)
@@ -277,20 +280,32 @@ class Engine:
                 return pin
 
     # ------------------------------------------------------------ sessions (host)
-    def open_session(self, deck: str, bundle_id: str, now: int, owner: str = "", chosen: bool = False) -> Session:
+    def open_session(self, deck: str, bundle_id: str, now: int, owner: str = "", chosen: bool = False,
+                     ask: bool = False) -> Session:
         """The lecturer's active session of a deck - a new one if there is none, if it is
         stale (idle for hours: the next lecture) or if it plays an older build of the deck.
         A window of an older build than the game's (built before - Bundle.built -: opened before a
         rebuild, and now it connects again or is reloaded) is refused, the game left alone - its
         phones would lose it -, unless the lecturer chose that build (`chosen`: the presenter
-        window's deck page, texstage present). Lecturers never share a game, even of decks with
-        the same name."""
+        window's deck page, texstage present). A window that asks first (`ask`: the presenter
+        window) is refused with replaces-game where this build would end a fresh game of another
+        build that has something to lose - players, answers, ink, whiteboard pages, the audience's
+        questions -, and the refusal's detail says what (replaced): the lecturer chooses, and the
+        window says hello again without `ask` to replace it. Lecturers never share a game, even of
+        decks with the same name."""
         b = self.bundles.get(bundle_id)
         if b is None or b.deck != deck:
             raise GameError("unknown-bundle", f"deck {deck}, bundle {bundle_id} is not on this server")
         if not chosen and any(self._newer(s, b, now) for s in self.sessions.values()
                               if s.deck == deck and s.owner == owner and s.ended is None):
             raise GameError("newer-build", "a newer build of this deck is being played - open that build instead")
+        if ask:
+            old = next((s for s in self.sessions.values() if s.deck == deck and s.owner == owner and s.ended is None
+                        and s.bundle != bundle_id and now - s.last_active < self.settings.stale_ms
+                        and self._at_stake(s)), None)
+            if old is not None:
+                raise GameError("replaces-game", f"a game of this deck runs on another build (PIN {old.pin}) - this "
+                                                 "build would end it", detail=self.replaced(old, b))
         last, ended = None, set()
         for s in list(self.sessions.values()):
             if s.deck == deck and s.owner == owner and s.ended is None:
@@ -309,6 +324,23 @@ class Engine:
             self._release(bid)                       # (the package 4 review: it was dropped, then prepared again)
         self._commit()
         return s
+
+    def _at_stake(self, s: Session) -> bool:
+        """Whether a game has something its end would take from the lecture: players, an answer, ink or a
+        whiteboard page, a question from the audience."""
+        return bool(s.active_players() or any(self.marks(s)) or s.questions
+                    or any(r.answers for r in s.rounds.values()))
+
+    def replaced(self, s: Session, b: Bundle) -> dict:
+        """What a presenter window asks about before build b replaces game s (replaces-game): its PIN and
+        build - when that was built, and whether after b -, its players, the questions it asked, its ink
+        and whiteboard pages, when it was active last."""
+        playing = self.bundles.get(s.bundle)
+        frames, boards = self.marks(s)
+        return {"game": s.id, "pin": s.pin, "bundle": s.bundle, "built": playing.built if playing else None,
+                "newer": playing is not None and playing.built > b.built, "players": len(s.active_players()),
+                "asked": len({r.quiz for r in s.rounds.values()}), "frames": frames, "boards": boards,
+                "at": s.last_active}
 
     def _newer(self, s: Session, b: Bundle, now: int) -> bool:
         """Whether game s - of b's deck, not stale - plays a build made after b (the time its
@@ -339,6 +371,14 @@ class Engine:
         return s
 
     def _end(self, s: Session, now: int, release: bool = True):
+        """Every game ends here - a new build, New game, a new presentation, the join slide after the
+        podium, the next lecture, its deck deleted. on_end sees it first, while it is still open: the
+        server writes what it leaves to the lecture archive (app.py: Server.ended)."""
+        if self.on_end is not None:
+            try:
+                self.on_end(s)
+            except Exception:                            # (the archive must not keep a game from ending)
+                logging.getLogger("texstage.server").exception("the archive of game %s", s.id)
         s.ended = now
         self._save(s)
         del self.sessions[s.id]

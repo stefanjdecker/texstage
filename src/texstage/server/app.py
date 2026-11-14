@@ -18,6 +18,8 @@
     PATCH|DELETE /api/decks/<deck>,          texstage's deck page (library.py), for hosts: a deck's
         GET|POST /api/folders,               folder and shown name, off the list (an uploaded deck
         PATCH|DELETE /api/folders/<id>       deleted); the lecturer's folders
+    GET /api/skipped                         for hosts: the decks the server found and does not play,
+                                             each with why (bundles.py Skipped; as GET /api/decks found them)
     PUT /api/archive/<session>/annotated.pdf, GET /api/archive/<session>.zip
         GET /api/archive/<session>/files     texstage: the lecture archive, <data>/archive/<deck>/<date>-<pin>/
     POST /api/archive/<session>/recording {ext} -> {take}, PUT /api/recording/<take>/<part>,
@@ -40,9 +42,12 @@ Protocol: one WebSocket per client, JSON messages {"t": type, ...}. A command ma
 with the same id (after a reconnect) is answered from a cache instead of being run twice
 (not the commands that only read: they run again).
 
-    any     hello {role: "host"|"stage"|"display", key | device, deck, bundle, chosen?}   -> welcome {role, session}
+    any     hello {role: "host"|"stage"|"display", key | device, deck, bundle, chosen?, ask?}   -> welcome {role, session}
                     (an older build than the deck's running game is refused - newer-build -, unless the
-                    lecturer chose it: chosen, the presenter window's deck page; Engine.open_session)
+                    lecturer chose it: chosen, the presenter window's deck page; with ask - the presenter
+                    window - a build that would end a game of another build with players, answers or ink
+                    is refused - replaces-game, its detail: that game - until the window says hello again
+                    without ask; Engine.open_session)
             join {pin, nickname, join_nonce?}         -> welcome {role, player, token}
             resume {token}                            -> welcome {role, player}
             ping                                      -> pong {now}
@@ -466,6 +471,7 @@ class Server:
         self.again_due = False                       # a wake-up is set for the answers to apply again
         self.loop: asyncio.AbstractEventLoop | None = None
         self.engine = Engine(self.bundles, self.store, config.settings, checks=self.checks)
+        self.engine.on_end = self.ended                 # a game that ends leaves its archive (ended)
         self.recordings = Recordings(config.data_dir / "archive")      # texstage (archive.py)
         self.downloads: dict[str, tuple[Path, str, int]] = {}         # ticket -> file, its name, valid until
         self.media: dict[str, tuple[str, str, int]] = {}              # ticket -> bundle ID, relative video file, valid until
@@ -782,7 +788,8 @@ class Server:
                 else:                                    # once the hook's rows are written, not before: until
                     written(answer)                      # then the message sent again is asked again (types.py)
         except GameError as err:
-            conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err)})
+            conn.send({"t": "error", "re": mid, "error": err.code, "message": str(err),
+                       **({"detail": err.detail} if err.detail is not None else {})})
         except Exception as err:                         # a bug: report it, keep the connection
             log.exception("command %r failed", t)
             conn.send({"t": "error", "re": mid, "error": "internal", "message": type(err).__name__})
@@ -832,7 +839,8 @@ class Server:
         b = self.bundles.get(bid) if bid else None
         if b is None or not b.open_to(lecturer):          # another lecturer's deck: not here for this one
             raise GameError("unknown-bundle", f"deck {deck}, bundle {bid} is not on this server")
-        s = self.engine.open_session(deck, bid, now, owner=lecturer, chosen=msg.get("chosen") is True)
+        s = self.engine.open_session(deck, bid, now, owner=lecturer, chosen=msg.get("chosen") is True,
+                                     ask=msg.get("ask") is True)
         try:
             self.snapshot(b)
         except OSError as err:                            # the game goes on from the build folder
@@ -1086,6 +1094,24 @@ class Server:
             else:
                 log.warning("not an archive file: %r", file)
         return folder
+
+    def ended(self, s) -> Path | None:
+        """A game ends (game.py _end: a new build, New game, a new presentation, the join slide after the
+        podium, the next lecture, its deck deleted): what it leaves - results, polls, questions, sketches,
+        the types' files - goes to its folder in the lecture archive, as Make the PDF and Download the
+        archive write it (the review of 2026-11-14: once a game had ended, no window reached its results,
+        and only those written by hand were in the archive). A game that left nothing - no player, no
+        answer, poll or question, and no folder of its own yet (a recording, the annotated PDF) - gets
+        none. The folder, or None."""
+        folder = archive.folder(self.config.data_dir, s, make=False)
+        if not (s.players or s.polls or s.questions or folder.is_dir()
+                or any(r.answers for r in s.rounds.values())):
+            return None
+        try:
+            return self.write_archive(s)
+        except GameError as err:                        # (its deck is not on this server any more)
+            log.warning("the archive of game %s (%s): %s", s.pin, s.deck, err)
+            return None
 
     def take_info(self, t) -> dict:
         """A recording (archive.py Take) as the presenter window sees it."""
@@ -1423,6 +1449,26 @@ def create_app(config: ServerConfig) -> Starlette:
         out.sort(key=lambda d: (d["name"].casefold(), -d["built"]))
         return JSONResponse(out)
 
+    async def skipped(request: Request):
+        """GET /api/skipped: the decks the server found and does not play - a kind or format it lacks, a
+        broken deck.json -, each with why, as far as its deck.json can be read: those open to this
+        lecturer (an upload's to its lecturer only), as the last scan found them (GET /api/decks scans:
+        the deck page asks for this list after it). The folder of one not uploaded is named - relative to
+        the data folder where it is in it -, so that the lecturer finds it."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        data = config.data_dir.resolve()
+
+        def folder(path: Path) -> str:
+            try:
+                return path.resolve().relative_to(data).as_posix()
+            except (OSError, ValueError):
+                return str(path)
+        return JSONResponse([{"deck": s.deck, "name": s.name, "bundle": s.bundle, "error": s.error,
+                              "folder": folder(s.path) if s.owner is None else None}
+                             for s in server.bundles.skipped if s.owner is None or s.owner == lect])
+
     # ------------------------------------------------------------ the deck page (library.py)
     async def json_body(request: Request) -> dict:
         try:
@@ -1744,6 +1790,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/devices/{device}", device_remove, methods=["DELETE"]),
         Route("/api/decks", decks),
         Route("/api/decks/{deck}", deck_entry, methods=["PATCH", "DELETE"]),
+        Route("/api/skipped", skipped),
         Route("/api/folders", folders, methods=["GET", "POST"]),
         Route("/api/folders/{folder}", folder, methods=["PATCH", "DELETE"]),
         Route("/api/deck/{bundle}", deck_json),
