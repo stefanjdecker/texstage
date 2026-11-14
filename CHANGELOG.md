@@ -2,6 +2,22 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Recording, after a review of it:
+  - The Record dialog shows the chosen screen live as a miniature before
+    anything is recorded (*Choose the screen …*, then *Start recording* or
+    *Choose another …*), so the presenter's own screen, with its notes and
+    the next step's answers, is not recorded by mistake. Where the browser
+    allows, it says first on which screen the projector window is.
+  - *Also record the computer's sound (the deck's videos)*: unticked each
+    time the dialog opens. The browser gives it for an entire screen
+    (Chromium on Windows and ChromeOS), and it is mixed with the microphone
+    into one track.
+  - A recording that stops by itself - the projector window closed, the
+    display changed, *Stop sharing* - says so in the top bar until
+    dismissed, with *Record again*. Before, it looked like a normal save,
+    and the note went after 30 s.
+  - The top bar warns when the microphone has heard nothing for 30 s while
+    recording, or when it is gone (unplugged).
 - A deck's lectures and builds on the deck page (the review's second
   package), under a deck card's ⋯:
   - *Lectures …* lists the deck's games, open and ended, with what each

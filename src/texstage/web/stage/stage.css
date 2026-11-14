@@ -73,6 +73,13 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .reclate { background: var(--warn); color: #000; }
 .recsaved { font-weight: 600; }
 .recfail { font-weight: 600; color: #ffd0d6; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recwarn { font-size: 12px; border-radius: 99px; padding: 1px 8px; background: var(--warn); color: #000; white-space: nowrap; }
+.rec.recgone .recfail { color: #ffd0d6; }   /* stopped by itself: said until dismissed */
+.dialog .buttons button:disabled { opacity: .45; cursor: default; }
+.recsound { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.recpreview { display: flex; flex-direction: column; gap: 6px; }      /* the screen chosen, before it is recorded */
+.recpreview video { width: 100%; max-height: 240px; background: #000; border-radius: 8px; border: 1px solid var(--line); }
+.recpreview p { color: var(--ink); }
 .microw { display: flex; align-items: center; gap: 10px; color: var(--muted); }
 .microw select { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border-radius: 8px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); }
 

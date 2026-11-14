@@ -248,9 +248,17 @@ lecture - its results, polls, questions and sketches go to that folder by themse
 windows reach only the open game's archive, an earlier one is in the data folder.
 **Recording the lecture:** *Record* in the presenter
 window (on the laptop) - check in the dialog that the bar moves when you speak, choose another
-microphone if not, then *Start recording* and pick the projector's screen (or the projector
-window) in the browser's dialog. The video is what the hall sees - slides, ink, pointer, quizzes -
-with your voice; the red dot, pause and stop are in the presenter window only. It goes to the
+microphone if not, then *Choose the screen …* and pick the projector's screen (or the projector
+window) in the browser's dialog, which shows every screen and window as a miniature; the
+presenter window says first which screen the projector window is on, where the browser lets it.
+The chosen screen then shows live in the dialog: if it is the projector's picture, *Start
+recording*, else *Choose another …*. *Also record the computer's sound* (off unless ticked) adds the
+deck's videos' sound - the browser gives it for an entire screen ("Also share system audio",
+Chromium on Windows), mixed with your voice. The video is what the hall sees - slides, ink,
+pointer, quizzes - with your voice; the red dot, pause and stop are in the presenter window only.
+The top bar warns when the microphone has heard nothing for 30 s, or is gone; a recording that
+stops by itself (the projector window closed, the display changed, *Stop sharing*) says so until
+you dismiss it, with *Record again*. It goes to the
 server every 10 s into the archive, so a crash loses seconds at most; after *Stop*, *After the
 lecture* lists it for *Download* (a WebM file - with ffmpeg installed, also with a seek index).
 Changing the deck or starting a new game does not stop it (the projector window follows the deck

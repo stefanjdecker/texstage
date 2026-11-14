@@ -170,7 +170,7 @@ test('an initial login rejection remains a form error, not a game-over event', a
 });
 
 function capture() {
-  const track = {stopped: false, stop() { this.stopped = true; }, getSettings: () => ({deviceId: 'mic'})};
+  const track = {stopped: false, stop() { this.stopped = true; }, getSettings: () => ({deviceId: 'mic'}), addEventListener() {}};
   return {track, getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [track]};
 }
 function mediaContext() {
@@ -209,22 +209,23 @@ function dialogContext() {
   const {context, requests} = mediaContext();
   const nodes = new Map();
   const el = {remove() { this.removed = true; }, querySelector(key) {
-    if (!nodes.has(key)) nodes.set(key, {style: {}, value: '', disabled: false});
+    if (!nodes.has(key)) nodes.set(key, {style: {}, value: '', disabled: false, checked: false});   // (as the page's: unticked)
     return nodes.get(key);
   }};
-  const screen = deferred();
+  const screens = [], picks = [];               // the browser's dialog: each choice, and what it was asked for
   let starts = 0;
   Object.assign(context, {
     document: {createElement: () => el, body: {append() {}}}, setInterval() { return 1; }, clearInterval() {},
     rec: null, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key', T: texts('en'),
-    esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {}, pickScreen: () => screen.promise,
+    esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {},
+    pickScreen: (options) => { picks.push(options); const d = deferred(); screens.push(d); return d.promise; },
   });
   // Keep actual Recording.start: replacing only its side effects tells us whether it ran.
   context.Recording.prototype.start = async function() { starts++; };
   const presenter = source('stage/presenter.js');
   const dialog = presenter.slice(presenter.indexOf('async function recordDialog()'), presenter.indexOf('\nfunction remembered()'));
   vm.runInContext(dialog, context);
-  return {context, requests, nodes, el, screen, starts: () => starts};
+  return {context, requests, nodes, el, screens, picks, starts: () => starts};
 }
 
 test('cancelling the recording dialog during microphone permission releases its late stream', async () => {
@@ -241,12 +242,37 @@ test('cancelling while the screen picker is pending never starts a recording', a
   const t = dialogContext();
   const opened = t.context.recordDialog();
   const mic = capture(); t.requests[0].resolve(mic); await opened;
-  const start = t.el.querySelector('#recstart').onclick();
+  const pick = t.el.querySelector('#recpick').onclick();
   t.el.querySelector('#closedlg').onclick();
-  const screen = capture(); t.screen.resolve(screen); await start;
+  const screen = capture(); t.screens[0].resolve(screen); await pick;
   assert.equal(screen.track.stopped, true);
   assert.equal(mic.track.stopped, true);
   assert.equal(t.starts(), 0);
+});
+
+test('the screen chosen is shown before anything is recorded; Start records it; its sound only when ticked', async () => {
+  const t = dialogContext();
+  const opened = t.context.recordDialog();
+  t.requests[0].resolve(capture()); await opened;
+  const start = t.el.querySelector('#recstart'), video = t.el.querySelector('#recvideo');
+  assert.equal(start.disabled, true);                                  // no screen yet: nothing to start
+  const pick = t.el.querySelector('#recpick').onclick();
+  const first = capture(); t.screens[0].resolve(first); await pick;
+  assert.equal(t.picks[0].sound, false);                               // the computer's sound: off unless ticked
+  assert.equal(video.srcObject, first);                                // the miniature, live
+  assert.equal(start.disabled, false);
+  assert.equal(t.starts(), 0);                                         // ... and nothing recorded yet
+  const sound = t.el.querySelector('#recsound');
+  sound.checked = true; sound.onchange();                              // asked for in the browser's dialog:
+  assert.equal(first.track.stopped, true);                             // the choice let go, chosen anew
+  assert.equal(video.srcObject, null);
+  assert.equal(start.disabled, true);
+  const again = t.el.querySelector('#recpick').onclick();
+  const second = capture(); t.screens[1].resolve(second); await again;
+  assert.equal(t.picks[1].sound, true);
+  await start.onclick();
+  assert.equal(t.starts(), 1);
+  assert.equal(second.track.stopped, false);                           // the recording has it now
 });
 
 test('cancelling during the recording request prevents MediaRecorder from starting', async () => {

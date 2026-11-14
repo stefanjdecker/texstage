@@ -1056,3 +1056,57 @@ Reported after that, the same day:
   - Lectures: the running and the ended game, the PDF made (9 pages, kept), the ZIP;
   - the delete asked over the list, Esc leaving the list open, the lecture deleted;
   - Builds: both builds, one downloaded, the older presented - asked, kept the running build.
+
+## 28. Recording: see it first, hear it, and say when it stopped (2026-11-14)
+
+- **Why:** a review of the recording found four gaps that matter in a lecture:
+  - choosing in the browser's dialog started the recording at once, so the presenter's own screen
+    (notes, the next step's answers) could be recorded unnoticed;
+  - a recording that stopped by itself looked like a Stop, and its note went after 30 s;
+  - nothing warned of a silent or unplugged microphone;
+  - the deck's videos were recorded without their sound.
+- **Before the browser's dialog:** a web page cannot see a screen before the lecturer chooses one;
+  the browser's dialog shows each screen and window as a miniature. Where the Window Management
+  permission is granted already (the projector window was placed with it), the dialog names the
+  projector window's screen: its label, size and side of this one (`projectorScreen`). There is no
+  new prompt for it.
+- **The miniature:** *Choose the screen …* calls `pickScreen` and shows the stream live in a muted
+  `<video>`, with what the browser says it is (`surfaceOf`: an entire screen, a window, a tab). Only
+  *Start recording* starts it; *Choose another …* lets the stream go and asks again. *Stop sharing*
+  before Start drops the choice.
+- **The computer's sound:** a box unticked each time the dialog opens (the user's wish). Ticked,
+  `pickScreen({sound: true})` asks for `audio` with `systemAudio: "include"`. Changing the box drops
+  the choice, since the sound is asked for in the browser's dialog. The dialog says whether the browser
+  gave sound; it does for an entire screen on Windows and ChromeOS, not for a window. MediaRecorder
+  records one audio track, so the microphone and the computer's sound are mixed in an AudioContext
+  (`Recording.audio`); either one alone is recorded as it is.
+- **A stop by itself:** a capture's track fires `ended` when its source goes (the page's own `stop()`
+  fires none). `Recording.cause = "screen"` then, the take is saved as before, and the top bar says
+  *Recording stopped by itself - saved up to here* (the reason in its title and a notice) until
+  dismissed, with *Record again*. Its class is `recgone`: `.screen` is the projector's overlay.
+- **The microphone:** `Recording.silence()` counts the time since the level last passed 0.15 (about
+  -51 dB) while recording, reset by a pause. From 30 s on, the top bar says *no sound for 30 s - is
+  the microphone on?*. A microphone track that ends sets `micLost`: *the microphone is gone*.
+- **Tested:** `web-record.test.cjs` (Node, the browser's media stood in for):
+  - the screen asked for without sound unless ticked, a window where there is one screen;
+  - microphone and computer sound mixed into one track, the mixer closed after;
+  - a stop by itself said, a Stop not;
+  - silence after 30 s, reset by a voice and a pause;
+  - a lost microphone.
+
+  All of them fail on main's `record.js`. `web-client-record.test.cjs`, the dialog's two steps:
+  - closing it while the browser's dialog is open starts nothing and lets the screen go;
+  - Start is disabled until a screen is chosen, and the chosen one shows in the miniature;
+  - the sound is asked for only when ticked, and changing the box lets the choice go.
+
+  In the browser pane, with a canvas for the screen and WebAudio for the microphone (the pane has no
+  screen dialog):
+  - the dialog: sound unticked, Start disabled until a screen is chosen;
+  - the miniature live, the answer to ticked sound ("the browser gave none");
+  - the warning after 33 s of silence;
+  - the top bar after a stop by itself, on one row at 1280 px, with *Record again* reopening the
+    dialog;
+  - a recording with the stand-in's tone as the computer's sound: three parts, VP9 + Opus with the
+    tone in its one audio track (ffmpeg: -17 dB).
+
+  A WebAudio destination with no source stalls MediaRecorder; a real microphone does not.

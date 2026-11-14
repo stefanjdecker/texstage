@@ -40,7 +40,7 @@ import { uploadButton } from "/static/shared/upload.js";
 import { annotatedPdf } from "/static/stage/export.js";
 import { InkBook, InkLayer, PointerLayer, touched } from "/static/stage/ink.js";
 import { PdfDeck, PdfSurface, fit, framesOf, inkKey, linkable, overlaySlide, sequence, shownSlide, zoomOverlay } from "/static/stage/pdfview.js";
-import { Microphone, Recording, canRecord, microphones, pickScreen } from "/static/stage/record.js";
+import { Microphone, QUIET_MS, Recording, canRecord, microphones, pickScreen, surfaceOf } from "/static/stage/record.js";
 import { Dividers, SHARES } from "/static/stage/split.js";
 import { ask, askText, notice, tell } from "/static/stage/ask.js";
 import { BATCH, ERASER, MARKER, MARKERS, PENS, SIZES, deviceId } from "/static/stage/pen.js";   // (the projector's pen too)
@@ -2339,11 +2339,13 @@ function markGallery() {
 // ------------------------------------------------------------------ recording (M5)
 function renderRec() {
   // in the top bar - never on the projector -: Record, or while it runs a red dot, the time, the
-  // microphone's level, pause and stop; when it ends, whether it was saved
+  // microphone's level (and a warning when it has heard nothing for a while, or is gone), pause and
+  // stop; when it ends, whether it was saved - and loudly, until dismissed, when it stopped by itself
+  // (the recorded screen went away), with Record again
   const el = $("#rec");
   const R = T.record;
   const open = Boolean(client && state?.session) && typeof auth === "string" && canRecord();
-  const shape = rec ? `${rec.state}${rec.late ? " late" : ""}` : open ? "idle" : "";
+  const shape = rec ? `${rec.state}${rec.cause ? " recgone" : ""}${rec.late ? " late" : ""}` : open ? "idle" : "";   // (recgone: not .screen, the projector's)
   if (el.dataset.shape !== `${shape}:${lang}`) {            // (the deck page, another deck: another language)
     el.dataset.shape = `${shape}:${lang}`;
     el.className = `rec ${shape}`;
@@ -2355,12 +2357,20 @@ function renderRec() {
       const paused = rec.state === "paused";
       el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span>
         ${rec.mic ? `<span class="meter" title="${esc(R.meter)}"><i id="reclevel"></i></span>` : `<span class="nosound">${esc(R.noSound)}</span>`}${late}
+        <span class="recwarn" id="recwarn" hidden></span>
         <button id="recpause" title="${esc(paused ? R.resumeTitle : R.pauseTitle)}">${paused ? `● ${esc(R.resume)}` : "❚❚"}</button>
         <button id="recstop" title="${esc(R.stopTitle)}">■</button>`;
       $("#recpause").onclick = () => (paused ? rec.resume() : rec.pause());
       $("#recstop").onclick = async () => { if (await ask(T.record.stopAsk, T.record.stop)) rec.stop(); };
     } else if (rec.state === "starting" || rec.state === "stopping") {
       el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span><span>${esc(R.saving)}</span>${late}`;
+    } else if (rec.state === "saved" && rec.cause === "screen") {
+      // stopped by itself: the rest of the lecture would go unrecorded - said until the lecturer answers
+      el.innerHTML = `<span class="recfail" title="${esc(R.ended)}">${esc(R.endedShort)}</span>
+        <button id="recagain">● ${esc(R.recordAgain)}</button><button id="recok">${esc(R.ok)}</button>`;
+      $("#recok").onclick = () => { rec = null; renderRec(); };
+      $("#recagain").onclick = () => { rec = null; renderRec(); recordDialog(); };
+      notice(R.ended);
     } else {
       const saved = rec.state === "saved";
       el.innerHTML = `<span class="${saved ? "recsaved" : "recfail"}">${esc(saved ? R.saved : R.stopped(why(rec.error)))}</span>
@@ -2389,10 +2399,20 @@ function tickRec() {
   if (time) time.textContent = rec.state === "paused" ? T.record.paused(clock(rec.elapsed())) : clock(rec.elapsed());
   const level = $("#reclevel");
   if (level) level.style.width = `${Math.round((rec.state === "recording" ? rec.mic?.level() || 0 : 0) * 100)}%`;
+  const warn = $("#recwarn");                     // the microphone gone, or silent for QUIET_MS while recording
+  if (warn) {
+    const said = rec.micLost ? T.record.micGone : rec.silence() >= QUIET_MS ? T.record.quiet : "";
+    if (warn.textContent !== said) warn.textContent = said;
+    warn.hidden = !said;
+  }
   el.title = rec.take ? T.record.onServer(rec.file, decimal(rec.saved / 1e6)) : "";
 }
 
 async function recordDialog() {
+  // Record: the microphone with its level first; then the screen - the browser's dialog, which shows each screen
+  // and window as a miniature (where the projector window is, said here first) -, shown here live as a miniature
+  // before anything is recorded, so that the presenter's own screen (its notes, the next step's answers) is not
+  // recorded by mistake; then Start. The computer's sound (the deck's videos) only when ticked: off each time.
   if (rec?.active || !state?.session) return;
   const mic = new Microphone();                   // made in the click: its level meter may run
   const R = T.record;
@@ -2402,25 +2422,47 @@ async function recordDialog() {
     <p>${esc(R.intro)}</p>
     <label class="microw">${esc(R.microphone)} <select id="micselect"></select></label>
     <div class="meter large"><i id="miclevel"></i></div><p id="micstate">${esc(R.asking)}</p>
-    <p>${esc(R.screen)}</p>
-    <div class="buttons"><button class="primary" id="recstart" disabled>${esc(R.start)}</button>
+    <label class="recsound"><input type="checkbox" id="recsound"> ${esc(R.sound)}</label>
+    <p id="recwhere">${esc(R.screen)}</p>
+    <div class="recpreview" id="recpreview" hidden><video id="recvideo" muted autoplay playsinline></video>
+      <p id="recwhat"></p></div>
+    <div class="buttons"><button class="secondary" id="recpick" disabled>${esc(R.pick)}</button>
+      <button class="primary" id="recstart" disabled>${esc(R.start)}</button>
       <button class="secondary" id="closedlg">${esc(T.dialog.cancel)}</button></div></div>`;
   document.body.append(el);
   const select = el.querySelector("#micselect");
+  const pickButton = el.querySelector("#recpick");
   const startButton = el.querySelector("#recstart");
+  const soundBox = el.querySelector("#recsound");
+  const video = el.querySelector("#recvideo");
   const say = (text, error = false) => { const p = el.querySelector("#micstate"); p.textContent = text; p.className = error ? "error" : ""; };
   const meter = setInterval(() => { el.querySelector("#miclevel").style.width = `${Math.round(mic.level() * 100)}%`; }, 100);
-  let sound = false;
+  let sound = false;                              // the microphone is open
+  let micReady = false;                           // ... or its choice settled (none)
+  let screen = null;                              // the screen chosen, shown as a miniature until Start
   let closed = false;
   let micRequest = 0;
   const starting = new AbortController();
-  const close = (keep = false) => {
+  const ready = () => {
+    pickButton.disabled = closed || !micReady;
+    startButton.disabled = closed || !micReady || !screen;
+  };
+  const drop = () => {                            // the screen chosen let go: another one, or the dialog closed
+    screen?.getTracks().forEach((t) => t.stop());
+    screen = null;
+    video.srcObject = null;
+    el.querySelector("#recpreview").hidden = true;
+    pickButton.textContent = R.pick;
+    ready();
+  };
+  const close = (keepMic = false) => {
     if (closed) return;
     closed = true;
     micRequest++;
     starting.abort();
     clearInterval(meter);
-    if (!keep) mic.close();
+    if (!keepMic) mic.close();
+    drop();
     el.remove();
   };
   const openMic = async (id) => {
@@ -2456,44 +2498,94 @@ async function recordDialog() {
   select.onchange = async () => {
     prefs.mic = select.value;
     savePrefs();
-    startButton.disabled = true;                 // not before the microphone is there (or not)
-    if (await openMic(select.value)) startButton.disabled = false;
+    micReady = false;                             // not before the microphone is there (or not)
+    ready();
+    if (await openMic(select.value)) {
+      micReady = true;
+      ready();
+    }
+  };
+  soundBox.onchange = () => drop();               // asked for in the browser's dialog: the screen chosen anew
+  pickButton.onclick = async () => {
+    if (closed) return;
+    drop();
+    pickButton.disabled = true;
+    let chosen;
+    try {
+      chosen = await pickScreen({ sound: soundBox.checked });   // in the click, as the browser wants it
+    } catch (err) {
+      if (closed) return;
+      ready();
+      return say(err.name === "NotAllowedError" ? R.noScreen : R.cannot(err.message || err.name), true);
+    }
+    if (closed) {
+      chosen.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    screen = chosen;
+    screen.getVideoTracks()[0]?.addEventListener("ended", () => { if (screen === chosen) drop(); });   // Stop sharing
+    video.srcObject = screen;
+    video.play?.()?.catch?.(() => {});
+    const kind = R.kinds[surfaceOf(screen)] || "";
+    const heard = screen.getAudioTracks().length ? R.withSound : soundBox.checked ? R.noSystemSound : "";
+    el.querySelector("#recwhat").textContent = [kind ? R.chosen(kind) : R.check, heard].filter(Boolean).join(" ");
+    el.querySelector("#recpreview").hidden = false;
+    pickButton.textContent = R.pickAgain;
+    ready();
   };
   el.querySelector("#closedlg").onclick = () => close();
   startButton.onclick = async () => {
-    if (closed) return;
-    const button = startButton;
-    button.disabled = true;
-    let screen;
-    try {
-      screen = await pickScreen();                // in the click, as the browser wants it
-    } catch (err) {
-      if (closed) return;
-      button.disabled = false;
-      return say(err.name === "NotAllowedError" ? R.noScreen : R.cannot(err.message || err.name), true);
-    }
-    if (closed || !state?.session) {
-      screen.getTracks().forEach((t) => t.stop());
-      return close();
-    }
+    if (closed || !screen) return;
+    startButton.disabled = pickButton.disabled = true;
+    if (!state?.session) return close();
     const r = new Recording({ auth, session: state.session.id, screen, mic: sound ? mic : null, onChange: () => renderRec() });
     try {
       await r.start({ signal: starting.signal });
     } catch (err) {
-      screen.getTracks().forEach((t) => t.stop());
       if (closed) return;
-      button.disabled = false;
+      ready();
       return say(R.notStarted(why(err)), true);
     }
     rec = r;
     remember(r);
-    close(sound);                                 // the recording has the microphone now
+    screen = null;                                // the recording has the screen now
+    close(sound);                                 // ... and the microphone
     renderRec();
   };
+  projectorScreen().then((where) => { if (where && !closed) el.querySelector("#recwhere").textContent = where; });
   if (!(await openMic(prefs.mic || ""))) return;
   await fill();
   if (closed) return;
-  startButton.disabled = false;
+  micReady = true;
+  ready();
+}
+
+// Where the projector window is: the screen it is on, by the name, size and side the browser gives (its Window
+// Management API, allowed when the projector window was placed) - the screen to choose in the browser's dialog,
+// which shows each screen as a miniature, "Screen 1", "Screen 2". "" where that is not known (or not asked for:
+// no new permission prompt here).
+async function projectorScreen() {
+  const R = T.record;
+  try {
+    if (!projector || projector.closed || !("getScreenDetails" in window)) return "";
+    let granted = false;
+    for (const name of ["window-management", "window-placement"]) {
+      try {
+        granted = (await navigator.permissions.query({ name })).state === "granted";
+        break;
+      } catch { /* the older name, or none */ }
+    }
+    if (!granted) return "";
+    const { screens, currentScreen: here } = await window.getScreenDetails();
+    const x = projector.screenX + projector.outerWidth / 2, y = projector.screenY + projector.outerHeight / 2;
+    const on = screens.find((s) => x >= s.left && x < s.left + s.width && y >= s.top && y < s.top + s.height);
+    if (!on || on === here) return "";
+    const side = on.left >= here.left + here.width ? R.right : on.left + on.width <= here.left ? R.left
+      : on.top >= here.top + here.height ? R.below : R.above;
+    return R.projectorOn(on.label || "", `${on.width} × ${on.height}`, side);
+  } catch {
+    return "";
+  }
 }
 
 function remembered() {
