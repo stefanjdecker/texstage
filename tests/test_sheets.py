@@ -11,7 +11,7 @@ from texstage.server.sheets import cell, csv_text
 
 def test_a_cell_a_spreadsheet_would_run_is_shown_instead():
     for formula in ("=1+2", "+A1", "-2+3", "@SUM(A1:A2)", "=HYPERLINK(" + chr(34) + "x" + chr(34) + ")", chr(9) + "x",
-                    chr(13) + "x", "-", "+"):
+                    chr(13) + "x", chr(10) + "=1", "-", "+", chr(0xFF1D) + "1+2", chr(0xFF20) + "SUM(A1)"):   # (full-width)
         assert cell(formula) == "'" + formula, formula
     for kept in ("Ada", "12", "-5", "+3.5", "-0.25", "1e5", "-1.5E-3", "", " =1", "a=b", 12, -3.5, None):
         assert cell(kept) == kept, kept

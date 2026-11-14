@@ -37,8 +37,8 @@ FEEDBACK = ("none", "status", "verdict", "full")         # what a phone learns b
 MOVES = ("open", "close", "pause", "resume", "reveal", "reset", "time")
 SUGGEST_MAX = 50                    # the words a phone offers for a field: the deck's, then what is drawn
 F1_INPUTS = {"tuple": "triples"}    # an item of a deck built before kinds were named: its input, its engine
-PUBLIC = ("prompt", "fields", "suggest", "tokens", "engine", "options", "select")   # of an item: what a phone's
-#                                                                    screen is made with (a choice: its options)
+PUBLIC = ("prompt", "fields", "suggest", "tokens", "engine", "options", "select", "gap")   # of an item: what a
+#                         phone's screen is made with (a choice: its options; the gap: when to send a tap again)
 
 
 def kind_of(item: dict) -> Kind:
@@ -201,8 +201,11 @@ class Play:
         return entries
 
     def checked(self, activity: str, step: str, norm: str, outcome: dict, *, now: int) -> list[EntryRow]:
-        """A check's outcome from the pool. The entries that waited for it, whose phones learn it."""
-        return self._touch(activity, step, self.checks.checked(activity, step, norm, outcome, now=now))
+        """A check's outcome from the pool. The entries that waited for it, whose phones learn it - and the
+        checks of forms that waited for the room it made are asked for."""
+        entries = self._touch(activity, step, self.checks.checked(activity, step, norm, outcome, now=now))
+        self._ask(self.checks.due())
+        return entries
 
     def refer(self, activity: str, outcomes: Iterable[dict | None], step: str = ONE) -> None:
         """The pool's outcomes of the step's references: without them no check has a verdict."""

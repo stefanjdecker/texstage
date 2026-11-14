@@ -294,7 +294,7 @@ def test_the_steps_own_part_is_the_same_for_every_phone():
     part = d.play.step_part(d.parts["q"])
     assert part == {"activity": "q", "step": "main", "epoch": 0, "phase": "open", "kind": "sql-query", "input": "code",
                     "limit": 3, "counts": "latest", "feedback": "status", "time": 60_000, "prompt": "All of t",
-                    "tokens": ["*"], "engine": "sql"}
+                    "tokens": ["*"], "engine": "sql", "gap": 0}             # (the deck's gap: a phone sends a tap again after it)
     assert "seed" not in part and "reference" not in str(part)
     d.move("open", "g")
     for player, triple in [("p1", [":Kant", ":knows", ":Hume"]), ("p2", [":Hume", ":knows", ":Smith"])]:

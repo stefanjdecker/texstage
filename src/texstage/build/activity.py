@@ -38,7 +38,7 @@ from pathlib import Path
 from texstage.activities import kit, registry
 from texstage.activities.code import words
 from texstage.activities.kind import Message
-from texstage.activities.options import Choice, Flag, Int, Options, Unbuildable, Words
+from texstage.activities.options import Choice, Flag, Int, Options, Unbuildable, Words, unescaped
 from texstage.activities.phases import MARKS, TIME_MAX_MS
 from texstage.activities.play import FEEDBACK
 from texstage.activities.reduce import PROJECTOR, SOLUTION
@@ -52,7 +52,6 @@ USES_ADDIN = False
 LIMIT_MAX = 50                             # a student's entries, at most (activities/kind.py)
 GAP_MAX_S = 3600                           # seconds between two entries, at most (activities/entries.py)
 TIME_MAX_S = TIME_MAX_MS // 1000           # a step's time, at most (activities/phases.py)
-ESCAPED = re.compile(r"\\([{}#%&_$\\~^])")
 ALIASES = {("tuple", ""): "triples", ("code", "sparql"): "sparql-query", ("code", "sql"): "sql-query",
            ("code", "turtle"): "turtle-graph"}           # the keys of before kinds were named (the design's 17)
 F1_INPUT = {kind: input for (input, _), kind in ALIASES.items()}   # F1's input of a kind, for F1's type
@@ -97,8 +96,8 @@ class Activities:
 
 
 def _items(value: str) -> list[str]:
-    """A list of the record: its items, \\{ and the like as the characters they stand for."""
-    return [ESCAPED.sub(r"\1", _hex(x)).strip() for x in value.split(",") if x]
+    """A list of the record: its items, \\{ and the like as the characters they stand for - not in a formula."""
+    return [unescaped(_hex(x)).strip() for x in value.split(",") if x]
 
 
 def _verbatim(text: str) -> str:
@@ -134,7 +133,7 @@ def read(tqz: Tqz) -> dict[str, Activity]:
             if a is None:
                 raise ActivityError(f"a {kind} record of the activity {r.get('id')!r}, which has none of its own")
             if kind == "activityoption":
-                a.options[_hex(r.get("key", ""))] = (ESCAPED.sub(r"\1", _hex(r.get("value", ""))).strip(),
+                a.options[_hex(r.get("key", ""))] = (unescaped(_hex(r.get("value", ""))).strip(),
                                                      _items(r.get("items", "")))
             elif kind == "activityref":
                 a.references.append(_verbatim(_hex(r.get("text", ""))))

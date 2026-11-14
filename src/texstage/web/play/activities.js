@@ -25,7 +25,7 @@ import { insertToken } from "./activity.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const OPEN = "open";
-const AGAIN_MS = 1000;                  // a choice of one refused as too fast: sent again after this - the gap's
+const AGAIN_MS = 1000;                  // a choice of one refused as too fast: sent again after the step's gap, at least this
 const AGAIN_TRIES = 5;                  // ... so often at most
 
 export function entryId() {
@@ -47,17 +47,25 @@ export function timeLeft(step, now) {
 }
 
 export function decimalComma(language) {
-  // whether the deck's language writes 3,5 for three and a half
+  // whether a language writes 3,5 for three and a half
   return (1.5).toLocaleString(language || "en").includes(",");
 }
 
+export function phoneLanguage(fallback) {
+  // the phone's own language - its keypad's: an iPhone set to English offers 3.5 in a German deck too
+  return (typeof navigator !== "undefined" && navigator.language) || fallback || "en";
+}
+
 export function parseNumber(text, language) {
-  // a number as a student types it, or null: 42, -3.5; 3,5 and 3.5 in any deck; 1 000 and 1'000 (spaces,
-  // apostrophes between the digits); 1,000.5 and 1.000,5 (the last separator is the decimal one, the other
-  // groups by three); a minus sign as some keyboards type it. One separator before three digits alone is
-  // what the deck's language makes of it - 1,000 is a thousand in English, 1.000 in German -, and no
-  // exponent: the deck's own numbers have none
-  const t = String(text ?? "").replace(/[\s'\u2019]/g, "").replace(String.fromCharCode(0x2212), "-");
+  // a number as a student types it, or null: 42, -3.5; 3,5 and 3.5 in any deck; 1 000 and 1'000 (a space or an
+  // apostrophe between groups of three digits, not 1 2); 1,000.5 and 1.000,5 (the last separator is the
+  // decimal one, the other groups by three); a minus sign as some keyboards type it; no exponent, as the
+  // deck's own numbers have none. One separator before three digits alone - 1,000, 1.000 - is read as
+  // `language` reads it, the phone's own (phoneLanguage: its keypad gives that language's separator); after
+  // a whole part of 0 it is a decimal one in any language: 0.125
+  const raw = String(text ?? "").trim().replace(String.fromCharCode(0x2212), "-");
+  if (/[\s'\u2019]/.test(raw) && !/^[+-]?\d{1,3}([\s'\u2019]\d{3})+([.,]\d*)?$/.test(raw)) return null;
+  const t = raw.replace(/[\s'\u2019]/g, "");
   const m = /^([+-]?)([\d.,]+)$/.exec(t);
   if (!m || !/\d/.test(m[2])) return null;
   const body = m[2], seps = body.replace(/\d/g, "");
@@ -65,7 +73,7 @@ export function parseNumber(text, language) {
   if (seps.includes(",") && seps.includes(".")) decimal = seps[seps.length - 1];
   else if (seps.length === 1) {
     const [whole, part] = body.split(seps);
-    const grouped = /^\d{1,3}$/.test(whole) && /^\d{3}$/.test(part);       // 1,000 - or one and three thousandths
+    const grouped = /^[1-9]\d{0,2}$/.test(whole) && /^\d{3}$/.test(part);   // 1,000 - or one and three thousandths
     decimal = !grouped || (seps === "," ? decimalComma(language) : !decimalComma(language)) ? seps : null;
   }
   const at = decimal ? body.lastIndexOf(decimal) : body.length;
@@ -79,8 +87,9 @@ export function parseNumber(text, language) {
 }
 
 export function numberShown(n, language) {
-  // a number in the deck's language, every digit the kind keeps (15) and no grouping: 3.5, 3,5, 1099511627776
-  return Number(n).toLocaleString(language || "en", { maximumFractionDigits: 15, useGrouping: false });
+  // a number in a language, every digit the kind keeps (15 significant ones) and no grouping: 3.5, 3,5,
+  // 1099511627776, 0.0000000000000001
+  return Number(n).toLocaleString(language || "en", { maximumSignificantDigits: 15, useGrouping: false });
 }
 
 export function choiceHTML(places, options, redraw) {
@@ -123,10 +132,11 @@ export function said(entry, step, L, say, status = () => null) {
 }
 
 export class StepScreen {
-  constructor({ root, client, state, step, language, kinds }) {
+  constructor({ root, client, state, step, language, kinds, phone }) {
     this.root = root;
     this.client = client;
     this.language = language;
+    this.phone = phone || phoneLanguage(language);        // (its keypad's language: how a number is typed)
     this.kindsNow = typeof kinds === "function" ? kinds : () => kinds;
     this.L = texts(language).steps;
     this.step = step;
@@ -269,11 +279,14 @@ export class StepScreen {
         }
         const sent = await this.send({ choice: [n] }, true);
         if (sent === "later" && tries++ < AGAIN_TRIES) {
-          await new Promise((resolve) => setTimeout(resolve, AGAIN_MS));
+          await new Promise((resolve) => setTimeout(resolve, Math.max(AGAIN_MS, 1000 * (Number(this.step.gap) || 0))));
           continue;
         }
         if (sent === "later") this.error(this.refusal({ code: "too-fast" }));
-        if (this.wanted === n || !sent || sent === "later") this.wanted = undefined;
+        if (this.wanted === n || !sent || sent === "later") {
+          this.wanted = undefined;
+          if (sent !== true) this.mark(new Set(this.counted() || []));     // (given up: what counts is marked)
+        }
       }
     } finally {
       this.flushing = false;
@@ -347,7 +360,7 @@ export class StepScreen {
       if (now && now.length === choice.length && now.every((n, i) => n === choice[i])) return;   // (it counts already)
       await this.send({ choice });
     } else if (this.step.input === "number") {
-      const n = parseNumber(this.text.value, this.language);
+      const n = parseNumber(this.text.value, this.phone);
       if (n === null) return this.error(this.L.refused.number);
       await this.send({ number: n });
     } else if (this.step.input === "fields") {
@@ -424,7 +437,7 @@ export class StepScreen {
     } else if (this.text && !this.refilled && mine) {
       this.refilled = true;                            // (a reload: the text as sent - once, not a text cleared)
       const last = mine.entries?.[0]?.input;
-      if (!this.text.value && last) this.text.value = last.number !== undefined ? numberShown(last.number, this.language) : last.text || "";
+      if (!this.text.value && last) this.text.value = last.number !== undefined ? numberShown(last.number, this.phone) : last.text || "";
     }
     this.entries = mine?.entries || [];
     this.tick();
@@ -435,7 +448,10 @@ export class StepScreen {
     if (this.gone) return;                             // (a screen that is gone writes into none that came after it)
     const L = this.L;
     const kinds = this.kinds;
-    const say = (m) => kinds?.say(this.kind, m) ?? m.code;
+    const say = (m) => {                               // the kind's words, else the core's: a kind's normalize may
+      const words = kinds?.say(this.kind, m);          // refuse with a code of the core's (text, too-long, number)
+      return words && words !== m.code ? words : L.refused[m.code] ?? m.code;
+    };
     const status = (s) => kinds?.status(this.kind, s) ?? null;
     const known = new Set((this.entries || []).map((e) => e.id));
     const all = [...this.pending.filter((e) => !known.has(e.id)), ...(this.entries || [])];

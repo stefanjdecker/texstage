@@ -8,4 +8,8 @@ export default {
   "choice:ok": "Chosen ✓",
   "number:ok": "Received ✓",
   "text:ok": "Received ✓",
+  // what normalize refused (the core's word would be "Syntax error"): the reason follows in the core's words
+  "choice:invalid": "Not taken",
+  "number:invalid": "Not taken",
+  "text:invalid": "Not taken",
 };

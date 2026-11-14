@@ -392,6 +392,64 @@
   {
    "options": {
     "options": [
+     "Espa~na",
+     "Francia"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "Espa\\~na"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "Espa na",
+      "Francia"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "Espa na"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "$\\{A, B\\}$",
+     "$50\\%$",
+     "\\textasciitilde /bin"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "$\\{A, B\\}$",
+     "\\textasciitilde/bin"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "$\\{A, B\\}$",
+      "$50\\%$",
+      "~/bin"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "$\\{A, B\\}$",
+      "~/bin"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
      "a",
      "b",
      "a + b"

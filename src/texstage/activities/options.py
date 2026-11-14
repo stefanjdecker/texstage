@@ -73,6 +73,15 @@ class Int(Option):
 
 
 NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)")      # 3, -2, 0.5, .5 - ASCII's digits, a point
+ESCAPED = re.compile(r"\\([{}#%&_$\\~^])")                        # \& and the like: the character a deck means
+MATH = re.compile(r"((?<!\\)\$(?:\\.|[^\\$\n])+\$)")               # a formula, $...$: its escapes are its own
+
+
+def unescaped(text: str) -> str:
+    """A deck's text with \\& and the like as the characters they stand for - but not inside a formula, where
+    \\{ and \\% are the formula's own: $\\{A, B\\}$ is a set, $50\\%$ fifty percent (KaTeX reads them so). The
+    one rule for a kind's keys (build/activity.py) and a kind's references (kinds)."""
+    return "".join(part if i % 2 else ESCAPED.sub(r"\1", part) for i, part in enumerate(MATH.split(text)))
 
 
 class Number(Option):

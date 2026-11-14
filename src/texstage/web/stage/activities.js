@@ -33,6 +33,7 @@ const FETCH_MS = 500;
 const LAYOUT_MS = 500;
 const SEVERAL = String.fromCharCode(10);      // a tally's choice of several: the options' texts, a line each (kind.py)
 const DENSE = 8;                              // more rows than this: the box draws them smaller (26 options fit)
+const SHORT = 80;                             // a reference without a result of its own this long, one line: a line
 
 export function tallyText(text) {
   // a tally's label or reference as a line: a choice of several with " + " between its options
@@ -267,11 +268,12 @@ export class StepBox extends ActivityBox {
     const shown = s ? `<div class="tq-shown"><div class="tq-shownhead">${label(s)} · ${esc(w.students(s.n))}${esc(mark(s))}</div>
         <pre>${esc(shownText(s.example, this.item, this.language))}</pre>${s.status === "ok" ? detailHTML(s.detail, this.kinds, kind, w) : ""}</div>` : "";
     const refs = p.solution || [];
-    const plain = refs.filter((r) => !r.detail).map((r) => (tally ? textHTML(tallyText(r.text), redraw) : esc(r.text)));
+    const short = (r) => !r.detail && (tally || (!String(r.text).includes(SEVERAL) && String(r.text).length <= SHORT));
+    const plain = refs.filter(short).map((r) => (tally ? textHTML(tallyText(r.text), redraw) : esc(r.text)));
     const line = plain.length ? `<div class="tq-solline">${esc(w.solution)}: ${plain.join(" · ")}</div>` : "";
-    const results = refs.filter((r) => r.detail);
+    const results = refs.filter((r) => !short(r));                        // (a query: its text and its result in a box)
     const solution = results.length ? `<div class="tq-shown">${results.map((r) => `<div class="tq-shownhead">${esc(w.solution)}</div>
-        <pre>${esc(r.text)}</pre>${detailHTML(r.detail, this.kinds, kind, w)}`).join("")}</div>` : "";
+        <pre>${esc(r.text)}</pre>${r.detail ? detailHTML(r.detail, this.kinds, kind, w) : ""}`).join("")}</div>` : "";
     this.el.innerHTML = `<div class="tq-clusters${listed.length > DENSE ? " tq-dense" : ""}"><div class="tq-chead">${esc(this.headLine(p))}</div>
       ${line}${rows || `<div class="tq-empty">${esc(p.phase === "open" || p.phase === "paused" ? w.held.waiting : w.held.none)}</div>`}
       ${p.others && !p.options ? `<div class="tq-more">${esc(w.others)} · ${p.others}</div>` : ""}</div>${shown}${solution}`;

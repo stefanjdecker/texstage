@@ -180,7 +180,7 @@ test("the box: the projector's picture in both windows; the controls' keys in th
   assert.equal(sent.length, 1);
 });
 
-test("the panel: another activity picked while a picture comes is asked for, and nothing of the first is left", async () => {
+test("the panel: another activity picked while a picture comes is asked for, and nothing of the first is left", async (t) => {
   const reads = [];
   const answers = [];
   const env = {
@@ -192,6 +192,7 @@ test("the panel: another activity picked while a picture comes is asked for, and
     read(msg) { reads.push(msg.activity); return new Promise((ok) => answers.push(ok)); },
   };
   const panel = stage.openStepPanel(env);
+  t.after(() => panel.close());
   assert.deepEqual(reads, ["query"]);
   const pick = panel.el.querySelector("#actpick"), body = panel.el.querySelector("#actbody");
   body.innerHTML = "the query's groups";
@@ -207,6 +208,7 @@ test("the panel: another activity picked while a picture comes is asked for, and
   panel.close();
   const refs = stage.openStepPanel({ ...env, read: () => Promise.resolve({ picture: { phase: "open", groups: [],
     references: [{ failed: "invalid" }, null] } }) });
+  t.after(() => refs.close());
   await later(10);
   assert.match(refs.el.querySelector("#actbody").innerHTML, /Reference 1 does not run here: syntax error/);
   refs.close();
@@ -335,6 +337,10 @@ test("a number as a student types it, read as the deck's language writes numbers
   // one separator before three digits alone: a thousand where the deck's language groups with it, else a decimal
   assert.deepEqual(["1,000", "1.000", "2,500"].map((t) => phone.parseNumber(t, "en")), [1000, 1, 2500]);
   assert.deepEqual(["1,000", "1.000", "2,500"].map((t) => phone.parseNumber(t, "de")), [1, 1000, 2.5]);
+  assert.deepEqual(["0.125", "-0.500", "0,125", "00.250"].map((t) => phone.parseNumber(t, "de")), [0.125, -0.5, 0.125, 0.25],
+    "after a whole part of 0 a separator is a decimal one, in any language");
+  assert.deepEqual(["3.141", "1 000,5", "12 345 678", "1 2", "1 0000"].map((t) => phone.parseNumber(t, "en")),
+    [3.141, 1000.5, 12345678, null, null], "a space or an apostrophe between groups of three, else no number");
   for (const typed of ["", "abc", "1e3", "3,5,1", "--2", "0x10", "1.2.3", "12,34,5", "1,5.3", "1,000.000,5", "-", null]) {
     assert.equal(phone.parseNumber(typed, "en"), null, typed);
   }
@@ -452,7 +458,7 @@ test("a number on the phone: read in the deck's language, refused there when it 
   const client = { now: () => 0, send(msg) { sent.push(msg.number); return Promise.resolve({}); } };
   const step = { activity: "rows", step: "main", kind: "number", input: "number", phase: "open", limit: 5 };
   const root = element();
-  const screen = new phone.StepScreen({ root, client, state: {}, step, language: "de", kinds: () => null });
+  const screen = new phone.StepScreen({ root, client, state: {}, step, language: "de", kinds: () => null, phone: "de-DE" });
   t.after(() => screen.destroy());
   screen.update({ activity: { mine: { activity: "rows", used: 1, entries: [{ id: "e1", input: { number: 1.5 }, state: "in" }] } } }, step);
   assert.equal(screen.text.value, "1,5", "a reload: the number as sent, as the deck's language writes it");
@@ -464,10 +470,19 @@ test("a number on the phone: read in the deck's language, refused there when it 
   assert.equal(root.querySelector("[data-role=error]").textContent, texts("de").steps.refused.number);
   assert.deepEqual(sent, [1000], "nothing sent");
   screen.text.value = "5";
-  screen.sign();
+  const sign = root.querySelector("[data-role=sign]").listeners.click[0];     // (the key as a tap reaches it)
+  sign();
   assert.equal(screen.text.value, "-5");
-  screen.sign();
+  sign();
   assert.equal(screen.text.value, "5");
+  // a German deck on a phone set to English: its keypad offers the point - 3.141 is pi, not 3141
+  const english = new phone.StepScreen({ root: element(), client, state: {}, step, language: "de", kinds: () => null, phone: "en-US" });
+  t.after(() => english.destroy());
+  english.update({ activity: { mine: { activity: "rows", used: 1, entries: [{ id: "e1", input: { number: 1.5 }, state: "in" }] } } }, step);
+  assert.equal(english.text.value, "1.5", "put back as the phone writes it");
+  english.text.value = "3.141";
+  await english.submit();
+  assert.deepEqual(sent, [1000, 3.141]);
   screen.destroy();
 });
 
@@ -557,9 +572,18 @@ test("the box draws a choice: a bar per option - a choice of several counted per
   box.draw();
   assert.equal((box.el.innerHTML.match(/class="tq-shown"/g) || []).length, 1, "one box, not one over the other");
   assert.equal((box.el.innerHTML.match(/tq-shownhead/g) || []).length, 2);
+  box.item = { kind: "text" };                                            // a short answer's reference: in the line
+  box.picture = { kind: "groups", phase: "revealed", revealed: true, students: 0, groups: [], solution: [{ text: "Berlin" }] };
+  box.draw();
+  assert.match(box.el.innerHTML, /tq-solline">The reference: Berlin/);
+  box.item = { kind: "sql-query" };                                       // a query without a result: its text in a box
+  box.picture = { ...box.picture, solution: [{ text: "SELECT name" + String.fromCharCode(10) + "FROM people" }] };
+  box.draw();
+  assert.match(box.el.innerHTML, /class="tq-shown"/);
+  assert.match(box.el.innerHTML, /<pre>SELECT name/);
 });
 
-test("the panel: how many are right where the groups are judged; a reference without a group of its own", async () => {
+test("the panel: how many are right where the groups are judged; a reference without a group of its own", async (t) => {
   const picture = { phase: "open", students: 3, entries: 3, right: 3, references: [{ group: "none" }, { group: "g0" }],
     groups: [{ id: "g1", status: "ok", n: 2, verdict: "correct", example: { number: 12.4 } },
       { id: "g2", status: "ok", n: 1, verdict: "correct", example: { number: 11.9 } },
@@ -568,6 +592,7 @@ test("the panel: how many are right where the groups are judged; a reference wit
     onSlide: () => null, items: () => ({ rows: { kind: "number" } }), send: () => Promise.resolve({}),
     state: () => ({ stage: { activity: { current: "rows", items: { rows: { phase: "open", version: 1, epoch: 0 } } } } }),
     read: () => Promise.resolve({ picture }) });
+  t.after(() => panel.close());
   await later(10);
   const html = panel.el.querySelector("#actbody").innerHTML;
   assert.match(html, /Referenz 1/);
@@ -575,4 +600,17 @@ test("the panel: how many are right where the groups are judged; a reference wit
   assert.match(html, /3 Personen liegen richtig/);
   assert.match(html, /12,4/, "a number as the deck's language writes it");
   panel.close();
+});
+
+test("an answer a kind's normalize refused: the kind's word for it, the reason in the core's words", (t) => {
+  const kinds = new Kinds({}, "en");
+  kinds.texts.text = { "text:invalid": "Not taken" };
+  const step = { activity: "word", step: "main", kind: "text", input: "text", phase: "open", limit: 5 };
+  const root = element();
+  const screen = new phone.StepScreen({ root, client: { now: () => 0, send: () => Promise.resolve({}) }, state: {}, step,
+    language: "en", kinds: () => kinds });
+  t.after(() => screen.destroy());
+  screen.update({ activity: { mine: { activity: "word", used: 1, entries: [{ id: "e1", input: { text: String.fromCharCode(0x200B) },
+    state: "in", check: "checked", status: "invalid", message: { code: "text", args: {} } }] } } }, step);
+  assert.match(root.querySelector("[data-role=mine]").innerHTML, /Not taken: Please type your text first\./);
 });

@@ -82,6 +82,26 @@ def test_what_a_kinds_normalize_gives_is_held_against_what_the_core_keeps():
             kept(kind, entry)
 
 
+def test_a_decks_options_and_references_are_read_alike():
+    """kinds.option_text and text_reference, options.unescaped (the build's rule too): an option as the build
+    passes it on and a reference as written read alike; a formula keeps its escapes; a short answer's
+    reference keeps a tilde, which students type; what plain() keeps of an answer."""
+    from texstage.activities.kinds import option_text, plain, text_reference
+    from texstage.activities.options import unescaped
+    B = chr(92)
+    assert unescaped("R" + B + "&D, 50" + B + "% and $" + B + "{A" + B + "}$, " + B + "$5") == "R&D, 50% and $" + B + "{A" + B + "}$, $5"
+    for option, reference in (("$" + B + "sigma $", "$" + B + "sigma" + NL + "$"), ("R&D", "R" + B + "&D"),
+                              ("Espa~na", "Espa" + B + "~na"), ("New~York", "New~York"),
+                              ("$" + B + "{A, B" + B + "}$", "$" + B + "{A, B" + B + "}$"),
+                              (B + "textasciitilde /bin", B + "textasciitilde{}/bin")):
+        assert option_text(option) == option_text(reference, verbatim=True), (option, reference)
+    assert [option_text(o) for o in ("$" + B + "{A, B" + B + "}$", "~/bin", B + "textasciitilde /bin")] == [
+        "$" + B + "{A, B" + B + "}$", "/bin", "~/bin"]                       # (a tie is a space, as LaTeX sets it)
+    assert [text_reference(r) for r in ("~/bin", "~", "R" + B + "&D", "C:" + B + B + "Users")] == ["~/bin", "~", "R&D", "C:" + B + "Users"]
+    zwj, new = chr(0x200D), chr(0x3FFFD)                                 # (a joiner; a code point no table names yet)
+    assert [plain(t) for t in ("a" + zwj + "b", "x" + chr(0x200B) + "y", new, "R" + chr(0xAD) + "x")] == ["a" + zwj + "b", "xy", new, "Rx"]
+
+
 def test_the_archive_writes_a_choice_by_its_options_and_a_number_with_every_digit():
     from texstage.server.activities import written
     item = {"options": ["Paris", "Nice", "$" + chr(92) + "sigma$"]}
@@ -159,9 +179,13 @@ ITEMS = {
     "coast": {"kind": "choice", "limit": 10, "options": ["Paris", "Nice", "Lyon", "Marseille"], "select": "many"},
     "rows": {"kind": "number", "limit": 5, "tolerance": 0.5},
     "word": {"kind": "text", "limit": 5},
+    "again": {"kind": "choice", "limit": 10, "options": ["Paris", "Nice", "Lyon", "Marseille"], "select": "many",
+              "counts": "all"},
+    "both": {"kind": "text", "limit": 5, "counts": "all"},
 }
-REFERENCES = {"capital": ["Paris"], "coast": ["Nice" + NL + "Marseille"], "rows": ["12"], "word": ["Berlin"]}
-SHOWS = {257: "capital", 258: "coast", 259: "rows", 260: "word"}
+REFERENCES = {"capital": ["Paris"], "coast": ["Nice" + NL + "Marseille"], "rows": ["12"], "word": ["Berlin"],
+              "again": ["Nice" + NL + "Marseille"], "both": ["Berlin", "Bonn"]}
+SHOWS = {257: "capital", 258: "coast", 259: "rows", 260: "word", 261: "again", 262: "both"}
 
 
 def own_bundle(folder: Path) -> str:
@@ -171,7 +195,7 @@ def own_bundle(folder: Path) -> str:
     deck = {"format": 2, "deck": "own", "name": "Own", "types": ["activity"], "image": {"width": 1920, "height": 1080},
             "slides": [{"id": sid, "image": s2 if sid in SHOWS else s1}
                        | ({"live": [{"type": "activity", "item": SHOWS[sid], "rects": {"box": BOX}}]} if sid in SHOWS else {})
-                       for sid in (256, 257, 258, 259, 260, 261)],
+                       for sid in (256, 257, 258, 259, 260, 261, 262)],
             "items": {"activity": ITEMS}}
     keys = {"format": 2, "deck": "own", "items": {"activity": {a: {"reference": r} for a, r in REFERENCES.items()}}}
     bid = bundle_id(deck, keys)
@@ -290,11 +314,29 @@ def test_a_lecture_with_texstages_own_kinds(tmp_path):
         assert ask(st, 16, "slide", slide=260)["t"] == "ok"
         assert ask(ada, 17, "activity.enter", activity="word", entry="ada-word-1", text="  BERLIN ")["t"] == "ok"
         assert ask(bea, 17, "activity.enter", activity="word", entry="bea-word-1", text="Bonn")["t"] == "ok"
-        pic = view(st, 18, "word", lambda p: sum(g["n"] for g in p["groups"]) == 2 and not p.get("waiting"))
-        assert sorted(g["example"]["text"] for g in pic["groups"]) == ["BERLIN", "Bonn"]     # (as normalize gave it)
+        assert ask(cy, 17, "activity.enter", activity="word", entry="cy-word-1", text="=1+2")["t"] == "ok"
+        pic = view(st, 18, "word", lambda p: sum(g["n"] for g in p["groups"]) == 3 and not p.get("waiting"))
+        assert sorted(g["example"]["text"] for g in pic["groups"]) == ["=1+2", "BERLIN", "Bonn"]   # (as normalize gave it)
         assert "numbers" not in pic                                                  # (a text step has no histogram)
         assert ask(st, 19, "activity.reveal", activity="word")["t"] == "ok"
         assert verdicts(ada, "word", 1) == ["correct"] and verdicts(bea, "word", 1) == ["incorrect"]
+        # counts=all: a student's two choices count her once per option, and once among the right
+        assert ask(st, "c1", "slide", slide=261)["t"] == "ok"
+        assert ask(ada, "c2", "activity.enter", activity="again", entry="ada-again-1", choice=[1, 3])["t"] == "ok"
+        time.sleep(1.1)                                                              # (a choice's gap: 1 s)
+        assert ask(ada, "c3", "activity.enter", activity="again", entry="ada-again-2", choice=[1])["t"] == "ok"
+        assert ask(st, "c4", "activity.reveal", activity="again")["t"] == "ok"
+        pic = view(st, "c5", "again", lambda p: p["revealed"] and sum(g["n"] for g in p["groups"]) == 2 and not p.get("waiting"))
+        assert [(o["label"], o["n"]) for o in pic["options"]] == [("Paris", 0), ("Nice", 1), ("Lyon", 0), ("Marseille", 1)]
+        assert pic["right"] == 1
+        # two references, and a student who gives both: right once
+        assert ask(st, "d1", "slide", slide=262)["t"] == "ok"
+        assert ask(bea, "d2", "activity.enter", activity="both", entry="bea-both-1", text="Berlin")["t"] == "ok"
+        time.sleep(2.1)                                                              # (a text's gap: 2 s)
+        assert ask(bea, "d3", "activity.enter", activity="both", entry="bea-both-2", text="Bonn")["t"] == "ok"
+        assert ask(st, "d4", "activity.reveal", activity="both")["t"] == "ok"
+        pic = view(st, "d5", "both", lambda p: p["revealed"] and sum(g["n"] for g in p["groups"]) == 2 and not p.get("waiting"))
+        assert [g["verdict"] for g in pic["groups"]] == ["correct", "correct"] and pic["right"] == 1
         # a number the lecturer hides has no bar
         panel = view(st, 20, "rows", lambda p: len(p["groups"]) == 2, window="stage")
         thirteen = next(g["id"] for g in panel["groups"] if g["example"] == {"number": 13})
@@ -310,4 +352,5 @@ def test_a_lecture_with_texstages_own_kinds(tmp_path):
             assert chr(13) * 2 not in text                                         # (CSV's line ends, once)
             return [row[3] for row in csv.reader(text.splitlines())][1:]
         assert (written("capital"), written("coast")) == (["Paris", "Nice"], ["Nice + Marseille", "Nice"])
-        assert (sorted(written("rows")), written("word")) == (["12.4", "12.4", "13"], ["  BERLIN ", "Bonn"])   # (as sent)
+        assert (sorted(written("rows")), written("word")) == (["12.4", "12.4", "13"], ["  BERLIN ", "Bonn", "'=1+2"])   # (as sent;
+        #                                                         a formula shown, not run: sheets.py)

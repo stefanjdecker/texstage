@@ -5,7 +5,7 @@ kinds every subject needs, found through the same entry points as any other (pyp
 contract is used by its author every day: no seed, other inputs, other reductions, other views.
 
     choice    one or several of the options a deck gives (options=, select=one|many) - text, and $math$
-              as the phones typeset it (tex_text); counted per option (tally); right when the choice is
+              as the phones typeset it (option_text); counted per option (tally); right when the choice is
               the reference's - a reference names its option (\\reference{Lyon}), and with select=many
               the references together are the right choice
     number    a number; drawn as a histogram (groups); right within tolerance= of a reference, compared
@@ -29,7 +29,7 @@ import unicodedata
 from decimal import Decimal
 
 from texstage.activities.kind import SEVERAL, Built, Check, Entry, Kind, fixed
-from texstage.activities.options import NUMBER, Choice as OneOf, InBody, Number as NumberOption, Unbuildable, Words
+from texstage.activities.options import NUMBER, Choice as OneOf, InBody, Number as NumberOption, Unbuildable, Words, unescaped
 from texstage.checks.cleaning import Unfit, norm_term
 
 __all__ = ["Choice", "Number", "Text"]
@@ -41,26 +41,37 @@ NUMBER_MAX = 1e15                           # a number's size, at most (the core
 DIGITS = 15                                 # a number's significant digits: 0.1 + 0.2 is 0.3; a whole one is exact
 WHOLE = re.compile(r"[+-]?[0-9]+")          # a whole number as a deck writes it: 42, -7
 CONTROL_WORD = re.compile(r"(\\[A-Za-z]+) (?=[^A-Za-z]|$)")     # the space \tl_to_str puts after a control word
-ESCAPED = re.compile(r"\\([{}#%&_$\\~^])")                      # \& and the like, as build/activity.py reads them
-TIE = re.compile(r"(?<!\\)~")                                  # LaTeX's ~: a space
+NAMED = re.compile(r"\\text(asciitilde|asciicircum|backslash)(?:\{\}|(?![A-Za-z]))")      # characters LaTeX names
+CHARACTER = {"asciitilde": "~", "asciicircum": "^", "backslash": "\\"}
+JOINERS = {chr(0x200C), chr(0x200D)}          # of an emoji's sequence, a Persian word: kept, though they are format
 
 
-def tex_text(text: str) -> str:
-    """An option or a reference of a deck as the phones show it and the kind compares it - the same however
-    LaTeX passed it on: an option through its key's value ($\\sigma $ - a space after a control word -, \\&
-    already &), a reference verbatim ($\\sigma$, R\\&D). The space after a control word goes where no letter
-    follows, a tie (~) is a space, \\& and the like are their character, spaces are collapsed - line breaks
-    too, so that no option has one (SEVERAL)."""
-    text = TIE.sub(" ", CONTROL_WORD.sub(r"\1", text))
-    return " ".join(ESCAPED.sub(r"\1", text).split())
+def option_text(text: str, verbatim: bool = False) -> str:
+    """A choice's option or reference as the phones show it and the kind compares it - the same however LaTeX
+    passed it on. An option comes through its key's value, unescaped once by the build ($\\sigma $ - a space
+    after a control word -, \\& already &); a reference verbatim ($\\sigma$, R\\&D), unescaped here by the
+    same rule (options.unescaped: a formula keeps its escapes, $\\{A, B\\}$). Then: spaces collapsed - line
+    breaks too, so that no option has one (SEVERAL) -, the space after a control word gone where no letter
+    follows, a tie (~) a space as LaTeX sets it, \\textasciitilde and the like their character."""
+    text = CONTROL_WORD.sub(r"\1", " ".join((unescaped(text) if verbatim else text).split()))
+    text = NAMED.sub(lambda m: CHARACTER[m.group(1)], text.replace("~", " "))
+    return " ".join(text.split())
 
 
 def plain(text: str) -> str:
     """A short answer as the kind keeps it: its spaces collapsed, line breaks too, and no control or format
     character left - a zero-width space, a soft hyphen, a reversal of the writing's direction -, which would
-    make two answers that look alike two groups."""
+    make two answers that look alike two groups. The joiners stay, and so do characters newer than Python's
+    tables (an emoji of this year)."""
     text = " ".join(text.split())
-    return " ".join("".join(c for c in text if not unicodedata.category(c).startswith("C")).split())
+    kept = (c for c in text if c in JOINERS or unicodedata.category(c) not in ("Cc", "Cf", "Cs"))
+    return " ".join("".join(kept).split())
+
+
+def text_reference(text: str) -> str:
+    """A short answer's reference as a student types it: \\& and the like as their characters (options.unescaped),
+    a tilde as written - ~/bin is a path, not LaTeX's tie -, and what plain() keeps."""
+    return plain(unescaped(text))
 
 
 def _place(entry: Entry) -> tuple[int, ...]:
@@ -78,7 +89,7 @@ class Choice(Kind):
     LIMIT = 10                              # (a student may change their mind: the latest counts)
 
     def build(self, options, bodies) -> Built:
-        given = [tex_text(o) for o in options["options"]]
+        given = [option_text(o) for o in options["options"]]
         if not 2 <= len(given) <= OPTIONS_MAX:
             raise Unbuildable(f"options= takes 2 to {OPTIONS_MAX} options - what the phones offer")
         if not all(given):
@@ -88,7 +99,7 @@ class Choice(Kind):
             raise Unbuildable(f"options= names {twice} twice")
         select = options["select"]
         options["reference"]                                # (written in the body, not as a key)
-        references = [tex_text(r) for r in bodies.get("references") or []]
+        references = [option_text(r, verbatim=True) for r in bodies.get("references") or []]
         other = next((r for r in references if r not in given), None)
         if other is not None:
             raise Unbuildable(f"the reference {other} is none of the options ({', '.join(given)})")
@@ -206,7 +217,7 @@ class Text(Kind):
 
     def build(self, options, bodies) -> Built:
         options["reference"]
-        references = [plain(tex_text(r)) for r in bodies.get("references") or []]      # (R\&D is R&D, as typed)
+        references = [text_reference(r) for r in bodies.get("references") or []]      # (R\&D is R&D, as typed)
         bad = next((r for r in references if not r or len(r) > TEXT_MAX), None)
         if bad is not None:
             raise Unbuildable(f"a reference of 1 to {TEXT_MAX} characters, not {bad[:40]!r}")

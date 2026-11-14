@@ -46,7 +46,7 @@ def test_a_kind_of_today_passes_the_kit(name):
     assert report.faults == [] and report.ok
     assert report.fixtures == {"sql-query": 208, "sparql-query": 109, "turtle-graph": 72, "triples": 18, "choice": 12,
                                "number": 18, "text": 9}[name]
-    assert report.builds == {"triples": 6, "choice": 16, "number": 8, "text": 4}.get(name, 7)
+    assert report.builds == {"triples": 6, "choice": 18, "number": 8, "text": 4}.get(name, 7)
     assert report.budget_s == 1.0 and report.slowest_s < kit.BUDGET_S     # (how slow: the machine's)
     assert not [w for w in report.warnings if "is for a kind" in w]         # every file of its folder is some kind's
 

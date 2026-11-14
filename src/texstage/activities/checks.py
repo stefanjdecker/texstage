@@ -132,6 +132,13 @@ class Checks:
         self.session = session
         self.save = save or (lambda *rows: None)
         self.steps: dict[tuple[str, str], _Step] = {}
+        self.later: list = []                     # the jobs an answer made room for (checked): due() gives them
+
+    def due(self) -> list:
+        """The jobs an answer made room for since they were last asked for - forms that waited for room, which
+        a check that came back (checked) or one that nobody waits for any more let in."""
+        jobs, self.later = self.later, []
+        return jobs
 
     def _step(self, activity: str, step: str) -> _Step:
         return self.steps.setdefault((activity, step), _Step())
@@ -247,18 +254,22 @@ class Checks:
         s.failed.discard(form)
         return [Run(e.activity, e.step, form, s.forms[form], e.player)]
 
-    def _room(self, s: _Step, epoch: int) -> list:
-        """The forms that waited for room, in the order they came, as far as the epoch has room now."""
+    def _room(self, s: _Step) -> list:
+        """The forms that waited for room, in the order they came, as far as the epoch of the entries that wait
+        for each (the latest) has room now - a form nobody waits for any more is no form of the step's, and an
+        earlier epoch's that waited takes no room of a later one's."""
         jobs = []
         for form in list(s.held):
-            if s.count(epoch) >= FORMS_MAX:
-                break
-            del s.held[form]
             waiting = s.asking.get(form)
-            if waiting:
-                first = next(iter(waiting.values()))
-                s.pending.add(form)
-                jobs.append(Run(first.activity, first.step, form, s.forms[form], first.player))
+            if not waiting:
+                del s.held[form]
+                continue
+            if s.count(max(e.epoch for e in waiting.values())) >= FORMS_MAX:
+                continue
+            del s.held[form]
+            first = next(iter(waiting.values()))
+            s.pending.add(form)
+            jobs.append(Run(first.activity, first.step, form, s.forms[form], first.player))
         return jobs
 
     def left(self, e: EntryRow) -> list:
@@ -285,7 +296,7 @@ class Checks:
                     jobs.append(Leave(e.activity, e.step, form))
                 freed = True
         if freed:
-            jobs += self._room(s, e.epoch)
+            jobs += self._room(s)
         return jobs
 
     # -------------------------------------------------------------- what the workers answer
@@ -334,9 +345,16 @@ class Checks:
         """A check's outcome, as it leaves the worker (kind.py: Check.sent) and the pool (set_aside): it is
         stored, its detail too if its group has none, and the entries that waited have it - which are
         given. An internal one that is not set aside is not stored: the entries stay, unchecked. An
-        answer for a form that has its check - it was asked for twice - changes nothing."""
+        answer for a form that has its check - it was asked for twice - changes nothing. What came back may
+        make room for a form that waited (due())."""
         s = self._step(activity, step)
         s.pending.discard(form)
+        try:
+            return self._outcome(s, activity, step, form, outcome, now)
+        finally:
+            self.later += self._room(s)
+
+    def _outcome(self, s: _Step, activity: str, step: str, form: str, outcome: dict, now: int) -> list[EntryRow]:
         status = outcome.get("status")
         if form in s.checks:
             return self._have(s, form)

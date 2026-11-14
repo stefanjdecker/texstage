@@ -272,6 +272,31 @@ def test_the_cap_counts_the_forms_the_epochs_entries_have(monkeypatch):
     assert other.state == "in" and cs.counts(StepRow("g1", A))["forms"] == 4       # (epoch 0's, and the one asked)
 
 
+def test_a_form_that_waited_is_asked_for_once_an_answer_makes_room(monkeypatch):
+    """After a reset the earlier epoch's checks may still be on their way: a form of the new epoch waits for
+    the room they take, and is asked for as their answers come (due) - not only when an entry leaves. A
+    form that nobody waits for any more is no form of the step's, and takes no room."""
+    monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
+    cs = Checks("g1")
+    runs = [asked(cs, entry(i, f"select {i}")) for i in (1, 2)]          # epoch 0: two checks on their way
+    cy = entry(3, "select 3")
+    cy.epoch = 1                                                       # a reset, and Cy's number in the new epoch
+    (job,), _ = cs.entered(cy)
+    assert cs.normalized(A, S, job.raw, clean("select 3")) == ([], []) and cs.state(cy) == "unchecked"   # full
+    assert cs.due() == []
+    cs.checked(A, S, runs[0].norm, OK)                                 # an answer: room in epoch 1
+    assert cs.due() == [Run(A, S, core.norm(clean("select 3")), {}, "p3")] and cs.state(cy) == "waiting"
+    assert cs.due() == []                                              # (given once)
+    gone = entry(4, "select 4")                                        # one that leaves while it waits for room
+    gone.epoch = 1
+    (job,), _ = cs.entered(gone)
+    cs.normalized(A, S, job.raw, clean("select 4"))
+    gone.state = "withdrawn"
+    cs.left(gone)
+    cs.checked(A, S, runs[1].norm, OK)
+    assert cs.due() == [] and not cs.steps[(A, S)].held
+
+
 def test_a_step_takes_so_many_forms_and_the_panel_is_told(monkeypatch):
     monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
     cs = Checks("g1")
@@ -298,6 +323,7 @@ def test_a_step_takes_so_many_forms_and_the_panel_is_told(monkeypatch):
     assert cs.counts(StepRow("g1", A)) == {"waiting": 0, "unchecked": 2, "forms": 2, "full": True}
     assert cs.counts(StepRow("g1", A, epoch=1)) == {"waiting": 0, "unchecked": 1, "forms": 1, "full": False}  # (its
     #                                                           own forms: no entry of epoch 1 has a check yet)
+    es[3].epoch = 0                                            # (back in the step's epoch: it waits for room there)
     assert cs.counts(StepRow("g1", "another")) == {"waiting": 0, "unchecked": 0, "forms": 0, "full": False}
     # room: the form whose only entry leaves makes room for the one that waited longest
     es[1].state = "withdrawn"

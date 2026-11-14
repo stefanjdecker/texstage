@@ -826,7 +826,7 @@ OWN_DECK = r"""\documentclass[aspectratio=169]{beamer}
 \begin{activity}[id=word, kind=text]\prompt{The capital?}\reference{Berlin}\end{activity}
 \end{frame}
 \begin{frame}[t,fragile]{LaTeX in the options}
-\begin{activity}[id=op, kind=choice, options={$\sigma$, $\pi$, R\&D, New~York}]
+\begin{activity}[id=op, kind=choice, options={$\sigma$, $\pi$, R\&D, New~York, {$\{A, B\}$}}]
   \prompt{Which?}
   \reference{$\sigma$}
   \reference{R\&D}
@@ -852,7 +852,8 @@ def test_a_deck_of_texstages_own_kinds(tmp_path):
     assert items == {"coast": {"kind": "choice", "limit": 10, "options": ["Paris", "Nice", "Lyon", "Marseille"],
                                "select": "many"},
                      "rows": {"kind": "number", "limit": 5, "tolerance": 0.5}, "word": {"kind": "text", "limit": 5},
-                     "op": {"kind": "choice", "limit": 10, "options": [sigma, "$" + chr(92) + "pi$", "R&D", "New York"],
+                     "op": {"kind": "choice", "limit": 10, "options": [sigma, "$" + chr(92) + "pi$", "R&D", "New York",
+                                                                       "$" + chr(92) + "{A, B" + chr(92) + "}$"],   # (a set)
                             "select": "one"}}
     assert {aid: (k["reference"], k["referenceKeys"]) for aid, k in keys.items()} == {
         "coast": (["Nice" + chr(10) + "Marseille"], ["Nice" + chr(10) + "Marseille"]), "rows": (["12"], ["12"]),

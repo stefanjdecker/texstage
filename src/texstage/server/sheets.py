@@ -13,7 +13,8 @@ import re
 
 __all__ = ["cell", "csv_text"]
 
-FORMULA = ("=", "+", "-", "@", "\t", "\r")
+FORMULA = ("=", "+", "-", "@", "\t", "\r", "\n",       # (and their full-width forms, which some spreadsheets read so)
+           chr(0xFF1D), chr(0xFF0B), chr(0xFF0D), chr(0xFF20))
 NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
 

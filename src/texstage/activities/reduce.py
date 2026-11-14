@@ -459,14 +459,14 @@ class Reduced:
             listed, others = ranked[:most], ranked[most:]
         out = {"kind": "tally" if tally else "groups", "groups": [entry(g) for g in listed],
                "others": sum(len(g.players) for g in others), "shown": None}
-        if tally and setup.rules.many:                    # a choice of several: how many chose each option, alone
-            counted: Counter = Counter()                  # or with others - the class's tally
+        if tally and setup.rules.many:                    # a choice of several: how many students chose each option,
+            chose: dict[str, set] = {}                    # alone or with others - each once, with counts=all too
             for g in found:
                 if g.status == "ok" and g.key:
-                    for option in set(g.key.split(SEVERAL)):
-                        counted[option] += len(g.players)
+                    for option in g.key.split(SEVERAL):
+                        chose.setdefault(option, set()).update(g.players)
             right = {option for k in keys for option in k.split(SEVERAL)}
-            out["options"] = [{"label": o, "n": counted[o], "reference": o in right} for o in setup.options]
+            out["options"] = [{"label": o, "n": len(chose.get(o, ())), "reference": o in right} for o in setup.options]
         if setup.rules.input == "number":                 # a histogram's: every number given, with its students
             numbers = []                                  # and, where the window may know it, its verdict
             for g in found:
@@ -474,8 +474,8 @@ class Reduced:
                     verdict = judged(g)
                     numbers.append([n, len(g.players), verdict] if verdict else [n, len(g.players)])
             out["numbers"] = sorted(numbers, key=lambda x: x[0])
-        if any(judged(g) for g in found):                 # (marks: how many are right, of all the groups)
-            out["right"] = sum(len(g.players) for g in found if judged(g) == "correct")
+        if any(judged(g) for g in found):                 # (marks: how many students are right - each once)
+            out["right"] = len({p for g in found if judged(g) == "correct" for p in g.players})
         key = s.ids.get(mods.shown) if mods.shown and mods.shown_epoch == s.epoch else None
         if key is not None and any(g is s.groups[key] for g in found):
             out["shown"] = entry(s.groups[key])

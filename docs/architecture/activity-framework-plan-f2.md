@@ -1141,53 +1141,62 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   body, `\reference{Paris}` - a key `reference=` is refused (`options.py`: `InBody`) -; a choice's
   must be among its options, and with `select=many` the references together are the right choice. An
   option is text with `$math$`, which the phones, the box and the panel typeset (`shared/text.js`);
-  an option and a reference are read alike, however LaTeX passed them on (`kinds`: `tex_text` - the
-  space `\tl_to_str` puts after a control word, `\&`, `~`). A key of digits alone is refused: a
+  an option and a reference are read alike, however LaTeX passed them on (`kinds`: `option_text` - the
+  space `\tl_to_str` puts after a control word, `\&` by one rule for the build's keys and the kinds'
+  references, `options.unescaped`, which leaves a formula's escapes alone: `$\{A, B\}$` is a set -,
+  a tie `~` a space as LaTeX sets it, `\textasciitilde` a tilde); a short answer's reference keeps a
+  tilde as written (`~/bin`: `text_reference`). A key of digits alone is refused: a
   decimal comma split a number (`tolerance=0,5` is the keys `tolerance=0` and `5`). No change to
   `texactivity.sty`: its records take every key of a kind's, a list as a list.
 - **The contract:** an entry is a text, the fields, a choice - the places of the item's options, in
   order - or a number (`kind.py`: `Entry`, `stored()`, `of()`); `Kind.reference(step, text)` makes a
   reference an entry of the kind's input, by default the text. The option types `Number` (0.5, -2:
   ASCII's digits and one point) and `InBody` join the others. A tally's key of several choices is their
-  texts a line each (`SEVERAL`), which no option has. The kit holds what normalize gives against what
-  the core keeps (`Entry.stored()`, the kind's input).
+  texts a line each (`SEVERAL`), which no option has. What normalize gives is held against what the
+  core keeps - one field, the kind's input's, JSON without NaN (`kind.kept`) - by the kit and the worker.
 - **The core:** a choice is checked against the item's options - one, or several with `select=many`,
   each once, in order -, a number must be finite and at most 10^15 (`entries.py`: refusals `choice`,
   `number`, `too-large` - a whole number of JSON's larger than any float is compared, not converted);
   the gap between a student's entries is 1 s for a choice, 2 s for a number and a text. A tally's
   groups carry their choice's text as `label` - an option nobody chose too -; a choice of several is a
   group of its own, what is checked, judged and moderated, and the picture counts each option as well
-  (`options`: how many chose it, alone or with others), which is what the class sees. A number step's
+  (`options`: how many students chose it, alone or with others - each once, with `counts=all` too),
+  which is what the class sees. A number step's
   picture lists every number given, with its students and - where the window may know it - its verdict
   (`numbers`); the windows draw a histogram of it - a bar per number while there are at most twelve,
   else stretches of equal width, and a bar at each end for numbers far out (beyond three times the spread
   of the middle half of the students, ≤ x and ≥ y) -, the bars marked by the server's verdicts after the reveal, the
   references themselves in a line with `solution=show`, a group the lecturer shows marked. Where the
-  groups are judged, the picture says how many students are right (`right`). A phone gets a choice's
-  options and its `select` (`play.py`: `PUBLIC`).
+  groups are judged, the picture says how many students are right (`right`, each once). At the reveal a
+  short reference without a result of its own is said in a line; a query's, in a box with its text. A
+  phone gets a choice's options, its `select` and the deck's `gap` (`play.py`: `PUBLIC`).
 - **The kinds:** a choice's key is its option's text, or the options' texts a line each; a number's
   key is the number written out - a whole number exactly, 42.0 is 42 and 2^40 stays 2^40; any other to
   15 significant digits, so that 0.1 + 0.2 is 0.3; no exponent -, and the kind judges it in decimals, as
   the deck writes numbers: right within the tolerance of a reference, 0.3 with `tolerance=0.1` takes 0.4
   and not 0.41, and without one only the reference itself; a text's key is the quiz's normalized form
   (case, accents and spacing do not matter: `cleaning.norm_term`, as `scoring.normalize_text`) of the
-  answer without what is not seen (control and format characters: a zero-width space, a soft hyphen),
-  and the core judges it.
+  answer without what is not seen (control and format characters: a zero-width space, a soft hyphen;
+  the joiners of an emoji or a Persian word stay), and the core judges it. Where normalize refuses an
+  answer, the phone says so in the kind's word (*not taken*) and the core's reason.
 - **The phone:** a choice's options as a quiz's answers look (`shared/shapes.js`): a tap sends a choice
   of one - the latest tap wins, sent again after the gap when it came too soon, and a tap of the choice
-  that counts sends nothing -, a choice of several is marked and then sent; a number in one line, read
-  as the deck's language writes numbers - 3,5 and 3.5 in any deck, 1 000 and 1'000, 1,000.5 and 1.000,5;
-  one separator before three digits alone is a thousand where the language groups with it (1,000 in
-  English, 1.000 in German) -, with a ± key, for an iPhone's keypad has no minus; a short answer in one
-  line, at most 100 characters.
+  that counts sends nothing -, a choice of several is marked and then sent; a number in one line - 3,5
+  and 3.5 in any deck, 1 000 and 1'000 (a space or an apostrophe between groups of three), 1,000.5 and
+  1.000,5; one separator before three digits alone is read as the phone's own language reads it, for
+  its keypad offers that language's separator (3.141 on an English phone is 3.141, in a German deck
+  too; 1.000 on a German one a thousand), and after a whole part of 0 it is a decimal one (0.125) -,
+  with a ± key, for an iPhone's keypad has no minus; a short answer in one line, at most 100 characters.
 - **F1's type** refuses a deck of a kind it never had (`server/activity.py`: `refuses`): run it with
   `texstage serve --activities core`. A server of another major version of texstage plays a deck of its
   own kinds while their API is the same (`server/activities.py`: `refuses`).
 - **The archive** writes a choice by its options' texts and a number with every digit; a cell a
-  spreadsheet would run as a formula (`=`, `+`, `-`, `@`) gets an apostrophe in front (`server/sheets.py`:
+  spreadsheet would run as a formula (`=`, `+`, `-`, `@`, a line's end, their full-width forms) gets an
+  apostrophe in front (`server/sheets.py`:
   every CSV of the archive's), and a CSV's lines end once on Windows too (they ended `\r\r\n`).
 - **The cap of 2,000 forms** counts the forms an entry of the step's epoch has (4.3): a number step whose
-  students all change their estimate fills it no more than one whose students do not.
+  students all change their estimate fills it no more than one whose students do not. A form that
+  waits for room is asked for as soon as an answer or an entry that leaves makes it (`checks.due`).
 
 Left: a choice from an earlier step's groups (`from=`, F3); points (F3).
 
@@ -1324,7 +1333,9 @@ and `text`, the contract's entries of a choice and a number and its `reference`,
 its choices and a number step's histogram (4.8); their kits pass, their views are drawn. Its review
 (2026-11-14) found thirteen faults, ten doubts and seven nits - among them a tolerance of 0 that took
 2^40 ± 1,099, 1,000 read as 1, keys of several choices that one option's could be, LaTeX in options,
-the cap of forms that number steps filled -, all fixed (4.8). F1's type stays the server's default;
+the cap of forms that number steps filled -, all fixed (4.8); a re-check of that commit (86488a7) found
+five more faults - 3.141 read as 3141 on an English phone in a German deck the worst - and ten smaller
+points, fixed in the commit after it. F1's type stays the server's default;
 whether the core's replaces it, and F1's browser code goes, is open.
 
 ### 4.13 Risks

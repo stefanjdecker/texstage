@@ -5,4 +5,7 @@ export default {
   "choice:ok": "Gewählt ✓",
   "number:ok": "Angekommen ✓",
   "text:ok": "Angekommen ✓",
+  "choice:invalid": "Nicht angenommen",
+  "number:invalid": "Nicht angenommen",
+  "text:invalid": "Nicht angenommen",
 };

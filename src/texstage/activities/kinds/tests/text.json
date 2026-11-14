@@ -118,7 +118,9 @@
    "bodies": {
     "references": [
      "R\\&D",
-     "New~York"
+     "~/bin",
+     "~",
+     "C:\\\\Users"
     ]
    },
    "built": {
@@ -126,7 +128,9 @@
     "keys": {
      "reference": [
       "R&D",
-      "New York"
+      "~/bin",
+      "~",
+      "C:\\Users"
      ]
     }
    }
