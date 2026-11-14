@@ -71,7 +71,7 @@ class EntryRow:
     epoch: int
     player: str                      # for the phone's own list and for blocking only: no view names anybody
     created: int
-    input: dict                      # {"text": ...} or {"fields": [...]}, as it was sent
+    input: dict                      # {"text": ...}, {"fields": [...]}, {"choice": [...]} or {"number": ...}, as sent
     norm: str = ""                   # the hash of its normalized input (norm); "": not normalized yet. An entry
     #                                  is unchecked while its step has no check for its norm
     state: str = "in"                # in replaced withdrawn hidden
@@ -96,7 +96,7 @@ class CheckRow:
     at: list | None = None           # [line, column]
     aside: bool = False
     created: int = 0
-    form: dict | None = None         # {"text": ...} or {"fields": [...]}, normalized; None: it has none
+    form: dict | None = None         # the input as normalize gave it (kind.py: Entry.stored); None: it has none
 
 
 @dataclass

@@ -138,7 +138,7 @@ The four aims the redesign was asked for, and this design's answers:
 | **kind** | what a step is about - `sql-query`, `sparql-query`, `triples`, `choice` -: a package with its checker, its texts and its parts for the browser (section 7); in the code *activity kind*, since page records and polls have kinds too |
 | **step** | one part of an activity - write, vote, fix -, with its own prompt, rules, timer and points |
 | **phase** | where a step stands: `ready`, `open`, `paused`, `closed`, `revealed` (section 5.2) |
-| **entry** | what a student sends in a step - a text, fields or a choice (LA's *contribution*) |
+| **entry** | what a student sends in a step - a text, fields, a choice or a number (LA's *contribution*) |
 | **hint** | what a phone says while a student types: a kind's quick look at the text, never a verdict |
 | **check** | the server's verdict on an entry: its status, its group, right or not, its credit (section 6.3) |
 | **group** | the entries the check found equal - one result of a query (LA's *cluster*), one triple, one choice |
@@ -310,20 +310,21 @@ class SqlQuery(Kind):
     def prepare(self, item, keys, files, limits=None, copy=None) -> Prepared: ...   # per worker and seed
     def copy(self, prepared, most) -> bytes | None: ...      # optional: what prepare made, for every worker
     def normalize(self, step, entry) -> Entry: ...           # quick: entries that normalize alike are checked once
+    def reference(self, step, text) -> Entry: ...            # a reference as an entry: by default its text
     def check(self, prepared, step, entry) -> Check: ...     # one distinct entry, within the budget
 ```
 
 `OPTIONS` is one schema for an activity and its steps: a key given on a step overrides the
-activity's. Its types - `Words`, `Int`, `Flag`, `Choice`, `File` (`activities/options.py`) - read
+activity's. Its types - `Words`, `Int`, `Number`, `Flag`, `Choice`, `File`, `InBody` (`activities/options.py`) - read
 what the deck gave and say what is wrong with it; a kind's `build` asks for each key, and so says
-in which order a deck's faults are told. An entry is what a step's input sends: a text, the fields
-or a choice. `normalize` gives an entry, not a string - fields stay fields -, and may refuse one
+in which order a deck's faults are told. An entry is what a step's input sends: a text, the fields,
+a choice or a number. `normalize` gives an entry, not a string - fields stay fields -, and may refuse one
 that is not checked at all, too long or empty, with the code the phone has words for. `MESSAGES`
 lists what a check may say, each code with its arguments (6.3, 7.4). A check's time is counted in
 seconds, as the pool counts it; the references, which are the lecturer's, have a longer budget of
-their own. An input of a kind's own (7.3) and the entries of `choice` and `number` come with the
-browser and with texstage's own kinds; until then the kit takes the core's inputs, and an entry is
-a text or the fields. No kind code
+their own. An entry is a text, the fields, a choice - the places of the options the item gives, in
+order - or a number (F2's package 9, with texstage's own kinds); a reference is checked as an entry of
+the kind's input, which `reference` makes of its text (by default the text itself). No kind code
 runs in the server's event loop (decided 2026-11-09): the loop merges entries whose texts are
 identical, and a worker normalizes a new text - the pool's worker for normalizing, which never
 waits behind a check (10.3), so that a slow or faulty kind can never hold up 1,000 phones; F0
@@ -547,7 +548,7 @@ loads for the deck's kinds together, since the limits of 7.3 are a kind's alone.
 
 ### 10.1 An entry's way
 
-1. A phone sends `activity.enter {activity, step, entry, text | fields | choice}`: the phone
+1. A phone sends `activity.enter {activity, step, entry, text | fields | choice | number}`: the phone
    makes the entry's id (today the server does, `server/activity.py:531`). A repeated id gets the
    reply it got before - from the reply cache while the server runs (`server/app.py:630-634`: per
    player, in memory), from the stored entry after a restart, since an entry's id is unique.
@@ -625,7 +626,7 @@ One namespace for every kind; a kind has no messages of its own:
 
 | from | message |
 |---|---|
-| phone | `activity.enter {activity, step, entry, text \| fields \| choice}` -> `{entry, state}`; `activity.withdraw {activity, step, entry}` |
+| phone | `activity.enter {activity, step, entry, text \| fields \| choice \| number}` -> `{entry, state}`; `activity.withdraw {activity, step, entry}` |
 | presenter window | `activity.open` (a ready step, or a closed one again), `activity.close`, `activity.pause`, `activity.resume`, `activity.next`, `activity.reveal`, `activity.reset` `{activity, step?}`; `activity.time {activity, step, add \| stop}` |
 | presenter window | `activity.moderate {activity, step, act, group?, into?, entry?, on?}` - `act`: `show`, `hide`, `merge`, `unmerge`, `approve`, `pick` (a group as a choice of a later step), `block` (the entry's student) |
 | presenter and projector windows | `activity.view {activity, step}` -> the picture (a read, as LA's) |
@@ -806,8 +807,9 @@ shows (F5).
 - **Bytes before the moment:** a phone loads the kinds' files when it joins and a step's prompt
   picture while the slide before is shown, so that 1,000 phones do not fetch them in the second
   the step opens.
-- **Limits that fit 1,000:** 10,000 entries and 2,000 distinct inputs per step (LA: 5,000 and 500
-  per activity); beyond 2,000 the panel says so and new texts wait, as in LA.
+- **Limits that fit 1,000:** 10,000 entries and 2,000 distinct inputs per step at a time - those
+  its epoch's entries hold (LA: 5,000 and 500 per activity); beyond 2,000 the panel says so and new
+  texts wait, as in LA.
 
 ### 15.3 Python or Rust
 

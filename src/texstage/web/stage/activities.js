@@ -25,26 +25,95 @@
 
 import { ActivityBox, resultTable } from "./activity.js";
 import { texts } from "../i18n/i18n.js";
-import { clock, timeLeft } from "../play/activities.js";
+import { clock, numberShown, timeLeft } from "../play/activities.js";
+import { textHTML } from "../shared/text.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const FETCH_MS = 500;
 const LAYOUT_MS = 500;
+const SEVERAL = String.fromCharCode(10);      // a tally's choice of several: the options' texts, a line each (kind.py)
+const DENSE = 8;                              // more rows than this: the box draws them smaller (26 options fit)
 
-export function shownText(input) {
+export function tallyText(text) {
+  // a tally's label or reference as a line: a choice of several with " + " between its options
+  return String(text ?? "").split(SEVERAL).join(" + ");
+}
+
+export function shownText(input, item, language) {
   // an entry's input as a line of text: its text - without the empty lines in front, where comments were
-  // that the kind took out (the plan of F2, 4.7) -, or its fields
+  // that the kind took out (the plan of F2, 4.7) -, its fields, its choice by the options' texts (the item's),
+  // its number in the deck's language
   if (!input) return "";
+  if (input.choice) return input.choice.map((n) => item?.options?.[n] ?? String(n)).join(" + ");
+  if (input.number !== undefined && input.number !== null) return numberShown(input.number, language);
   return input.fields ? input.fields.join(" · ") : String(input.text ?? "").replace(/^(?:[ \t]*\r?\n)+/, "");
 }
 
-export function groupLabel(g, words) {
-  // a group's short name: its result ("11 rows", "yes"), else what went wrong
+export function groupLabel(g, words, item, language) {
+  // a group's short name: a tally's choice (its label), its result ("11 rows", "yes"), else what went wrong
   if (g.status !== "ok") return words.status2[g.status] || g.status;
+  if (g.label) return tallyText(g.label);
   const d = g.detail || {};
   if (d.kind === "ask") return d.boolean ? words.yes : words.no;
   if (typeof d.count === "number") return d.kind === "graph" ? words.triples(d.count) : words.rows(d.count);
-  return shownText(g.example) || words.result;
+  return shownText(g.example, item, language) || words.result;
+}
+
+export const BINS = 12;              // a histogram's bars, at most: one per number while there are no more
+
+function quantile(numbers, total, q) {
+  // the number below which a share q of the students' numbers lies (numbers in order: [x, students, ...])
+  let seen = 0;
+  for (const [x, n] of numbers) {
+    seen += n;
+    if (seen >= q * total) return x;
+  }
+  return numbers[numbers.length - 1][0];
+}
+
+export function histogram(numbers, most = BINS) {
+  // a number step's histogram (the picture's numbers: [[number, students, verdict?], ...], in order) - bars
+  // {from, to, n, right, out?}: from === to, one number; right, a number in it was judged right (the server's
+  // verdicts: after the reveal). A bar per number while there are at most `most`; else bars of equal width
+  // over the class's range - and where numbers lie far out, beyond three times the spread of the middle half
+  // of the students from it (the middle 80 %'s where half of them gave one number), a bar at each end takes
+  // them (out: "below", "above"): a joke or two do not squeeze the rest into one bar, in a small class too
+  if (!numbers?.length) return [];
+  const bar = (part) => ({ from: part[0][0], to: part[part.length - 1][0], n: part.reduce((s, x) => s + x[1], 0),
+    right: part.some((x) => x[2] === "correct") });
+  if (numbers.length <= most) return numbers.map((x) => bar([x]));
+  const total = numbers.reduce((s, x) => s + x[1], 0);
+  const q1 = quantile(numbers, total, 0.25), q3 = quantile(numbers, total, 0.75);
+  const spread = q3 - q1 || quantile(numbers, total, 0.9) - quantile(numbers, total, 0.1) || Math.abs(q1) / 10 || 1;
+  const low = q1 - 3 * spread, high = q3 + 3 * spread;
+  const below = numbers.filter(([x]) => x < low), above = numbers.filter(([x]) => x > high);
+  const middle = numbers.filter(([x]) => x >= low && x <= high);
+  const room = most - (below.length ? 1 : 0) - (above.length ? 1 : 0);
+  let bars;
+  if (middle.length <= room) bars = middle.map((x) => bar([x]));
+  else {
+    const lo = middle[0][0], hi = middle[middle.length - 1][0], width = (hi - lo) / room;
+    bars = Array.from({ length: room }, (_, i) => ({ from: lo + i * width, to: i === room - 1 ? hi : lo + (i + 1) * width,
+      n: 0, right: false }));
+    for (const [x, n, verdict] of middle) {
+      const b = bars[Math.min(room - 1, Math.floor((x - lo) / width))];
+      b.n += n;
+      b.right ||= verdict === "correct";
+    }
+  }
+  return [...(below.length ? [{ ...bar(below), out: "below" }] : []), ...bars,
+    ...(above.length ? [{ ...bar(above), out: "above" }] : [])];
+}
+
+export function histogramLabels(bars, language) {
+  // the bars' labels in the deck's language: a number as it is, every digit; a stretch rounded to the digits
+  // its width needs; the bars of the numbers far out by their nearest one, ≤ 3 and ≥ 900
+  const stretches = bars.filter((b) => b.from !== b.to && !b.out);
+  const width = stretches.length ? Math.min(...stretches.map((b) => b.to - b.from)) : 0;
+  const digits = width > 0 ? Math.min(12, Math.max(0, Math.ceil(-Math.log10(width)) + 1)) : 0;
+  const round = (x) => numberShown(Number(x.toFixed(digits)), language);
+  return bars.map((b) => b.out && b.from !== b.to ? `${b.out === "below" ? "≤" : "≥"} ${numberShown(b.out === "below" ? b.to : b.from, language)}`
+    : b.from === b.to ? numberShown(b.from, language) : `${round(b.from)} – ${round(b.to)}`);
 }
 
 // The controls as keys of the presenter window (the design's 13), for the activity on the slide shown -
@@ -125,7 +194,39 @@ export class StepBox extends ActivityBox {
     if (!p || this.gone) return;
     if (p.held) this.drawHeld(p);
     else if (p.kind === "graph") this.drawGraph(p);
+    else if (p.numbers && (p.numbers.length || !p.groups?.length)) this.drawHistogram(p);   // (keys that are numbers)
     else this.drawGroups(p);
+  }
+
+  headLine(p) {
+    // the box's first line: how many students, how many wait for their checks, how many are right (the reveal)
+    const w = this.boxWords;
+    return [w.students(p.students || 0), p.waiting ? w.waiting(p.waiting) : "",
+      p.revealed && p.right !== undefined ? w.right(p.right) : ""].filter(Boolean).join(" · ");
+  }
+
+  drawHistogram(p) {
+    // a number step: a bar per number, or per stretch of numbers (histogram) - after the reveal the bars of the
+    // numbers judged right in the reference's colour (the server's verdicts: the tolerance is the kind's),
+    // and with solution=show the references themselves; a group the lecturer shows, its bar marked and named
+    const w = this.boxWords;
+    const bars = histogram(p.numbers);
+    const labels = histogramLabels(bars, this.language);
+    const most = Math.max(1, ...bars.map((b) => b.n));
+    const shownNumber = p.shown?.example?.number;
+    const showing = (b) => typeof shownNumber === "number" && b.from <= shownNumber && shownNumber <= b.to;
+    const tolerance = Number(this.item?.tolerance) || 0;
+    const solution = (p.solution || []).map((r) => Number(r.text)).filter(Number.isFinite).map((r) =>
+      numberShown(r, this.language) + (tolerance ? ` ± ${numberShown(tolerance, this.language)}` : "")).join(" · ");
+    const lines = (solution ? `<div class="tq-solline">${esc(w.solution)}: ${esc(solution)}</div>` : "") + (p.shown
+      ? `<div class="tq-solline tq-shownline">${esc(shownText(p.shown.example, this.item, this.language))} · ${esc(w.students(p.shown.n))}</div>` : "");
+    this.el.innerHTML = `<div class="tq-hist"><div class="tq-chead">${esc(this.headLine(p))}</div>${lines}${bars.length
+      ? `<div class="tq-hbars">${bars.map((b) => `<div class="tq-hbar${b.right ? " tq-ref" : ""}${showing(b) ? " tq-showing" : ""}"><b>${b.n || ""}</b><i
+          style="height:${((100 * b.n) / most).toFixed(1)}%"></i></div>`).join("")}</div>
+        <div class="tq-hlabels">${labels.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`
+      : `<div class="tq-empty">${esc(p.phase === "open" || p.phase === "paused" ? w.held.waiting : w.held.none)}</div>`}</div>`;
+    this.nodes = new Map();
+    this.shape = null;
   }
 
   key(k) {
@@ -146,25 +247,47 @@ export class StepBox extends ActivityBox {
   }
 
   drawGroups(p) {
+    // groups and a tally: a bar each - a choice of several by its options (the picture's options: how many
+    // chose each); the deck's options with their $math$ typeset. After the reveal, references without a
+    // result of their own in a line that leaves the bars to be seen, those with one in one box
     const w = { ...this.boxWords, __language: this.language };
-    const most = Math.max(1, ...p.groups.map((g) => g.n));
     const kind = this.item?.kind;
+    const tally = p.kind === "tally";
+    const redraw = () => this.draw();
+    const label = (g) => tally && g.status === "ok" ? textHTML(groupLabel(g, w, this.item, this.language), redraw)
+      : esc(groupLabel(g, w, this.item, this.language));
     const mark = (g) => (g.reference ? " ✓" : "") + (g.verdict && p.revealed ? ` · ${w.verdict[g.verdict] || g.verdict}` : "");
-    const rows = p.groups.map((g) => `<div class="tq-cluster${g.reference ? " tq-ref" : ""}${g.status !== "ok" ? " tq-bad" : ""}">
-        <span class="tq-clabel">${esc(groupLabel(g, w))}${esc(mark(g))}</span>
+    const listed = p.options ? p.options.map((o) => ({ ...o, status: "ok" })) : p.groups;
+    const most = Math.max(1, ...listed.map((g) => g.n));
+    const rows = listed.map((g) => `<div class="tq-cluster${g.reference ? " tq-ref" : ""}${g.status !== "ok" ? " tq-bad" : ""}">
+        <span class="tq-clabel">${label(g)}${esc(mark(g))}</span>
         <span class="tq-cbar"><i style="width:${((100 * g.n) / most).toFixed(1)}%"></i></span>
         <span class="tq-cn">${g.n}</span></div>`).join("");
     const s = p.shown;
-    const shown = s ? `<div class="tq-shown"><div class="tq-shownhead">${esc(groupLabel(s, w))} · ${esc(w.students(s.n))}${esc(mark(s))}</div>
-        <pre>${esc(shownText(s.example))}</pre>${s.status === "ok" ? detailHTML(s.detail, this.kinds, kind, w) : ""}</div>` : "";
-    const solution = (p.solution || []).map((r) => `<div class="tq-shown"><div class="tq-shownhead">${esc(w.solution)}</div>
-        <pre>${esc(r.text)}</pre>${detailHTML(r.detail, this.kinds, kind, w)}</div>`).join("");
-    const head = `${w.students(p.students || 0)}${p.waiting ? ` · ${w.waiting(p.waiting)}` : ""}`;
-    this.el.innerHTML = `<div class="tq-clusters"><div class="tq-chead">${esc(head)}</div>
-      ${rows || `<div class="tq-empty">${esc(p.phase === "open" || p.phase === "paused" ? w.held.waiting : w.held.none)}</div>`}
-      ${p.others ? `<div class="tq-more">${esc(w.others)} · ${p.others}</div>` : ""}</div>${shown}${solution}`;
+    const shown = s ? `<div class="tq-shown"><div class="tq-shownhead">${label(s)} · ${esc(w.students(s.n))}${esc(mark(s))}</div>
+        <pre>${esc(shownText(s.example, this.item, this.language))}</pre>${s.status === "ok" ? detailHTML(s.detail, this.kinds, kind, w) : ""}</div>` : "";
+    const refs = p.solution || [];
+    const plain = refs.filter((r) => !r.detail).map((r) => (tally ? textHTML(tallyText(r.text), redraw) : esc(r.text)));
+    const line = plain.length ? `<div class="tq-solline">${esc(w.solution)}: ${plain.join(" · ")}</div>` : "";
+    const results = refs.filter((r) => r.detail);
+    const solution = results.length ? `<div class="tq-shown">${results.map((r) => `<div class="tq-shownhead">${esc(w.solution)}</div>
+        <pre>${esc(r.text)}</pre>${detailHTML(r.detail, this.kinds, kind, w)}`).join("")}</div>` : "";
+    this.el.innerHTML = `<div class="tq-clusters${listed.length > DENSE ? " tq-dense" : ""}"><div class="tq-chead">${esc(this.headLine(p))}</div>
+      ${line}${rows || `<div class="tq-empty">${esc(p.phase === "open" || p.phase === "paused" ? w.held.waiting : w.held.none)}</div>`}
+      ${p.others && !p.options ? `<div class="tq-more">${esc(w.others)} · ${p.others}</div>` : ""}</div>${shown}${solution}`;
     this.nodes = new Map();
     this.shape = null;
+    this.fit();
+  }
+
+  fit() {
+    // many rows (tq-dense): the font made smaller till they fit in the box, whose height is the deck's
+    const rows = this.el.querySelector?.(".tq-clusters.tq-dense");
+    if (!rows?.clientHeight || typeof getComputedStyle !== "function") return;
+    for (let i = 0; i < 4 && rows.scrollHeight > rows.clientHeight + 1; i += 1) {
+      const size = parseFloat(getComputedStyle(rows).fontSize);
+      rows.style.fontSize = `${(size * Math.max(0.5, (rows.clientHeight - 1) / rows.scrollHeight)).toFixed(2)}px`;
+    }
   }
 }
 
@@ -378,7 +501,7 @@ export function openStepPanel(env) {
     const head = `<div class="acthead"><b>${esc(A.phase[phase] || phase)}</b> <span data-role="time"></span> · ${counts}
       <div class="buttons left">${controls}</div>${notes}</div>`;
     const body = crowd ? crowdPanel(p) : groupsPanel(p, item);
-    el.querySelector("#actbody").innerHTML = head + body + actsList(p);
+    el.querySelector("#actbody").innerHTML = head + body + actsList(p, item);
     tick();
   }
 
@@ -404,17 +527,27 @@ export function openStepPanel(env) {
   }
 
   function groupsPanel(p, item) {
+    // the groups, the references' - each its group, if one has its result - and, where the groups are judged,
+    // how many are right: a number's group may be right within the tolerance (the server counts them all)
     const kind = item?.kind;
+    const language = env.language;
     const refs = (p.references || []).map((x, i) => x === null ? A.refPending(i + 1)
       : x.failed ? A.refFailed(i + 1, W.status2[x.failed] || x.failed)
-      : (() => { const g = p.groups.find((gr) => gr.id === x.group); return g ? A.refIn(i + 1, g.n) : A.refAlone(i + 1); })());
+      : (() => {
+        const g = p.groups.find((gr) => gr.id === x.group);
+        return g?.n ? A.refIn(i + 1, g.n) : A.refAlone(i + 1);         // (a tally's option nobody chose: none)
+      })());
+    if (p.right !== undefined) refs.push(A.right(p.right));
     const shown = p.shown?.id;
     const say = (m) => env.kinds?.say(kind, m) ?? m.code;
+    const redraw = () => { panel.seen = ""; render(); };          // (KaTeX came: the options' formulas)
+    const label = (g) => p.kind === "tally" && g.status === "ok" ? textHTML(groupLabel(g, W, item, language), redraw)
+      : esc(groupLabel(g, W, item, language));
     const group = (g) => `<div class="actcluster${g.reference ? " ref" : ""}${g.id === shown ? " shown" : ""}${g.hidden ? " hidden" : ""}"
         data-group="${esc(g.id)}" data-entry="${esc(g.entry || "")}">
-      <div class="top"><b>${esc(groupLabel(g, W))}</b>${g.reference ? " ✓" : ""}${g.verdict ? ` · ${esc(W.verdict[g.verdict] || g.verdict)}` : ""}
+      <div class="top"><b>${label(g)}</b>${g.reference ? " ✓" : ""}${g.verdict ? ` · ${esc(W.verdict[g.verdict] || g.verdict)}` : ""}
         · ${esc(W.students(g.n))}</div>
-      <pre>${esc(shownText(g.example))}</pre>
+      <pre>${esc(shownText(g.example, item, language))}</pre>
       ${g.messages?.length ? `<div class="meta">${g.messages.map((mm) => esc(say(mm))).join("<br>")}</div>` : ""}
       ${g.status === "ok" ? detailHTML(g.detail, env.kinds, kind, W, 4) : ""}
       <div class="buttons left">${g.id === shown ? `<button data-act="unshow" class="on">${esc(A.unshow)}</button>`
@@ -426,7 +559,7 @@ export function openStepPanel(env) {
       ${p.others ? `<p class="note">${esc(A.others(p.others))}</p>` : ""}`;
   }
 
-  function actsList(p) {
+  function actsList(p, item) {
     // the step's last acts that hold, the latest first (moderation.py: acts), each to be undone - a group by
     // its result and text, a term by its label, an entry by its group's text where the picture has it
     const acts = p.acts || [];
@@ -434,13 +567,13 @@ export function openStepPanel(env) {
     const cut = (text) => (text.length > 40 ? `${text.slice(0, 39)}…` : text);
     const named = (key, role) => {
       const g = (p.groups || []).find((gr) => gr.id === key);
-      if (g) return `${groupLabel(g, W)}: ${cut(shownText(g.example))}`;
+      if (g) return `${groupLabel(g, W, item, env.language)}: ${cut(shownText(g.example, item, env.language))}`;
       const t = (p.terms || []).find((tm) => tm.key === key && (!role || tm.role === role));
       return t ? t.label : key;
     };
     const whose = (entry) => {
       const g = entry ? (p.groups || []).find((gr) => gr.entry === entry) : null;
-      return g ? cut(shownText(g.example)) : "";
+      return g ? cut(shownText(g.example, item, env.language)) : "";
     };
     return `<h3>${esc(A.acts)}</h3>${acts.map((a) => {
       const what = a.target ? named(a.target, a.role) : whose(a.entry);

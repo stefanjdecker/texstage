@@ -27,8 +27,11 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-sys.path.insert(0, str(ROOT / "src"))
-from texstage.build.bundle import bundle_id  # noqa: E402
+try:
+    from texstage.build.bundle import bundle_id
+except ImportError:                                      # a checkout without texstage installed: its own source
+    sys.path.insert(0, str(ROOT / "src"))
+    from texstage.build.bundle import bundle_id
 
 LECTURE = ROOT.parent / "KnowlegeGraph-VL"
 SQL_SEED = ("CREATE TABLE packing (item TEXT, quantity INTEGER);\n"

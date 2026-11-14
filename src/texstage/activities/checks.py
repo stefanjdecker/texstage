@@ -26,10 +26,12 @@ An `internal` check is never the text's doing unless the pool set the text aside
 set aside, it is stored and final; else nothing is stored, the entries that waited count as unchecked,
 and the same text sent again - or the next start of the server - has it checked again.
 
-A step takes FORMS_MAX distinct forms - those that have a check, are being checked, or failed and are
-still waited for; what normalize refused is none. Beyond, a new form waits unchecked, and counts() says
-the step is full (the plan of F2, 4.3); it is asked for as soon as there is room. A reset keeps the
-checks - the same text has the same result - and so the forms: the cap is the step's, not an epoch's.
+A step takes FORMS_MAX distinct forms at a time - those whose check an entry of its epoch has (in or
+hidden), that are being checked, or failed and are still waited for; what normalize refused is none.
+Beyond, a new form waits unchecked, and counts() says the step is full (the plan of F2, 4.3); it is asked
+for as soon as there is room - an entry replaced or taken back lets its form go. A reset keeps the checks
+- the same text has the same result -, and the new epoch's entries count its forms anew: a number step
+whose students all change their estimate fills no more than one whose students do not.
 
 After a restart (load, again): the checks and details are the tables'; an entry that has none goes to
 normalize again - a normalized form is stored with its check, not before - and is checked as a new one
@@ -37,6 +39,7 @@ is.
 """
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
@@ -91,9 +94,35 @@ class _Step:
     held: dict[str, None] = field(default_factory=dict)                   # ... wait for room, in the order they came
     unformed: dict[str, dict[str, EntryRow]] = field(default_factory=dict)    # raw -> the entries that wait for it
     asking: dict[str, dict[str, EntryRow]] = field(default_factory=dict)      # norm -> the entries that wait for it
+    having: dict[str, dict[str, int]] = field(default_factory=dict)           # norm -> the entries that have its
+    holders: Counter = field(default_factory=Counter)                         # check: id -> epoch; per (norm, epoch)
+    held_in: Counter = field(default_factory=Counter)                         # epoch -> the forms its entries have
 
-    def count(self) -> int:
-        return len(self.checks) + len(self.pending) + len(self.failed)
+    def count(self, epoch: int) -> int:
+        """The step's forms in an epoch: those its entries have the check of, those being checked, those
+        that failed and are waited for."""
+        return self.held_in[epoch] + len(self.pending) + len(self.failed)
+
+    def have(self, form: str, e: EntryRow) -> None:
+        """An entry that is in or hidden has the form's check: the form counts in the entry's epoch."""
+        if e.state not in WAITS or e.id in self.having.setdefault(form, {}):
+            return
+        self.having[form][e.id] = e.epoch
+        self.holders[form, e.epoch] += 1
+        if self.holders[form, e.epoch] == 1:
+            self.held_in[e.epoch] += 1
+
+    def let_go(self, e: EntryRow) -> bool:
+        """An entry that left lets its form's check go - whether the form counts no more in its epoch."""
+        epoch = self.having.get(e.norm, {}).pop(e.id, None) if e.norm else None
+        if epoch is None:
+            return False
+        self.holders[e.norm, epoch] -= 1
+        if self.holders[e.norm, epoch]:
+            return False
+        del self.holders[e.norm, epoch]
+        self.held_in[epoch] -= 1
+        return True
 
 
 class Checks:
@@ -120,6 +149,7 @@ class Checks:
         for e in entries:
             if e.session == self.session and e.norm and e.norm in self._step(e.activity, e.step).checks:
                 self._step(e.activity, e.step).raws[norm(e.input)] = e.norm
+                self._step(e.activity, e.step).have(e.norm, e)
 
     def again(self, entries: Iterable[EntryRow]) -> list:
         """After a restart: the entries that still want a check and have none are asked for again - those
@@ -168,7 +198,8 @@ class Checks:
                         unchecked += 1
                     else:
                         waiting += 1
-        return {"waiting": waiting, "unchecked": unchecked, "forms": s.count(), "full": s.count() >= FORMS_MAX}
+        forms = s.count(st.epoch)
+        return {"waiting": waiting, "unchecked": unchecked, "forms": forms, "full": forms >= FORMS_MAX}
 
     # -------------------------------------------------------------- an entry comes, an entry goes
     def entered(self, e: EntryRow) -> tuple[list, CheckRow | None]:
@@ -200,22 +231,27 @@ class Checks:
         nobody has."""
         self._norm(e, form)
         if form in s.checks:
+            s.have(form, e)
             return []
         s.asking.setdefault(form, {})[e.id] = e
-        if form in s.pending or form in s.held:
+        if form in s.pending:
             return []
-        if form not in s.failed and s.count() >= FORMS_MAX:
+        if form in s.held:                                # it waits for room - which this epoch may have
+            if s.count(e.epoch) >= FORMS_MAX:
+                return []
+            del s.held[form]
+        elif form not in s.failed and s.count(e.epoch) >= FORMS_MAX:
             s.held[form] = None                           # the step is full: it waits, unchecked
             return []
         s.pending.add(form)
         s.failed.discard(form)
         return [Run(e.activity, e.step, form, s.forms[form], e.player)]
 
-    def _room(self, s: _Step) -> list:
-        """The forms that waited for room, in the order they came, as far as there is room now."""
+    def _room(self, s: _Step, epoch: int) -> list:
+        """The forms that waited for room, in the order they came, as far as the epoch has room now."""
         jobs = []
         for form in list(s.held):
-            if s.count() >= FORMS_MAX:
+            if s.count(epoch) >= FORMS_MAX:
                 break
             del s.held[form]
             waiting = s.asking.get(form)
@@ -232,6 +268,7 @@ class Checks:
         s = self.steps.get((e.activity, e.step))
         if s is None:
             return []
+        freed = s.let_go(e)                               # (its form, if it had the check: one less of the epoch's)
         for raw in [r for r, group in s.unformed.items() if e.id in group]:
             del s.unformed[raw][e.id]                     # (the answer still tells the step its form)
             if not s.unformed[raw] and raw in s.stuck:
@@ -246,7 +283,9 @@ class Checks:
                 if form in s.pending:
                     s.pending.discard(form)
                     jobs.append(Leave(e.activity, e.step, form))
-                jobs += self._room(s)
+                freed = True
+        if freed:
+            jobs += self._room(s, e.epoch)
         return jobs
 
     # -------------------------------------------------------------- what the workers answer
@@ -300,7 +339,7 @@ class Checks:
         s.pending.discard(form)
         status = outcome.get("status")
         if form in s.checks:
-            return list(s.asking.pop(form, {}).values())
+            return self._have(s, form)
         if status == "internal" and not outcome.get("set_aside"):
             if form in s.asking:                          # (nobody waits for it: it is no form of the step's)
                 s.failed.add(form)
@@ -316,4 +355,12 @@ class Checks:
         self.save(*rows)
         s.forms.pop(form, None)
         s.failed.discard(form)
-        return list(s.asking.pop(form, {}).values())
+        return self._have(s, form)
+
+    @staticmethod
+    def _have(s: _Step, form: str) -> list[EntryRow]:
+        """The entries that waited for a form's check, which they have now."""
+        entries = list(s.asking.pop(form, {}).values())
+        for e in entries:
+            s.have(form, e)
+        return entries

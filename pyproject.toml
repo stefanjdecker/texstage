@@ -47,17 +47,26 @@ docs = ["reportlab==4.4.9"]  # illustrated PDF manual; not needed to run texstag
 [project.scripts]
 texstage = "texstage.cli:main"
 
+# texstage's own kinds of live activities, found as every kind is (activities/registry.py)
+[project.entry-points."texstage.kinds"]
+choice = "texstage.activities.kinds:Choice"
+number = "texstage.activities.kinds:Number"
+text = "texstage.activities.kinds:Text"
+
 [tool.setuptools]
 # Four generic LaTeX packages are installed under texstage/latex/.
 package-dir = { "" = "src", "texstage.latex" = "latex" }
-packages = ["texstage", "texstage.activities", "texstage.build", "texstage.checks", "texstage.server", "texstage.latex",
+packages = ["texstage", "texstage.activities", "texstage.activities.kinds", "texstage.build", "texstage.checks", "texstage.server", "texstage.latex",
             # the web pages' folders - data, but importable names to Python, so setuptools wants them listed
             "texstage.web", "texstage.web.addin", "texstage.web.host", "texstage.web.i18n", "texstage.web.play", "texstage.web.shared",
             "texstage.web.stage", "texstage.web.engines", "texstage.web.vendor", "texstage.web.vendor.katex",
             "texstage.web.vendor.katex.fonts", "texstage.web.vendor.oxigraph", "texstage.web.vendor.pdfjs",
-            "texstage.web.vendor.sqljs"]
+            "texstage.web.vendor.sqljs",
+            # texstage's own kinds' words and fixtures - data too
+            "texstage.activities.kinds.tests", "texstage.activities.kinds.texts"]
 
 [tool.setuptools.package-data]
 texstage = ["web/**/*"]      # the pages the server serves (phone, host console, live views, texstage)
 "texstage.latex" = ["texstage.sty", "texquiz.sty", "texvideo.sty", "texactivity.sty"]
 "texstage.activities" = ["kit.mjs"]      # the kit's browser half, run in Node (kit.py: browser)
+"texstage.activities.kinds" = ["texts/*.js", "tests/*.json"]     # texstage's own kinds: their words, their fixtures

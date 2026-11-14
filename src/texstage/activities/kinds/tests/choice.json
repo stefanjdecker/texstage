@@ -1,0 +1,522 @@
+{
+ "kind": "choice",
+ "settings": {
+  "one": {
+   "item": {
+    "options": [
+     "Paris",
+     "Lyon",
+     "Nice"
+    ],
+    "select": "one"
+   },
+   "keys": {
+    "reference": [
+     "Paris"
+    ]
+   }
+  },
+  "many": {
+   "item": {
+    "options": [
+     "Paris",
+     "Lyon",
+     "Nice"
+    ],
+    "select": "many"
+   },
+   "keys": {
+    "reference": [
+     "Paris\nNice"
+    ]
+   }
+  },
+  "no reference": {
+   "item": {
+    "options": [
+     "yes",
+     "no"
+    ],
+    "select": "one"
+   }
+  },
+  "plus": {
+   "item": {
+    "options": [
+     "a",
+     "b",
+     "a + b"
+    ],
+    "select": "many"
+   },
+   "keys": {
+    "reference": [
+     "a + b"
+    ]
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "one",
+   "entry": {
+    "choice": [
+     0
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "Paris"
+   }
+  },
+  {
+   "setting": "one",
+   "entry": {
+    "choice": [
+     1
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "Lyon"
+   }
+  },
+  {
+   "setting": "one",
+   "entry": {
+    "choice": [
+     0,
+     2
+    ]
+   },
+   "unfit": "choice"
+  },
+  {
+   "setting": "one",
+   "entry": {
+    "choice": [
+     3
+    ]
+   },
+   "unfit": "choice"
+  },
+  {
+   "setting": "one",
+   "entry": {
+    "choice": [
+     -1
+    ]
+   },
+   "unfit": "choice"
+  },
+  {
+   "setting": "one",
+   "entry": {
+    "choice": []
+   },
+   "unfit": "choice"
+  },
+  {
+   "setting": "many",
+   "entry": {
+    "choice": [
+     2,
+     0
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "Paris\nNice"
+   }
+  },
+  {
+   "setting": "many",
+   "entry": {
+    "choice": [
+     1,
+     1
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "Lyon"
+   }
+  },
+  {
+   "setting": "many",
+   "entry": {
+    "choice": [
+     0,
+     1,
+     2
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "Paris\nLyon\nNice"
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "choice": [
+     1
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "no"
+   }
+  },
+  {
+   "setting": "plus",
+   "entry": {
+    "choice": [
+     0,
+     1
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "a\nb"
+   }
+  },
+  {
+   "setting": "plus",
+   "entry": {
+    "choice": [
+     2
+    ]
+   },
+   "check": {
+    "status": "ok",
+    "key": "a + b"
+   }
+  }
+ ],
+ "builds": [
+  {
+   "options": {
+    "options": [
+     "Paris",
+     "Lyon",
+     "Nice"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "Paris"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "Paris",
+      "Lyon",
+      "Nice"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "Paris"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "Paris",
+     "Lyon",
+     "Nice"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "Paris",
+     "Nice",
+     "Paris"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "Paris",
+      "Lyon",
+      "Nice"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "Paris",
+      "Nice"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "Paris",
+     "Lyon",
+     "Nice"
+    ],
+    "select": "many"
+   },
+   "bodies": {
+    "references": [
+     "Nice",
+     " Paris "
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "Paris",
+      "Lyon",
+      "Nice"
+     ],
+     "select": "many"
+    },
+    "keys": {
+     "reference": [
+      "Paris\nNice"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "yes",
+     "no"
+    ]
+   },
+   "bodies": {},
+   "built": {
+    "item": {
+     "options": [
+      "yes",
+      "no"
+     ],
+     "select": "one"
+    },
+    "keys": {}
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "$\\sigma $",
+     "$\\pi $"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "$\\sigma$"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "$\\sigma$",
+      "$\\pi$"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "$\\sigma$"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "R&D",
+     "Sales"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "R\\&D"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "R&D",
+      "Sales"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "R&D"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "\\textbf {A}",
+     "New~York"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "\\textbf{A}",
+     "New~York"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "\\textbf{A}",
+      "New York"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "\\textbf{A}",
+      "New York"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "a",
+     "b",
+     "a + b"
+    ],
+    "select": "many"
+   },
+   "bodies": {
+    "references": [
+     "a + b"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "a",
+      "b",
+      "a + b"
+     ],
+     "select": "many"
+    },
+    "keys": {
+     "reference": [
+      "a + b"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "Paris"
+    ]
+   },
+   "refused": "options= takes 2 to 26 options - what the phones offer"
+  },
+  {
+   "options": {},
+   "refused": "options= takes 2 to 26 options - what the phones offer"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "B",
+     "A"
+    ]
+   },
+   "refused": "options= names A twice"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "E",
+     "F",
+     "G",
+     "H",
+     "I",
+     "J",
+     "K",
+     "L",
+     "M",
+     "N",
+     "O",
+     "P",
+     "Q",
+     "R",
+     "S",
+     "T",
+     "U",
+     "V",
+     "W",
+     "X",
+     "Y",
+     "Z",
+     "AA"
+    ]
+   },
+   "refused": "options= takes at most 26 items of 1 to 100 characters"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "~"
+    ]
+   },
+   "refused": "options= has an empty option"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "B"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "C"
+    ]
+   },
+   "refused": "the reference C is none of the options (A, B)"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "B"
+    ],
+    "select": "some"
+   },
+   "refused": "select=some - one or many"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "B"
+    ],
+    "reference": "answer.txt"
+   },
+   "refused": "reference=answer.txt - write \\reference{...} in the activity instead"
+  }
+ ]
+}

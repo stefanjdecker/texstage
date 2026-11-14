@@ -1,0 +1,152 @@
+{
+ "kind": "text",
+ "settings": {
+  "capital": {
+   "item": {},
+   "keys": {
+    "reference": [
+     "Berlin"
+    ]
+   }
+  },
+  "open": {
+   "item": {}
+  }
+ },
+ "cases": [
+  {
+   "setting": "capital",
+   "entry": {
+    "text": "  berlin "
+   },
+   "check": {
+    "status": "ok",
+    "key": "berlin"
+   }
+  },
+  {
+   "setting": "capital",
+   "entry": {
+    "text": "BERLİN"
+   },
+   "check": {
+    "status": "ok",
+    "key": "berlin"
+   }
+  },
+  {
+   "setting": "capital",
+   "entry": {
+    "text": "Ber​l­in"
+   },
+   "check": {
+    "status": "ok",
+    "key": "berlin"
+   }
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "‮nilreB"
+   },
+   "check": {
+    "status": "ok",
+    "key": "nilreb"
+   }
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "Résumé  du   jour"
+   },
+   "check": {
+    "status": "ok",
+    "key": "resume du jour"
+   }
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "   "
+   },
+   "unfit": "text"
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "​"
+   },
+   "unfit": "text"
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "unfit": "too-long"
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "check": {
+    "status": "ok",
+    "key": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   }
+  }
+ ],
+ "builds": [
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "  Berlin  "
+    ]
+   },
+   "built": {
+    "item": {},
+    "keys": {
+     "reference": [
+      "Berlin"
+     ]
+    }
+   }
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "R\\&D",
+     "New~York"
+    ]
+   },
+   "built": {
+    "item": {},
+    "keys": {
+     "reference": [
+      "R&D",
+      "New York"
+     ]
+    }
+   }
+  },
+  {
+   "options": {},
+   "bodies": {},
+   "built": {
+    "item": {},
+    "keys": {}
+   }
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "   "
+    ]
+   },
+   "refused": "a reference of 1 to 100 characters, not ''"
+  }
+ ]
+}

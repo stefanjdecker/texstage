@@ -201,6 +201,26 @@ body.projector.idle .tq-onlink { cursor: none; }
 .tq-cluster.tq-ref .tq-cbar i { background: #26890c; }
 .tq-cluster.tq-ref .tq-clabel { color: #26890c; }
 .tq-cn { font-weight: 800; text-align: right; }
+/* many rows - a choice of up to 26 options: smaller, so that they all fit in the box - in em, as the box makes the
+   font smaller still where its height (the deck's) asks for it (activities.js: StepBox.fit) */
+.tq-clusters.tq-dense { gap: .2em; font-size: 1.9cqh; line-height: 1.15; }
+.tq-clusters.tq-dense .tq-cbar { height: .85em; }
+.tq-clusters.tq-dense .tq-chead { font-size: 1em; }
+/* the references at the reveal, where they have no result of their own, and the group the lecturer shows: a line
+   that leaves the bars to be seen */
+.tq-solline { color: #26890c; font-weight: 700; font-size: 2.2cqh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tq-solline.tq-shownline { color: #46178f; }
+/* a number step's histogram (activities.js: StepBox.drawHistogram): a bar per number or stretch of numbers */
+.tq-hist { position: absolute; inset: 0; padding: 1.4cqh 2cqh; display: flex; flex-direction: column; gap: .9cqh; }
+.tq-hbars { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: .8cqh; }
+.tq-hbar { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; }
+.tq-hbar b { text-align: center; font-size: 2cqh; font-weight: 800; }
+.tq-hbar i { display: block; background: #8a6fc2; border-radius: .5cqh .5cqh 0 0; transition: height .4s ease-out; }
+.tq-hbar.tq-ref i { background: #26890c; }
+.tq-hbar.tq-showing i { outline: .5cqh solid #46178f; outline-offset: .2cqh; }
+.tq-hlabels { display: flex; gap: .8cqh; }
+.tq-hlabels span { flex: 1; min-width: 0; text-align: center; font-size: 1.8cqh; color: #6e6a7d; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
 .tq-shown { position: absolute; inset: 6% 5%; background: #fff; border-radius: .8cqh; padding: 1.6cqh 2cqh;
   box-shadow: 0 .4cqh 3cqh rgba(30, 10, 60, .28); overflow: hidden; display: flex; flex-direction: column; gap: 1cqh; }
 .tq-shownhead { font-weight: 700; color: #46178f; }

@@ -809,6 +809,61 @@ def test_a_deck_that_names_its_kinds(tmp_path):
     assert r.activities.phone_bytes == kit.phone_bytes(registry.kind("sql-query"), registry.kind("triples")) > 0
 
 
+OWN_DECK = r"""\documentclass[aspectratio=169]{beamer}
+\usepackage{texactivity}
+\begin{document}
+\begin{frame}[t,fragile]{Choices}
+\begin{activity}[id=coast, kind=choice, select=many, options={Paris, Nice, Lyon, Marseille}]
+  \prompt{Which lie on the coast?}
+  \reference{Nice}
+  \reference{Marseille}
+\end{activity}
+\end{frame}
+\begin{frame}[t,fragile]{A number}
+\begin{activity}[id=rows, kind=number, tolerance=0.5]\prompt{How many rows?}\reference{12}\end{activity}
+\end{frame}
+\begin{frame}[t,fragile]{A word}
+\begin{activity}[id=word, kind=text]\prompt{The capital?}\reference{Berlin}\end{activity}
+\end{frame}
+\begin{frame}[t,fragile]{LaTeX in the options}
+\begin{activity}[id=op, kind=choice, options={$\sigma$, $\pi$, R\&D, New~York}]
+  \prompt{Which?}
+  \reference{$\sigma$}
+  \reference{R\&D}
+\end{activity}
+\end{frame}
+\end{document}
+"""
+
+
+def test_a_deck_of_texstages_own_kinds(tmp_path):
+    """texstage's own kinds (the plan of F2, package 9) built as any other: a choice's options and select=, a
+    number's tolerance=, their references in the body - which a kind without files takes there alone -,
+    checked as the server checks them: the reference keys a game compares with."""
+    from test_own_kinds import own_kinds
+    own_kinds()                                     # (skipped where texstage is not installed; failed without them)
+    tex = tmp_path / "own.tex"
+    tex.write_text(OWN_DECK, encoding="utf-8")
+    r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
+    deck = json.loads((r.bundle / "deck.json").read_text(encoding="utf-8"))
+    keys = json.loads((r.bundle / "keys.json").read_text(encoding="utf-8"))["items"]["activity"]
+    items = {aid: {k: v for k, v in item.items() if k != "prompt"} for aid, item in deck["items"]["activity"].items()}
+    sigma = "$" + chr(92) + "sigma$"                 # (texactivity.sty passes an option on as "$\sigma $": the same)
+    assert items == {"coast": {"kind": "choice", "limit": 10, "options": ["Paris", "Nice", "Lyon", "Marseille"],
+                               "select": "many"},
+                     "rows": {"kind": "number", "limit": 5, "tolerance": 0.5}, "word": {"kind": "text", "limit": 5},
+                     "op": {"kind": "choice", "limit": 10, "options": [sigma, "$" + chr(92) + "pi$", "R&D", "New York"],
+                            "select": "one"}}
+    assert {aid: (k["reference"], k["referenceKeys"]) for aid, k in keys.items()} == {
+        "coast": (["Nice" + chr(10) + "Marseille"], ["Nice" + chr(10) + "Marseille"]), "rows": (["12"], ["12"]),
+        "word": (["Berlin"], ["berlin"]), "op": ([sigma, "R&D"], [sigma, "R&D"])}
+    assert r.warnings == [] and sorted(deck["kinds"]) == ["choice", "number", "text"]
+    assert {k["package"] for k in deck["kinds"].values()} == {"texstage"}
+    with pytest.raises(BuildError, match="reference=answer.txt - write .reference"):
+        tex.write_text(OWN_DECK.replace("kind=text]", "kind=text, reference=answer.txt]"), encoding="utf-8")
+        build(tex, tmp_path / "again", BuildOptions(check=False, key="test-key"))
+
+
 @pytest.mark.parametrize("change, message", [
     (("\\reveal<2>", "\\reference{SELEC name}\n  \\reveal<2>"), "activity names: reference 2 does not run - "),
     (("seed=people.sql", "seed=broken.sql"), "activity names: the seed does not load - "),
@@ -819,6 +874,8 @@ def test_a_deck_that_names_its_kinds(tmp_path):
     (("budget=500", "budget=5000"), "activity names: budget=5000 - a number from 1 to 1000"),
     (("review=false", "review=maybe"), "activity graph: review=maybe - true or false"),
     (("fields={Who, Knows}", "fields={Who}"), "activity graph: 1 fields - an activity of input=tuple has 2 or 3"),
+    (("review=false", "review=false, min=0,5"), "activity graph: a key 5 - a number with a decimal comma? A deck "
+                                                "writes a point: tolerance=0.5"),
 ])
 def test_what_a_deck_of_kinds_cannot_build(tmp_path, change, message):
     """A reference that does not run, or a seed that does not load, stops the build - not the lecture; a

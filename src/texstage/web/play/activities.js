@@ -19,10 +19,14 @@
 // send({text} | {fields}), which gives a promise of whether the entry was taken.
 
 import { errorText, texts } from "../i18n/i18n.js";
+import { color, shapeSVG } from "../shared/shapes.js";
+import { textHTML } from "../shared/text.js";
 import { insertToken } from "./activity.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const OPEN = "open";
+const AGAIN_MS = 1000;                  // a choice of one refused as too fast: sent again after this - the gap's
+const AGAIN_TRIES = 5;                  // ... so often at most
 
 export function entryId() {
   // an entry's id, as the server takes it ([A-Za-z0-9_-]{8,40}): 128 random bits
@@ -42,6 +46,58 @@ export function timeLeft(step, now) {
   return step.phase === OPEN && typeof step.since === "number" ? Math.max(0, step.time - (now - step.since)) : step.time;
 }
 
+export function decimalComma(language) {
+  // whether the deck's language writes 3,5 for three and a half
+  return (1.5).toLocaleString(language || "en").includes(",");
+}
+
+export function parseNumber(text, language) {
+  // a number as a student types it, or null: 42, -3.5; 3,5 and 3.5 in any deck; 1 000 and 1'000 (spaces,
+  // apostrophes between the digits); 1,000.5 and 1.000,5 (the last separator is the decimal one, the other
+  // groups by three); a minus sign as some keyboards type it. One separator before three digits alone is
+  // what the deck's language makes of it - 1,000 is a thousand in English, 1.000 in German -, and no
+  // exponent: the deck's own numbers have none
+  const t = String(text ?? "").replace(/[\s'\u2019]/g, "").replace(String.fromCharCode(0x2212), "-");
+  const m = /^([+-]?)([\d.,]+)$/.exec(t);
+  if (!m || !/\d/.test(m[2])) return null;
+  const body = m[2], seps = body.replace(/\d/g, "");
+  let decimal = null;
+  if (seps.includes(",") && seps.includes(".")) decimal = seps[seps.length - 1];
+  else if (seps.length === 1) {
+    const [whole, part] = body.split(seps);
+    const grouped = /^\d{1,3}$/.test(whole) && /^\d{3}$/.test(part);       // 1,000 - or one and three thousandths
+    decimal = !grouped || (seps === "," ? decimalComma(language) : !decimalComma(language)) ? seps : null;
+  }
+  const at = decimal ? body.lastIndexOf(decimal) : body.length;
+  const whole = body.slice(0, at), part = decimal ? body.slice(at + 1) : "";
+  const groups = whole.split(/[.,]/);
+  if (groups.length > 1 && !(/^\d{1,3}$/.test(groups[0]) && groups.slice(1).every((g) => /^\d{3}$/.test(g)))) return null;
+  if (groups.length > 1 && new Set(whole.replace(/\d/g, "")).size > 1) return null;   // (one kind groups)
+  if (!/^\d*$/.test(part) || !(groups.join("") || part)) return null;
+  const n = Number(`${m[1]}${groups.join("") || "0"}.${part || "0"}`);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function numberShown(n, language) {
+  // a number in the deck's language, every digit the kind keeps (15) and no grouping: 3.5, 3,5, 1099511627776
+  return Number(n).toLocaleString(language || "en", { maximumFractionDigits: 15, useGrouping: false });
+}
+
+export function choiceHTML(places, options, redraw) {
+  // a choice by its options' texts, as HTML - their $math$ typeset (shared/text.js), " + " between them
+  return places.map((n) => textHTML(options?.[n] ?? String(n), redraw)).join(" + ");
+}
+
+export function entryShown(input, step, language, redraw = null) {
+  // an entry as the student's list shows it, as HTML: its text, its fields, its choice by the options' texts,
+  // its number in the deck's language
+  if (!input) return "";
+  if (input.fields) return input.fields.map(esc).join(" · ");
+  if (input.choice) return choiceHTML(input.choice, step?.options, redraw);
+  if (input.number !== undefined && input.number !== null) return esc(numberShown(input.number, language));
+  return `<pre>${esc(input.text ?? "")}</pre>`;
+}
+
 export function said(entry, step, L, say, status = () => null) {
   // an entry's state in words, and a class for its colour: the server says codes, the phone words -
   // a status in the kind's own word where it has one (status), its message in the kind's words (say)
@@ -54,7 +110,8 @@ export function said(entry, step, L, say, status = () => null) {
   else if (entry.check === "checked" && entry.status) {
     const ok = entry.status === "ok";
     cls = ok ? "good" : entry.status === "internal" ? "" : "bad";
-    const word = status(entry.status) || (ok && step?.input === "fields" ? L.fieldsOk : L.status[entry.status] || entry.status);
+    const taken = ["fields", "choice", "number", "text"].includes(step?.input);     // (nothing of them runs: "In ✓",
+    const word = status(entry.status) || (ok && taken ? L.fieldsOk : L.status[entry.status] || entry.status);   // till the kind's word)
     const message = entry.message ? say(entry.message) : "";
     states.push(message ? `${word}: ${message}` : word);
   } else states.push(L.received);
@@ -97,7 +154,23 @@ export class StepScreen {
     this.own = Boolean(own?.input);                    // (its kind's own input: play.js makes it anew if it comes later)
     let body;
     if (this.own) body = `<div class="act kindinput" data-role="input"></div>`;
-    else if (step.input === "fields") {
+    else if (step.input === "choice") {                // the deck's options, as a quiz's answers look - $math$ typeset
+      const many = step.select === "many", options = step.options || [];
+      body = `<form class="act" autocomplete="off">${many ? `<p class="note">${esc(L.several)}</p>` : ""}
+        <div class="answers${options.some((o) => o.length > 14) ? " one" : ""}" data-role="choices">${options.map((o, i) =>
+          `<button type="button" class="answer" data-choice="${i}" style="--c:${color(i + 1)}" aria-pressed="false"><span
+            class="shape" aria-hidden="true">${shapeSVG(i + 1)}</span><span class="face text">${textHTML(o, () => this.typeset())}</span></button>`).join("")}</div>
+        ${many ? `<button class="main" type="submit">${esc(L.send)} <span data-role="used"></span></button>`
+          : `<p class="note" data-role="used"></p>`}</form>`;
+    } else if (step.input === "number" || step.input === "text") {      // one line: a number, a short answer
+      const number = step.input === "number";
+      body = `<form class="act" autocomplete="off"><label for="step-line">${esc(number ? L.yourNumber : L.yourAnswer)}</label>
+        <div class="line"><input id="step-line" type="text" data-role="line" maxlength="${number ? 40 : 100}" autocomplete="off"
+          ${number ? 'inputmode="decimal" autocapitalize="off" autocorrect="off" spellcheck="false"' : ""}>${number
+          ? `<button type="button" class="sign" data-role="sign" aria-label="${esc(L.sign)}">±</button>` : ""}</div>
+        <div class="hint" data-role="hint" hidden></div>
+        <button class="main" type="submit">${esc(L.send)} <span data-role="used"></span></button></form>`;
+    } else if (step.input === "fields") {
       body = `<form class="act" autocomplete="off">${(step.fields || []).map((f, i) => `<label>${esc(f)}<input type="text"
           data-field="${i}" list="step-words" maxlength="60" autocapitalize="off" autocorrect="off" spellcheck="false"></label>`).join("")}
         <datalist id="step-words"></datalist>
@@ -116,7 +189,14 @@ export class StepScreen {
       <div class="actmine"><h3>${esc(L.mine)}</h3><ul data-role="mine"></ul></div>`;
     this.form = this.root.querySelector("form");
     this.form?.addEventListener("submit", (e) => { e.preventDefault(); this.submit(); });
-    this.text = this.root.querySelector("textarea");
+    this.text = this.root.querySelector("textarea") || this.root.querySelector("input[data-role=line]");
+    this.picked = new Set();                           // a choice of several, before it is sent
+    this.wanted = undefined;                           // a choice of one, the latest tap, until it is sent
+    this.root.querySelector("[data-role=choices]")?.addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-choice]");
+      if (b && !b.disabled) this.choose(Number(b.dataset.choice));
+    });
+    this.root.querySelector("[data-role=sign]")?.addEventListener("click", () => this.sign());
     this.root.querySelector("[data-role=tokens]")?.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-token]");
       if (b) this.insert(b.dataset.token);
@@ -154,6 +234,80 @@ export class StepScreen {
     return false;
   }
 
+  choose(n) {
+    // an option tapped: a choice of one goes at once - the latest tap wins (flush) -, of several it is marked
+    // until Send
+    if (this.step.select !== "many") {
+      this.wanted = n;
+      this.mark(new Set([n]));
+      this.flush();
+      return;
+    }
+    if (this.picked.has(n)) this.picked.delete(n);
+    else this.picked.add(n);
+    this.mark(this.picked);
+  }
+
+  counted() {
+    // the student's choice that counts now - the latest entry's that is in -, or null
+    return (this.entries || []).find((e) => e.state === "in")?.input?.choice || null;
+  }
+
+  async flush() {
+    // a choice of one: the latest tap sent - after the one before is answered, again when it was too soon
+    // after it (the step's gap: a student changes their mind quickly), not at all when it counts already
+    if (this.flushing) return;
+    this.flushing = true;
+    let tries = 0;
+    try {
+      while (this.wanted !== undefined && !this.gone) {
+        const n = this.wanted;
+        const now = this.counted();
+        if (now?.length === 1 && now[0] === n) {
+          this.wanted = undefined;
+          break;
+        }
+        const sent = await this.send({ choice: [n] }, true);
+        if (sent === "later" && tries++ < AGAIN_TRIES) {
+          await new Promise((resolve) => setTimeout(resolve, AGAIN_MS));
+          continue;
+        }
+        if (sent === "later") this.error(this.refusal({ code: "too-fast" }));
+        if (this.wanted === n || !sent || sent === "later") this.wanted = undefined;
+      }
+    } finally {
+      this.flushing = false;
+    }
+  }
+
+  sign() {
+    // ±: the number's sign - for a phone whose keyboard for numbers has no minus (an iPhone's)
+    const t = this.text;
+    if (!t || t.disabled) return;
+    const v = t.value.trim().replace(String.fromCharCode(0x2212), "-");
+    t.value = v.startsWith("-") ? v.slice(1) : `-${v.replace(/^\+/, "")}`;
+    t.focus();
+  }
+
+  typeset() {
+    // KaTeX came (shared/text.js): the options and the list drawn again, their formulas typeset
+    if (this.gone) return;
+    const options = this.step.options || [];
+    this.root.querySelectorAll("button[data-choice] .face").forEach((el) => {
+      el.innerHTML = textHTML(options[Number(el.closest("button").dataset.choice)] ?? "");
+    });
+    this.listed = "";
+    this.list();
+  }
+
+  mark(chosen) {
+    this.root.querySelectorAll("button[data-choice]").forEach((b) => {
+      const on = chosen.has(Number(b.dataset.choice));
+      b.classList.toggle("selected", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  }
+
   public(step) {
     // what a kind's module gets of the step: its public part, no time
     const { time, since, ...rest } = step || {};
@@ -187,7 +341,16 @@ export class StepScreen {
   }
 
   async submit() {
-    if (this.step.input === "fields") {
+    if (this.step.input === "choice") {
+      if (!this.picked.size) return this.error(this.L.refused.choice);
+      const choice = [...this.picked].sort((a, b) => a - b), now = this.counted();
+      if (now && now.length === choice.length && now.every((n, i) => n === choice[i])) return;   // (it counts already)
+      await this.send({ choice });
+    } else if (this.step.input === "number") {
+      const n = parseNumber(this.text.value, this.language);
+      if (n === null) return this.error(this.L.refused.number);
+      await this.send({ number: n });
+    } else if (this.step.input === "fields") {
       const inputs = [...this.form.querySelectorAll("input[data-field]")];
       if (inputs.some((i) => !i.value.trim())) return this.error(this.L.refused.field);
       if (await this.send({ fields: inputs.map((i) => i.value) }) && !this.gone) {
@@ -200,8 +363,9 @@ export class StepScreen {
     }
   }
 
-  async send(input) {
-    // an entry: its id made here, sent again with it after a lost connection; answered once written
+  async send(input, later = false) {
+    // an entry: its id made here, sent again with it after a lost connection; answered once written. later:
+    // a refusal as too fast is said by no error but by "later" (flush sends it again)
     if (this.gone) return false;
     const id = entryId();
     const button = this.form?.querySelector("button.main");
@@ -213,6 +377,7 @@ export class StepScreen {
       await this.client.send({ t: "activity.enter", activity: this.step.activity, step: this.step.step, entry: id, ...input });
       return true;
     } catch (err) {
+      if (later && err?.code === "too-fast") return "later";
       this.error(this.refusal(err));                   // (a screen that is gone says nothing: error)
       return false;
     } finally {
@@ -249,9 +414,17 @@ export class StepScreen {
         list.innerHTML = words;
         list.dataset.words = words;
       }
+    } else if (step.input === "choice") {              // what is chosen: the latest entry's, or what is marked
+      const latest = mine?.entries?.find((e) => e.state === "in")?.input?.choice || [];
+      if (step.select === "many" && !this.refilled && mine) {
+        this.refilled = true;
+        latest.forEach((n) => this.picked.add(n));
+      }
+      this.mark(step.select === "many" ? this.picked : new Set(this.wanted !== undefined ? [this.wanted] : latest));
     } else if (this.text && !this.refilled && mine) {
       this.refilled = true;                            // (a reload: the text as sent - once, not a text cleared)
-      if (!this.text.value && mine.entries?.length) this.text.value = mine.entries[0].input?.text || "";
+      const last = mine.entries?.[0]?.input;
+      if (!this.text.value && last) this.text.value = last.number !== undefined ? numberShown(last.number, this.language) : last.text || "";
     }
     this.entries = mine?.entries || [];
     this.tick();
@@ -269,7 +442,7 @@ export class StepScreen {
     const open = this.step.phase === OPEN;
     const html = all.map((e) => {
       const { words, cls } = said(e, this.step, L, say, status);
-      const shown = e.input?.fields ? e.input.fields.map(esc).join(" · ") : `<pre>${esc(e.input?.text ?? "")}</pre>`;
+      const shown = entryShown(e.input, this.step, this.language, () => this.typeset());
       const back = open && e.state === "in" && e.check !== "sending"
         ? `<button type="button" data-withdraw="${esc(e.id)}" aria-label="${esc(L.withdraw)}">×</button>` : "";
       return `<li class="${esc(cls)}"><span class="entry">${shown}</span><span class="said">${esc(words)}</span>${back}</li>`;

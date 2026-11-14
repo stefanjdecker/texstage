@@ -776,6 +776,21 @@ def test_the_versions_a_server_compares(server, built, refused, monkeypatch):
     assert bool(said) == refused, said
 
 
+@pytest.mark.parametrize("server, built, api, refused", [
+    ("1.0.0", "0.2.1", 0, False),         # texstage's own kinds go with texstage: its next major version plays them
+    ("0.2.0", "0.3.0", 0, True),          # ... an older texstage than the build's does not
+    ("1.0.0", "0.2.1", 1, True),          # ... nor one whose kinds have another API
+])
+def test_texstages_own_kinds_go_with_texstage(server, built, api, refused, monkeypatch):
+    if "choice" not in {f.name for f in registry.found()}:
+        pytest.skip("texstage is not installed (pip install -e .): its own kinds are not found")
+    found = tuple(f if f.name != "choice" else registry.Found(f.name, f.package, server, f.api, f.kind, f.fault)
+                  for f in registry.found())
+    monkeypatch.setattr(registry, "found", lambda: found)
+    said = activities.refuses({"kinds": {"choice": {"package": "texstage", "version": built, "api": api}}})
+    assert bool(said) == refused, said
+
+
 def test_the_deck_list_says_a_reference_that_gives_another_result_than_at_the_build(tmp_path):
     """The build records the references' keys; the deck list says where this server's engine gives another one -
     another SQLite, say -, or where a reference does not run here (the design's 9)."""

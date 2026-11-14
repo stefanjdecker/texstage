@@ -159,12 +159,7 @@ class _OfKind:
         from texstage.activities.kind import Check, Entry, Prepared, Step, validated
         step = Step(self.item, self.keys, language, budget_s)
         try:
-            if reference:
-                entry = Entry(text=text)
-            else:
-                sent = json.loads(text)
-                fields = sent.get("fields")
-                entry = Entry(text=sent.get("text"), fields=tuple(fields) if isinstance(fields, list) else None)
+            entry = self.kind.reference(step, text) if reference else Entry.of(json.loads(text))
             check = validated(self.kind, self.kind.check(Prepared(prepared.state, rows), step, entry), step)
         except MemoryError:
             return {"status": "error", "memory": True}, None
@@ -181,15 +176,14 @@ def _normalize(name: str, item: dict, keys: dict, language: str | None, input: d
     entries that normalize alike are checked once -, {"refused": the phone's code} where the kind does
     not take it (Unfit), {"error": why} where it could not be asked: never the student's."""
     from texstage.activities import registry
-    from texstage.activities.kind import Entry, Step, Unfit
+    from texstage.activities.kind import Entry, Step, Unfit, kept
     try:
         kind = registry.kind(name)
-        fields = input.get("fields")
-        entry = Entry(text=input.get("text"), fields=tuple(fields) if isinstance(fields, list) else None)
-        out = kind.normalize(Step(item, keys, language), entry)
-        if not isinstance(out, Entry) or (out.text is None) == (out.fields is None):
-            return {"error": f"{name}: normalize gave {out!r}, not an entry"[:300]}
-        return {"input": {"text": out.text} if out.fields is None else {"fields": list(out.fields)}}
+        out = kind.normalize(Step(item, keys, language), Entry.of(input))
+        try:
+            return {"input": kept(kind, out)}                # (one field, the kind's input's - no NaN for a window)
+        except ValueError as e:
+            return {"error": f"{name}: normalize gave {e}"[:300]}
     except Unfit as e:
         return {"refused": e.code}
     except Exception as e:  # noqa: BLE001 - whatever a kind's normalize raises: not the student's

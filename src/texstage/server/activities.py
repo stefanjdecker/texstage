@@ -10,7 +10,8 @@ is of its activity (open, revealed), the deck names its kinds - which a server o
 (refuses) - and keys.json the references' keys, which the deck list holds against this server's (failing).
 The messages, one namespace for every kind (the design's 10.4):
 
-    phone      activity.enter {activity, step?, entry, text | fields} -> {entry, state}, once it is written
+    phone      activity.enter {activity, step?, entry, text | fields | choice | number} -> {entry, state}, once
+               it is written (choice: the options' places)
                activity.withdraw {activity, step?, entry}
     presenter  activity.open {activity, time?: seconds}, .close, .pause, .resume, .reveal, .reset {activity}
                activity.time {activity, add: seconds | stop: true}
@@ -33,8 +34,6 @@ One activity has one step in F2 (`main`); steps are F3's.
 from __future__ import annotations
 
 import concurrent.futures as cf
-import csv
-import io
 import json
 import logging
 import queue
@@ -54,6 +53,7 @@ from texstage.activities.store import ONE, EntryRow, Writer
 from texstage.checks.texts import ENGINES as TEXTS
 from texstage.server.types import WRITTEN, Refused  # (first: types imports this module, and F1's, which needs it)
 from texstage.server import activity as f1  # noqa: I001
+from texstage.server import sheets
 
 log = logging.getLogger("texstage.activities")
 
@@ -414,7 +414,8 @@ def refuses(deck: dict) -> str | None:
     """Why this server cannot play the deck's activities: a kind the deck names (deck.json's kinds, as the
     build had them) that it lacks, cannot use, or has with another API, another major version or an older
     version than the build's - whose keys it may not know (the design's 7.2) -, and which package to
-    install. A deck built before kinds were named has none, and is played as before."""
+    install. texstage's own kinds go with texstage itself: another major version of it plays their decks
+    while their API is the same. A deck built before kinds were named has none, and is played as before."""
     wanted = deck.get("kinds")
     if not wanted:
         return None
@@ -435,7 +436,8 @@ def refuses(deck: dict) -> str | None:
             return f"the deck's activities are of the kind {name} with API {api}, this server's {f.package} " \
                    f"{f.version} has API {f.api} - {install}"
         have, built = _version(f.version), _version(version)
-        if have and built and (have[0] != built[0] or have < built):
+        own = f.package == "texstage" == need.get("package")
+        if have and built and ((have[0] != built[0] and not own) or have < built):
             return f"the deck's activities are of the kind {name} of {package} {version}, this server has " \
                    f"{f.version} - {install}"
     return None
@@ -712,7 +714,7 @@ def player(call, t: str, msg: dict) -> dict | None:
         if t == "activity.withdraw":
             entry = play.withdraw(part, p.id, msg.get("entry"), now=call.now)
         else:
-            sent = {k: msg[k] for k in ("text", "fields") if k in msg}
+            sent = {k: msg[k] for k in ("text", "fields", "choice", "number") if k in msg}
             entry = play.enter(part, p.id, msg.get("entry"), sent, now=call.now, blocked=bool(p.muted)).entry
     except CoreRefused as e:
         raise _refused(e) from None
@@ -738,6 +740,19 @@ def player_view(call) -> dict | None:
 
 
 # ------------------------------------------------------------------ the archive
+def written(input: dict, item: dict) -> str:
+    """An entry's input as a line of the archive: its text, its fields, its choice by the options' texts, its
+    number."""
+    if "fields" in input:
+        return " | ".join(input["fields"])
+    if "choice" in input:
+        options = item.get("options") or []
+        return " + ".join(options[n] if 0 <= n < len(options) else str(n) for n in input["choice"])
+    if "number" in input:
+        return str(input["number"])                      # (every digit as it was sent: 1234567.5, not 1.23457e+06)
+    return input.get("text", "")
+
+
 def archive(call) -> dict[str, str]:
     """Per activity with entries: activity-<id>.csv - a row per entry with its step and epoch, without
     names -, activity-<id>.json - the step's final picture, as the panel has it - and, for a crowd graph,
@@ -757,14 +772,12 @@ def archive(call) -> dict[str, str]:
             continue
         rows = [["time", "step", "epoch", "input", "state", "status", "verdict"]]
         for e in entries:
-            text = " | ".join(e.input["fields"]) if "fields" in e.input else e.input.get("text", "")
+            text = written(e.input, part.item)
             check = play.checks.of(e)
             rows.append([time.strftime("%H:%M:%S", time.localtime(e.created / 1000)), e.step, e.epoch, text, e.state,
                          check.status if check is not None else play.checks.state(e),
                          play.reduced.verdict(aid, e.step, check) or "" if check is not None else ""])
-        buf = io.StringIO()
-        csv.writer(buf).writerows(rows)
-        files[f"activity-{aid}.csv"] = chr(0xFEFF) + buf.getvalue()
+        files[f"activity-{aid}.csv"] = chr(0xFEFF) + sheets.csv_text(rows)
         pic = play.picture(part, "stage")
         files[f"activity-{aid}.json"] = json.dumps(pic, ensure_ascii=False, indent=1) + "\n"
         if pic.get("kind") == "graph":

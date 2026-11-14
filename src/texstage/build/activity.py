@@ -365,6 +365,10 @@ def entries(tqz: Tqz, folder: Path, phone: dict, warnings: list[str],
             name, how = kind_name(a)
             kind = kind_of(a, name)
             core = core_keys(a, kind)
+            split = next((key for key in a.options if key.isascii() and key.isdigit()), None)
+            if split is not None:                       # tolerance=0,5: the keys tolerance=0 and 5
+                raise ActivityError(f"activity {a.id}: a key {split} - a number with a decimal comma? A deck "
+                                    f"writes a point: tolerance=0.5")
             options = Options(kind.OPTIONS, _given(kind, a), files)
             bodies = {"seed": a.seed_text, "references": a.references}
             try:

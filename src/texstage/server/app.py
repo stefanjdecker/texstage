@@ -86,7 +86,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import csv
 import io
 import json
 import logging
@@ -114,7 +113,7 @@ from texstage import __version__
 from texstage.build.bundle import LANGUAGES
 from texstage.builds import build_folders
 from texstage.keys import load_presenter_key  # noqa: F401  (the server's key: texstage serve)
-from texstage.server import archive
+from texstage.server import archive, sheets
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
 from texstage.server.bundles import BundleError, BundleStore, holds, load_bundle
@@ -1063,30 +1062,27 @@ class Server:
 
     def results_csv(self, s) -> tuple[str, str]:
         """A game's results as CSV - (file name, text): a row per player (game.py results_table)."""
-        buf = io.StringIO()
-        csv.writer(buf).writerows(self.engine.results_table(s.id))
         day = time.strftime("%Y-%m-%d", time.localtime(s.created / 1000))
-        return f"{s.deck}-{day}-{s.pin}.csv", "﻿" + buf.getvalue()         # BOM: Excel reads UTF-8
+        return f"{s.deck}-{day}-{s.pin}.csv", "﻿" + sheets.csv_text(self.engine.results_table(s.id))   # BOM: Excel reads UTF-8
 
     def write_archive(self, s) -> Path:
         """The game's folder in the lecture archive with what the game has now: the results,
-        and (M6) its polls, the audience's questions and the sketches as SVG."""
+        and (M6) its polls, the audience's questions and the sketches as SVG. Written as they are - a CSV's
+        lines end as CSV's do (\\r\\n), not again translated to Windows' ends (newline="")."""
         folder = archive.folder(self.config.data_dir, s)
         name, text = self.results_csv(s)
-        (folder / name).write_text(text, encoding="utf-8")
+        (folder / name).write_text(text, encoding="utf-8", newline="")
         tables = {"polls.csv": self.engine.polls_table(s.id), "questions.csv": self.engine.questions_table(s.id)}
         for row in tables["questions.csv"][1:]:
             row[3] = time.strftime("%H:%M:%S", time.localtime(row[3] / 1000))
         for file, rows in tables.items():
             if len(rows) > 1:
-                buf = io.StringIO()
-                csv.writer(buf).writerows(rows)
-                (folder / file).write_text("﻿" + buf.getvalue(), encoding="utf-8")
+                (folder / file).write_text("﻿" + sheets.csv_text(rows), encoding="utf-8", newline="")
         for quiz, n, strokes in self.engine.sketch_answers(s.id):
-            (folder / f"sketch-{quiz}-{n}.svg").write_text(archive.sketch_svg(strokes), encoding="utf-8")
+            (folder / f"sketch-{quiz}-{n}.svg").write_text(archive.sketch_svg(strokes), encoding="utf-8", newline="")
         for file, text in self.engine.type_archive(s.id, now_ms()).items():     # the content types' (types.py)
             if archive.FILE.match(file):
-                (folder / file).write_text(text, encoding="utf-8")
+                (folder / file).write_text(text, encoding="utf-8", newline="")
             else:
                 log.warning("not an archive file: %r", file)
         return folder

@@ -8,7 +8,15 @@ F2, 4.3): what a step's entries and their checks are reduced to, for the picture
               form the kind's normalize gave it
     crowd     the fields as nodes and edges, from the checks' parts: today's crowd graph
               (server/activity.py), with the lecturer's merges, hidden and approved terms and minimum
-    tally     the groups in the deck's order, a choice nobody made among them (its kinds: package 9)
+    tally     the groups in the deck's order, a choice nobody made among them, each labelled with its
+              choice's text (its key); a choice of several is a group of its own, its key the options'
+              texts a line each (kind.py: SEVERAL) - and the picture counts each option too (options):
+              how many chose it, alone or with others, which is what the class sees
+    numbers   (of a step whose input is a number - groups as above) every number given, with its students
+              and, where the window may know it, its verdict: what the windows draw a histogram of
+
+Where a window may know the verdicts - the panel, the projector after the reveal - the picture says how
+many students are right (right).
 
 What a group is shown by is as clean as its kind's normalize makes a text: this module shows it as it
 is. The design wants no name or joke in a comment to reach the class (5.1), and the kinds of a text take
@@ -33,13 +41,14 @@ A step's version goes up with everything a picture of it shows: the pictures are
 from __future__ import annotations
 
 import json
+import math
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from texstage.activities.checks import Checks
 from texstage.activities.entries import Entries, Rules
-from texstage.activities.kind import COMPARED, REDUCTIONS
+from texstage.activities.kind import COMPARED, REDUCTIONS, SEVERAL
 from texstage.activities.store import MIN_MAX, CheckRow, EntryRow, StepRow, gid
 from texstage.checks.cleaning import is_literal
 
@@ -97,6 +106,15 @@ class Setup:
             raise ValueError("reference: texts")
         return cls(kind.REDUCTION, Rules.of(item, kind), least, crowd and item.get("review") is True, projector,
                    solution, tuple(options), tuple(references))
+
+
+def _number(key: str | None) -> float | None:
+    """A number kind's key - the number, as it writes it - as a number; None for one that is none."""
+    try:
+        n = float(key)
+    except (TypeError, ValueError):
+        return None
+    return n if math.isfinite(n) else None
 
 
 @dataclass
@@ -390,16 +408,26 @@ class Reduced:
         marks = stage or st.phase == "revealed"
         keys = self._keys(s) if marks else set()
 
+        def judged(g: _Group) -> str | None:
+            """The group's verdict where the window may know it (marks): its kind's, else by the references'
+            keys; None where there is none."""
+            if not marks:
+                return None
+            if g.verdict is not None:
+                return g.verdict
+            if keys and g.status != "internal":
+                return "correct" if g.status == "ok" and g.key in keys else "incorrect"
+            return None
+
         def entry(g: _Group) -> dict:
             form, example = g.example()
             out = {"id": g.id, "status": g.status, "n": len(g.players), "example": form,
                    "reference": g.status == "ok" and g.key in keys}
-            if marks:
-                verdict = g.verdict
-                if verdict is None and keys and g.status != "internal":
-                    verdict = "correct" if out["reference"] else "incorrect"
-                if verdict is not None:
-                    out["verdict"] = verdict
+            if tally and g.status == "ok":
+                out["label"] = g.key                    # (a tally's key is its choice's text: no hash)
+            verdict = judged(g)
+            if verdict is not None:
+                out["verdict"] = verdict
             if g.status == "ok":
                 detail = self.checks.detail(st.activity, st.step, g.key)
                 if detail is not None and not marks and COMPARED in detail:
@@ -431,6 +459,23 @@ class Reduced:
             listed, others = ranked[:most], ranked[most:]
         out = {"kind": "tally" if tally else "groups", "groups": [entry(g) for g in listed],
                "others": sum(len(g.players) for g in others), "shown": None}
+        if tally and setup.rules.many:                    # a choice of several: how many chose each option, alone
+            counted: Counter = Counter()                  # or with others - the class's tally
+            for g in found:
+                if g.status == "ok" and g.key:
+                    for option in set(g.key.split(SEVERAL)):
+                        counted[option] += len(g.players)
+            right = {option for k in keys for option in k.split(SEVERAL)}
+            out["options"] = [{"label": o, "n": counted[o], "reference": o in right} for o in setup.options]
+        if setup.rules.input == "number":                 # a histogram's: every number given, with its students
+            numbers = []                                  # and, where the window may know it, its verdict
+            for g in found:
+                if g.status == "ok" and (n := _number(g.key)) is not None:
+                    verdict = judged(g)
+                    numbers.append([n, len(g.players), verdict] if verdict else [n, len(g.players)])
+            out["numbers"] = sorted(numbers, key=lambda x: x[0])
+        if any(judged(g) for g in found):                 # (marks: how many are right, of all the groups)
+            out["right"] = sum(len(g.players) for g in found if judged(g) == "correct")
         key = s.ids.get(mods.shown) if mods.shown and mods.shown_epoch == s.epoch else None
         if key is not None and any(g is s.groups[key] for g in found):
             out["shown"] = entry(s.groups[key])

@@ -27,13 +27,13 @@ difference of status or key goes to checks-compare.csv in the game's archive fol
 from __future__ import annotations
 
 import concurrent.futures as cf
-import csv
-import io
 import logging
 import queue
 import time
 from pathlib import Path
 from typing import Callable
+
+from texstage.server import sheets
 
 log = logging.getLogger("texstage.checks")
 
@@ -267,9 +267,8 @@ class Checks:
         try:
             path = Path(self.compare_file(s))
             new = not path.exists()
-            buf = io.StringIO()
-            csv.writer(buf).writerows(([COMPARE_COLUMNS] if new else []) + [row])
+            text = sheets.csv_text(([COMPARE_COLUMNS] if new else []) + [row])
             with path.open("a", encoding="utf-8", newline="") as f:
-                f.write(("\ufeff" if new else "") + buf.getvalue())
+                f.write(("\ufeff" if new else "") + text)
         except OSError:
             log.exception("checks: writing a difference to checks-compare.csv")

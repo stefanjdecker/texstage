@@ -34,6 +34,7 @@ export default {
       none: "Nichts geschickt.", count: (students, entries) => `${students} ${students === 1
       ? "Person hat" : "Personen haben"} ${entries} ${entries === 1 ? "Beitrag" : "Beiträge"} geschickt.` },
     verdict: { correct: "richtig", partial: "teilweise richtig", incorrect: "nicht richtig" }, solution: "Die Referenz",
+    right: (n) => `${n} richtig`,
     status2: { ok: "läuft", invalid: "Syntaxfehler", error: "Fehler", timeout: "lief zu lange", refused: "nicht ausgeführt",
       internal: "ließ sich nicht prüfen" },
   },
@@ -79,7 +80,9 @@ export default {
   // ein Schritt einer Live-Aktivität auf dem Handy, wie das Aktivitäts-Framework ihn hat (play/activities.js)
   steps: {
     send: "Abschicken", add: "Hinzufügen", mine: "Ihre Beiträge", withdraw: "Zurücknehmen", of: (n, m) => `${n} von ${m}`,
-    yourText: "Ihr Text", empty: "Noch nichts.", left: (time) => `noch ${time}`, hint: "Hinweis",
+    yourText: "Ihr Text", yourNumber: "Ihre Zahl", yourAnswer: "Ihre Antwort", sign: "Vorzeichen wechseln",
+    several: "Wählen Sie eine oder mehrere aus und schicken Sie sie dann ab.", empty: "Noch nichts.",
+    left: (time) => `noch ${time}`, hint: "Hinweis",
     phase: { ready: "Noch nicht geöffnet.", paused: "Pausiert – einen Moment bitte.", closed: "Geschlossen.",
       revealed: "Aufgelöst." },
     blocked: "Die Lehrperson hat Beiträge für Sie gesperrt.",
@@ -95,7 +98,8 @@ export default {
       "too-fast": "Bitte warten Sie ein paar Sekunden, bevor Sie wieder etwas schicken.",
       "too-many": "Sie haben so viele geschickt, wie Sie dürfen.", full: "Die Aktivität nimmt keine Beiträge mehr an.",
       duplicate: "Das haben Sie schon geschickt.", text: "Bitte tippen Sie zuerst Ihren Text.",
-      field: "Bitte füllen Sie jedes Feld aus.", "too-long": "Das ist zu lang." },
+      field: "Bitte füllen Sie jedes Feld aus.", "too-long": "Das ist zu lang.", choice: "Bitte wählen Sie zuerst eine Option.",
+      number: "Bitte geben Sie eine Zahl ein – 42 oder 3,5.", "too-large": "Diese Zahl ist zu groß." },
   },
 
   engines: {
@@ -353,6 +357,7 @@ export default {
       moreNodes: (n) => `${n} Knoten mehr, als der Projektor zeigt.`, noTriples: "Noch keine Tripel.",
       none: "Noch nichts geschickt.", others: (n) => `und ${n} in kleineren Gruppen`,
       refIn: (i, n) => `Referenz ${i}: die Gruppe von ${n} ✓`, refAlone: (i) => `Referenz ${i}: niemand hat ihr Ergebnis`,
+      right: (n) => `${n} ${n === 1 ? "Person liegt" : "Personen liegen"} richtig`,
       refFailed: (i, why) => `Referenz ${i} läuft hier nicht: ${why}`, refPending: (i) => `Referenz ${i}: wird geprüft …`,
       noRef: "Keine Referenz: die Gruppen haben keine Bewertung.",
       failed: (why) => `Nichts davon wird geprüft: ${why}`,

@@ -32,15 +32,17 @@ def own_sources():
 
 
 def test_the_packages_are_all_listed():
-    """pyproject.toml lists its packages (the LaTeX files are mapped in as texstage.latex) and the
-    web pages' folders that Python could import: a new one must be added there, or the wheel
-    lacks it (setuptools warns, and will stop packing unlisted folders)."""
+    """pyproject.toml lists its packages (the LaTeX files are mapped in as texstage.latex) and every
+    folder of data that Python could import - the web pages' folders, the words and fixtures of
+    texstage's own kinds: a new one must be added there, or the wheel lacks it (setuptools warns, and
+    will stop packing unlisted folders)."""
     tool = PROJECT["tool"]["setuptools"]
     code = {".".join(p.parent.relative_to(SRC.parent).parts) for p in SRC.rglob("__init__.py")}
-    web = {".".join(p.relative_to(SRC.parent).parts) for p in [SRC / "web", *(SRC / "web").rglob("*")]
-           if p.is_dir() and "__pycache__" not in p.parts
-           and all(part.isidentifier() for part in p.relative_to(SRC.parent).parts)}
-    assert set(tool["packages"]) == code | web | {"texstage.latex"}
+    folders = {".".join(p.relative_to(SRC.parent).parts) for p in [SRC, *SRC.rglob("*")]
+               if p.is_dir() and "__pycache__" not in p.parts
+               and all(part.isidentifier() for part in p.relative_to(SRC.parent).parts)}
+    assert code <= folders and {"texstage.web", "texstage.activities.kinds.texts"} <= folders
+    assert set(tool["packages"]) == folders | {"texstage.latex"}
     assert tool["package-dir"]["texstage.latex"] == "latex"
     assert PROJECT["tool"]["setuptools"]["package-data"]["texstage.latex"] == STYLES
 

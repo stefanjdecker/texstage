@@ -24,26 +24,29 @@ from texstage.activities.options import File, Words
 
 ROOT = Path(__file__).resolve().parents[1]
 FOUR = ("sql-query", "sparql-query", "turtle-graph", "triples")
+OWN = ("choice", "number", "text")                  # texstage's own (activities/kinds), through its own entry points
 
 
 def installed() -> dict:
     found = {f.name: f for f in registry.found()}
     if not (ROOT / "kinds").is_dir():
         pytest.skip("the kinds' packages are not here")
-    missing = set(FOUR) - set(found)
-    assert not missing, f"not installed: {missing} - pip install --no-deps -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf"
+    missing = set(FOUR + OWN) - set(found)
+    assert not missing, (f"not installed: {sorted(missing)} - pip install --no-deps --no-build-isolation -e . "
+                         "-e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf")
     return found
 
 
-# ------------------------------------------------------------------ the four kinds
-@pytest.mark.parametrize("name", FOUR)
+# ------------------------------------------------------------------ the four kinds, and texstage's own
+@pytest.mark.parametrize("name", FOUR + OWN)
 def test_a_kind_of_today_passes_the_kit(name):
-    if name != "sql-query":
+    if name in ("sparql-query", "turtle-graph", "triples"):
         pytest.importorskip("pyoxigraph")
     report = kit.check(installed()[name].kind, name, known=set(installed()))
     assert report.faults == [] and report.ok
-    assert report.fixtures == {"sql-query": 208, "sparql-query": 109, "turtle-graph": 72, "triples": 18}[name]
-    assert report.builds == (6 if name == "triples" else 7)
+    assert report.fixtures == {"sql-query": 208, "sparql-query": 109, "turtle-graph": 72, "triples": 18, "choice": 12,
+                               "number": 18, "text": 9}[name]
+    assert report.builds == {"triples": 6, "choice": 16, "number": 8, "text": 4}.get(name, 7)
     assert report.budget_s == 1.0 and report.slowest_s < kit.BUDGET_S     # (how slow: the machine's)
     assert not [w for w in report.warnings if "is for a kind" in w]         # every file of its folder is some kind's
 
@@ -206,6 +209,10 @@ def check_with(result):
     ({"normalize": lambda self, step, entry: entry}, 'key: "hello   world", not "hello world"'),
     ({"normalize": lambda self, step, entry: entry.text}, "normalize gave str, not an Entry"),
     ({"normalize": lambda self, step, entry: Entry(text=entry.text + "!")}, "normalize changes what it gave: a normal form is its own"),
+    ({"normalize": lambda self, step, entry: Entry(text=entry.text, choice=(1,))},        # (the server: "error" each time)
+     "normalize gave an entry the core cannot keep - an entry is a text, the fields, a choice or a number"),
+    ({"normalize": lambda self, step, entry: Entry(fields=entry.fields or (entry.text,))},
+     "normalize gave fields, not the kind's input (code)"),
 ])
 def test_a_check_that_breaks_a_rule_fails_with_the_case_and_the_rule(tmp_path, changes, why):
     found = faults(broken(**changes), tmp_path)
@@ -356,7 +363,7 @@ def test_texstage_kinds_lists_the_installed_kinds(capsys):
     installed()
     assert cli.main(["kinds"]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert [line.split()[0] for line in lines] == sorted(FOUR)
+    assert [line.split()[0] for line in lines] == sorted(FOUR + OWN)
     assert "sql-query     texstage-kinds-sql 0.1.0, API 0" in lines and "triples       texstage-kinds-rdf 0.1.0, API 0" in lines
 
 
@@ -542,6 +549,12 @@ MALFORMED = [
     ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {}, "unfit": "t"}]}, "case 0 - an entry: a text"),
     ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"text": "a", "fields": ["a"]}, "unfit": "t"}]},
      "case 0 - an entry: a text"),
+    ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"number": "12"}, "unfit": "t"}]},
+     "case 0 - an entry: a text"),
+    ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"number": True}, "unfit": "t"}]},
+     "case 0 - an entry: a text"),
+    ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"choice": [0, True]}, "unfit": "t"}]},
+     "case 0 - an entry: a text"),
     ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"text": "a"}, "direkt": True, "unfit": "t"}]},
      "case 0 has direkt - a case has setting, entry, check or unfit, direct, language"),
     ({"kind": "echo", "settings": {"any": {}}, "cases": [{"setting": "any", "entry": {"text": "a"}, "direct": "yes", "unfit": "t"}]},
@@ -691,7 +704,7 @@ def test_texstage_kinds_check_tells_the_kit_which_kinds_are_installed(capsys, mo
     monkeypatch.setattr(kit, "check", check)
     assert cli.main(["kinds", "check", "triples"]) == 0
     said = [line for line in capsys.readouterr().out.splitlines() if "warning" in line and "Node is not installed" not in line]
-    assert seen == [("triples", set(FOUR))] and said == []                    # (a machine without Node: that warning)
+    assert seen == [("triples", set(FOUR + OWN))] and said == []                    # (a machine without Node: that warning)
 
 
 def test_what_a_phone_loads_of_a_kind(tmp_path, monkeypatch):

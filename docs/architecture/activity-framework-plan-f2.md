@@ -467,12 +467,14 @@ and as it is after its review - twelve findings, fixed:
 - **An `internal` check** that is not set aside is not stored: its entries count as unchecked, the
   same text sent again is checked again, and a restart asks for it again. Set aside, it is stored
   and final.
-- **A step takes 2,000 distinct forms** - those that have a check, are being checked, or failed and
-  are still waited for; beyond, a new form waits unchecked, the counts say the step is full, and the
-  form is asked for as soon as there is room (the review: it never was, and refused texts and forms
-  nobody waited for used the room up). The cap is the step's, not an epoch's: a reset keeps the
-  checks, and so the forms. The counts for the panel - waiting, unchecked, forms, full - are of the
-  step's epoch and of the entries that are in.
+- **A step takes 2,000 distinct forms at a time** - those whose check an entry of its epoch has (in or
+  hidden), that are being checked, or failed and are still waited for; beyond, a new form waits
+  unchecked, the counts say the step is full, and the form is asked for as soon as there is room (the
+  review: it never was, and refused texts and forms nobody waited for used the room up). An entry
+  replaced or taken back lets its form go; a reset keeps the checks - the same text has the same
+  result - and the new epoch's entries count its forms anew (package 9's review: 1,100 students who
+  each changed their estimate once filled the step, and 200 numbers went unchecked). The counts for
+  the panel - waiting, unchecked, forms, full - are of the step's epoch and of the entries that are in.
 - **A check asked for twice** - its only entry left, the pool had begun it, the text came again - is
   one check: the second answer changes nothing.
 - **After a restart** the checks and details are the tables'; a text whose entry has a check is
@@ -543,7 +545,8 @@ The third part, as built (package 5: `activities/reduce.py`, `views.py`, `modera
   there are.
 - **The tally** is the deck's choices in its order, one nobody made among them - which can be
   hidden like any other -, then the largest of the other groups, as many as a window lists. What an
-  item calls its choices, and an entry of several, come with the kind (package 9).
+  item calls its choices comes with the kind (package 9): an entry of several is a group of its own,
+  and the picture counts each option too (4.8).
 - **A step's setup** (`Setup.of`) reads the item's `min` and `review` for a crowd graph and its
   `options` for a tally only: with another reduction these names are the kind's own.
 - **The references:** the pool's results of them are handed to the core (`refer`; package 6) and kept
@@ -1129,6 +1132,65 @@ with its own flow (AF 2, "Quizzes"), and is not bent to serve as a step of an ac
 kinds are the activities' own, for the steps that need them - a vote on an earlier step's groups,
 a number before a query (AF 5.1) - and they stay in F2.
 
+As built (package 9, 2026-11-13): `activities/kinds/` - `Choice`, `Number`, `Text` -, found through
+texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`, `de.js`: a choice is
+*chosen*, a number or a text *received* - none of them runs) and their fixtures; the kit passes them.
+
+- **In a deck:** `kind=choice, options={Paris, Lyon, Nice}` with `select=one|many` (one by default);
+  `kind=number` with `tolerance=` (0 by default); `kind=text`. Their references are written in the
+  body, `\reference{Paris}` - a key `reference=` is refused (`options.py`: `InBody`) -; a choice's
+  must be among its options, and with `select=many` the references together are the right choice. An
+  option is text with `$math$`, which the phones, the box and the panel typeset (`shared/text.js`);
+  an option and a reference are read alike, however LaTeX passed them on (`kinds`: `tex_text` - the
+  space `\tl_to_str` puts after a control word, `\&`, `~`). A key of digits alone is refused: a
+  decimal comma split a number (`tolerance=0,5` is the keys `tolerance=0` and `5`). No change to
+  `texactivity.sty`: its records take every key of a kind's, a list as a list.
+- **The contract:** an entry is a text, the fields, a choice - the places of the item's options, in
+  order - or a number (`kind.py`: `Entry`, `stored()`, `of()`); `Kind.reference(step, text)` makes a
+  reference an entry of the kind's input, by default the text. The option types `Number` (0.5, -2:
+  ASCII's digits and one point) and `InBody` join the others. A tally's key of several choices is their
+  texts a line each (`SEVERAL`), which no option has. The kit holds what normalize gives against what
+  the core keeps (`Entry.stored()`, the kind's input).
+- **The core:** a choice is checked against the item's options - one, or several with `select=many`,
+  each once, in order -, a number must be finite and at most 10^15 (`entries.py`: refusals `choice`,
+  `number`, `too-large` - a whole number of JSON's larger than any float is compared, not converted);
+  the gap between a student's entries is 1 s for a choice, 2 s for a number and a text. A tally's
+  groups carry their choice's text as `label` - an option nobody chose too -; a choice of several is a
+  group of its own, what is checked, judged and moderated, and the picture counts each option as well
+  (`options`: how many chose it, alone or with others), which is what the class sees. A number step's
+  picture lists every number given, with its students and - where the window may know it - its verdict
+  (`numbers`); the windows draw a histogram of it - a bar per number while there are at most twelve,
+  else stretches of equal width, and a bar at each end for numbers far out (beyond three times the spread
+  of the middle half of the students, ≤ x and ≥ y) -, the bars marked by the server's verdicts after the reveal, the
+  references themselves in a line with `solution=show`, a group the lecturer shows marked. Where the
+  groups are judged, the picture says how many students are right (`right`). A phone gets a choice's
+  options and its `select` (`play.py`: `PUBLIC`).
+- **The kinds:** a choice's key is its option's text, or the options' texts a line each; a number's
+  key is the number written out - a whole number exactly, 42.0 is 42 and 2^40 stays 2^40; any other to
+  15 significant digits, so that 0.1 + 0.2 is 0.3; no exponent -, and the kind judges it in decimals, as
+  the deck writes numbers: right within the tolerance of a reference, 0.3 with `tolerance=0.1` takes 0.4
+  and not 0.41, and without one only the reference itself; a text's key is the quiz's normalized form
+  (case, accents and spacing do not matter: `cleaning.norm_term`, as `scoring.normalize_text`) of the
+  answer without what is not seen (control and format characters: a zero-width space, a soft hyphen),
+  and the core judges it.
+- **The phone:** a choice's options as a quiz's answers look (`shared/shapes.js`): a tap sends a choice
+  of one - the latest tap wins, sent again after the gap when it came too soon, and a tap of the choice
+  that counts sends nothing -, a choice of several is marked and then sent; a number in one line, read
+  as the deck's language writes numbers - 3,5 and 3.5 in any deck, 1 000 and 1'000, 1,000.5 and 1.000,5;
+  one separator before three digits alone is a thousand where the language groups with it (1,000 in
+  English, 1.000 in German) -, with a ± key, for an iPhone's keypad has no minus; a short answer in one
+  line, at most 100 characters.
+- **F1's type** refuses a deck of a kind it never had (`server/activity.py`: `refuses`): run it with
+  `texstage serve --activities core`. A server of another major version of texstage plays a deck of its
+  own kinds while their API is the same (`server/activities.py`: `refuses`).
+- **The archive** writes a choice by its options' texts and a number with every digit; a cell a
+  spreadsheet would run as a formula (`=`, `+`, `-`, `@`) gets an apostrophe in front (`server/sheets.py`:
+  every CSV of the archive's), and a CSV's lines end once on Windows too (they ended `\r\r\n`).
+- **The cap of 2,000 forms** counts the forms an entry of the step's epoch has (4.3): a number step whose
+  students all change their estimate fills it no more than one whose students do not.
+
+Left: a choice from an earlier step's groups (`from=`, F3); points (F3).
+
 ### 4.9 The kit
 
 `texstage kinds` lists what is installed - name, package, version, API. `texstage kinds check
@@ -1257,8 +1319,13 @@ is done - four faults, four doubts and seven small findings, fixed (4.4). Packag
 projector's picture, the panel and its keys, the host console's line -, a kind's files served by
 their hash, the four kinds' texts in English and German, and the kit's browser half (4.5, 4.9);
 tried in the app's Chromium with the four kinds. Its review is done - eleven faults, six doubts and
-nine nits, fixed (4.5). F1's type stays the server's default; whether the core's replaces it, and
-F1's browser code goes, is open.
+nine nits, fixed (4.5). Package 9 is built on it (2026-11-13): texstage's own kinds `choice`, `number`
+and `text`, the contract's entries of a choice and a number and its `reference`, a tally labelled by
+its choices and a number step's histogram (4.8); their kits pass, their views are drawn. Its review
+(2026-11-14) found thirteen faults, ten doubts and seven nits - among them a tolerance of 0 that took
+2^40 ± 1,099, 1,000 read as 1, keys of several choices that one option's could be, LaTeX in options,
+the cap of forms that number steps filled -, all fixed (4.8). F1's type stays the server's default;
+whether the core's replaces it, and F1's browser code goes, is open.
 
 ### 4.13 Risks
 

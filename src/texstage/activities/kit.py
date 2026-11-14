@@ -66,7 +66,7 @@ HANG_S = 30.0                           # ... and one that has not come back by 
 COPY_MOST = 128 * 2**20                 # as F1's pool asks for a copy
 TEXT_MAX = 2000                         # the longest text a student sends (checks/cleaning.py)
 PAIRS = ("()", "[]", "{}")
-FILE_KEYS = {"kind", "settings", "cases", "builds", "from"}
+FILE_KEYS ={"kind", "settings", "cases", "builds", "from"}
 SETTING_KEYS = {"item", "keys", "files"}
 CASE_KEYS = {"setting", "entry", "check", "unfit", "direct", "language"}
 CHECK_KEYS = {"status", "key", "parts", "verdict", "credit", "message", "at", "detail"}
@@ -250,13 +250,13 @@ def text_of(text) -> str:
 
 
 def entry_of(written: dict) -> Entry:
-    fields = written.get("fields")
-    return Entry(text=text_of(written.get("text")), fields=tuple(fields) if isinstance(fields, list) else fields)
+    """A fixture's entry: its text as text_of makes it, else as the core stores an entry (Entry.of)."""
+    return Entry(text=text_of(written["text"])) if "text" in written else Entry.of(written)
 
 
 def label(case: dict) -> str:
     written = case.get("entry", {})
-    text = json.dumps(written.get("text", written.get("fields")), ensure_ascii=True)
+    text = json.dumps(next(iter(written.values()), None), ensure_ascii=True)
     return text if len(text) <= 60 else text[:57] + "..."
 
 
@@ -282,8 +282,12 @@ def _wrong(data: dict) -> str | None:
         entry = c.get("entry")
         if not isinstance(c.get("setting"), str) or c["setting"] not in settings:
             return f"case {i} - a setting of the file"
-        if not isinstance(entry, dict) or set(entry) not in ({"text"}, {"fields"}) or ("text" in entry and not _a_text(entry["text"])):
-            return f"case {i} - an entry: a text - as written, {{repeat, line}} or {{deep, open, close}} - or the fields"
+        if not isinstance(entry, dict) or set(entry) not in ({"text"}, {"fields"}, {"choice"}, {"number"}) \
+                or ("text" in entry and not _a_text(entry["text"])) \
+                or ("choice" in entry and not (isinstance(entry["choice"], list) and all(type(n) is int for n in entry["choice"]))) \
+                or ("number" in entry and (isinstance(entry["number"], bool) or not isinstance(entry["number"], (int, float)))):
+            return (f"case {i} - an entry: a text - as written, {{repeat, line}} or {{deep, open, close}} -, the fields, "
+                    f"a choice (the options' places) or a number")
         if ("unfit" in c) == ("check" in c):
             return f"case {i} - either unfit, the code it is refused with, or a check"
         if "unfit" in c and not isinstance(c["unfit"], str):
@@ -381,6 +385,10 @@ def _run(kind: Kind, prepared, step: Step, case: dict) -> tuple[dict, float, flo
             return gave({}, f"normalize gave {type(entry).__name__}, not an Entry")
         if again != entry:
             return gave({}, "normalize changes what it gave: a normal form is its own")
+        try:                                       # as the core keeps it, and hands it to check (server/worker.py)
+            entry = Entry.of(json.loads(json.dumps(contract.kept(kind, entry))))
+        except ValueError as e:
+            return gave({}, f"normalize gave {e}")
     try:
         check = kind.check(prepared, step, entry)
     except Exception as e:  # noqa: BLE001 - the rule: a check raises for nothing a student can send

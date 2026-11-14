@@ -237,6 +237,41 @@ def test_a_check_asked_for_twice_is_one_check():
     assert cs.checked(A, S, run3.norm, BROKE) == [] and cs.counts(StepRow("g1", A))["forms"] == 1
 
 
+def test_the_cap_counts_the_forms_the_epochs_entries_have(monkeypatch):
+    """A step's cap counts the forms whose check an entry of its epoch has: a student who changes their
+    number lets the old one go, so that 1,100 students who all do fill no more than 1,100 who do not; a
+    reset's epoch counts its own - and a form that waited for room in another epoch is checked once this
+    one has room."""
+    monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
+    cs = Checks("g1")
+
+    def checked(n: int, text: str, epoch: int = 0) -> EntryRow:
+        e = entry(n, text)
+        e.epoch = epoch
+        run = asked(cs, e)
+        assert cs.checked(A, S, run.norm, OK) == [e]
+        return e
+
+    old, other = checked(1, "select 1"), checked(2, "select 2")
+    assert cs.counts(StepRow("g1", A)) == {"waiting": 0, "unchecked": 0, "forms": 2, "full": True}
+    old.state = "replaced"                                     # the student's next estimate: the old one goes
+    assert cs.left(old) == [] and cs.counts(StepRow("g1", A))["forms"] == 1
+    checked(3, "select 3")                                     # ... and makes room for the new one
+    assert cs.counts(StepRow("g1", A))["full"]
+    again = entry(4, "select 1")                               # a known text is answered at once, and counts
+    assert cs.entered(again)[1].status == "ok" and cs.counts(StepRow("g1", A))["forms"] == 3
+    waits = entry(5, "select 5")                               # full: it waits for room
+    (job,), _ = cs.entered(waits)
+    assert cs.normalized(A, S, job.raw, clean("select 5")) == ([], []) and cs.state(waits) == "unchecked"
+    # a reset: the new epoch counts its own forms, and has room for the one that waited
+    assert cs.counts(StepRow("g1", A, epoch=1))["forms"] == 0
+    then = entry(6, "select 5")
+    then.epoch = 1
+    jobs, check = cs.entered(then)
+    assert [type(j) for j in jobs] == [Run] and check is None and cs.counts(StepRow("g1", A, epoch=1))["forms"] == 1
+    assert other.state == "in" and cs.counts(StepRow("g1", A))["forms"] == 4       # (epoch 0's, and the one asked)
+
+
 def test_a_step_takes_so_many_forms_and_the_panel_is_told(monkeypatch):
     monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
     cs = Checks("g1")
@@ -261,7 +296,8 @@ def test_a_step_takes_so_many_forms_and_the_panel_is_told(monkeypatch):
     es[1].state = "hidden"
     es[3].epoch = 1
     assert cs.counts(StepRow("g1", A)) == {"waiting": 0, "unchecked": 2, "forms": 2, "full": True}
-    assert cs.counts(StepRow("g1", A, epoch=1)) == {"waiting": 0, "unchecked": 1, "forms": 2, "full": True}
+    assert cs.counts(StepRow("g1", A, epoch=1)) == {"waiting": 0, "unchecked": 1, "forms": 1, "full": False}  # (its
+    #                                                           own forms: no entry of epoch 1 has a check yet)
     assert cs.counts(StepRow("g1", "another")) == {"waiting": 0, "unchecked": 0, "forms": 0, "full": False}
     # room: the form whose only entry leaves makes room for the one that waited longest
     es[1].state = "withdrawn"

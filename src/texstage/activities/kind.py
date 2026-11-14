@@ -22,6 +22,7 @@ data.
         def prepare(self, item, keys, files, limits=None, copy=None) -> Prepared: ...    # a worker, per seed
         def copy(self, prepared, most) -> bytes | None: ...      # optional: what prepare made, for every worker
         def normalize(self, step, entry) -> Entry: ...           # a worker: the entry cleaned - or Unfit
+        def reference(self, step, text) -> Entry: ...            # a reference as an entry: by default its text
         def check(self, prepared, step, entry) -> Check: ...     # a worker: one distinct entry, in its budget
 
 What the core promises a kind: prepare runs before any check of its seed, once per worker - and where
@@ -45,8 +46,8 @@ from types import MappingProxyType
 from texstage.activities.options import Options, Unbuildable
 from texstage.checks.cleaning import Unfit
 
-__all__ = ["API", "BUDGET_S", "COMPARED", "INPUTS", "REDUCTIONS", "STATUSES", "VERDICTS", "Built", "Check", "Entry", "Kind",
-           "Message", "Prepared", "Step", "Unbuildable", "Unfit", "fault", "first", "fixed", "referenced", "validated"]
+__all__ = ["API", "BUDGET_S", "COMPARED", "INPUTS", "REDUCTIONS", "SEVERAL", "STATUSES", "VERDICTS", "Built", "Check", "Entry", "Kind",
+           "Message", "Prepared", "Step", "Unbuildable", "Unfit", "fault", "first", "fixed", "kept", "referenced", "validated"]
 
 API = 0
 INPUTS = ("code", "fields", "choice", "number", "text")       # the core's inputs (the design's 6.2)
@@ -66,15 +67,36 @@ ARGUMENT_MAX = 300                          # a message's argument, if it is a t
 DETAIL_MAX = 12 * 1024                      # a detail's JSON in characters, as it is sent (the design's 6.3)
 COMPARED = "diff"                           # in a detail: what it says of the reference - the comparison with it.
 #                                             The core keeps it from the projector until the reveal (reduce.py)
+SEVERAL = "\n"                              # a tally's key of several choices: their texts, a line each - which
+#                                             no option has (choice.build), and the core counts each (reduce.py)
 SAFE = 2**53                                # the largest whole number a phone's JSON keeps
 
 
 @dataclass(frozen=True)
 class Entry:
-    """What a step's input sends: a text (the inputs code and text) or the fields (input fields). A choice
-    and a number come with the kinds that take them, texstage's own (the plan of F2, package 9)."""
+    """What a step's input sends - one of: a text (the inputs code and text), the fields (input fields), a
+    choice - the options' places in the item's `options`, from 0 (input choice) - or a number (input
+    number). As the core stores it and hands it to a worker: stored(), of()."""
     text: str | None = None
     fields: tuple[str, ...] | None = None
+    choice: tuple[int, ...] | None = None
+    number: float | int | None = None
+
+    def stored(self) -> dict:
+        """The entry as the core keeps it - {"text": ...}, {"fields": [...]}, {"choice": [...]} or {"number":
+        ...} -; ValueError for one that is none of them, or more than one."""
+        given = {name: getattr(self, name) for name in ("text", "fields", "choice", "number") if getattr(self, name) is not None}
+        if len(given) != 1:
+            raise ValueError(f"an entry is a text, the fields, a choice or a number - not {sorted(given) or 'nothing'}")
+        name, value = next(iter(given.items()))
+        return {name: list(value) if name in ("fields", "choice") else value}
+
+    @classmethod
+    def of(cls, stored: dict) -> Entry:
+        """An entry as the core keeps it (stored), made an entry again - the lists as tuples."""
+        fields, choice = stored.get("fields"), stored.get("choice")
+        return cls(text=stored.get("text"), fields=tuple(fields) if isinstance(fields, list) else fields,
+                   choice=tuple(choice) if isinstance(choice, list) else choice, number=stored.get("number"))
 
 
 @dataclass(frozen=True)
@@ -195,6 +217,11 @@ class Kind:
         for one that is not checked at all - too long, empty."""
         return entry
 
+    def reference(self, step: Step, text: str) -> Entry:
+        """A reference of the deck (keys.json: its text, as the build wrote it) as an entry of the kind's
+        input, which check is given like a student's: by default the text."""
+        return Entry(text=text)
+
     def check(self, prepared: Prepared, step: Step, entry: Entry) -> Check:
         """One entry of the kind's input, as normalize gave it; of another type: TypeError."""
         raise NotImplementedError
@@ -291,6 +318,25 @@ def validated(kind: Kind, check, step: Step | None = None) -> Check:
     return check if fault(kind, check, step) is None else Check("internal")
 
 
+STORED = {"code": "text"}                   # an input's entry as the core keeps it: this field, else the input's name
+
+
+def kept(kind: Kind, entry) -> dict:
+    """What a kind's normalize gave, as the core keeps it (Entry.stored) and sends it to the windows: one
+    field, the kind's input's, and JSON without NaN or infinity - else ValueError, which is never the
+    student's (server/worker.py: the input is unchecked; the kit: a fault)."""
+    if not isinstance(entry, Entry):
+        raise ValueError(f"{type(entry).__name__}, not an Entry")
+    try:
+        stored = entry.stored()
+        json.dumps(stored, allow_nan=False)
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"an entry the core cannot keep - {e}") from None
+    if set(stored) != {STORED.get(kind.INPUT, kind.INPUT)}:
+        raise ValueError(f"{', '.join(stored)}, not the kind's input ({kind.INPUT})")
+    return stored
+
+
 # ------------------------------------------------------------------ what the core does around a kind
 def first(kind: Kind, item: dict, keys: dict, files: dict[str, bytes], limits: dict | None = None,
           most: int | None = None) -> tuple[Prepared, bytes | None]:
@@ -320,7 +366,7 @@ def referenced(kind: Kind, prepared: Prepared, step: Step, budget_s: float | Non
         step = dataclasses.replace(step, budget_s=budget_s)
     checks, bare = [], Prepared(prepared.state)          # a reference is compared with none
     for text in step.keys.get("reference", []):
-        check = kind.check(bare, step, Entry(text=text))
+        check = kind.check(bare, step, kind.reference(step, text))
         if prepared.rows is None and check.status == "ok":
             prepared.rows = check.rows
         checks.append(check)

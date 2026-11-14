@@ -33,6 +33,7 @@ stored and by their ids, and no longer count.
 """
 from __future__ import annotations
 
+import math
 import re
 from collections import Counter
 from collections.abc import Callable, Iterable
@@ -49,11 +50,13 @@ STATES = ("in", "replaced", "withdrawn", "hidden")
 ID = re.compile(r"[A-Za-z0-9_-]{8,40}")      # an entry's id, as a phone makes it
 PER_STEP = 10_000                    # a step's entries in one epoch (the plan of F2, 4.3)
 TAKEN_BACK = 3                       # counts=all: a student sends at most this many times the limit in all
-GAP_S = {"fields": 2}                # seconds between a student's entries, by input; else 5 (as F1 had them)
-GAP_ELSE_S = 5
+GAP_S = {"fields": 2, "choice": 1, "number": 2, "text": 2}   # seconds between a student's entries, by input; else 5
+GAP_ELSE_S = 5                       # (as F1 had them for queries; a choice changed is quicker than a query)
 GAP_MAX_S = 3600
 LIMIT_MAX = 50                       # a student's entries, at most (kind.py)
 FIELDS_MAX = 8
+OPTIONS_MAX = 26                     # a choice's options, at most - A to Z
+NUMBER_MAX = 1e15                    # a number's size, at most: whole numbers to it are exact in a phone's JSON
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,8 @@ class Rules:
     gap_ms: int = GAP_ELSE_S * 1000
     counts: str = "latest"
     fields: int = 0                  # the input fields: how many
+    options: int = 0                 # a choice's options: how many
+    many: bool = False               # a choice of several of them (select=many), else of one
 
     @classmethod
     def of(cls, item: dict, kind) -> Rules:
@@ -83,7 +88,13 @@ class Rules:
             raise ValueError(f"counts: latest or all, not {counts!r}")
         if input == "fields" and (not isinstance(fields, (list, tuple)) or not 1 <= len(fields) <= FIELDS_MAX):
             raise ValueError(f"fields: 1 to {FIELDS_MAX} of them")
-        return cls(input, limit, round(gap * 1000), counts, len(fields))
+        options = item.get("options") if input == "choice" else ()
+        if input == "choice" and (not isinstance(options, (list, tuple)) or not 2 <= len(options) <= OPTIONS_MAX):
+            raise ValueError(f"options: 2 to {OPTIONS_MAX} of them")
+        select = item.get("select", "one") if input == "choice" else "one"
+        if select not in ("one", "many"):
+            raise ValueError(f"select: one or many, not {select!r}")
+        return cls(input, limit, round(gap * 1000), counts, len(fields), len(options), select == "many")
 
 
 class Entered(NamedTuple):
@@ -151,9 +162,10 @@ def _text(v) -> bool:
 
 
 def shaped(rules: Rules, sent: dict) -> dict:
-    """What a phone sent, as the step's input stores it - {"text": ...} or {"fields": [...]} -, or
-    Refused. Only the shape and the size, of what was sent as it was sent: cleaning it is the kind's
-    normalize, in a worker."""
+    """What a phone sent, as the step's input stores it - {"text": ...}, {"fields": [...]}, {"choice":
+    [places]} or {"number": ...} (kind.py: Entry) -, or Refused. Only the shape and the size, of what was
+    sent as it was sent: cleaning it is the kind's normalize, in a worker - but a choice is given its
+    places in order, each once, so that the same choice is one entry to check."""
     if rules.input in ("code", "text"):
         text = sent.get("text") if isinstance(sent, dict) else None
         if not _text(text):
@@ -172,7 +184,24 @@ def shaped(rules: Rules, sent: dict) -> dict:
         if sum(len(f) for f in fields) > TEXT_MAX:
             raise Refused(f"at most {TEXT_MAX} characters", "too-long")
         return {"fields": list(fields)}
-    raise Refused(f"the input {rules.input} comes with texstage's own kinds")       # (package 9)
+    if rules.input == "choice":                    # the options' places, each once, in order
+        choice = sent.get("choice") if isinstance(sent, dict) else None
+        if not isinstance(choice, list) or not all(type(n) is int and 0 <= n < rules.options for n in choice):
+            raise Refused(f"choice: places of the {rules.options} options")
+        if not choice:
+            raise Refused("choose first", "choice")
+        if len(set(choice)) > 1 and not rules.many:              # ([0, 0] is one option)
+            raise Refused("one option, not several", "choice")
+        return {"choice": sorted(set(choice))}
+    if rules.input == "number":                    # (a whole number of JSON's may be larger than any float:
+        number = sent.get("number") if isinstance(sent, dict) else None          # compared, not converted)
+        if isinstance(number, bool) or not isinstance(number, (int, float)) \
+                or (isinstance(number, float) and not math.isfinite(number)):
+            raise Refused("number: a number", "number")
+        if abs(number) > NUMBER_MAX:
+            raise Refused("at most 10^15", "too-large")
+        return {"number": number}
+    raise Refused(f"no input {rules.input}")
 
 
 def _closed(st: StepRow) -> Refused:
@@ -222,7 +251,8 @@ class Entries:
               blocked: bool = False) -> Entered:
         """A phone's entry, in a step as it is after a tick. An id the step has is the entry sent
         again - the one that is there, whatever the step's phase is now. Refused, with the phone's
-        code: closed, paused, blocked, too-fast, too-many, full, duplicate, text, field, too-long."""
+        code: closed, paused, blocked, too-fast, too-many, full, duplicate, text, field, too-long, choice,
+        number, too-large."""
         if not isinstance(player, str) or not player:
             raise Refused("no such student")
         if not isinstance(entry, str) or not ID.fullmatch(entry):

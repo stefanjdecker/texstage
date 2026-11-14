@@ -39,6 +39,7 @@ export default {
       count: (students, entries) => `${students} ${students === 1
       ? "student has" : "students have"} sent ${entries} ${entries === 1 ? "entry" : "entries"}.` },
     verdict: { correct: "right", partial: "partly right", incorrect: "not right" }, solution: "The reference",
+    right: (n) => `${n} right`,
     status2: { ok: "runs", invalid: "syntax error", error: "error", timeout: "ran too long", refused: "not run",
       internal: "could not be checked" },
   },
@@ -88,7 +89,8 @@ export default {
   // a server run with --activities core): the step's state, a student's entries and what their checks say
   steps: {
     send: "Send", add: "Add", mine: "Yours", withdraw: "Take back", of: (n, m) => `${n} of ${m}`,
-    yourText: "Your text", empty: "Nothing yet.", left: (time) => `${time} left`, hint: "Hint",
+    yourText: "Your text", yourNumber: "Your number", yourAnswer: "Your answer", sign: "Change the sign",
+    several: "Choose one or more, then send.", empty: "Nothing yet.", left: (time) => `${time} left`, hint: "Hint",
     phase: { ready: "Not open yet.", paused: "Paused - wait a moment.", closed: "Closed.", revealed: "Revealed." },
     blocked: "The lecturer has closed contributions for you.",
     sending: "Sending …", received: "Received", waiting: "Being checked …",
@@ -102,7 +104,8 @@ export default {
       blocked: "The lecturer has closed contributions for you.", "too-fast": "Please wait a few seconds before you send again.",
       "too-many": "You have sent as many as you may.", full: "The activity takes no more entries.",
       duplicate: "You have sent this one already.", text: "Please type your text first.",
-      field: "Please fill in every field.", "too-long": "That is too long." },
+      field: "Please fill in every field.", "too-long": "That is too long.", choice: "Please choose an option first.",
+      number: "Please type a number - 42 or 3.5.", "too-large": "That number is too large." },
   },
 
   // what a live activity's evaluation says besides its engine's own words (engines/*.js, run by
@@ -390,6 +393,7 @@ export default {
       moreNodes: (n) => `${n} more nodes than the projector shows.`, noTriples: "No triples yet.",
       none: "Nothing sent yet.", others: (n) => `and ${n} in smaller groups`,
       refIn: (i, n) => `Reference ${i}: the group of ${n} ✓`, refAlone: (i) => `Reference ${i}: nobody has its result yet`,
+      right: (n) => `${n} ${n === 1 ? "student is" : "students are"} right`,
       refFailed: (i, why) => `Reference ${i} does not run here: ${why}`, refPending: (i) => `Reference ${i}: being checked …`,
       noRef: "No reference: the groups have no verdict.",
       failed: (why) => `Nothing of it is checked: ${why}`, store: (n, why) => `The server could not write ${n} times: ${why}`,

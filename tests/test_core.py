@@ -523,8 +523,10 @@ def test_fields_all_count_and_one_is_sent_once():
     refused("field", es.enter, st, TRIPLE, "p2", "entry-0009", {"fields": [":a", " ", ":c"]}, now=10_000)
     refused("too-long", es.enter, st, TRIPLE, "p2", "entry-0009", {"fields": ["a" * 1000, "b" * 1000, "c"]}, now=10_000)
     assert es.enter(st, TRIPLE, "p2", "entry-0009", {"fields": ["a" * 1000, "b" * 999, "c"]}, now=10_000).new
-    with pytest.raises(Refused, match="own kinds"):
-        shaped(Rules("choice"), {"choice": 1})
+    with pytest.raises(Refused, match="choice: places of the 3 options"):           # (package 9: a choice's shape)
+        shaped(Rules("choice", options=3), {"choice": 1})
+    with pytest.raises(Refused, match="no input"):
+        shaped(Rules("nothing"), {"text": "a"})
 
 
 def test_what_the_lecturer_hid_gives_no_place_back_and_is_not_sent_again():

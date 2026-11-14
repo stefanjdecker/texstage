@@ -1,0 +1,334 @@
+{
+ "kind": "number",
+ "settings": {
+  "tolerance": {
+   "item": {
+    "tolerance": 0.5
+   },
+   "keys": {
+    "reference": [
+     "42"
+    ]
+   }
+  },
+  "exact": {
+   "item": {},
+   "keys": {
+    "reference": [
+     "3.5",
+     "7"
+    ]
+   }
+  },
+  "no reference": {
+   "item": {}
+  },
+  "decimals": {
+   "item": {
+    "tolerance": 0.1
+   },
+   "keys": {
+    "reference": [
+     "0.3"
+    ]
+   }
+  },
+  "large": {
+   "item": {},
+   "keys": {
+    "reference": [
+     "1099511627776"
+    ]
+   }
+  }
+ },
+ "cases": [
+  {
+   "setting": "tolerance",
+   "entry": {
+    "number": 42
+   },
+   "check": {
+    "status": "ok",
+    "key": "42",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "tolerance",
+   "entry": {
+    "number": 42.0
+   },
+   "check": {
+    "status": "ok",
+    "key": "42",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "tolerance",
+   "entry": {
+    "number": 42.5
+   },
+   "check": {
+    "status": "ok",
+    "key": "42.5",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "tolerance",
+   "entry": {
+    "number": 41.4
+   },
+   "check": {
+    "status": "ok",
+    "key": "41.4",
+    "verdict": "incorrect"
+   }
+  },
+  {
+   "setting": "exact",
+   "entry": {
+    "number": 7
+   },
+   "check": {
+    "status": "ok",
+    "key": "7",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "exact",
+   "entry": {
+    "number": 3.5
+   },
+   "check": {
+    "status": "ok",
+    "key": "3.5",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "exact",
+   "entry": {
+    "number": 3.4999
+   },
+   "check": {
+    "status": "ok",
+    "key": "3.4999",
+    "verdict": "incorrect"
+   }
+  },
+  {
+   "setting": "decimals",
+   "entry": {
+    "number": 0.4
+   },
+   "check": {
+    "status": "ok",
+    "key": "0.4",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "decimals",
+   "entry": {
+    "number": 0.2
+   },
+   "check": {
+    "status": "ok",
+    "key": "0.2",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "decimals",
+   "entry": {
+    "number": 0.41
+   },
+   "check": {
+    "status": "ok",
+    "key": "0.41",
+    "verdict": "incorrect"
+   }
+  },
+  {
+   "setting": "large",
+   "entry": {
+    "number": 1099511627776
+   },
+   "check": {
+    "status": "ok",
+    "key": "1099511627776",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "large",
+   "entry": {
+    "number": 1099511627776.0
+   },
+   "check": {
+    "status": "ok",
+    "key": "1099511627776",
+    "verdict": "correct"
+   }
+  },
+  {
+   "setting": "large",
+   "entry": {
+    "number": 1099511627000
+   },
+   "check": {
+    "status": "ok",
+    "key": "1099511627000",
+    "verdict": "incorrect"
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "number": 0.30000000000000004
+   },
+   "check": {
+    "status": "ok",
+    "key": "0.3"
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "number": 1e-05
+   },
+   "check": {
+    "status": "ok",
+    "key": "0.00001"
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "number": 1234567890123.5
+   },
+   "check": {
+    "status": "ok",
+    "key": "1234567890123.5"
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "number": -2.5
+   },
+   "check": {
+    "status": "ok",
+    "key": "-2.5",
+    "verdict": null
+   }
+  },
+  {
+   "setting": "no reference",
+   "entry": {
+    "number": 1e+16
+   },
+   "unfit": "too-large"
+  }
+ ],
+ "builds": [
+  {
+   "options": {
+    "tolerance": "0.5"
+   },
+   "bodies": {
+    "references": [
+     "42"
+    ]
+   },
+   "built": {
+    "item": {
+     "tolerance": 0.5
+    },
+    "keys": {
+     "reference": [
+      "42"
+     ]
+    }
+   }
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     " 3.50 ",
+     "-7"
+    ]
+   },
+   "built": {
+    "item": {},
+    "keys": {
+     "reference": [
+      "3.5",
+      "-7"
+     ]
+    }
+   }
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "1099511627776",
+     "0.00001"
+    ]
+   },
+   "built": {
+    "item": {},
+    "keys": {
+     "reference": [
+      "1099511627776",
+      "0.00001"
+     ]
+    }
+   }
+  },
+  {
+   "options": {},
+   "bodies": {},
+   "built": {
+    "item": {},
+    "keys": {}
+   }
+  },
+  {
+   "options": {
+    "tolerance": "-1"
+   },
+   "refused": "tolerance=-1 - a number from 0 to 1e+15"
+  },
+  {
+   "options": {
+    "tolerance": "1e3"
+   },
+   "refused": "tolerance=1e3 - a number from 0 to 1e+15"
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "forty"
+    ]
+   },
+   "refused": "the reference forty is no number - 42, -0.5"
+  },
+  {
+   "options": {},
+   "bodies": {
+    "references": [
+     "10000000000000000"
+    ]
+   },
+   "refused": "the reference 10000000000000000 is too large - at most 10^15"
+  }
+ ]
+}

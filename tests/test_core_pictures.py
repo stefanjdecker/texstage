@@ -1243,8 +1243,9 @@ def test_the_panels_counts_follow_the_checks_though_no_entry_changes():
     g.withdraw(e1)                                             # nobody waits for its check any more ...
     before = g.pictures.version(g.st)
     g.held = [j for j in g.held if j.input == {"text": "SELECT 1"}]
-    g.release()                                                # ... and the pool answers all the same
-    assert g.pictures.version(g.st)[0] > before[0] and g.picture("stage")["forms"] == g.checks.counts(g.st)["forms"]
+    g.release()                                                # ... and the pool answers all the same: the check
+    assert g.pictures.version(g.st) == before                  # is kept, and no entry has it - no form of the epoch's
+    assert g.picture("stage")["forms"] == g.checks.counts(g.st)["forms"] == 1
     told = g.pictures.told(g.st, 90_000)
     assert told is not None and g.pictures.told(g.st, 91_000) is None
     g.hold = False

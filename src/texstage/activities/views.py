@@ -18,8 +18,8 @@ the groups that match are marked. No picture names a student.
 
 The windows are told a step's version when it changes, at most four times a second (told), and fetch the
 picture then. The version goes up with what the reductions count, with the step's phase and epoch, and
-with the checks' counts - a check that comes back for a text nobody waits for any more changes no entry,
-and the panel's counts all the same. A crowd graph's positions come from the window that lays it out
+with the checks' counts - a check that fails for the server's reasons changes no entry, and the panel's
+counts all the same. A crowd graph's positions come from the window that lays it out
 (layout: AF 13) and are part of the picture; they are not stored.
 """
 from __future__ import annotations

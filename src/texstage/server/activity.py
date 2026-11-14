@@ -41,9 +41,7 @@ No view names anybody: a contribution's player is kept for the phone's own list 
 from __future__ import annotations
 
 import copy
-import csv
 import html
-import io
 import json
 import math
 import re
@@ -55,6 +53,7 @@ from dataclasses import dataclass, field
 from texstage.checks import cleaning
 from texstage.checks.cleaning import TERM_MAX, TEXT_MAX, is_literal, norm_term, term_key  # noqa: F401 - the type's names
 from texstage.engines import ENGINES
+from texstage.server import sheets
 from texstage.server.types import Refused
 
 NAME = "activity"
@@ -286,6 +285,18 @@ def _item(call, aid) -> dict:
     if not isinstance(aid, str) or aid not in call.items:
         raise Refused("no such activity in this deck")
     return call.items[aid]
+
+
+def refuses(deck: dict) -> str | None:
+    """Why this type cannot play a deck's activities: one of a kind it never had - texstage's own choice,
+    number, text, and any kind after the four -, whose item has no input of this type's (types.py: refuses).
+    The core's type runs them: texstage serve --activities core."""
+    for aid, item in sorted(((deck.get("items") or {}).get(NAME) or {}).items()):
+        if not isinstance(item, dict) or item.get("input") not in ("tuple", "code"):
+            kind = item.get("kind") if isinstance(item, dict) else None
+            return (f"the activity {aid} is of the kind {kind or '(none)'}, which this server's activity type does not "
+                    f"run - start it with texstage serve --activities core")
+    return None
 
 
 def failed_references(stage: dict) -> list[dict]:
@@ -872,9 +883,7 @@ def archive(call) -> dict[str, str]:
         for c in shelf.contributions.values():
             text = " | ".join(c.input["fields"]) if "fields" in c.input else c.input["text"]
             rows.append([time.strftime("%H:%M:%S", time.localtime(c.created / 1000)), text, c.state, c.status, c.error])
-        buf = io.StringIO()
-        csv.writer(buf).writerows(rows)
-        files[f"activity-{aid}.csv"] = "﻿" + buf.getvalue()
+        files[f"activity-{aid}.csv"] = "﻿" + sheets.csv_text(rows)
         pic = picture(call, aid, role="stage")
         files[f"activity-{aid}.json"] = json.dumps(pic, ensure_ascii=False, indent=1) + "\n"
         if pic["kind"] == "graph":

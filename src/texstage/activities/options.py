@@ -8,7 +8,9 @@ that reads what the deck gave and says what is wrong with it (the contract: kind
 
     Words(most, longest)     a list of short texts - labels, suggestions, tokens
     Int(top, default)        a number from 1 to top
+    Number(low, high, default)   a number from low to high - 0.5, -2
     Flag()                   true or false
+    InBody()                 written in the body (\\reference{...}), not as a key - which is refused
     Choice(a, b, ...)        one of some words; the first when the deck does not say
     File(".sql", ...)        a file of the deck's folder, by its name: read when the kind asks for its text
 
@@ -17,9 +19,11 @@ that the kind says in which order a deck's faults are told - the order today's b
 refusals' words are today's (build/activity.py), which the decks' authors know."""
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
-__all__ = ["CORE", "PRESETS", "Choice", "File", "Flag", "Int", "Named", "Option", "Options", "Unbuildable", "Words"]
+__all__ = ["CORE", "PRESETS", "Choice", "File", "Flag", "InBody", "Int", "Named", "Number", "Option", "Options",
+           "Unbuildable", "Words"]
 
 WORD_MAX = 60                               # a field's label, a suggestion, a token
 WORDS_MAX = 40                              # suggestions, tokens
@@ -66,6 +70,36 @@ class Int(Option):
         if not isinstance(value, str) or not (value.isascii() and value.isdigit()) or not 1 <= int(value) <= self.top:
             raise Unbuildable(f"{key}={value} - a number from 1 to {self.top}")
         return int(value)
+
+
+NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)")      # 3, -2, 0.5, .5 - ASCII's digits, a point
+
+
+class Number(Option):
+    """A number from low to high as a deck writes it - 3, 0.5, -2 -: ASCII's digits and one point, no exponent
+    (a deck's number is a person's, not a program's)."""
+
+    def __init__(self, low: float, high: float, default: float = 0):
+        self.low, self.high, self.default = low, high, default
+
+    def read(self, key: str, given, files) -> float:
+        value = given or ""
+        if not value:
+            return self.default
+        if not isinstance(value, str) or not NUMBER.fullmatch(value.strip()) or not self.low <= float(value) <= self.high:
+            raise Unbuildable(f"{key}={value} - a number from {self.low:g} to {self.high:g}")
+        return float(value)
+
+
+class InBody(Option):
+    """What a deck writes in the environment's body - \\reference{...} - and not as a key, which is refused: the
+    kinds without files (texstage's own) take their references so. Declared, a body the kind takes is no
+    unused key of the deck's (Options.unused)."""
+
+    def read(self, key: str, given, files) -> None:
+        if given:
+            raise Unbuildable(f"{key}={given} - write \\{key}{{...}} in the activity instead")
+        return None
 
 
 class Flag(Option):

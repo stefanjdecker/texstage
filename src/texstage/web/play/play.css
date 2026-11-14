@@ -67,6 +67,7 @@ button.main:disabled { opacity: .45; }
 .answer .shape svg { width: 26px; height: 26px; }
 .answer .face { flex: 1; margin: 6px 6px 6px 0; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 6px; min-width: 0; }
 .answer.selected { outline: 5px solid var(--ink); outline-offset: -5px; }
+.answer:disabled { opacity: .55; cursor: default; }        /* a step's choices while it is not open */
 .answer.selected::after { content: "✓"; position: absolute; top: 4px; right: 10px; font-size: 22px; font-weight: 900; color: var(--ink); }
 .answer.dim { opacity: .35; }
 
@@ -144,6 +145,12 @@ button.main:disabled { opacity: .45; }
 form.act { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 form.act label { display: flex; flex-direction: column; gap: 4px; }
 form.act input[type=text] { font-size: 19px; padding: 11px 14px; }
+/* a number or a short answer in one line (activities.js) - a number with its ± key: an iPhone's keypad has no minus */
+form.act .line { display: flex; gap: 8px; }
+form.act .line input { flex: 1; min-width: 0; }
+form.act .sign { flex: none; width: 54px; font: 800 24px system-ui, sans-serif; border: 2px solid #cfc8e0; border-radius: 10px;
+  background: #fff; color: var(--ink); cursor: pointer; }
+form.act .sign:active { background: #ece6f8; }
 textarea.code { font: 16px/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 10px 12px; min-height: 9em; resize: vertical; }
 .tokens { display: flex; flex-wrap: wrap; gap: 6px; }
 .tokens button { font: 600 15px ui-monospace, Menlo, Consolas, monospace; padding: 8px 11px; border: 2px solid #cfc8e0; border-radius: 10px;

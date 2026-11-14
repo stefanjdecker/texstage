@@ -37,7 +37,8 @@ FEEDBACK = ("none", "status", "verdict", "full")         # what a phone learns b
 MOVES = ("open", "close", "pause", "resume", "reveal", "reset", "time")
 SUGGEST_MAX = 50                    # the words a phone offers for a field: the deck's, then what is drawn
 F1_INPUTS = {"tuple": "triples"}    # an item of a deck built before kinds were named: its input, its engine
-PUBLIC = ("prompt", "fields", "suggest", "tokens", "engine")      # of an item: what a phone's screen is made with
+PUBLIC = ("prompt", "fields", "suggest", "tokens", "engine", "options", "select")   # of an item: what a phone's
+#                                                                    screen is made with (a choice: its options)
 
 
 def kind_of(item: dict) -> Kind:
