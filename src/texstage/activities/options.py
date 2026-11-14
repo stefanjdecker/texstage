@@ -73,7 +73,9 @@ class Int(Option):
 
 
 NUMBER = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)")      # 3, -2, 0.5, .5 - ASCII's digits, a point
-ESCAPED = re.compile(r"\\([{}#%&_$\\~^])")                        # \& and the like: the character a deck means
+ESCAPED = re.compile(r"\\([{}#%&_$\\^])")                         # \& and the like: the character a deck means -
+#                                                                   \^ for ^ (TeX reads ^^x as a character code);
+#                                                                   not \~, an accent the kinds read (Espa\~na)
 MATH = re.compile(r"((?<!\\)\$(?:\\.|[^\\$\n])+\$)")               # a formula, $...$: its escapes are its own
 
 

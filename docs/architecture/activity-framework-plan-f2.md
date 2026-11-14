@@ -1144,9 +1144,12 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   an option and a reference are read alike, however LaTeX passed them on (`kinds`: `option_text` - the
   space `\tl_to_str` puts after a control word, `\&` by one rule for the build's keys and the kinds'
   references, `options.unescaped`, which leaves a formula's escapes alone: `$\{A, B\}$` is a set -,
-  a tie `~` a space as LaTeX sets it, `\textasciitilde` a tilde); a short answer's reference keeps a
-  tilde as written (`~/bin`: `text_reference`). A key of digits alone is refused: a
-  decimal comma split a number (`tolerance=0,5` is the keys `tolerance=0` and `5`). No change to
+  accents their letters - `Espa\~na` is España, `\'e` é; not `\^`, a key's `^` (TeX reads `^^x` as a
+  character code), so ô is written ô -, a tie `~` that joins text a space as LaTeX sets it -
+  `New~York`, `Dr.~Smith` - while a tilde that joins nothing stays - `~/bin` -, and so does the
+  tilde `\~{}` sets - `example.org/\~{}user` -, `\textasciitilde` a tilde); a short answer's
+  reference is read so too (`text_reference`). A key of digits alone is refused: a decimal comma
+  split a number (`tolerance=0,5` is the keys `tolerance=0` and `5`). No change to
   `texactivity.sty`: its records take every key of a kind's, a list as a list.
 - **The contract:** an entry is a text, the fields, a choice - the places of the item's options, in
   order - or a number (`kind.py`: `Entry`, `stored()`, `of()`); `Kind.reference(step, text)` makes a
@@ -1177,7 +1180,8 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   and not 0.41, and without one only the reference itself; a text's key is the quiz's normalized form
   (case, accents and spacing do not matter: `cleaning.norm_term`, as `scoring.normalize_text`) of the
   answer without what is not seen (control and format characters: a zero-width space, a soft hyphen;
-  the joiners of an emoji or a Persian word stay), and the core judges it. Where normalize refuses an
+  a joiner stays between two characters that are seen - an emoji's sequence, a Persian word -, not at an
+  end; noncharacters go), and the core judges it. Where normalize refuses an
   answer, the phone says so in the kind's word (*not taken*) and the core's reason.
 - **The phone:** a choice's options as a quiz's answers look (`shared/shapes.js`): a tap sends a choice
   of one - the latest tap wins, sent again after the gap when it came too soon, and a tap of the choice
@@ -1186,7 +1190,10 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   1.000,5; one separator before three digits alone is read as the phone's own language reads it, for
   its keypad offers that language's separator (3.141 on an English phone is 3.141, in a German deck
   too; 1.000 on a German one a thousand), and after a whole part of 0 it is a decimal one (0.125) -,
-  with a ± key, for an iPhone's keypad has no minus; a short answer in one line, at most 100 characters.
+  with a ± key, for an iPhone's keypad has no minus, and put back after a reload in Latin digits (a
+  Persian phone's own are not read); a tap sent too soon goes again after the deck's gap only where it
+  is at most 5 s - a longer one is no change of mind: "too fast" is said at once -; a short answer in
+  one line, at most 100 characters.
 - **F1's type** refuses a deck of a kind it never had (`server/activity.py`: `refuses`): run it with
   `texstage serve --activities core`. A server of another major version of texstage plays a deck of its
   own kinds while their API is the same (`server/activities.py`: `refuses`).
@@ -1335,7 +1342,12 @@ its choices and a number step's histogram (4.8); their kits pass, their views ar
 2^40 ± 1,099, 1,000 read as 1, keys of several choices that one option's could be, LaTeX in options,
 the cap of forms that number steps filled -, all fixed (4.8); a re-check of that commit (86488a7) found
 five more faults - 3.141 read as 3141 on an English phone in a German deck the worst - and ten smaller
-points, fixed in the commit after it. F1's type stays the server's default;
+points: the faults and seven of the points were fixed in the commit after it (d1e084e), whose review
+found three small faults more (a lone joiner taken as an answer, a reload refilling a number in a
+Persian phone's digits, a formula broken by a line in a reference), fixed with the rest of those points
+next; left as they are, by decision: " + " between the options of a choice of several where it is
+written out, a right option's bar counting all who chose it, a bar of one whole number labelled as a
+stretch. F1's type stays the server's default;
 whether the core's replaces it, and F1's browser code goes, is open.
 
 ### 4.13 Risks

@@ -392,26 +392,55 @@
   {
    "options": {
     "options": [
-     "Espa~na",
+     "Espa\\~na",
      "Francia"
     ]
    },
    "bodies": {
     "references": [
-     "Espa\\~na"
+     "Espa\\~{n}a"
     ]
    },
    "built": {
     "item": {
      "options": [
-      "Espa na",
+      "España",
       "Francia"
      ],
      "select": "one"
     },
     "keys": {
      "reference": [
-      "Espa na"
+      "España"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "New~York",
+     "~/bin",
+     "Dr.~Smith"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "New York"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "New York",
+      "~/bin",
+      "Dr. Smith"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "New York"
      ]
     }
    }
@@ -537,10 +566,28 @@
    "options": {
     "options": [
      "A",
-     "~"
+     " "
     ]
    },
    "refused": "options= has an empty option"
+  },
+  {
+   "options": {
+    "options": [
+     "A",
+     "~"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "A",
+      "~"
+     ],
+     "select": "one"
+    },
+    "keys": {}
+   }
   },
   {
    "options": {

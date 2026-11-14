@@ -37,7 +37,7 @@
   {
    "setting": "capital",
    "entry": {
-    "text": "Ber​l­in"
+    "text": "Ber\u200bl\u00adin"
    },
    "check": {
     "status": "ok",
@@ -47,7 +47,7 @@
   {
    "setting": "open",
    "entry": {
-    "text": "‮nilreB"
+    "text": "\u202enilreB"
    },
    "check": {
     "status": "ok",
@@ -74,9 +74,36 @@
   {
    "setting": "open",
    "entry": {
-    "text": "​"
+    "text": "\u200b"
    },
    "unfit": "text"
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "\u200d"
+   },
+   "unfit": "text"
+  },
+  {
+   "setting": "capital",
+   "entry": {
+    "text": "Berlin\u200d"
+   },
+   "check": {
+    "status": "ok",
+    "key": "berlin"
+   }
+  },
+  {
+   "setting": "open",
+   "entry": {
+    "text": "a\u200db\ufdd0"
+   },
+   "check": {
+    "status": "ok",
+    "key": "a\u200db"
+   }
   },
   {
    "setting": "open",
@@ -120,7 +147,10 @@
      "R\\&D",
      "~/bin",
      "~",
-     "C:\\\\Users"
+     "C:\\\\Users",
+     "Dr.~Smith",
+     "Espa\\~na",
+     "example.org/\\~{}user"
     ]
    },
    "built": {
@@ -130,7 +160,10 @@
       "R&D",
       "~/bin",
       "~",
-      "C:\\Users"
+      "C:\\Users",
+      "Dr. Smith",
+      "España",
+      "example.org/~user"
      ]
     }
    }

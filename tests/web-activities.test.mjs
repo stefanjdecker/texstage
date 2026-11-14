@@ -348,6 +348,19 @@ test("a number as a student types it, read as the deck's language writes numbers
   assert.equal(phone.numberShown(1000.25, "en"), "1000.25");
   assert.equal(phone.numberShown(2 ** 40, "de"), "1099511627776", "every digit, no grouping");
   assert.equal(phone.numberShown(1e-13, "en"), "0.0000000000001");
+  assert.equal(phone.numberShown(1e-16, "en"), "0.0000000000000001", "15 digits that matter, not 15 places");
+  assert.deepEqual(["fa-IR", "ar-EG", "bn-BD"].map((l) => phone.numberShown(3.5, l)), ["3.5", "3.5", "3.5"],
+    "Latin digits, which parseNumber reads, on a phone of any language");
+  const seen = Object.getOwnPropertyDescriptor(globalThis, "navigator");      // the phone's language: its browser's
+  Object.defineProperty(globalThis, "navigator", { value: { language: "fa-IR" }, configurable: true });
+  try {
+    assert.equal(phone.phoneLanguage("de"), "fa-IR");
+    Object.defineProperty(globalThis, "navigator", { value: undefined, configurable: true });
+    assert.equal(phone.phoneLanguage("de"), "de", "no browser says it: the deck's");
+  } finally {
+    if (seen) Object.defineProperty(globalThis, "navigator", seen);
+    else delete globalThis.navigator;
+  }
   for (const n of [1000.5, 1.234, 0.001, 1e15, -7.25]) {
     for (const language of ["en", "de"]) {             // (a reload puts the number back as the language writes it)
       assert.equal(phone.parseNumber(phone.numberShown(n, language), language), n, `${n} in ${language}`);
@@ -427,6 +440,37 @@ test("a choice of one on the phone: a tap sends it, the choice that counts is no
   screen.destroy();
 });
 
+test("a choice of one sent too soon: again after the deck's gap - and after a long gap not at all", async (t) => {
+  const sent = [];
+  let refuse = 0;
+  const client = { now: () => 0, send(msg) {
+    sent.push(msg.choice);
+    return refuse-- > 0 ? Promise.reject(Object.assign(new Error("too-fast"), { code: "too-fast" })) : Promise.resolve({});
+  } };
+  const { screen, root, step, mine } = choiceScreen("one", client);
+  t.after(() => screen.destroy());
+  step.gap = 1.5;                                                         // (gap=1.5 in the deck)
+  screen.update(mine([0]), step);
+  refuse = 1;
+  screen.choose(2);
+  await later(1150);
+  assert.deepEqual(sent, [[2]], "not again before the gap is over");
+  await later(600);
+  assert.deepEqual(sent, [[2], [2]], "... and again after it");
+  const long = choiceScreen("one", client);                              // gap=10: no change of mind - said at once
+  t.after(() => long.screen.destroy());
+  long.step.gap = 10;
+  long.screen.update(long.mine([0]), long.step);
+  const nice = long.root.querySelector("button[data-choice]");
+  nice.dataset.choice = "2";
+  refuse = 1;
+  long.screen.choose(2);
+  await later(20);
+  assert.deepEqual(sent.slice(2), [[2]]);
+  assert.equal(long.root.querySelector("[data-role=error]").textContent, texts("en").steps.refused["too-fast"]);
+  assert.equal(nice.attrs["aria-pressed"], "false", "what counts is marked again, not the tap");
+});
+
 test("a choice of several on the phone: marked until Send, nothing marked is refused, the same choice is not sent again", async (t) => {
   const sent = [];
   const client = { now: () => 0, send(msg) { sent.push(msg.choice); return Promise.resolve({}); } };
@@ -483,6 +527,10 @@ test("a number on the phone: read in the deck's language, refused there when it 
   english.text.value = "3.141";
   await english.submit();
   assert.deepEqual(sent, [1000, 3.141]);
+  const persian = new phone.StepScreen({ root: element(), client, state: {}, step, language: "de", kinds: () => null, phone: "fa-IR" });
+  t.after(() => persian.destroy());
+  persian.update({ activity: { mine: { activity: "rows", used: 1, entries: [{ id: "e1", input: { number: 3.5 }, state: "in" }] } } }, step);
+  assert.equal(persian.text.value, "3.5", "put back in Latin digits, which it reads again");
   screen.destroy();
 });
 
@@ -581,6 +629,14 @@ test("the box draws a choice: a bar per option - a choice of several counted per
   box.draw();
   assert.match(box.el.innerHTML, /class="tq-shown"/);
   assert.match(box.el.innerHTML, /<pre>SELECT name/);
+  const long = "SELECT name FROM people WHERE born BETWEEN 1900 AND 1950 ORDER BY name, born DESC LIMIT 10";   // (one line, > 80)
+  box.picture = { ...box.picture, solution: [{ text: long }] };
+  box.draw();
+  assert.match(box.el.innerHTML, /class="tq-shown"/);
+  assert.doesNotMatch(box.el.innerHTML, /tq-solline/);
+  box.picture = { ...box.picture, solution: [{ text: long.slice(0, 80) }] };              // 80: still a line
+  box.draw();
+  assert.match(box.el.innerHTML, /tq-solline/);
 });
 
 test("the panel: how many are right where the groups are judged; a reference without a group of its own", async (t) => {
@@ -602,7 +658,7 @@ test("the panel: how many are right where the groups are judged; a reference wit
   panel.close();
 });
 
-test("an answer a kind's normalize refused: the kind's word for it, the reason in the core's words", (t) => {
+test("an answer a kind's normalize refused: the kind's word for it, the reason in the core's words", async (t) => {
   const kinds = new Kinds({}, "en");
   kinds.texts.text = { "text:invalid": "Not taken" };
   const step = { activity: "word", step: "main", kind: "text", input: "text", phase: "open", limit: 5 };
@@ -613,4 +669,20 @@ test("an answer a kind's normalize refused: the kind's word for it, the reason i
   screen.update({ activity: { mine: { activity: "word", used: 1, entries: [{ id: "e1", input: { text: String.fromCharCode(0x200B) },
     state: "in", check: "checked", status: "invalid", message: { code: "text", args: {} } }] } } }, step);
   assert.match(root.querySelector("[data-role=mine]").innerHTML, /Not taken: Please type your text first\./);
+  const box = new stage.StepBox({ id: "word", item: { kind: "text" }, layer: element(), language: "en",      // the box and
+    host: { role: "projector", kinds, read: () => new Promise(() => {}) } });                              // the panel too
+  box.picture = { kind: "groups", phase: "open", students: 1, groups: [{ id: "x", status: "invalid", n: 1 }] };
+  box.draw();
+  assert.match(box.el.innerHTML, /Not taken/);
+  assert.doesNotMatch(box.el.innerHTML, /syntax error/);
+  const panel = stage.openStepPanel({ dock() {}, undock() {}, ask: async () => true, language: "en", kinds, now: () => 0,
+    onSlide: () => null, items: () => ({ word: { kind: "text" } }), send: () => Promise.resolve({}),
+    state: () => ({ stage: { activity: { current: "word", items: { word: { phase: "open", version: 1, epoch: 0 } } } } }),
+    read: () => Promise.resolve({ picture: { phase: "open", students: 1, entries: 1, groups: [{ id: "x", status: "invalid", n: 1,
+      messages: [{ code: "text", args: {} }] }] } }) });
+  t.after(() => panel.close());
+  await later(10);
+  const html = panel.el.querySelector("#actbody").innerHTML;
+  assert.match(html, /Not taken/);
+  assert.match(html, /Please type your text first\./);
 });

@@ -288,6 +288,28 @@ def test_an_entry_is_taken_in_the_step_as_it_is_after_a_tick():
     assert d.play.step("q").phase == "closed"
 
 
+def test_a_check_that_comes_back_lets_in_one_that_waited_for_room(monkeypatch):
+    """Play.checked asks for what an answer made room for (checks.due): after a reset the earlier epoch's
+    checks, still on their way, take the room, and the new epoch's form waits - and is asked for as they come
+    back, not only when an entry leaves."""
+    from texstage.activities import checks as checks_module
+    monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
+    d = Desk()
+    d.hold = True
+    d.move("open")
+    d.send("p1", "SELECT 1")
+    d.send("p2", "SELECT 2")
+    d.run(only=Normalize)
+    assert sum(isinstance(job, Run) for job in d.jobs) == 2              # two checks on their way
+    d.move("reset")
+    d.move("open")
+    cy = d.send("p3", "SELECT 3")
+    d.run(only=Normalize)
+    assert sum(isinstance(job, Run) for job in d.jobs) == 2 and d.play.checks.state(cy) == "unchecked"   # full
+    d.run(only=Run)                                                      # the answers come - and make room
+    assert d.play.checks.state(cy) == "checked" and not d.jobs
+
+
 def test_the_steps_own_part_is_the_same_for_every_phone():
     d = Desk()
     d.move("open", time_ms=60_000)

@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The lecture archive's tables as CSV (archive.py) - files a lecturer opens in a spreadsheet. A cell that
-a student wrote and that begins as a formula would (=, +, -, @, a tab, a carriage return: a nickname, an
-answer) is written with an apostrophe in front, so that the spreadsheet shows it and runs nothing (OWASP:
-CSV injection); a number - also a negative one - stays as it is. No module of the server's is imported
-here: the activity types' archives use it too."""
+a student wrote and that begins as a formula would (=, +, -, @, a tab, a line's end, their full-width
+forms: a nickname, an answer) is written with an apostrophe in front, so that the spreadsheet shows it and
+runs nothing (OWASP: CSV injection); a number - also a negative one - stays as it is. No module of the
+server's is imported here: the activity types' archives use it too."""
 from __future__ import annotations
 
 import csv

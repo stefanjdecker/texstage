@@ -27,6 +27,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(
 const OPEN = "open";
 const AGAIN_MS = 1000;                  // a choice of one refused as too fast: sent again after the step's gap, at least this
 const AGAIN_TRIES = 5;                  // ... so often at most
+const AGAIN_GAP_S = 5;                  // a longer gap: no tap is sent again by itself - too fast is said at once
 
 export function entryId() {
   // an entry's id, as the server takes it ([A-Za-z0-9_-]{8,40}): 128 random bits
@@ -87,9 +88,9 @@ export function parseNumber(text, language) {
 }
 
 export function numberShown(n, language) {
-  // a number in a language, every digit the kind keeps (15 significant ones) and no grouping: 3.5, 3,5,
-  // 1099511627776, 0.0000000000000001
-  return Number(n).toLocaleString(language || "en", { maximumSignificantDigits: 15, useGrouping: false });
+  // a number in a language, every digit the kind keeps (15 significant ones), no grouping and Latin digits
+  // (a Persian phone's own digits parseNumber does not read): 3.5, 3,5, 1099511627776, 0.0000000000000001
+  return Number(n).toLocaleString(language || "en", { maximumSignificantDigits: 15, useGrouping: false, numberingSystem: "latn" });
 }
 
 export function choiceHTML(places, options, redraw) {
@@ -265,7 +266,8 @@ export class StepScreen {
 
   async flush() {
     // a choice of one: the latest tap sent - after the one before is answered, again when it was too soon
-    // after it (the step's gap: a student changes their mind quickly), not at all when it counts already
+    // after it (the step's gap: a student changes their mind quickly), not at all when it counts already. A
+    // gap longer than AGAIN_GAP_S is no change of mind: "too fast" is said at once, and what counts is marked
     if (this.flushing) return;
     this.flushing = true;
     let tries = 0;
@@ -278,7 +280,7 @@ export class StepScreen {
           break;
         }
         const sent = await this.send({ choice: [n] }, true);
-        if (sent === "later" && tries++ < AGAIN_TRIES) {
+        if (sent === "later" && tries++ < AGAIN_TRIES && !((Number(this.step.gap) || 0) > AGAIN_GAP_S)) {
           await new Promise((resolve) => setTimeout(resolve, Math.max(AGAIN_MS, 1000 * (Number(this.step.gap) || 0))));
           continue;
         }

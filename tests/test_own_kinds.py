@@ -84,22 +84,37 @@ def test_what_a_kinds_normalize_gives_is_held_against_what_the_core_keeps():
 
 def test_a_decks_options_and_references_are_read_alike():
     """kinds.option_text and text_reference, options.unescaped (the build's rule too): an option as the build
-    passes it on and a reference as written read alike; a formula keeps its escapes; a short answer's
-    reference keeps a tilde, which students type; what plain() keeps of an answer."""
+    passes it on and a reference as written read alike - also a formula a line broke -; a formula keeps its
+    escapes; accents are their letters; a tie that joins text is a space, a tilde that joins nothing stays;
+    what plain() keeps of an answer."""
     from texstage.activities.kinds import option_text, plain, text_reference
     from texstage.activities.options import unescaped
     B = chr(92)
+    n_tilde = chr(0xF1)
     assert unescaped("R" + B + "&D, 50" + B + "% and $" + B + "{A" + B + "}$, " + B + "$5") == "R&D, 50% and $" + B + "{A" + B + "}$, $5"
+    assert unescaped("Espa" + B + "~na " + B + "^" + B + "^xsd:int " + B + "^foaf:knows") == (
+        "Espa" + B + "~na ^^xsd:int ^foaf:knows")                     # (\~ an accent, the kinds'; \^ a key's ^)
     for option, reference in (("$" + B + "sigma $", "$" + B + "sigma" + NL + "$"), ("R&D", "R" + B + "&D"),
-                              ("Espa~na", "Espa" + B + "~na"), ("New~York", "New~York"),
-                              ("$" + B + "{A, B" + B + "}$", "$" + B + "{A, B" + B + "}$"),
-                              (B + "textasciitilde /bin", B + "textasciitilde{}/bin")):
+                              ("Espa" + B + "~na", "Espa" + B + "~{n}a"), ("New~York", "New~York"),
+                              ("$" + B + "{A, B" + B + "}$", "$" + B + "{A," + NL + "B" + B + "}$"),     # (a line broke it)
+                              (B + "textasciitilde /bin", B + "textasciitilde{}/bin"), (B + "c {c}a", B + "c{c}a")):
         assert option_text(option) == option_text(reference, verbatim=True), (option, reference)
-    assert [option_text(o) for o in ("$" + B + "{A, B" + B + "}$", "~/bin", B + "textasciitilde /bin")] == [
-        "$" + B + "{A, B" + B + "}$", "/bin", "~/bin"]                       # (a tie is a space, as LaTeX sets it)
-    assert [text_reference(r) for r in ("~/bin", "~", "R" + B + "&D", "C:" + B + B + "Users")] == ["~/bin", "~", "R&D", "C:" + B + "Users"]
+    assert [option_text(o) for o in ("$" + B + "{A, B" + B + "}$", "~/bin", "New~York", "Dr.~Smith", "Espa" + B + "~na",
+                                     B + "'e", B + '"o', B + "~{}/bin", B + "textasciitilde user", B + "cite{x}",
+                                     "example.org/" + B + "~{}user", B + "textasciitildebin", B + "c ca")] == [
+        "$" + B + "{A, B" + B + "}$", "~/bin", "New York", "Dr. Smith", "Espa" + n_tilde + "a", chr(0xE9), chr(0xF6), "~/bin",
+        "~user", B + "cite{x}", "example.org/~user", B + "textasciitildebin", chr(0xE7) + "a"]   # (\~{}: a tilde, no tie;
+    #                                                                     \c ca: as \tl_to_str passes \c{c}a on)
+    assert [text_reference(r) for r in ("~/bin", "~", "R" + B + "&D", "C:" + B + B + "Users", "Dr.~Smith", "z.~B.",
+                                        "Espa" + B + "~na", "example.org/" + B + "~{}user", "~alice", "host:~/bin",
+                                        "$" + B + "{A," + NL + "B" + B + "}$", B + B + "^o")] == [
+        "~/bin", "~", "R&D", "C:" + B + "Users", "Dr. Smith", "z. B.", "Espa" + n_tilde + "a", "example.org/~user", "~alice",
+        "host:~/bin", "$" + B + "{A, B" + B + "}$", B + "^o"]   # (a tilde that joins nothing: as written; a formula a line
+    #                                                             broke keeps its escapes; \^ is never an accent)
     zwj, new = chr(0x200D), chr(0x3FFFD)                                 # (a joiner; a code point no table names yet)
     assert [plain(t) for t in ("a" + zwj + "b", "x" + chr(0x200B) + "y", new, "R" + chr(0xAD) + "x")] == ["a" + zwj + "b", "xy", new, "Rx"]
+    assert [plain(t) for t in (zwj, "Berlin" + zwj, zwj + "x", "x " + zwj + " y", chr(0xFDD0) + "x", chr(0x1FFFE) + "y")] == [
+        "", "Berlin", "x", "x y", "x", "y"]                              # (a joiner at an end; noncharacters)
 
 
 def test_the_archive_writes_a_choice_by_its_options_and_a_number_with_every_digit():

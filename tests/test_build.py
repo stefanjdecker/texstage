@@ -832,6 +832,12 @@ OWN_DECK = r"""\documentclass[aspectratio=169]{beamer}
   \reference{R\&D}
 \end{activity}
 \end{frame}
+\begin{frame}[t,fragile]{Accents}
+\begin{activity}[id=accents, kind=choice, options={Espa\~na, \'Ecole, x\^2, Dr.~Smith}]
+  \prompt{Which?}
+  \reference{Espa\~{n}a}
+\end{activity}
+\end{frame}
 \end{document}
 """
 
@@ -854,10 +860,13 @@ def test_a_deck_of_texstages_own_kinds(tmp_path):
                      "rows": {"kind": "number", "limit": 5, "tolerance": 0.5}, "word": {"kind": "text", "limit": 5},
                      "op": {"kind": "choice", "limit": 10, "options": [sigma, "$" + chr(92) + "pi$", "R&D", "New York",
                                                                        "$" + chr(92) + "{A, B" + chr(92) + "}$"],   # (a set)
-                            "select": "one"}}
+                            "select": "one"},
+                     "accents": {"kind": "choice", "limit": 10, "select": "one",     # (\^ a key's ^, as for Turtle's ^^)
+                                 "options": ["Espa" + chr(0xF1) + "a", chr(0xC9) + "cole", "x^2", "Dr. Smith"]}}
+    spain = "Espa" + chr(0xF1) + "a"
     assert {aid: (k["reference"], k["referenceKeys"]) for aid, k in keys.items()} == {
         "coast": (["Nice" + chr(10) + "Marseille"], ["Nice" + chr(10) + "Marseille"]), "rows": (["12"], ["12"]),
-        "word": (["Berlin"], ["berlin"]), "op": ([sigma, "R&D"], [sigma, "R&D"])}
+        "word": (["Berlin"], ["berlin"]), "op": ([sigma, "R&D"], [sigma, "R&D"]), "accents": ([spain], [spain])}
     assert r.warnings == [] and sorted(deck["kinds"]) == ["choice", "number", "text"]
     assert {k["package"] for k in deck["kinds"].values()} == {"texstage"}
     with pytest.raises(BuildError, match="reference=answer.txt - write .reference"):

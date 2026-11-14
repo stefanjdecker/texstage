@@ -50,9 +50,10 @@ export function shownText(input, item, language) {
   return input.fields ? input.fields.join(" · ") : String(input.text ?? "").replace(/^(?:[ \t]*\r?\n)+/, "");
 }
 
-export function groupLabel(g, words, item, language) {
-  // a group's short name: a tally's choice (its label), its result ("11 rows", "yes"), else what went wrong
-  if (g.status !== "ok") return words.status2[g.status] || g.status;
+export function groupLabel(g, words, item, language, status = () => null) {
+  // a group's short name: a tally's choice (its label), its result ("11 rows", "yes"), else what went wrong -
+  // in the kind's own word where it has one (status: kinds.js, "<kind>:invalid" - an answer is not taken)
+  if (g.status !== "ok") return status(g.status) || words.status2[g.status] || g.status;
   if (g.label) return tallyText(g.label);
   const d = g.detail || {};
   if (d.kind === "ask") return d.boolean ? words.yes : words.no;
@@ -255,8 +256,9 @@ export class StepBox extends ActivityBox {
     const kind = this.item?.kind;
     const tally = p.kind === "tally";
     const redraw = () => this.draw();
+    const status = (s) => this.kinds?.status(kind, s) ?? null;
     const label = (g) => tally && g.status === "ok" ? textHTML(groupLabel(g, w, this.item, this.language), redraw)
-      : esc(groupLabel(g, w, this.item, this.language));
+      : esc(groupLabel(g, w, this.item, this.language, status));
     const mark = (g) => (g.reference ? " ✓" : "") + (g.verdict && p.revealed ? ` · ${w.verdict[g.verdict] || g.verdict}` : "");
     const listed = p.options ? p.options.map((o) => ({ ...o, status: "ok" })) : p.groups;
     const most = Math.max(1, ...listed.map((g) => g.n));
@@ -541,10 +543,14 @@ export function openStepPanel(env) {
       })());
     if (p.right !== undefined) refs.push(A.right(p.right));
     const shown = p.shown?.id;
-    const say = (m) => env.kinds?.say(kind, m) ?? m.code;
+    const say = (m) => {                               // the kind's words, else the core's (a code of the core's)
+      const words = env.kinds?.say(kind, m);
+      return words && words !== m.code ? words : texts(env.language).steps.refused[m.code] ?? m.code;
+    };
+    const status = (s) => env.kinds?.status(kind, s) ?? null;
     const redraw = () => { panel.seen = ""; render(); };          // (KaTeX came: the options' formulas)
     const label = (g) => p.kind === "tally" && g.status === "ok" ? textHTML(groupLabel(g, W, item, language), redraw)
-      : esc(groupLabel(g, W, item, language));
+      : esc(groupLabel(g, W, item, language, status));
     const group = (g) => `<div class="actcluster${g.reference ? " ref" : ""}${g.id === shown ? " shown" : ""}${g.hidden ? " hidden" : ""}"
         data-group="${esc(g.id)}" data-entry="${esc(g.entry || "")}">
       <div class="top"><b>${label(g)}</b>${g.reference ? " ✓" : ""}${g.verdict ? ` · ${esc(W.verdict[g.verdict] || g.verdict)}` : ""}

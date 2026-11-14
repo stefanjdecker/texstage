@@ -41,37 +41,67 @@ NUMBER_MAX = 1e15                           # a number's size, at most (the core
 DIGITS = 15                                 # a number's significant digits: 0.1 + 0.2 is 0.3; a whole one is exact
 WHOLE = re.compile(r"[+-]?[0-9]+")          # a whole number as a deck writes it: 42, -7
 CONTROL_WORD = re.compile(r"(\\[A-Za-z]+) (?=[^A-Za-z]|$)")     # the space \tl_to_str puts after a control word
-NAMED = re.compile(r"\\text(asciitilde|asciicircum|backslash)(?:\{\}|(?![A-Za-z]))")      # characters LaTeX names
-CHARACTER = {"asciitilde": "~", "asciicircum": "^", "backslash": "\\"}
-JOINERS = {chr(0x200C), chr(0x200D)}          # of an emoji's sequence, a Persian word: kept, though they are format
+NAMED = re.compile(r"\\text(asciitilde|asciicircum|backslash)(?:\{\}| |(?![A-Za-z]))")    # characters LaTeX
+CHARACTER = {"asciitilde": "~", "asciicircum": "^", "backslash": "\\"}       # names - and the space TeX eats
+TIE = re.compile(r"(?<=\S)(?<!\\)~(?=\w)")     # LaTeX's tie that joins text - New~York, Dr.~Smith; ~/bin stays
+ACCENT = re.compile(r"""\\([~'`"=.]|[cvuHrk](?=[\s{]))\s*(?:\{(\w?)\}|(\w))""")     # \~n, \'{e}, \c{c} - and \~{}
+MARKS = {"~": chr(0x303), "'": chr(0x301), "`": chr(0x300), '"': chr(0x308), "=": chr(0x304), ".": chr(0x307),
+         "c": chr(0x327), "v": chr(0x30C), "u": chr(0x306), "H": chr(0x30B), "r": chr(0x30A), "k": chr(0x328)}
+#                                             an accent's combining mark: \~n is n and U+0303, which NFC makes ñ;
+#                                             \^ is no accent but a key's ^ (options.unescaped)
+JOINERS = chr(0x200C) + chr(0x200D)           # of an emoji's sequence, a Persian word: kept between what is seen
+LOOSE = re.compile(f"(?<![^\\s{JOINERS}])[{JOINERS}]+|[{JOINERS}]+(?![^\\s{JOINERS}])")     # ... and not at an end
+
+
+def _accented(m: re.Match) -> str:
+    letter = m.group(2) or m.group(3)
+    if not letter:                            # \~{} - the accent alone, as LaTeX sets it
+        return m.group(1) if m.group(1) in "~'`\"" else ""
+    return unicodedata.normalize("NFC", letter + MARKS[m.group(1)])
+
+
+def _latex(text: str) -> str:
+    """What LaTeX makes of a deck's text, as far as a phone shows it: a tie that joins text a space, accents
+    their letters (Espa\\~na is España), \\textasciitilde and the like their character - in this order:
+    the tilde \\~{} sets is no tie (example.org/\\~{}user)."""
+    text = ACCENT.sub(_accented, TIE.sub(" ", text))
+    return NAMED.sub(lambda m: CHARACTER[m.group(1)], text)
 
 
 def option_text(text: str, verbatim: bool = False) -> str:
     """A choice's option or reference as the phones show it and the kind compares it - the same however LaTeX
     passed it on. An option comes through its key's value, unescaped once by the build ($\\sigma $ - a space
-    after a control word -, \\& already &); a reference verbatim ($\\sigma$, R\\&D), unescaped here by the
-    same rule (options.unescaped: a formula keeps its escapes, $\\{A, B\\}$). Then: spaces collapsed - line
-    breaks too, so that no option has one (SEVERAL) -, the space after a control word gone where no letter
-    follows, a tie (~) a space as LaTeX sets it, \\textasciitilde and the like their character."""
-    text = CONTROL_WORD.sub(r"\1", " ".join((unescaped(text) if verbatim else text).split()))
-    text = NAMED.sub(lambda m: CHARACTER[m.group(1)], text.replace("~", " "))
-    return " ".join(text.split())
+    after a control word -, \\& already &); a reference verbatim ($\\sigma$, R\\&D), its spaces collapsed and
+    then unescaped by the same rule (options.unescaped: a formula keeps its escapes, $\\{A, B\\}$, also where
+    a line broke it). Then: the space after a control word gone where no letter follows, and LaTeX's own
+    (_latex); spaces collapsed - line breaks too, so that no option has one (SEVERAL)."""
+    text = " ".join(text.split())
+    text = CONTROL_WORD.sub(r"\1", unescaped(text) if verbatim else text)
+    return " ".join(_latex(text).split())
+
+
+def _seen(c: str) -> bool:
+    """A character a phone shows: no control or format character, no surrogate, no noncharacter."""
+    o = ord(c)
+    return unicodedata.category(c) not in ("Cc", "Cf", "Cs") and not (0xFDD0 <= o <= 0xFDEF or o & 0xFFFE == 0xFFFE)
 
 
 def plain(text: str) -> str:
-    """A short answer as the kind keeps it: its spaces collapsed, line breaks too, and no control or format
-    character left - a zero-width space, a soft hyphen, a reversal of the writing's direction -, which would
-    make two answers that look alike two groups. The joiners stay, and so do characters newer than Python's
-    tables (an emoji of this year)."""
+    """A short answer as the kind keeps it: its spaces collapsed, line breaks too, and nothing that is not seen
+    - a zero-width space, a soft hyphen, a reversal of the writing's direction, a noncharacter -, which would
+    make two answers that look alike two groups. A joiner stays between two characters that are seen (an
+    emoji's sequence, a Persian word), and so do characters newer than Python's tables (an emoji of this
+    year)."""
     text = " ".join(text.split())
-    kept = (c for c in text if c in JOINERS or unicodedata.category(c) not in ("Cc", "Cf", "Cs"))
-    return " ".join("".join(kept).split())
+    text = "".join(c for c in text if c in JOINERS or _seen(c))
+    return " ".join(LOOSE.sub("", text).split())
 
 
 def text_reference(text: str) -> str:
     """A short answer's reference as a student types it: \\& and the like as their characters (options.unescaped),
-    a tilde as written - ~/bin is a path, not LaTeX's tie -, and what plain() keeps."""
-    return plain(unescaped(text))
+    LaTeX's own (_latex: Dr.~Smith is "Dr. Smith", a tilde that joins nothing stays - ~/bin is a path), and what
+    plain() keeps."""
+    return plain(_latex(unescaped(" ".join(text.split()))))
 
 
 def _place(entry: Entry) -> tuple[int, ...]:

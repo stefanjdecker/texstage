@@ -29,9 +29,10 @@ and the same text sent again - or the next start of the server - has it checked 
 A step takes FORMS_MAX distinct forms at a time - those whose check an entry of its epoch has (in or
 hidden), that are being checked, or failed and are still waited for; what normalize refused is none.
 Beyond, a new form waits unchecked, and counts() says the step is full (the plan of F2, 4.3); it is asked
-for as soon as there is room - an entry replaced or taken back lets its form go. A reset keeps the checks
-- the same text has the same result -, and the new epoch's entries count its forms anew: a number step
-whose students all change their estimate fills no more than one whose students do not.
+for as soon as there is room - an entry replaced or taken back lets its form go, a check that comes back
+makes room (due()). A reset keeps the checks - the same text has the same result -, and the new epoch's
+entries count its forms anew: a number step whose students all change their estimate fills no more than
+one whose students do not.
 
 After a restart (load, again): the checks and details are the tables'; an entry that has none goes to
 normalize again - a normalized form is stored with its check, not before - and is checked as a new one

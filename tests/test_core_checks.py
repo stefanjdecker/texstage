@@ -297,6 +297,41 @@ def test_a_form_that_waited_is_asked_for_once_an_answer_makes_room(monkeypatch):
     assert cs.due() == [] and not cs.steps[(A, S)].held
 
 
+def test_room_in_one_epoch_lets_in_its_own_form_though_another_epochs_waits(monkeypatch):
+    """Forms that wait for room in two epochs: an answer makes room in the later one alone, and its form is
+    asked for - the earlier epoch's, still full, keeps waiting, and does not stop it."""
+    monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
+    cs = Checks("g1")
+    runs = [asked(cs, entry(i, f"select {i}")) for i in (1, 2)]          # epoch 0: two checks on their way
+    waits = []
+    for n, epoch in ((3, 0), (4, 1)):                                    # a form of each epoch waits for room
+        e = entry(n, f"select {n}")
+        e.epoch = epoch
+        (job,), _ = cs.entered(e)
+        assert cs.normalized(A, S, job.raw, clean(e.input["text"])) == ([], [])
+        waits.append(e)
+    cs.checked(A, S, runs[0].norm, OK)                                   # epoch 0 stays full; epoch 1 has room
+    assert cs.due() == [Run(A, S, core.norm(clean("select 4")), {}, "p4")]
+    assert cs.state(waits[0]) == "unchecked" and cs.state(waits[1]) == "waiting"
+
+
+def test_one_form_that_two_epochs_wait_for_goes_by_the_latest_ones_room(monkeypatch):
+    """One answer before a reset and the same after it, while both epochs are full: room in the later epoch
+    lets their form in - the earlier one, still full, does not keep the new epoch's answer waiting."""
+    monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
+    cs = Checks("g1")
+    runs = [asked(cs, entry(i, f"select {i}")) for i in (1, 2)]          # epoch 0: two checks on their way
+    before = entry(3, "select 3")
+    (job,), _ = cs.entered(before)
+    assert cs.normalized(A, S, job.raw, clean("select 3")) == ([], [])   # epoch 0 is full: it waits
+    after = entry(4, "select 3")                                         # the same text after a reset
+    after.epoch = 1
+    assert cs.entered(after) == ([], None)                               # the checks on their way fill epoch 1 too
+    cs.checked(A, S, runs[0].norm, OK)                                   # epoch 0 stays full; epoch 1 has room
+    assert cs.due() == [Run(A, S, core.norm(clean("select 3")), {}, "p3")]
+    assert cs.state(before) == cs.state(after) == "waiting"
+
+
 def test_a_step_takes_so_many_forms_and_the_panel_is_told(monkeypatch):
     monkeypatch.setattr(checks_module, "FORMS_MAX", 2)
     cs = Checks("g1")
