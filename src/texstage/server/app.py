@@ -20,8 +20,14 @@
         PATCH|DELETE /api/folders/<id>       deleted); the lecturer's folders
     GET /api/skipped                         for hosts: the decks the server found and does not play,
                                              each with why (bundles.py Skipped; as GET /api/decks found them)
+    GET /api/decks/<deck>/lectures,          for hosts: the deck's games, open and ended, with what each left
+        GET /api/decks/<deck>/builds         and its archive's files; every build of it on disk (the deck page)
+    GET /api/bundles/<id>.zip,               a build as one file (presenter key); an upload of it deleted
+        DELETE /api/bundles/<id>
     PUT /api/archive/<session>/annotated.pdf, GET /api/archive/<session>.zip
         GET /api/archive/<session>/files     texstage: the lecture archive, <data>/archive/<deck>/<date>-<pin>/
+        GET /api/archive/<session>/ink       - an ended game's too -; its ink and whiteboard pages (its PDF)
+        DELETE /api/archive/<session>        an ended game deleted: its rows and its folder, recordings too
     POST /api/archive/<session>/recording {ext} -> {take}, PUT /api/recording/<take>/<part>,
         POST /api/recording/<take>/done, GET /api/recording/<take>,
         POST /api/recording/<take>/download -> {url}: /download/<ticket>/<name> (archive.py)
@@ -105,6 +111,7 @@ import zlib
 from collections import OrderedDict, defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 
 import segno
 from starlette.applications import Starlette
@@ -118,6 +125,7 @@ from texstage import __version__
 from texstage.build.bundle import LANGUAGES
 from texstage.builds import build_folders
 from texstage.keys import load_presenter_key  # noqa: F401  (the server's key: texstage serve)
+from texstage.publish import pack
 from texstage.server import archive, sheets
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
@@ -1068,26 +1076,38 @@ class Server:
             if conn.session in self.engine.sessions:
                 self.dirty.add(conn.session)
 
+    @staticmethod
+    def results_name(s) -> str:
+        """The name of a game's results file: <deck>-<date>-<pin>.csv."""
+        return f"{s.deck}-{time.strftime('%Y-%m-%d', time.localtime(s.created / 1000))}-{s.pin}.csv"
+
     def results_csv(self, s) -> tuple[str, str]:
-        """A game's results as CSV - (file name, text): a row per player (game.py results_table)."""
-        day = time.strftime("%Y-%m-%d", time.localtime(s.created / 1000))
-        return f"{s.deck}-{day}-{s.pin}.csv", "﻿" + sheets.csv_text(self.engine.results_table(s.id))   # BOM: Excel reads UTF-8
+        """A game's results as CSV - (file name, text): a row per player (game.py results_table). An
+        ended game, as the store has it (Store.load_session), is counted from that."""
+        game = None if self.engine.sessions.get(s.id) is s else s
+        return self.results_name(s), "﻿" + sheets.csv_text(self.engine.results_table(s.id, game=game))   # BOM: Excel reads UTF-8
 
     def write_archive(self, s) -> Path:
         """The game's folder in the lecture archive with what the game has now: the results,
         and (M6) its polls, the audience's questions and the sketches as SVG. Written as they are - a CSV's
-        lines end as CSV's do (\\r\\n), not again translated to Windows' ends (newline="")."""
+        lines end as CSV's do (\\r\\n), not again translated to Windows' ends (newline=""). An ended game
+        (Store.load_session: an earlier lecture) gets them from the store; the content types' files only an
+        open game has - they were written when it ended (ended)."""
         folder = archive.folder(self.config.data_dir, s)
+        game = None if self.engine.sessions.get(s.id) is s else s
         name, text = self.results_csv(s)
         (folder / name).write_text(text, encoding="utf-8", newline="")
-        tables = {"polls.csv": self.engine.polls_table(s.id), "questions.csv": self.engine.questions_table(s.id)}
+        tables = {"polls.csv": self.engine.polls_table(s.id, game=game),
+                  "questions.csv": self.engine.questions_table(s.id, game=game)}
         for row in tables["questions.csv"][1:]:
             row[3] = time.strftime("%H:%M:%S", time.localtime(row[3] / 1000))
         for file, rows in tables.items():
             if len(rows) > 1:
                 (folder / file).write_text("﻿" + sheets.csv_text(rows), encoding="utf-8", newline="")
-        for quiz, n, strokes in self.engine.sketch_answers(s.id):
+        for quiz, n, strokes in self.engine.sketch_answers(s.id, game=game):
             (folder / f"sketch-{quiz}-{n}.svg").write_text(archive.sketch_svg(strokes), encoding="utf-8", newline="")
+        if game is not None:
+            return folder
         for file, text in self.engine.type_archive(s.id, now_ms()).items():     # the content types' (types.py)
             if archive.FILE.match(file):
                 (folder / file).write_text(text, encoding="utf-8", newline="")
@@ -1587,28 +1607,54 @@ def create_app(config: ServerConfig) -> Starlette:
         return FileResponse(path, media_type="application/pdf",
                             headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
-    def own_game(request: Request):
-        """(the game named in the path, None) - or (None, the refusal): not the lecturer's."""
+    def own_game(request: Request, ended: bool = False):
+        """(the game named in the path, None) - or (None, the refusal): not the lecturer's. `ended`: an
+        earlier lecture's too - the game as the store has it, with its players, rounds, answers and the
+        audience's questions (Store.load_session; the deck page's Lectures)."""
         lect = lecturer(request)
         if lect is None:
             return None, PlainTextResponse("presenter key required", status_code=403)
-        s = server.engine.sessions.get(request.path_params["session"])
-        if s is None or s.ended is not None or s.owner != lect:
-            return None, PlainTextResponse("no such game", status_code=404)      # or another lecturer's
-        return s, None
+        sid = request.path_params["session"]
+        s = server.engine.sessions.get(sid)
+        if s is not None and s.ended is None and s.owner == lect:
+            return s, None
+        if ended and s is None:
+            s = server.store.load_session(sid)
+            if s is not None and s.ended is not None and s.owner == lect:
+                return s, None
+        return None, PlainTextResponse("no such game", status_code=404)      # or another lecturer's
+
+    def archived(s) -> Path:
+        """The game's folder of the lecture archive, written with what it has now (Server.write_archive) -
+        an earlier lecture whose build is not on this server any more: as it was kept."""
+        try:
+            return server.write_archive(s)
+        except GameError as err:
+            log.info("the archive of game %s (%s) as it was kept: %s", s.pin, s.deck, err)
+            return archive.folder(config.data_dir, s)
 
     async def results(request: Request):
-        s, refused = own_game(request)
+        """GET /api/results/<game>.csv: the game's results - an earlier lecture's too, counted from the
+        store, or as its archive kept them where its build is not on this server any more."""
+        s, refused = own_game(request, ended=True)
         if refused:
             return refused
-        name, text = server.results_csv(s)
+        try:
+            name, text = server.results_csv(s)
+        except GameError:
+            name = server.results_name(s)
+            kept = archive.folder(config.data_dir, s, make=False) / name
+            if not kept.is_file():
+                return refuse("no-build", "the build of this lecture is not on this server any more", 404)
+            text = kept.read_text(encoding="utf-8")
         return Response(text, media_type="text/csv; charset=utf-8",
                         headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     async def archive_pdf(request: Request):
         """PUT /api/archive/<game>/annotated.pdf: the annotated PDF the presenter window made
-        (texstage, M4) into the lecture archive, with the game's results as they are now."""
-        s, refused = own_game(request)
+        (texstage, M4) into the lecture archive, with the game's results as they are now - an earlier
+        lecture's too (the deck page's Lectures)."""
+        s, refused = own_game(request, ended=True)
         if refused:
             return refused
         data = bytearray()
@@ -1618,7 +1664,7 @@ def create_app(config: ServerConfig) -> Starlette:
                 return refuse("too-large", "the PDF is too large", 413)
         if not data.startswith(b"%PDF-"):
             return refuse("not-pdf", "not a PDF", 400)
-        folder = server.write_archive(s)
+        folder = archived(s)
         tmp = folder / "annotated.pdf.tmp"
         tmp.write_bytes(bytes(data))
         tmp.replace(folder / "annotated.pdf")
@@ -1627,12 +1673,12 @@ def create_app(config: ServerConfig) -> Starlette:
 
     async def archive_zip(request: Request):
         """GET /api/archive/<game>.zip: the game's folder in the lecture archive - the annotated
-        PDF, the results, polls, questions and sketches (made anew) - as one file. Recordings
-        are downloaded on their own."""
-        s, refused = own_game(request)
+        PDF, the results, polls, questions and sketches (made anew) - as one file; an earlier lecture's
+        too. Recordings are downloaded on their own."""
+        s, refused = own_game(request, ended=True)
         if refused:
             return refused
-        folder = server.write_archive(s)
+        folder = archived(s)
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as z:
             for f in archive.files(folder):
@@ -1643,12 +1689,170 @@ def create_app(config: ServerConfig) -> Starlette:
 
     async def archive_files(request: Request):
         """GET /api/archive/<game>/files: what the game's folder holds, recordings with their take."""
-        s, refused = own_game(request)
+        s, refused = own_game(request, ended=True)
         if refused:
             return refused
         folder = archive.folder(config.data_dir, s, make=False)
         return JSONResponse([f | ({"remuxing": True} if f.get("take") in server.recordings.remuxing else {})
                              for f in archive.files(folder)])
+
+    async def archive_ink(request: Request):
+        """GET /api/archive/<game>/ink: the game's ink by frame, in the order drawn, its whiteboard pages
+        and its build - an earlier lecture's annotated PDF, which the presenter window makes as for the
+        open game (export.js), from the build's stage PDF (GET /api/deck/<bundle>/pdf)."""
+        s, refused = own_game(request, ended=True)
+        if refused:
+            return refused
+        if server.engine.sessions.get(s.id) is s:
+            frames = server.engine.ink_all(s.id)["frames"]
+        else:
+            frames = {}
+            for st in server.store.load_strokes([s.id]):     # (not the erased ones, in the order drawn)
+                frames.setdefault(st.frame, []).append(st.view())
+        return JSONResponse({"bundle": s.bundle, "frames": frames, "boards": s.stage.get("boards") or []})
+
+    async def archive_delete(request: Request):
+        """DELETE /api/archive/<game>: an earlier lecture deleted - every row the store has of it (its
+        players and their answers, its ink, the audience's questions, the types' rows) and its folder of
+        the archive, recordings too. Not a game that is still open (409: it ends with New game, a new
+        presentation, the next lecture), nor one with a recording still being made or finished (409)."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        sid = request.path_params["session"]
+        s = server.engine.sessions.get(sid)
+        if s is not None and s.owner == lect:
+            return refuse("game-open", "this game is still open - it can be deleted once it has ended", 409)
+        s = server.store.ended_session(sid)
+        if s is None or s.owner != lect:
+            return refuse("no-game", "no such game", 404)
+        folder = archive.folder(config.data_dir, s, make=False)
+        takes = [f["take"] for f in archive.files(folder) if "take" in f]
+        busy = [t for t in takes if t in server.recordings.remuxing
+                or (t in server.recordings.takes and server.recordings.takes[t].finished is None)]
+        if busy:
+            return refuse("recording-running", "a recording of this lecture is still being made", 409)
+        server.store.delete_session(sid)
+        for t in takes:
+            server.recordings.takes.pop(t, None)
+        if folder.is_dir():
+            await asyncio.to_thread(shutil.rmtree, folder, True)
+        with contextlib.suppress(OSError):
+            folder.parent.rmdir()                        # the deck's folder of the archive, now empty
+        log.info("lecture %s of %s deleted by %s", s.pin, s.deck, lect)
+        return JSONResponse({"deleted": sid})
+
+    async def lectures(request: Request):
+        """GET /api/decks/<deck>/lectures: the lecturer's games of the deck, the newest first - the open
+        one (running, or left open since an earlier lecture) and the ended ones (Store.lectures) -, each
+        with what it left (players, questions asked, ink, whiteboard pages, polls, the audience's
+        questions), the files of its folder in the archive, when its build was built, and whether that
+        build is here with its stage PDF (its annotated PDF can be made). The deck page's Lectures."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        deck, now = request.path_params["deck"], now_ms()
+        out = []
+        for s in server.engine.sessions.values():
+            if s.deck == deck and s.owner == lect and s.ended is None:
+                frames, boards = server.engine.marks(s)
+                out.append({"game": s.id, "pin": s.pin, "bundle": s.bundle, "created": s.created,
+                            "last_active": s.last_active, "ended": None, "finished": s.finished,
+                            "running": now - s.last_active < server.engine.settings.stale_ms,
+                            "players": len(s.active_players()), "asked": len({r.quiz for r in s.rounds.values()}),
+                            "frames": frames, "boards": boards, "polls": len(s.polls),
+                            "questions": sum(1 for q in s.questions.values() if q.state != "deleted")})
+        out += server.store.lectures(deck, lect)
+        for e in out:
+            b = server.bundles.bundles.get(e["bundle"])
+            e["built"] = b.built if b is not None else None
+            e["pdf"] = b is not None and b.open_to(lect) and holds(b) and b.stage_pdf() is not None
+            place = archive.folder(config.data_dir, SimpleNamespace(deck=deck, created=e["created"], pin=e["pin"]),
+                                   make=False)
+            e["files"] = [f | ({"remuxing": True} if f.get("take") in server.recordings.remuxing else {})
+                          for f in archive.files(place)]
+        out.sort(key=lambda e: -e["created"])
+        return JSONResponse(out)
+
+    async def builds(request: Request):
+        """GET /api/decks/<deck>/builds: every build of the deck that the server has on disk, the newest
+        first - when it was built, from where (a build folder on this computer, an upload, a copy kept for
+        a game), its quizzes and slides, whether it has the stage PDF, the game that plays it and how many
+        earlier lectures played it; as the last scan found them (the deck page's GET /api/decks). The deck
+        page's Builds: present one (an older one too: a rollback), download it, delete an upload."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        deck, now = request.path_params["deck"], now_ms()
+        games = {s.bundle: s for s in server.engine.sessions.values()
+                 if s.deck == deck and s.owner == lect and s.ended is None}
+        played = server.store.played(deck, lect)
+        found = sorted((b for b in server.bundles.bundles.values() if b.deck == deck and b.open_to(lect) and holds(b)),
+                       key=lambda b: -b.built)
+        data, served = config.data_dir.resolve(), server.served.resolve()
+        out = []
+        for i, b in enumerate(found):
+            path = b.path.resolve()
+            source = "uploaded" if b.owners is not None else "copy" if path.is_relative_to(served) else "folder"
+            folder = None if source == "uploaded" else \
+                path.relative_to(data).as_posix() if path.is_relative_to(data) else str(path)
+            s = games.get(b.id)
+            out.append({"bundle": b.id, "name": b.name, "built": b.built, "quizzes": len(b.quizzes),
+                        "slides": len(b.slides), "stage": b.stage_pdf() is not None, "complete": b.complete(),
+                        "newest": i == 0, "source": source, "folder": folder,
+                        "uploaded": bool(DECK_ID.match(deck)) and (server.published / lect / deck / b.id / "deck.json").is_file(),
+                        "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id,
+                                 "running": now - s.last_active < server.engine.settings.stale_ms} if s else None,
+                        "lectures": played.get(b.id, 0)})
+        return JSONResponse(out)
+
+    async def bundle_zip(request: Request):
+        """GET /api/bundles/<id>.zip: a build as one file, as texstage publish sends it (publish.py pack) -
+        to keep, or to take to another server (Upload a deck there). It holds the answers: the presenter
+        key's, not a paired device's."""
+        lect = lecturer(request, devices=False)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        b = server.bundles.bundles.get(request.path_params["bundle"])
+        if b is None or not b.open_to(lect) or not holds(b):
+            return refuse("unknown-bundle", "no such bundle", 404)
+        data = await asyncio.to_thread(pack, b)
+        when = time.strftime("%Y-%m-%d-%H%M", time.localtime(b.built / 1000))
+        return Response(data, media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{b.deck}-{when}.bundle.zip"'})
+
+    async def bundle_entry(request: Request):
+        """PUT /api/bundles/<id>: a bundle published (publish). DELETE: this lecturer's upload of that build
+        deleted - bundles/<lecturer>/<deck>/<id>/ -, not while a game of it is active (409; a game left
+        from an earlier lecture ends first, as deleting the deck does), and never a build folder on this
+        computer, the lecturer's own files (400). The deck's newest build left is then the one listed."""
+        if request.method == "PUT":
+            return await publish(request)
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        bid = request.path_params["bundle"]
+        b = server.bundles.bundles.get(bid) if re.fullmatch(r"[0-9a-f]{16}", bid) else None
+        if b is None or not b.open_to(lect):
+            return refuse("unknown-bundle", "no such bundle", 404)
+        target = server.published / lect / b.deck / bid
+        if not DECK_ID.match(b.deck) or not (target / "deck.json").is_file():
+            return refuse("not-uploaded", "only a build uploaded to this server can be deleted here - a build "
+                                          "folder on this computer stays", 400)
+        async with server.publishing:
+            now = now_ms()
+            games = [s for s in server.engine.sessions.values()
+                     if s.owner == lect and s.ended is None and s.bundle == bid]
+            if any(now - s.last_active < server.engine.settings.stale_ms for s in games):
+                return refuse("build-running", "a game of this build is running - delete it after the lecture", 409)
+            for s in games:
+                server.engine.end(s.id, now)
+            server.bundles.drop(target)
+            await asyncio.to_thread(shutil.rmtree, target, True)
+            with contextlib.suppress(OSError):
+                target.parent.rmdir()                    # the deck's folder, now empty
+        log.info("build %s of %s deleted by %s", bid, b.deck, lect)
+        return JSONResponse({"deleted": bid})
 
     # ------------------------------------------------------------ recordings (texstage, M5)
     async def recording_start(request: Request):
@@ -1791,6 +1995,8 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/decks", decks),
         Route("/api/decks/{deck}", deck_entry, methods=["PATCH", "DELETE"]),
         Route("/api/skipped", skipped),
+        Route("/api/decks/{deck}/lectures", lectures),
+        Route("/api/decks/{deck}/builds", builds),
         Route("/api/folders", folders, methods=["GET", "POST"]),
         Route("/api/folders/{folder}", folder, methods=["PATCH", "DELETE"]),
         Route("/api/deck/{bundle}", deck_json),
@@ -1802,13 +2008,16 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/archive/{session}.zip", archive_zip),
         Route("/api/archive/{session}/files", archive_files),
         Route("/api/archive/{session}/recording", recording_start, methods=["POST"]),
+        Route("/api/archive/{session}/ink", archive_ink),
+        Route("/api/archive/{session}", archive_delete, methods=["DELETE"]),
         Route("/api/recording/{take}", recording_status),
         Route("/api/recording/{take}/done", recording_done, methods=["POST"]),
         Route("/api/recording/{take}/download", recording_download, methods=["POST"]),
         Route("/api/recording/{take}/{part:int}", recording_part, methods=["PUT"]),
         Route("/download/{ticket}/{name}", download_file),
         Route("/api/client-log", client_log, methods=["POST"]),
-        Route("/api/bundles/{bundle}", publish, methods=["PUT"]),
+        Route("/api/bundles/{bundle}.zip", bundle_zip),
+        Route("/api/bundles/{bundle}", bundle_entry, methods=["PUT", "DELETE"]),
         Route("/api/bundles", upload, methods=["POST"]),
         Route("/bundle/{bundle}/{kind}/{file}", picture),
         Route("/kinds/{digest}/{path:path}", kind_file),

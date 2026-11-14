@@ -43,7 +43,10 @@ def find_bundles(paths: list[Path]) -> tuple[list[Bundle], list[str]]:
 
 
 def pack(b: Bundle) -> bytes:
-    """The bundle as a zip, including the declared local videos and all their posters."""
+    """The bundle as a zip - what texstage publish sends and a server's deck page downloads (GET
+    /api/bundles/<id>.zip) -, with every file the bundle names: the declared local videos and their
+    posters, and the content types' files, an activity's seed (data/<hash>.sql|.ttl) among them (until
+    2026-11-14 the seeds were left out: a published deck's activities had none)."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         for name in ("deck.json", "keys.json"):
@@ -54,9 +57,11 @@ def pack(b: Bundle) -> bytes:
         stage = b.stage_pdf()
         if stage is not None:
             z.write(stage, f"stage/{stage.name}", compress_type=zipfile.ZIP_DEFLATED)
-        for name in sorted(bundle_files(b.deck_json, b.keys)):
-            if name.startswith("media/"):
-                z.write(b.path / name, name, compress_type=zipfile.ZIP_STORED)   # movies/posters are compressed
+        written = set(z.namelist())
+        for name in sorted(bundle_files(b.deck_json, b.keys) - written):
+            if (b.path / name).is_file():                # (a PPTX's bundle lacks some: the server says incomplete)
+                z.write(b.path / name, name, compress_type=zipfile.ZIP_STORED if name.startswith("media/")
+                        else zipfile.ZIP_DEFLATED)       # movies/posters are compressed already
     return buf.getvalue()
 
 

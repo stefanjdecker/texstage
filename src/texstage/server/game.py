@@ -1593,11 +1593,12 @@ class Engine:
                 failing |= book.problems(s.bundle)
         return {"mode": self.checks.mode, "failing": failing}
 
-    def results_table(self, sid: str) -> list[list]:
+    def results_table(self, sid: str, game: Session | None = None) -> list[list]:
         """The game as a table (the host's CSV export): a row per player in rank order; per
         quiz - the deck's, then the game's polls - the answer, whether it was correct and the
-        points (first, non-practice round)."""
-        s = self.session(sid)
+        points (first, non-practice round). `game`: an ended game, as the store has it (Store.load_session:
+        an earlier lecture's archive) - this and the other tables of the archive take one too."""
+        s = game or self.session(sid)
         quizzes = self.quizzes(s)
         header = ["rank", "nickname", "score", "correct", "answered"]
         for q in quizzes:
@@ -1624,9 +1625,9 @@ class Engine:
             rows.append([p.rank or "", p.nickname, p.score, correct, answered] + cells)
         return rows
 
-    def polls_table(self, sid: str) -> list[list]:
+    def polls_table(self, sid: str, game: Session | None = None) -> list[list]:
         """The game's polls for the lecture archive: what was asked and what came out."""
-        s = self.session(sid)
+        s = game or self.session(sid)
         rows = [["poll", "kind", "question", "answers", "answered", "results"]]
         for quiz, entry in s.polls.items():
             public, r = entry["public"], s.latest(quiz)
@@ -1642,15 +1643,15 @@ class Engine:
                          res.get("answered", 0), summary])
         return rows
 
-    def questions_table(self, sid: str) -> list[list]:
+    def questions_table(self, sid: str, game: Session | None = None) -> list[list]:
         """The audience's questions for the lecture archive, by votes (not the deleted ones)."""
-        s = self.session(sid)
+        s = game or self.session(sid)
         return [["question", "votes", "state", "asked"]] + [
             [q.text, len(q.votes), q.state, q.created] for q in qa.ranked(s.questions.values())]
 
-    def sketch_answers(self, sid: str) -> list[tuple[str, int, list]]:
+    def sketch_answers(self, sid: str, game: Session | None = None) -> list[tuple[str, int, list]]:
         """Every sketch of the game - (question, number, strokes) - for the lecture archive."""
-        s = self.session(sid)
+        s = game or self.session(sid)
         return [(quiz, a.sequence, a.payload["strokes"])
                 for quiz in self.quizzes(s) if self.quiz(s, quiz).type == "sketch"
                 for a in self._sketches(s, s.latest(quiz))]

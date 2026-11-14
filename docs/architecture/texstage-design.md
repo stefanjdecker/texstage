@@ -1012,3 +1012,47 @@ Reported after that, the same day:
   why - in a tab that had presented before, the first try resumed that deck instead (fixed: a deck
   named is never swapped for the tab's last one). `texstage present` against that server said each of
   its notes.
+
+## 27. A deck's lectures and builds (2026-11-14)
+
+- **Why:** the second package of the deck-management review. Since section 26 every ended game leaves
+  its archive, but no window reached it. The server kept up to ten builds of a deck, yet only the
+  newest (and the running game's) could be presented.
+- **Lectures …** (a deck card's ⋯): `GET /api/decks/<deck>/lectures` lists the lecturer's games of the
+  deck, the newest first. The open one comes from memory; ended ones come from the store
+  (`Store.lectures`, with grouped counts of players, questions asked, frames with ink and questions).
+  Each comes with its archive folder's files, when its build was built, and whether that build is here
+  with its stage PDF. The results, the archive's ZIP, its files and the annotated PDF's PUT take an
+  ended game of the lecturer (`own_game(ended=True)`). It is loaded whole from the store
+  (`Store.load_session`), and the engine's tables take it as `game=`. Where its build is gone, its
+  results come from what the archive kept. *Make the PDF* runs `annotatedPdf` on the ink of
+  `GET /api/archive/<game>/ink` and the build's stage PDF, and keeps the result in the archive.
+  *Delete …* (`DELETE /api/archive/<game>`, an ended game only, not while one of its recordings is
+  being made) removes every row the store has of it (`Store.delete_session`) and its folder.
+- **Builds …**: `GET /api/decks/<deck>/builds` lists every build of the deck on disk that is open to
+  the lecturer, the newest first. Each shows where it is from (a build folder, a copy kept for a game,
+  an upload), its folder, its game and how many ended games played it. *Present* opens any of them as
+  the lecturer's choice (the section 26 question comes first where a game of another build would
+  end). *Download* is `GET /api/bundles/<id>.zip`, the zip `texstage publish` sends (presenter key
+  only: it holds the answers). *Delete …* is `DELETE /api/bundles/<id>`: this lecturer's upload of
+  that build, not while a game of it is active, never a build folder on this computer.
+- **Found on the way:** `publish.pack` packed only pictures, the stage PDF and videos. A deck published
+  to another server (`texstage publish`, a build's upload) came without its activities' seeds and stayed
+  incomplete. It now packs every file the bundle names. And the presenter's top-bar rule for its
+  buttons behind ⋯ (`.more`, since 2026-11-11) also hid the deck cards' ⋯ buttons in windows up to
+  1350 px wide; it is scoped to the top bar (`.actions .more`).
+- **Tested:** `test_lectures.py`:
+  - an ended lecture's results, ink, PDF, ZIP;
+  - another lecturer sees none of it;
+  - deleted, and its rows gone;
+  - an open game is not deleted;
+  - builds listed, the oldest presented, one downloaded and taken by another server, an upload
+    deleted (not while its game runs, never a build folder).
+
+  `test_publish.py`: a published deck keeps its seed.
+
+  In the browser pane at 1280 x 800 (the demo deck, two builds):
+  - the ⋯ button back;
+  - Lectures: the running and the ended game, the PDF made (9 pages, kept), the ZIP;
+  - the delete asked over the list, Esc leaving the list open, the lecture deleted;
+  - Builds: both builds, one downloaded, the older presented - asked, kept the running build.

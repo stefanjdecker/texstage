@@ -2,6 +2,26 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- A deck's lectures and builds on the deck page (the review's second
+  package), under a deck card's ⋯:
+  - *Lectures …* lists the deck's games, open and ended, with what each
+    left: players, questions asked, ink, polls, questions, and what its
+    archive holds. For each: *Results (CSV)*, *Archive (ZIP)*, *Make the
+    PDF* (from the stored ink, kept in the archive), its recordings, and
+    *Delete …* for an ended one (its rows and its archive folder). Before,
+    an ended game's results were out of every window's reach.
+  - *Builds …* lists every build of the deck on the server, with when it
+    was built, where it is from and its games. *Present* goes back to an
+    older one (asking first where a game would end), *Download* gives its
+    `.bundle.zip` for another server, and *Delete …* removes an upload.
+  - Routes: `GET /api/decks/<deck>/lectures`, `GET /api/decks/<deck>/builds`,
+    `GET /api/bundles/<id>.zip`, `DELETE /api/bundles/<id>`,
+    `GET /api/archive/<game>/ink`, `DELETE /api/archive/<game>`; results,
+    archive ZIP, files and the annotated PDF also for ended games.
+  - Fixed on the way: `texstage publish` (and a build's upload to another
+    server) left out the activities' seed files (`data/<hash>.sql|.ttl`), so
+    a hosted server's copy was incomplete; and in windows up to 1350 px wide
+    the presenter's top-bar rule hid the deck cards' ⋯ buttons.
 - Decks without silent surprises (a review of deck management):
   - Before a build ends the deck's running game on another build - a rebuild
     in the break, opened with `texstage present` - the presenter window asks:

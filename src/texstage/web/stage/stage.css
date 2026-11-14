@@ -39,14 +39,14 @@ body.presenter {
 /* the buttons of before and after a lecture - the archive, the results, a new game, the decks: in a
    window too narrow for them and the join address, behind one button (presenter.js: #morebtn) */
 .top { position: relative; }
-.more { display: contents; }
+.actions .more { display: contents; }               /* (not the deck cards' ⋯: .deckcard .more) */
 .morebtn { display: none; }
 @media (max-width: 1350px) {
   .morebtn { display: inline-block; }
-  .more { display: none; position: absolute; right: 10px; top: 100%; z-index: 30; flex-direction: column; gap: 6px; padding: 8px;
+  .actions .more { display: none; position: absolute; right: 10px; top: 100%; z-index: 30; flex-direction: column; gap: 6px; padding: 8px;
     background: var(--brand); border-radius: 0 0 10px 10px; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
-  .more.open { display: flex; }
-  .more button { text-align: left; }
+  .actions .more.open { display: flex; }
+  .actions .more button { text-align: left; }
 }
 /* the connection is gone (presenter.js: offline) */
 .offline { position: fixed; top: 54px; left: 50%; transform: translateX(-50%); z-index: 40; max-width: min(92vw, 900px);
@@ -103,6 +103,16 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .skipped ul { margin: 8px 0 2px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
 .skipped .name { font-weight: 700; }
 .skipped .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+/* a deck's Lectures and Builds (presenter.js lecturesDialog, buildsDialog): a row each, its buttons below it */
+.lectures { display: flex; flex-direction: column; }
+.lecture { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.lecture .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lecture .name { font-weight: 700; }
+.lecture .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.lecture .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+.lecture .acts button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.lecture .acts button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+.lecture .acts button:disabled { opacity: .45; }
 /* the deck page's folders (presenter.js library): the path, the search, the order, the cards' ⋯ */
 .libbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; flex: 1 1 240px; min-width: 0; }

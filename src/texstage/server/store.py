@@ -102,7 +102,73 @@ class Store:
 
     def load(self) -> list[Session]:
         """The sessions that have not ended, with their players, rounds and answers."""
-        sessions = {r["id"]: self._session(r) for r in self.db.execute("SELECT * FROM sessions WHERE ended IS NULL")}
+        return self._load("ended IS NULL", ())
+
+    def load_session(self, sid: str) -> Session | None:
+        """One game, ended or not, with its players, rounds, answers and the audience's questions - an
+        earlier lecture's results and archive (app.py: the deck's lectures)."""
+        found = self._load("id = ?", (sid,))
+        if not found:
+            return None
+        s = found[0]
+        for q in self.load_questions([s.id]):
+            s.questions[q.id] = q
+        return s
+
+    def lectures(self, deck: str, owner: str, limit: int = 200) -> list[dict]:
+        """The ended games of a deck and lecturer, the newest first, with what each left: its players (not
+        removed), the questions it asked (quizzes and polls with a round), the frames with ink, the
+        whiteboard pages, the polls and the audience's questions (not deleted)."""
+        rows = self.db.execute("SELECT id, pin, bundle, created, last_active, ended, finished, stage, polls FROM sessions "
+                               "WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL "
+                               "ORDER BY created DESC LIMIT ?", (deck, owner, limit)).fetchall()
+        if not rows:
+            return []
+        ids = [r["id"] for r in rows]
+        marks = ", ".join("?" * len(ids))
+
+        def count(sql: str) -> dict[str, int]:
+            return {r[0]: r[1] for r in self.db.execute(sql.format(marks=marks), ids)}
+        players = count("SELECT session, COUNT(*) FROM players WHERE session IN ({marks}) AND NOT COALESCE(kicked, 0) "
+                        "GROUP BY session")
+        asked = count("SELECT session, COUNT(DISTINCT quiz) FROM rounds WHERE session IN ({marks}) GROUP BY session")
+        frames = count("SELECT session, COUNT(DISTINCT frame) FROM strokes WHERE session IN ({marks}) AND erased IS NULL "
+                       "GROUP BY session")
+        questions = count("SELECT session, COUNT(*) FROM questions WHERE session IN ({marks}) AND state != 'deleted' "
+                          "GROUP BY session")
+        out = []
+        for r in rows:
+            stage = json.loads(r["stage"]) if r["stage"] else {}
+            out.append({"game": r["id"], "pin": r["pin"], "bundle": r["bundle"], "created": r["created"],
+                        "last_active": r["last_active"], "ended": r["ended"], "finished": r["finished"],
+                        "players": players.get(r["id"], 0), "asked": asked.get(r["id"], 0),
+                        "frames": frames.get(r["id"], 0), "boards": len(stage.get("boards") or []),
+                        "polls": len(json.loads(r["polls"]) if r["polls"] else {}),
+                        "questions": questions.get(r["id"], 0)})
+        return out
+
+    def played(self, deck: str, owner: str) -> dict[str, int]:
+        """How many ended games of a deck and lecturer each build played: {bundle id: games}."""
+        return {r[0]: r[1] for r in self.db.execute(
+            "SELECT bundle, COUNT(*) FROM sessions WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL "
+            "GROUP BY bundle", (deck, owner))}
+
+    def delete_session(self, sid: str):
+        """A game's rows, every one - its players, rounds, answers, ink, the audience's questions and the
+        content types' rows (an earlier lecture deleted: app.py)."""
+        rounds = [r[0] for r in self.db.execute("SELECT id FROM rounds WHERE session = ?", (sid,))]
+        if rounds:
+            self.db.execute(f"DELETE FROM answers WHERE round IN ({', '.join('?' * len(rounds))})", rounds)
+        for table, _ in TABLES.values():
+            if table == "sessions":
+                self.db.execute("DELETE FROM sessions WHERE id = ?", (sid,))
+            elif table != "answers":
+                self.db.execute(f"DELETE FROM {table} WHERE session = ?", (sid,))
+        self.db.commit()
+
+    def _load(self, where: str, params: tuple) -> list[Session]:
+        """The sessions WHERE `where`, with their players, rounds and answers."""
+        sessions = {r["id"]: self._session(r) for r in self.db.execute(f"SELECT * FROM sessions WHERE {where}", params)}
         if not sessions:
             return []
         marks = ", ".join("?" * len(sessions))

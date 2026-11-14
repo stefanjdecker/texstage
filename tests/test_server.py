@@ -603,7 +603,8 @@ def test_the_presenter_window_asks_before_a_rebuild_ends_the_running_game(tmp_pa
         assert folder.name.endswith(f"-{first['pin']}")
         (results,) = folder.glob("*.csv")
         assert "Ada" in results.read_text(encoding="utf-8-sig")
-        assert client.get(f"/api/results/{first['session']}.csv", headers=auth).status_code == 404   # (ended)
+        ended = client.get(f"/api/results/{first['session']}.csv", headers=auth)          # (the deck page's
+        assert ended.status_code == 200 and "Ada" in ended.text                              # Lectures: still there)
 
 
 def test_a_game_that_ends_leaves_its_archive(world, tmp_path):

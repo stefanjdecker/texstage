@@ -44,6 +44,37 @@ def zipped(entries: dict[str, bytes]) -> bytes:
     return buf.getvalue()
 
 
+def with_seed(fb) -> str:
+    """The fake bundle with a file it names as an activity's seed is named (data/<hash>.sql); its new ID."""
+    import json
+    from texstage.build.bundle import bundle_id
+    deck, keys = (json.loads((fb.path / name).read_text(encoding="utf-8")) for name in ("deck.json", "keys.json"))
+    seed = "data/0123456789abcdef.sql"
+    (fb.path / "data").mkdir()
+    (fb.path / seed).write_text("CREATE TABLE t (a INTEGER);", encoding="utf-8")
+    keys["seed"] = seed
+    for d in (deck, keys):
+        d.pop("bundle")
+    deck["bundle"] = keys["bundle"] = bid = bundle_id(deck, keys)
+    for name, d in (("deck.json", deck), ("keys.json", keys)):
+        (fb.path / name).write_text(json.dumps(d), encoding="utf-8")
+    return bid
+
+
+def test_a_published_deck_keeps_its_activities_seeds(hosted):
+    """pack sends every file the bundle names - an activity's seed too (data/<hash>.sql|.ttl): until
+    2026-11-14 it sent the pictures, the stage PDF and the videos only, so a deck published to a hosted
+    server (texstage publish, a build for it) came without its seeds, incomplete."""
+    client, fb, tmp = hosted
+    bid = with_seed(fb)
+    (b,), _ = find_bundles([fb.path])
+    assert "data/0123456789abcdef.sql" in zipfile.ZipFile(io.BytesIO(pack(b))).namelist()
+    assert client.put(f"/api/bundles/{bid}", content=pack(b), headers=HOST).status_code == 201
+    (listed,) = client.get("/api/decks", headers=HOST).json()
+    assert listed["bundle"] == bid and listed["complete"] is True
+    assert (tmp / "data" / "bundles" / "local" / "test" / bid / "data" / "0123456789abcdef.sql").is_file()
+
+
 def test_upload(hosted):
     client, fb, tmp = hosted
     (b,), _ = find_bundles([fb.path])

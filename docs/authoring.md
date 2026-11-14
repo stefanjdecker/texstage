@@ -397,7 +397,12 @@ data folder). A deck the server finds and does not play - a kind of activity it 
 texstage's own kinds wants `--activities core`), a format it is too old for, a broken
 `deck.json` - is on no list; the page says at the top which and why, and so does the server's
 window when it finds a new one (`skipped: ...`). If `texstage present` names a deck the page
-cannot present, the page says why.
+cannot present, the page says why. A deck's ⋯ › *Lectures …* lists its games, the running one
+and the ended ones, each with what it left: the results (CSV), the archive (ZIP), *Make the PDF*
+from that lecture's ink, its recordings, and *Delete …* for an ended one - its results, ink,
+questions and recordings leave the server. ⋯ › *Builds …* lists every build of the deck on the
+server: *Present* an older one to go back to it (the window asks before it ends a game of
+another build), *Download* one as the `.bundle.zip` another server takes, *Delete …* an upload.
 
 ## Laptop or hosted server
 

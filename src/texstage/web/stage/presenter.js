@@ -548,6 +548,8 @@ function library(decks, folders, uploaded = "", skipped = []) {
     document.body.append(el);
   });
   const deckMenu = (button, d) => menu(button, [
+    [B.lectures, () => lecturesDialog(d)],
+    [B.builds, () => buildsDialog(d, refresh)],
     [B.rename, async () => {
       const name = await askText(B.renameAsk(shown(d), d.name), shown(d), B.renameYes);
       if (name !== null) act(() => send("PATCH", `/api/decks/${encodeURIComponent(d.deck)}`, { label: name.trim() === d.name ? "" : name }));
@@ -644,6 +646,197 @@ function library(decks, folders, uploaded = "", skipped = []) {
   }
   render();
   if (laptop) uploadButton($("#upload"), auth, (message) => showDecks(false, message));
+}
+
+// A dialog in the page with a list it draws anew (lecturesDialog, buildsDialog): Close and Esc close it - Esc not
+// while a question asked over it (ask.js) is open, which takes its Esc itself. onClose: after closing, unless quiet.
+function listDialog(onClose = () => {}) {
+  const el = document.createElement("div");
+  el.className = "dialog";
+  document.body.append(el);
+  const keys = (e) => {
+    if (e.key !== "Escape" || [...document.querySelectorAll(".dialog")].at(-1) !== el) return;
+    e.stopPropagation();
+    close();
+  };
+  const close = (quiet = false) => {
+    document.removeEventListener("keydown", keys, true);
+    el.remove();
+    if (!quiet) onClose();
+  };
+  document.addEventListener("keydown", keys, true);
+  el.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) close(); });
+  return { el, close };
+}
+
+// a file the server sends with the lecturer's credentials, saved under the name it gives it
+async function download(path, fallback) {
+  const r = await hostFetch(path, auth);
+  save(await r.blob(), (r.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/)?.[1] || fallback);
+}
+
+// a recording downloaded: an address the server gives for a while (archive.py), which the browser saves
+async function saveRecording(take) {
+  const r = await fetch(`/api/recording/${encodeURIComponent(take)}/download`, { method: "POST", headers: authHeaders(auth) });
+  const info = await r.json().catch(() => ({}));
+  if (!r.ok) throw refusal(r, info);
+  const a = document.createElement("a");
+  a.href = info.url;
+  a.click();
+}
+
+function localDay(ms) {                            // a lecture's day as the archive names it: 2026-11-14
+  const t = new Date(ms);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+}
+
+// A deck's lectures (GET /api/decks/<deck>/lectures): its open game and the ended ones, the newest first, each with
+// what it left and its archive - the results, the archive's ZIP, the annotated PDF (made here from its ink, as After
+// the lecture makes the open game's, and kept in the archive), its recordings; an ended one can be deleted, with all
+// its data. Once a game had ended, no window reached any of it (the review of deck management, 2026-11-14).
+async function lecturesDialog(d) {
+  const C = T.presenter.lectures, E = T.presenter.earlier, L = T.lecturer;
+  const { el } = listDialog();
+  const when = (ms) => new Date(ms).toLocaleString(T.meta.locale, { dateStyle: "medium", timeStyle: "short" });
+  const row = (e) => {
+    const state = e.ended === null ? (e.running ? C.running : C.open) : C.ended;
+    const left = [L.players(e.players), e.asked ? T.presenter.replace.asked(e.asked) : "", e.frames ? E.ink(e.frames) : "",
+      e.boards ? E.boards(e.boards) : "", e.polls ? C.polls(e.polls) : "", e.questions ? C.questions(e.questions) : ""];
+    const takes = e.files.filter((f) => f.take && !f.unfinished && !f.remuxing);
+    const kept = [e.files.some((f) => f.name === "annotated.pdf") ? C.annotated : "",
+      e.files.some((f) => f.name.startsWith(`${d.deck}-`) && f.name.endsWith(".csv")) ? C.results : "",
+      takes.length ? C.recordings(takes.length) : ""].filter(Boolean);
+    return `<div class="lecture" data-game="${esc(e.game)}"><div class="head"><span class="name">${esc(when(e.created))}</span>
+      <span class="tag${e.ended === null ? " open" : ""}">${esc(state)}</span><span class="meta">PIN ${esc(e.pin)}</span></div>
+      <div class="meta">${esc(left.filter(Boolean).join(" · "))}${kept.length ? ` – ${esc(C.kept(kept.join(", ")))}` : ""}</div>
+      <div class="acts"><button data-act="csv">${esc(C.csv)}</button><button data-act="zip">${esc(C.zip)}</button>
+        <button data-act="pdf"${e.pdf ? "" : ` disabled title="${esc(C.noPdf)}"`}>${esc(C.pdf)}</button>
+        ${takes.map((f, i) => `<button data-take="${esc(f.take)}">${esc(C.recording(i + 1))}</button>`).join("")}
+        ${e.ended === null ? "" : `<button data-act="remove">${esc(C.remove)}</button>`}</div></div>`;
+  };
+  let items = [];
+  const list = async () => {
+    let body;
+    try {
+      items = await (await hostFetch(`/api/decks/${encodeURIComponent(d.deck)}/lectures`, auth)).json();
+      body = items.map(row).join("") || `<p class="empty">${esc(C.none)}</p>`;
+    } catch (err) {
+      body = `<p class="error">${esc(why(err))}</p>`;
+    }
+    el.innerHTML = `<div class="box wide"><h2>${esc(C.title(d.label || d.name))}</h2><p>${esc(C.intro)}</p>
+      <div class="lectures">${body}</div><p class="said"></p>
+      <div class="buttons"><button class="secondary" data-close>${esc(T.presenter.close)}</button></div></div>`;
+  };
+  const say = (text, error = false) => {
+    const p = el.querySelector("p.said");
+    if (p) Object.assign(p, { textContent: text, className: error ? "said error" : "said" });
+  };
+  el.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button[data-act], button[data-take]");
+    const e = b && items.find((x) => x.game === b.closest("[data-game]")?.dataset.game);
+    if (!e) return;
+    b.disabled = true;
+    try {
+      if (b.dataset.take) await saveRecording(b.dataset.take);
+      else if (b.dataset.act === "csv") await download(`/api/results/${encodeURIComponent(e.game)}.csv`, "results.csv");
+      else if (b.dataset.act === "zip") await download(`/api/archive/${encodeURIComponent(e.game)}.zip`, "archive.zip");
+      else if (b.dataset.act === "pdf") {
+        say(C.making);
+        const said = await lecturePdf(e);
+        await list();                                  // (its files: the annotated PDF too)
+        say(...said);
+      } else if (b.dataset.act === "remove" && await ask(C.removeAsk(when(e.created), e.pin), C.removeYes)) {
+        const r = await fetch(`/api/archive/${encodeURIComponent(e.game)}`, { method: "DELETE", headers: authHeaders(auth) });
+        const info = await r.json().catch(() => ({}));
+        if (!r.ok) throw refusal(r, info);
+        notice(C.removed(when(e.created)));
+        await list();
+      }
+    } catch (err) {
+      say(why(err), true);
+    } finally {
+      b.disabled = false;
+    }
+  });
+  await list();
+}
+
+// An earlier lecture's annotated PDF, as After the lecture makes the open game's: its ink and whiteboard pages (GET
+// /api/archive/<game>/ink) on its build's stage PDF - saved here and kept in its folder of the archive. What to say.
+async function lecturePdf(e) {
+  const C = T.presenter.lectures;
+  const ink = await (await hostFetch(`/api/archive/${encodeURIComponent(e.game)}/ink`, auth)).json();
+  const view = await (await hostFetch(`/api/deck/${encodeURIComponent(ink.bundle)}`, auth)).json();
+  const stagePdf = await (await hostFetch(`/api/deck/${encodeURIComponent(ink.bundle)}/pdf`, auth)).arrayBuffer();
+  const bytes = await annotatedPdf(stagePdf, view, ink.boards || [], ink.frames);
+  save(new Blob([bytes], { type: "application/pdf" }), `${view.deck}-${localDay(e.created)}-annotated.pdf`);
+  const r = await fetch(`/api/archive/${encodeURIComponent(e.game)}/annotated.pdf`, { method: "PUT",
+    headers: { ...authHeaders(auth), "Content-Type": "application/pdf" }, body: bytes });
+  if (r.ok) return [C.made];
+  const kept = await r.json().catch(() => ({}));
+  return [C.notKept(why({ code: kept.code || "archive", message: kept.error || String(r.status) })), true];
+}
+
+// A deck's builds (GET /api/decks/<deck>/builds): every one on this server, the newest first, with where it is from
+// and its games. Present one - an older one too, back to the build before a rebuild (its hello is the lecturer's
+// choice, and a game of another build is asked about first) -, download one as the .bundle.zip a server takes
+// (Upload a deck there), delete an upload of the lecturer's. changed: the deck page anew, after a delete.
+async function buildsDialog(d, changed) {
+  const B = T.presenter.builds, L = T.lecturer;
+  let deleted = false;
+  const { el, close } = listDialog(() => { if (deleted) changed(); });
+  const laptop = typeof auth === "string";          // the presenter key: a download (a paired device: none)
+  const when = (ms) => new Date(ms).toLocaleString(T.meta.locale);
+  const row = (b) => `<div class="lecture" data-bundle="${esc(b.bundle)}"><div class="head">
+      <span class="name">${esc(L.built(when(b.built)))}</span>${b.newest ? `<span class="tag">${esc(B.newest)}</span>` : ""}
+      ${b.game ? `<span class="tag open">${esc(L.game(b.game.pin, b.game.players))}</span>` : ""}
+      ${b.stage ? "" : `<span class="tag">${esc(B.noStage)}</span>`}</div>
+      <div class="meta">${esc([B.source[b.source] || b.source, L.quizzes(b.quizzes), L.slides(b.slides),
+    b.lectures ? B.lectures(b.lectures) : ""].filter(Boolean).join(" · "))}</div>
+      ${b.folder ? `<div class="meta">${esc(b.folder)}</div>` : ""}
+      <div class="acts">${b.stage ? `<button data-act="present" class="primary">${esc(T.presenter.library.present)}</button>` : ""}
+        ${laptop ? `<button data-act="download">${esc(B.download)}</button>` : ""}
+        ${b.uploaded && !b.game?.running ? `<button data-act="remove">${esc(B.remove)}</button>` : ""}</div></div>`;
+  let items = [];
+  const list = async () => {
+    let body;
+    try {
+      items = await (await hostFetch(`/api/decks/${encodeURIComponent(d.deck)}/builds`, auth)).json();
+      body = items.map(row).join("") || `<p class="empty">${esc(B.none)}</p>`;
+    } catch (err) {
+      body = `<p class="error">${esc(why(err))}</p>`;
+    }
+    el.innerHTML = `<div class="box wide"><h2>${esc(B.title(d.label || d.name))}</h2><p>${esc(B.intro)}</p>
+      <div class="lectures">${body}</div><p class="said"></p>
+      <div class="buttons"><button class="secondary" data-close>${esc(T.presenter.close)}</button></div></div>`;
+  };
+  el.addEventListener("click", async (ev) => {
+    const button = ev.target.closest("button[data-act]");
+    const b = button && items.find((x) => x.bundle === button.closest("[data-bundle]")?.dataset.bundle);
+    if (!b) return;
+    if (button.dataset.act === "present") {
+      close(true);
+      return openDeck({ bundle: b.bundle, deck: d.deck, name: b.name, stage: true }, true);
+    }
+    button.disabled = true;
+    try {
+      if (button.dataset.act === "download") await download(`/api/bundles/${encodeURIComponent(b.bundle)}.zip`, `${d.deck}.bundle.zip`);
+      else if (button.dataset.act === "remove" && await ask(B.removeAsk(when(b.built)), B.removeYes)) {
+        const r = await fetch(`/api/bundles/${encodeURIComponent(b.bundle)}`, { method: "DELETE", headers: authHeaders(auth) });
+        const info = await r.json().catch(() => ({}));
+        if (!r.ok) throw refusal(r, info);
+        deleted = true;
+        notice(B.removed(when(b.built)));
+        await list();
+      }
+    } catch (err) {
+      const p = el.querySelector("p.said");
+      if (p) Object.assign(p, { textContent: why(err), className: "said error" });
+    } finally {
+      button.disabled = false;
+    }
+  });
+  await list();
 }
 
 async function openDeck(d, chosen = false) {     // chosen: Present clicked (not a reload in the lecture)
