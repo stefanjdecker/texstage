@@ -78,6 +78,12 @@ button.main:disabled { opacity: .45; }
 .order .moves button { width: 48px; height: 36px; font-size: 18px; border-radius: 10px; border: 2px solid #cfc8e0; background: #fff; cursor: pointer; }
 
 .slider { width: 100%; height: 44px; accent-color: var(--brand); }
+/* a numeric question's field and its ± key (play.js) - as an activity's (form.act .line below) */
+.numline { display: flex; gap: 8px; }
+.numline input { flex: 1; min-width: 0; }
+.numline .sign { flex: none; width: 64px; font: 800 26px system-ui, sans-serif; border: 2px solid #cfc8e0;
+  border-radius: var(--radius); background: #fff; color: var(--ink); cursor: pointer; }
+.numline .sign:active { background: #ece6f8; }
 .value { text-align: center; font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .count { text-align: right; color: var(--muted); font-size: 14px; }
 

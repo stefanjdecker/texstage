@@ -53,3 +53,55 @@ test('a restored draft also follows native range sanitization before submission'
   t.listeners.submit();
   assert.deepEqual(t.submitted, [3]);
 });
+
+// A numeric question without min and max: a free field. It was type=number - an empty Submit sent 0, the
+// keypad of an iPhone has no minus, and a German 3,5 could be lost (the 2026-11 review: A5).
+async function renderFree(typed = '') {
+  const {pathToFileURL} = require('node:url');
+  const phone = await import(pathToFileURL(path.join(__dirname, '../src/texstage/web/play/activities.js')).href);
+  const listeners = {};
+  const on = (name) => (event, fn) => { listeners[`${name}.${event}`] = fn; };
+  const num = {value: typed, addEventListener: on('num'), focus() {}};
+  const send = {disabled: false, addEventListener: on('send')};
+  const sign = {addEventListener: on('sign')};
+  const err = {textContent: ''};
+  const app = {innerHTML: '', querySelectorAll: () => []};
+  const submitted = [];
+  const context = vm.createContext({app, draft: {}, ZOOM: 1, pageWidth: () => 400, answerScale: () => 1,
+    promptCard: () => '', esc: String, lang: 'de', parseNumber: phone.parseNumber, phoneLanguage: () => 'de',
+    T: {send: 'Submit', sign: 'Change the sign', yourNumber: 'Your number', notNumber: 'Please type a number'},
+    $: (selector) => ({'#num': num, '#send': send, '#sign': sign, '#err': err}[selector] || null),
+    submit: (_round, answer) => submitted.push(answer.value)});
+  vm.runInContext(question, context);
+  context.question({id: 'q', question: {type: 'numeric', numeric: {unit: 'm'}}});
+  const type = (text) => { num.value = text; listeners['num.input'](); };
+  return {app, num, send, err, listeners, submitted, type};
+}
+
+test('a free numeric field: text with a sign key, no answer before a number is typed', async () => {
+  const t = await renderFree();
+  assert.match(t.app.innerHTML, /<input id="num" type="text" inputmode="decimal"/);
+  assert.match(t.app.innerHTML, /id="sign"[^>]*>±</);
+  assert.match(t.app.innerHTML, /id="send" disabled/);
+  assert.equal(t.send.disabled, true);
+  t.listeners['send.click']();                                  // (a click all the same: nothing is sent)
+  assert.deepEqual(t.submitted, []);
+  assert.equal(t.err.textContent, 'Please type a number');
+  t.type('-');
+  assert.equal(t.send.disabled, true);
+});
+
+test('a free numeric field reads 3,5 and 3.5, and its ± key changes the sign', async () => {
+  const t = await renderFree();
+  t.type('3,5');
+  assert.equal(t.send.disabled, false);
+  t.listeners['send.click']();
+  t.type('3.5');
+  t.listeners['send.click']();
+  t.listeners['sign.click']();
+  assert.equal(t.num.value, '-3.5');
+  t.listeners['send.click']();
+  t.listeners['sign.click']();
+  assert.equal(t.num.value, '3.5');
+  assert.deepEqual(t.submitted, [3.5, 3.5, -3.5]);
+});

@@ -45,6 +45,9 @@ export default {
     timesUp: "Die Zeit ist um", noAnswer: "Keine Antwort", correct: "Richtig!", wrong: "Leider falsch", partly: "Teilweise richtig",
     thanks: "Danke!", points: "Punkte", streak: "Serie", rank: (r, n) => `Platz ${r} von ${n}`, paused: "Pausiert",
     finished: "Spielende", yourRank: "Ihr Platz", again: "Neu beitreten", gameOver: "Dieses Spiel ist vorbei.",
+    gameOverNew: "Dieses Spiel ist vorbei – ein neues hat begonnen.", joinNew: "Dem neuen Spiel beitreten",
+    newPin: "Dieses Spiel ist vorbei – hier steht die PIN des neuen.",
+    yourNumber: "Ihre Zahl", sign: "Vorzeichen wechseln", notNumber: "Bitte eine Zahl eingeben – 42 oder 3,5.",
     kicked: "Sie wurden aus dem Spiel entfernt.", offline: "Verbindung wird wiederhergestellt …", typeHere: "Ihre Antwort",
     several: "Mehrere Antworten können richtig sein", tickAll: "Alles Zutreffende ankreuzen",
     orderHint: "In die richtige Reihenfolge bringen", practice: "Übungsrunde – ohne Punkte",
@@ -130,6 +133,7 @@ export default {
     kicked: "Sie wurden aus dem Spiel entfernt.",
     "unknown-player": "Bitte treten Sie dem Spiel neu bei.",
     "no-session": "Dieses Spiel ist vorbei.",
+    "game-over": "Dieses Spiel ist vorbei.",
     "unknown-round": "Diese Frage gibt es nicht.",
     "not-open": "Die Frage ist noch nicht offen.",
     paused: "Die Frage ist pausiert.",
@@ -209,6 +213,8 @@ export default {
 
   presenter: {
     roundTrip: "die Laufzeit zum Server und zurück",
+    unreachable: "Der Server ist nicht erreichbar", tryAgain: "Noch einmal versuchen",
+    retrying: "Alle paar Sekunden ein neuer Versuch – die Vorlesung bleibt auf dem Server.",
     offline: "Keine Verbindung zum Server – was Sie hier tun, erreicht weder den Projektor noch die Handys. Neuer Versuch …",
     moreTitle: "nach der Vorlesung, die Ergebnisse, ein neues Spiel, die Foliensätze", close: "Schließen",
     pairInstead: (devices, pair) => `Ein iPad oder ein zweiter Rechner wird stattdessen gekoppelt: Wählen Sie in texstage auf dem Laptop ${devices}, dann ${pair}, und scannen Sie den angezeigten Code.`,

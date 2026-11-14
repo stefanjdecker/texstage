@@ -244,8 +244,12 @@ lecture**, *Make the PDF* gives the annotated PDF for the students - every frame
 last, with your ink, and the whiteboard pages, without your notes - and keeps it with the quiz
 results in the server's archive (`archive/<deck>/<date>-<PIN>/` in its data folder), which
 *Download the archive* gives as one ZIP. When the game ends - *New game*, a new build, the next
-lecture - its results, polls, questions and sketches go to that folder by themselves; the
-windows reach only the open game's archive, an earlier one is in the data folder.
+lecture - its results, polls, questions and sketches go to that folder by themselves; an ended
+game's are under the deck's *Lectures …* (its card's ⋯). The phones in a game that ends say so,
+with *Join the new game* where the deck has one: one tap, the new PIN and the same nickname. A phone
+that still has the old PIN - the QR code, a form filled in before - is told the game is over and
+gets the new game's PIN, for two hours; it does not count as a wrong PIN (300 of those from one
+address in ten minutes lock that address out - through the tunnel, a whole lecture hall).
 **Recording the lecture:** *Record* in the presenter
 window (on the laptop) - check in the dialog that the bar moves when you speak, choose another
 microphone if not, then *Choose the screen …* and pick the projector's screen (or the projector

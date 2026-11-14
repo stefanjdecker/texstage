@@ -1110,3 +1110,78 @@ Reported after that, the same day:
     tone in its one audio track (ffmpeg: -17 dB).
 
   A WebAudio destination with no source stalls MediaRecorder; a real microphone does not.
+
+## 29. The lecture room: the first package of a critical review (2026-11-14)
+
+- **Why:** a review of all of texstage (five areas, with experiments: 999 WebSocket phones on one server,
+  1,000 fake players in the browser) ranked what can spoil a lecture. Nine of its findings were small
+  fixes; they are this package. All of them are in lecture-tools' own copy too, which this package does
+  not change.
+- **The clock (`Engine.tick`, `next_deadline`, `Server.ticker`):** `next_deadline` asked `_auto` for
+  every closed round of every open game, `_auto` asked the round's quiz, and `quiz` raised where the
+  game's build was not on the server - outside the ticker's `try`, so the clock task died, for every
+  game, without a log line. Games stay open until their deck is presented again, so one such game came
+  back at every start. Now:
+  - `_auto` is False where the build is gone (such a game cannot go on);
+  - `tick` and `next_deadline` go game by game: a game that fails is logged once (`Engine.stalled`),
+    and its deadlines are left out until a tick succeeds - a passed one would make the clock spin;
+  - the ticker's `next_deadline` is in a `try` too (a second later on an error);
+  - the server logs at start which games wait for their build.
+- **The push (`Server.push`):** only `GameError` was caught per connection; any other error in one
+  phone's view stopped the push for the phones after it, and the lecturer's command answered
+  `internal`. Every error is caught per connection now, and one line per push logs how many views
+  failed.
+- **"Everyone answered" (`Engine.answer`):** it counted the phones connected, and connections are not
+  stored - after a restart none, so the first phone back to answer closed the question for all.
+  `Player.gone` (not stored) is when its last connection closed, or when the server started; a phone
+  gone less than `Settings.back_ms` (30 s) ago is still waited for. The question can close early only
+  while one phone at least is connected, as before.
+- **An ended game's PIN (`Engine.ended`, `Ended`):** `_end` keeps each game's PIN, deck and lecturer
+  for `Settings.ended_ms` (2 h; at start, from `Store.ended_since`; 10,000 at most). A join with such a
+  PIN gets `game-over`, with `{pin}` of the lecturer's open game of the deck if there is one
+  (`Engine.follows`), and is not counted by `Attempts` (only `unknown-pin` is). The bye of a game's
+  phones names that PIN too (`Engine.after`). The phone (`play.js`) keeps the PIN and nickname it
+  joined with (`pinHere`, `nickHere`); after the bye it offers *Join the new game*, and a `game-over`
+  refusal fills in the new PIN with a word on why. Before, *Join again* filled in the QR code's PIN -
+  the ended game's - and no nickname for a phone that joined in that page; each try counted towards
+  300 wrong PINs per address and ten minutes, and through the tunnel a hall has one address.
+- **The numeric field (`play.js`):** without min and max it was `type=number`: an empty field sent 0
+  (`Number("")`), an iPhone's decimal keypad has no minus, and a 3,5 could be lost. It is a text field
+  with `inputmode=decimal` and a ± key now, read with the activities' `parseNumber` in the phone's
+  language; *Submit* is disabled until the text is a number. The slider is as it was.
+- **The controls (`live.js`, `host.js`):** the slide's ⏸, +10 s and ⏭ were drawn with every show() -
+  five pushes a second while answers come in - and a button replaced between mouse-down and mouse-up
+  gets no click. They are drawn only when their HTML changes (`Stage.drawn`). The host console's lists
+  change with every answer (scores, counts): their clicks are delegated now, and a list a pointer is
+  down in is not drawn until the pointer is up (`fill`, `pressed`; drawn again after the click).
+- **Keys behind dialogs (`presenter.js`, `ask.js`):** the projector window's keys came in by its
+  channel straight to `onKey`, past the guard of the window's own keydown. Both go through
+  `gameKeys()` now: no game keys while a `.dialog` is open. Dialogs on top of each other each listened
+  on the document, and one Enter answered them all; now only the top one takes keys, and Enter with
+  the focus on *No* answers no.
+- **Decks in an outage (`presenter.js`):** the click closed the client and set it to null, then the
+  deck list's fetch failed unhandled: the presenter stayed with `client` null, its clock threw every
+  frame (`client.now()`), and each queued command opened a dialog. Now the click leaves the game first
+  (`state = null`), the clocks use `serverNow`, the deck page that cannot load says so and tries again
+  every 5 s (`decksAgain`; the game's offline banner goes), and `alertError` shows one dialog per error
+  text at a time.
+- **The Lectures list (`Store.lectures`):** it took the newest 200 ended games, then counted what they
+  left. On real data a deck had 2,316 empty games of one day (the bug of two builds' windows, 2026-10),
+  and the deck's 15 real lectures were never listed. The query keeps only games with players, rounds,
+  ink, the audience's questions, polls or whiteboard pages - or a folder in the archive with files
+  (`archive.pins`: a recording alone) - then applies the limit.
+- **Tested:** engine (`test_game.py`): a game without its build leaves the others' clocks, one game's
+  failing clock is logged once, after a restart the first phone back does not close the question, one
+  that does not come back is not waited for, a dropped phone is waited for, an ended game's PIN says so
+  and names the new one (after a restart too). Server (`test_server.py`): the bye and the old PIN after
+  New game - not counted as wrong -, a failing phone view, a failing deadline. `test_lectures.py`: 250
+  empty games after the lectures. Node: the free numeric field (`web-numeric`), the controls drawn
+  once (`web-answer-counter`), dialogs on top of each other (`web-ask`, new). Every one of them fails
+  on the code before. In the browser pane with a throwaway server:
+  - a phone after New game: *Join the new game*, then joined with one tap;
+  - the old PIN: the new one filled in, nothing counted;
+  - typed 6,5 with ± sent as -6.5, *Submit* disabled while empty;
+  - 300 fake players answering: no redraw of the controls in 5 s, a real click on ⏸ paused;
+  - → from the projector's channel ignored behind *Reset the timer?*, taken without it;
+  - Decks with the server stopped: the outage page, one dialog for two queued commands, no errors,
+    the deck page back by itself when the server was.

@@ -18,7 +18,7 @@ import sqlite3
 from pathlib import Path
 
 from texstage.server import types as stage_types
-from texstage.server.game import Answer, Player, Round, Session
+from texstage.server.game import Answer, Ended, Player, Round, Session
 from texstage.server.ink import Stroke
 from texstage.server.qa import Asked
 
@@ -115,13 +115,30 @@ class Store:
             s.questions[q.id] = q
         return s
 
-    def lectures(self, deck: str, owner: str, limit: int = 200) -> list[dict]:
-        """The ended games of a deck and lecturer, the newest first, with what each left: its players (not
-        removed), the questions it asked (quizzes and polls with a round), the frames with ink, the
-        whiteboard pages, the polls and the audience's questions (not deleted)."""
-        rows = self.db.execute("SELECT id, pin, bundle, created, last_active, ended, finished, stage, polls FROM sessions "
-                               "WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL "
-                               "ORDER BY created DESC LIMIT ?", (deck, owner, limit)).fetchall()
+    def ended_since(self, since: int) -> list[Ended]:
+        """The games that ended since then, the oldest first (Engine.ended: their PINs after a restart)."""
+        return [Ended(r["id"], r["pin"], r["deck"], r["owner"] or "", r["ended"]) for r in self.db.execute(
+            "SELECT id, pin, deck, owner, ended FROM sessions WHERE ended >= ? ORDER BY ended", (since,))]
+
+    def lectures(self, deck: str, owner: str, limit: int = 200, archived=()) -> list[dict]:
+        """The ended games of a deck and lecturer that left something, the newest first, with what each
+        left: its players (not removed), the questions it asked (quizzes and polls with a round), the
+        frames with ink, the whiteboard pages, the polls and the audience's questions (not deleted) - or a
+        folder in the archive (`archived`: the PINs of the deck's folders there; a recording alone, say).
+        A game that left nothing is not one: a deck can have thousands (two builds' windows ended each
+        other's games, until 2026-10), and the newest `limit` of them would hide every lecture."""
+        pins = sorted(set(archived))
+        rows = self.db.execute(
+            "SELECT id, pin, bundle, created, last_active, ended, finished, stage, polls FROM sessions s "
+            "WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL AND ("
+            "EXISTS (SELECT 1 FROM players p WHERE p.session = s.id AND NOT COALESCE(p.kicked, 0)) "
+            "OR EXISTS (SELECT 1 FROM rounds r WHERE r.session = s.id) "
+            "OR EXISTS (SELECT 1 FROM strokes k WHERE k.session = s.id AND k.erased IS NULL) "
+            "OR EXISTS (SELECT 1 FROM questions q WHERE q.session = s.id AND q.state != 'deleted') "
+            "OR COALESCE(polls, '') NOT IN ('', '{}') "
+            "OR (COALESCE(stage, '') LIKE '%\"boards\": [%' AND stage NOT LIKE '%\"boards\": []%')"
+            + (f" OR pin IN ({', '.join('?' * len(pins))})" if pins else "")
+            + ") ORDER BY created DESC LIMIT ?", (deck, owner, *pins, limit)).fetchall()
         if not rows:
             return []
         ids = [r["id"] for r in rows]

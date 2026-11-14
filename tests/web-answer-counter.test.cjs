@@ -52,3 +52,24 @@ for (const timer of [true, false]) {
     assert.ok(render({...state, phase: 'revealed'}, timer).includes('2 / 3 correct'));
   });
 }
+
+test('the quiz controls are drawn anew only when they change: a push leaves the pressed button alone', () => {
+  // Drawn with every push - five a second while answers came in - they took the button from under the
+  // lecturer's pointer, and ⏸, +10 s or ⏭ did nothing (the 2026-11 review: A2).
+  let drawn = 0, html = '';
+  const controls = {set innerHTML(v) { drawn += 1; html = v; }, get innerHTML() { return html; }};
+  const stage = Object.assign(Object.create(context.Stage.prototype), {
+    img: {getAttribute: () => '/b/a.png', src: ''}, live: {innerHTML: ''}, controls, surface: null, html: '', drawn: null,
+    language: '', labels: {pause: 'Pause', continue: 'Go on', extend: '+10 s', skip: 'Skip', reveal: 'Reveal', again: 'Again'},
+    render: () => '', questionCard: () => '', animate() {}, showTypes() {}, tick() {},
+  });
+  const slide = {quiz: 'q', phase: 'question', image: 'a.png'};
+  const deck = {language: '', bundle: 'b', slides: [slide], quizzes: {q: {type: 'single'}}};
+  const state = (round) => ({session: {base: '/b/'}, rounds: {q: {phase: 'open', ...round}}});
+  for (let n = 0; n < 5; n++) stage.show(slide, deck, state({answered: n}));      // answers come in
+  assert.equal(drawn, 1);
+  assert.match(html, /data-cmd="pause"/);
+  stage.show(slide, deck, state({answered: 5, paused: true}));
+  assert.equal(drawn, 2);                                                         // paused: ▶ for ⏸
+  assert.match(html, /data-cmd="continue"/);
+});

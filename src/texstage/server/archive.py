@@ -54,14 +54,28 @@ class ArchiveError(ValueError):
         self.code = "recording-too-large" if status == 413 else "recording-part"
 
 
+def deck_folder(data_dir: Path, deck: str) -> Path:
+    """A deck's folder in the archive: one folder per game in it."""
+    return data_dir / "archive" / (re.sub(r"[^a-z0-9-]+", "-", deck.lower()) or "deck")
+
+
 def folder(data_dir: Path, s, make: bool = True) -> Path:
     """A game's folder in the archive (made if need be)."""
     day = time.strftime("%Y-%m-%d", time.localtime(s.created / 1000))
-    deck = re.sub(r"[^a-z0-9-]+", "-", s.deck.lower()) or "deck"
-    path = data_dir / "archive" / deck / f"{day}-{s.pin}"
+    path = deck_folder(data_dir, s.deck) / f"{day}-{s.pin}"
     if make:
         path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def pins(data_dir: Path, deck: str) -> set[str]:
+    """The PINs of a deck's games whose folders in the archive hold something (store.lectures: a game
+    that left only files there - a recording, say - is a lecture all the same)."""
+    try:
+        return {d.name.rsplit("-", 1)[1] for d in deck_folder(data_dir, deck).iterdir()
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}-\d+", d.name) and files(d)}
+    except OSError:
+        return set()
 
 
 def sketch_svg(strokes: list) -> str:

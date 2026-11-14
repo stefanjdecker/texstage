@@ -71,6 +71,7 @@ export class Stage {
     this.typeLayer = el.querySelector(".tq-types");
     this.typeControls = el.querySelector(".tq-typectl");
     this.html = "";
+    this.drawn = null;                     // the controls' HTML
     this.key = "";
     this.clock = () => Date.now();
     this.controls?.addEventListener("click", (e) => {
@@ -117,7 +118,13 @@ export class Stage {
       this.live.innerHTML = html;
       this.animate();
     }
-    if (this.controls) this.controls.innerHTML = slide && state ? this.renderControls() : "";
+    // the controls only when they change: a push - five a second while answers come in - that drew them anew
+    // took the button from under a pressed pointer, and the lecturer's ⏸, +10 s or ⏭ was lost
+    const controls = this.controls && slide && state ? this.renderControls() : "";
+    if (this.controls && controls !== this.drawn) {
+      this.drawn = controls;
+      this.controls.innerHTML = controls;
+    }
     this.showTypes();
     this.tick();
   }

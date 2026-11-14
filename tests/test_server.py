@@ -1042,3 +1042,78 @@ def test_a_video_on_the_stage(tmp_path):
         assert client.get(urls[movie].replace("/media/", "/media/x")).status_code == 404
         pic = client.get(f"/bundle/{bid}/{poster}")
         assert pic.content == files["poster"] and pic.headers["content-type"] == "image/png"
+
+
+# ------------------------------------------------------------------ the lecture room (the 2026-11 review)
+
+def test_after_new_game_phones_are_told_its_pin_and_the_old_pin_is_no_wrong_pin(world):
+    """New game: its phones' bye names the new game's PIN, and a phone joining with the old PIN - the QR
+    code's address, Join again - is told the game is over, and the new PIN: not a wrong PIN, which counts
+    towards the address's limit (behind the tunnel a hall has one address: it locked itself out - A3)."""
+    client, fb = world
+    server = client.app.state.server
+    with client.websocket_connect("/ws") as st, client.websocket_connect("/ws") as phone:
+        old = say_hello(st, fb, role="stage")["pin"]
+        join(phone, old, "Ada")
+        st.send_json({"t": "lecture.new", "id": 2})
+        new = recv(st, "ok", until=lambda m: m["re"] == 2)["pin"]
+        bye = recv(phone, "bye")
+        assert bye["reason"] == "no-session" and bye["pin"] == new
+    with client.websocket_connect("/ws") as late:
+        late.send_json({"t": "join", "pin": old, "nickname": "Bob", "id": "join"})
+        refused = recv(late, "error")
+        assert refused["error"] == "game-over" and refused["detail"] == {"pin": new}
+        late.send_json({"t": "join", "pin": "000000" if old != "000000" else "000001", "nickname": "Bob", "id": "j2"})
+        assert recv(late, "error")["error"] == "unknown-pin"
+    assert sum(len(q) for q in server.attempts.wrong.values()) == 1          # the wrong PIN only
+
+
+def test_a_failing_phone_view_leaves_the_other_phones_theirs(world, caplog):
+    """An error in one phone's view stopped the push for the phones after it, and the lecturer's command
+    answered "internal", though it was carried out (A9)."""
+    client, fb = world
+    engine = client.app.state.server.engine
+    with client.websocket_connect("/ws") as h, client.websocket_connect("/ws") as p1, \
+            client.websocket_connect("/ws") as p2, client.websocket_connect("/ws") as p3:
+        pin = hello(h, fb)["pin"]
+        bad = join(p1, pin, "Ada")["player"]
+        join(p2, pin, "Bob")
+        join(p3, pin, "Cy")
+        real = engine.player_view
+
+        def view(pid, now, **kw):
+            if pid == bad:
+                raise KeyError("a bug")
+            return real(pid, now, **kw)
+        engine.player_view = view
+        h.send_json({"t": "slide", "slide": fb.slide("question", "pick"), "id": 3})
+        assert recv(h, until=lambda m: m.get("re") == 3)["t"] == "ok"
+        for p in (p2, p3):
+            recv(p, "state", until=round_phase("open"))
+    assert "views failed" in caplog.text
+
+
+def test_the_clock_goes_on_after_a_failing_deadline(tmp_path, caplog):
+    """The clock task computed the next deadline outside its try: one exception, and no question opened or
+    closed any more on the whole server until it started again (A1)."""
+    fb = make_bundle(tmp_path / "bundles", time=1)
+    with TestClient(create_app(config(tmp_path))) as client:
+        server = client.app.state.server
+        real, calls = server.engine.next_deadline, []
+
+        def deadline():
+            calls.append(1)
+            if len(calls) == 1:
+                raise RuntimeError("a bug")
+            return real()
+        with client.websocket_connect("/ws") as h, client.websocket_connect("/ws") as p:
+            sid = hello(h, fb)["session"]
+            join(p, server.engine.sessions[sid].pin, "Ada")
+            server.engine.next_deadline = deadline
+            h.send_json({"t": "slide", "slide": fb.slide("question", "pick"), "id": 3})
+            recv(h, until=lambda m: m.get("re") == 3)
+            end = time.time() + 5
+            while time.time() < end and getattr(server.engine.sessions[sid].latest("pick"), "phase", "") != "closed":
+                time.sleep(0.05)
+            assert server.engine.sessions[sid].latest("pick").phase == "closed"        # at its deadline
+        assert calls and not server.tasks[0].done() and "next deadline failed" in caplog.text

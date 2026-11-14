@@ -848,7 +848,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   } catch (err) {
     app.innerHTML = `<div class="page"><h1>${esc(d.name)}</h1><p class="error">${esc(why(err))}</p>
       <p><button class="secondary" id="back">${esc(T.lecturer.decks)}</button></p></div>`;
-    $("#back").onclick = () => showDecks();
+    $("#back").onclick = () => showDecks().catch(decksAgain);
     return;
   }
   speak(deckLanguage(deck));                      // from here on the deck's language
@@ -982,7 +982,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   channel?.close();
   channel = new BroadcastChannel(`texstage:${deck.bundle}`);
   channel.onmessage = (e) => {
-    if (e.data?.type === "key") onKey(e.data);
+    if (e.data?.type === "key") { if (gameKeys()) onKey(e.data); }      // (not behind a dialog: gameKeys)
     else if (e.data?.type === "video") {                // the projector's browser wants a click (video.js)
       notice(e.data.click === "sound" ? T.presenter.videoSound : T.presenter.videoStart);
     }
@@ -1022,6 +1022,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   $("#decks").onclick = () => {
     client.close();
     client = null;
+    state = null;                                     // no game here any more: its keys and clock stop
     closeOverview();
     closeQa();
     closeGallery();
@@ -1029,7 +1030,7 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
     agent?.destroy();
     agent = null;
     try { sessionStorage.removeItem(LAST); } catch { /* ignore */ }
-    showDecks();
+    showDecks().catch(decksAgain);
   };
   renderTools();
   clearInterval(ticker);
@@ -1147,8 +1148,34 @@ function send(cmd) {
   return client.send(cmd).catch(alertError);
 }
 
+let telling = null;          // the error a dialog shows now
 function alertError(err) {
-  if (err?.code !== "no-round") tell(why(err));
+  // one dialog for one error: the commands queued while the connection was gone fail together, each with it
+  if (err?.code === "no-round") return;
+  const text = why(err);
+  if (text === telling) return;
+  telling = text;
+  tell(text).finally(() => { if (telling === text) telling = null; });
+}
+
+// the server's time while connected - the clocks run on without a connection (the deck page, an outage)
+const serverNow = () => (client ? client.now() : Date.now());
+
+// The deck page while the server cannot be reached (Decks pressed in an outage): it says so and tries again by
+// itself every few seconds - the game and its lecture are the server's, nothing is lost. A refused key: the key form.
+let retrying = 0;
+function decksAgain(err) {
+  clearTimeout(retrying);
+  if (err?.status === 403) return keyForm(T.errors["bad-key"]);
+  for (const id of ["deckname", "pin", "join", "actions"]) $(`#${id}`).textContent = "";
+  $("#status").className = "status";
+  offline(false);                                   // (the game's banner: this page says it itself)
+  const P = T.presenter;
+  app.innerHTML = `<div class="page"><h1>${esc(P.unreachable)}</h1><div class="error">${esc(why(err))}</div>
+    <p>${esc(P.retrying)}</p><p><button class="primary" id="retry">${esc(P.tryAgain)}</button></p></div>`;
+  const again = () => { clearTimeout(retrying); showDecks().catch(decksAgain); };
+  $("#retry").onclick = again;
+  retrying = setTimeout(again, 5000);
 }
 
 function inkError(err) {
@@ -1191,7 +1218,7 @@ function render() {
   const there = st.board ? `board:${st.board}` : state.session.slide;
   view = !overlay && there === local ? st.zoom || null : null;   // the projector's zoom, on the slide it zooms
   stage.surface.zoom = view;
-  stage.show(overlay || current, deck, state, () => client.now());
+  stage.show(overlay || current, deck, state, serverNow);
   if (!overlay && current?.page) pdf.links(current.page);  // its links ready for the first click
   zoomOverlay(box, view);
   ink.show(inkKey(overlay || current), view);
@@ -1667,7 +1694,7 @@ function zoomKey() {
 // ------------------------------------------------------------------ timer and clock
 function timerMs() {
   const t = state?.stage?.timer || {};
-  return (t.elapsed || 0) + (t.since !== null && t.since !== undefined ? client.now() - t.since : 0);
+  return (t.elapsed || 0) + (t.since !== null && t.since !== undefined ? serverNow() - t.since : 0);
 }
 
 function startTimerOnce() {
@@ -2037,7 +2064,7 @@ function openActivities() {
     if (qaPanel) closeQa();
     actPanel = openStepPanel({ dock, undock, ask, kinds, language: lang, send: (msg) => send(msg),
       read: (msg) => client.send(msg), items: () => deck.items?.activity, state: () => state,
-      onSlide: () => itemFor(local)?.live?.find((b) => b.type === "activity")?.item, now: () => client.now(),
+      onSlide: () => itemFor(local)?.live?.find((b) => b.type === "activity")?.item, now: serverNow,
       onClose: () => { actPanel = null; } });
     return;
   }
@@ -2752,8 +2779,14 @@ document.addEventListener("click", (e) => {           // a click elsewhere close
   document.querySelector("#morebtn")?.setAttribute("aria-expanded", "false");
 });
 
+// The game's keys - this window's and the projector's (its channel) -: not before the game's state, and not
+// while a dialog is open, which takes its own (the projector's ArrowRight moved the game behind "Reset the timer?")
+function gameKeys() {
+  return Boolean(deck && state) && !$(".dialog");
+}
+
 document.addEventListener("keydown", (e) => {
-  if (!deck || !state || e.target.closest("input, textarea") || e.altKey || $(".dialog")) return;   // a dialog's keys
+  if (!gameKeys() || e.target.closest("input, textarea") || e.altKey) return;
   if (e.ctrlKey || e.metaKey) {
     const k = e.key.toLowerCase();
     if (k === "z" && !e.shiftKey) inkAction("ink.undo");

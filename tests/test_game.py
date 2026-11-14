@@ -1015,3 +1015,121 @@ def test_a_restarted_server_continues(tmp_path):
     assert sid not in e4.sessions and len(e4.sessions) == 1
     with pytest.raises(GameError):
         e4.player_by_token(token_a)                         # a new game: join again
+
+
+# ------------------------------------------------------------------ the clock, a restart, an ended game's PIN
+
+def test_a_game_whose_build_is_gone_does_not_stop_the_other_games_clock(tmp_path):
+    """A game left open by a lecture that ended on a closed question, never revealed, and its build
+    not on the server any more (deleted, a kind missing): the clock asked that question's quiz for
+    every game - and stopped for good, for every game (the 2026-11 review: A1)."""
+    db = tmp_path / "games.sqlite3"
+    w = World(tmp_path, store_path=db)
+    w.join("A")
+    r = w.show("question", "pick")
+    w.engine.tick(w.at(3000))
+    w.engine.skip(w.session.id, "pick", w.at(4000))
+    assert r.phase == "closed"                                           # ... and the lecture ended
+    other = make_bundle(tmp_path / "other", deck="other")
+    e = Engine(BundleStore([tmp_path / "other"]), Store(db), Settings(), now=w.at(60_000))
+    assert w.session.id in e.sessions                                    # left open, without its build
+    s = e.open_session(other.deck, other.id, w.now)
+    e.show_slide(s.id, other.slide("question", "pick"), w.now)
+    assert e.next_deadline() == w.now + Settings().get_ready_ms
+    assert e.tick(w.at(63_000)) == [s.id] and s.latest("pick").phase == "open"
+    assert e.next_deadline() == w.now + 20_000                           # its time is up then
+    assert e.tick(w.at(83_000)) == [s.id] and s.latest("pick").phase == "closed"
+
+
+def test_one_games_failing_clock_leaves_the_others_theirs(tmp_path, caplog):
+    one, other = make_bundle(tmp_path / "one"), make_bundle(tmp_path / "other", deck="other")
+    e = Engine(BundleStore([tmp_path / "one", tmp_path / "other"]), None, Settings())
+    broken, s = e.open_session(one.deck, one.id, T0), e.open_session(other.deck, other.id, T0)
+    e.show_slide(broken.id, one.slide("question", "pick"), T0)
+    e.show_slide(s.id, other.slide("question", "pick"), T0)
+    real = e._advance
+
+    def advance(game, now):
+        if game is broken:
+            raise KeyError("a bug")
+        return real(game, now)
+    e._advance = advance
+    assert e.tick(T0 + 3000) == [s.id]                                   # the other game opens all the same
+    assert e.tick(T0 + 3100) == [] and caplog.text.count("its clock failed") == 1     # logged once
+    assert e.next_deadline() == T0 + 3000 + 20_000                       # (not the broken one's, passed)
+
+
+def test_after_a_restart_the_first_phone_back_does_not_close_the_question(tmp_path):
+    """"Everyone answered" counted the phones connected - none as the server starts again: the first
+    one back to answer closed the question for all (the 2026-11 review: A4). Every phone may come
+    back for Settings.back_ms."""
+    db = tmp_path / "games.sqlite3"
+    w = World(tmp_path, store_path=db)
+    (a, _), (b, _), (c, _) = w.join("A", "B", "C")
+    r = w.show("question", "pick")
+    w.engine.tick(w.at(3000))
+    w.engine.answer(a.id, r.id, {"choice": "B"}, w.at(4000))
+    e = Engine(w.bundles, Store(db), Settings(), now=w.at(5000))        # the server starts again
+    r = e.sessions[w.session.id].rounds[r.id]
+    e.connect(b.id, +1, w.at(5500))                                      # B is back first, and answers
+    e.answer(b.id, r.id, {"choice": "B"}, w.at(6000))
+    assert r.phase == "open"                                             # C may be on its way
+    e.connect(c.id, +1, w.at(7000))
+    e.answer(c.id, r.id, {"choice": "A"}, w.at(8000))
+    assert r.phase == "closed" and r.closed_by == "all"
+
+
+def test_a_phone_that_does_not_come_back_is_not_waited_for(tmp_path):
+    db = tmp_path / "games.sqlite3"
+    w = World(tmp_path, store_path=db)
+    (a, _), (b, _), (c, _) = w.join("A", "B", "C")
+    r = w.show("question", "pick")
+    w.engine.tick(w.at(3000))
+    e = Engine(w.bundles, Store(db), Settings(back_ms=2000), now=w.at(4000))      # a restart
+    r = e.sessions[w.session.id].rounds[r.id]
+    for p in (a, b):
+        e.connect(p.id, +1, w.at(4500))
+    e.answer(a.id, r.id, {"choice": "B"}, w.at(5000))
+    assert r.phase == "open"
+    e.answer(b.id, r.id, {"choice": "B"}, w.at(7000))                   # C has not come back: not waited for
+    assert r.phase == "closed" and r.closed_by == "all"
+
+
+def test_a_phone_whose_connection_dropped_a_moment_ago_is_waited_for(w):
+    e = w.engine
+    (a, _), (b, _) = w.join("A", "B")
+    r = w.show("question", "pick")
+    e.tick(w.at(3000))
+    e.connect(b.id, -1, w.at(4000))                                     # B's Wi-Fi, for a moment
+    e.answer(a.id, r.id, {"choice": "B"}, w.at(5000))
+    assert r.phase == "open"
+    e.connect(b.id, +1, w.at(6000))
+    e.answer(b.id, r.id, {"choice": "B"}, w.at(7000))
+    assert r.phase == "closed" and r.closed_by == "all"
+
+
+def test_an_ended_games_pin_says_it_is_over_and_names_the_new_game(tmp_path):
+    """Phones still holding an ended game's PIN - the QR code's address, Join again after New game -
+    were refused as wrong PINs, which count towards the address's limit: a hall behind one address
+    (the tunnel) locked itself out (the 2026-11 review: A3)."""
+    db = tmp_path / "games.sqlite3"
+    w = World(tmp_path, store_path=db)
+    e, old = w.engine, w.session
+    w.join("A")
+    e.end(old.id, w.at(1000))
+    with pytest.raises(GameError) as err:
+        e.join(old.pin, "B", w.at(2000))
+    assert err.value.code == "game-over" and err.value.detail is None     # no new game yet
+    new = e.open_session(w.bundle.deck, w.bundle.id, w.at(3000))
+    assert new.pin != old.pin
+    with pytest.raises(GameError) as err:
+        e.join(old.pin, "B", w.at(4000))
+    assert err.value.code == "game-over" and err.value.detail == {"pin": new.pin}
+    assert e.after(old.id) == new.pin and e.after(new.id) is None
+    restarted = Engine(w.bundles, Store(db), Settings(), now=w.at(5000))
+    with pytest.raises(GameError) as err:
+        restarted.join(old.pin, "B", w.at(6000))
+    assert err.value.detail == {"pin": new.pin}                          # known after a restart, too
+    with pytest.raises(GameError) as err:
+        e.join(old.pin, "B", w.at(1000 + Settings().ended_ms))
+    assert err.value.code == "unknown-pin"                               # long over: a wrong PIN

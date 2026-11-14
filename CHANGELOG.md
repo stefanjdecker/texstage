@@ -2,6 +2,46 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- The lecture room, after a critical review of texstage (its first package):
+  - One game left open whose build is not on the server any more (its folder
+    gone, a kind missing) - with a question closed and not revealed - stopped
+    the clock of every game: questions stayed on *Get ready* and never closed
+    at their time, and nothing was logged. The clock now goes game by game,
+    a game that fails is logged once, and the server says at start which games
+    wait for their build.
+  - The presenter's ⏸, +10 s and ⏭ on the slide - and the host console's
+    rename, remove and quiz buttons - lost clicks while answers came in: the
+    pushes drew them anew under the pointer, five times a second. They are
+    drawn only when they change, and the host console's lists wait while a
+    pointer is down in them.
+  - After *New game*, the phones say *Join the new game*: one tap, the new
+    PIN and the same nickname. A phone with the old PIN (the QR code, *Join
+    again*) is told the game is over and given the new PIN, for two hours,
+    instead of *No game with this PIN* - which counted towards the limit of
+    300 wrong PINs per address and ten minutes: through the tunnel, a lecture
+    hall shares one address and could lock itself out.
+  - After a restart in the middle of a question, the first phone back to
+    answer closed it for everyone ("everyone answered" counted only the phones
+    connected). Phones that drop - every phone, when the server starts again -
+    are now waited for 30 seconds.
+  - A numeric question without min and max: an empty *Submit* sent 0, an
+    iPhone's keypad has no minus, and a typed 3,5 could be lost. The field now
+    takes 3,5 and 3.5, has a ± key, and *Submit* waits for a number.
+  - Keys reached the game behind dialogs: the projector window's → moved the
+    game while *Reset the timer?* was open, and one Enter answered a message
+    and the question under it. Only the top dialog takes keys now, and Enter
+    on *No* means no.
+  - *Decks* clicked while the server could not be reached left a dead
+    presenter (a dialog per queued command, errors every frame, a reload
+    needed). It now says the server cannot be reached and tries again by
+    itself; one dialog per error.
+  - An error in one phone's view stopped the push for the phones after it,
+    and the lecturer's command answered "internal". The others now get theirs,
+    and it is logged.
+  - The deck's *Lectures …* listed the newest 200 ended games, empty ones
+    too: with thousands of empty games (two builds' windows ended each other's
+    games until 2026-10), not one lecture was listed. Only games that left
+    something - or files in the archive - are listed now.
 - Recording, after a review of it:
   - The Record dialog shows the chosen screen live as a miniature before
     anything is recorded (*Choose the screen …*, then *Start recording* or

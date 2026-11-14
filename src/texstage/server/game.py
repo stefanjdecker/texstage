@@ -42,6 +42,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import secrets
+import time
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass, field, replace
@@ -69,7 +70,8 @@ OVERLAYS = ("poll", "sketches")                    # shown instead of the slide,
 
 class GameError(Exception):
     """A command that cannot be carried out; `code` is for clients, the message for people, `detail`
-    (if any) what a window needs to ask its lecturer (replaces-game: the game that would end)."""
+    (if any) what a window needs to ask its lecturer (replaces-game: the game that would end) or what a
+    phone needs to go on (game-over: the PIN of the deck's new game)."""
 
     def __init__(self, code: str, message: str, detail: dict | None = None):
         super().__init__(message)
@@ -86,6 +88,10 @@ class Settings:
     close_when_all_answered: bool = True
     max_players: int = 1000
     prepare_ms: int = 10 * 60 * 1000     # preparing the live slides ends by itself after this
+    back_ms: int = 30 * 1000             # a phone whose connection dropped - or every phone, when the server
+                                         # starts again - may come back this long: "everyone answered" waits
+    ended_ms: int = 2 * 3600 * 1000      # an ended game's PIN means "this game is over" this long (and names
+                                         # the deck's new game), not a wrong PIN: its phones join again
 
 
 @dataclass
@@ -103,6 +109,20 @@ class Player:
     prev_rank: int = 0
     muted: bool = False                  # may not ask questions (qa.py)
     connections: int = 0                 # open connections (not stored)
+    gone: int | None = None              # when its last connection closed, or the server started (not stored)
+
+
+@dataclass
+class Ended:
+    """A game that ended a short while ago (Settings.ended_ms). A phone still holding its PIN - the QR
+    code's address, a join form filled in before - is told that it is over, and the PIN of the deck's
+    new game, instead of being refused as a wrong PIN, which counts towards its address's limit (app.py:
+    WRONG_PINS: a hall behind one address would lock itself out after New game)."""
+    sid: str
+    pin: str
+    deck: str
+    owner: str
+    at: int
 
 
 @dataclass
@@ -184,7 +204,7 @@ def clean_nickname(nickname) -> str:
 
 
 class Engine:
-    def __init__(self, bundles, store=None, settings: Settings | None = None, checks=None):
+    def __init__(self, bundles, store=None, settings: Settings | None = None, checks=None, now: int | None = None):
         self.bundles = bundles               # .get(bundle id) -> Bundle | None
         self.store = store
         self.settings = settings or Settings()
@@ -202,9 +222,16 @@ class Engine:
         for book in self.books.values():
             book.checks = checks
         self.due: dict[str, set | bool] = {}
+        self.ended: dict[str, Ended] = {}    # PIN -> the game that ended with it lately (Settings.ended_ms)
+        self.stalled: set[str] = set()       # the games whose clock failed (logged once)
         if store is not None:
+            started = now if now is not None else int(time.time() * 1000)      # (tests: their clock)
             for s in store.load():
                 self._register(s)
+                for p in s.players.values():     # every phone may be on its way back
+                    p.gone = started
+            for e in store.ended_since(started - self.settings.ended_ms):
+                self.ended[e.pin] = e
             for stroke in store.load_strokes(list(self.sessions)):
                 self.ink.add(stroke)
             for q in store.load_questions(list(self.sessions)):
@@ -382,6 +409,11 @@ class Engine:
         s.ended = now
         self._save(s)
         del self.sessions[s.id]
+        self.ended[s.pin] = Ended(s.id, s.pin, s.deck, s.owner, now)
+        if len(self.ended) > 10000:                      # (thousands a day only by a bug: keep the latest)
+            for pin in sorted(self.ended, key=lambda k: self.ended[k].at)[:len(self.ended) - 10000]:
+                del self.ended[pin]
+        self.stalled.discard(s.id)
         for p in s.players.values():
             self.players.pop(p.id, None)
             self.tokens.pop(p.token_hash, None)
@@ -702,8 +734,13 @@ class Engine:
         return changed
 
     def _auto(self, s: Session, r: Round) -> bool:
-        """Whether the round's quiz shows its results as soon as it closes (ad-hoc polls)."""
-        return self.quiz(s, r.quiz).reveal == "auto"
+        """Whether the round's quiz shows its results as soon as it closes (ad-hoc polls). Not where its
+        build is not on this server (left open by an earlier lecture, its folder gone, a kind missing):
+        such a game cannot go on - and the clock of every game asks (next_deadline)."""
+        try:
+            return self.quiz(s, r.quiz).reveal == "auto"
+        except GameError:
+            return False
 
     def _close_now(self, s: Session, r: Round, now: int, by: str):
         """The lecturer stopped the round, or every player answered."""
@@ -880,6 +917,11 @@ class Engine:
     def join(self, pin, nickname, now: int) -> tuple[Player, str]:
         s = next((s for s in self.sessions.values() if s.pin == pin and s.ended is None), None)
         if s is None:
+            e = self.ended.get(pin)
+            if e is not None and now - e.at < self.settings.ended_ms:
+                new = self.follows(e)
+                raise GameError("game-over", "this game is over" + (" - join the new one" if new else ""),
+                                {"pin": new.pin} if new else None)
             raise GameError("unknown-pin", "no game with this PIN")
         nick = clean_nickname(nickname)
         active = s.active_players()
@@ -895,6 +937,17 @@ class Engine:
         self._save(p)
         self._commit()
         return p, token
+
+    def follows(self, e: Ended) -> Session | None:
+        """The game that follows an ended one: the lecturer's open game of the same deck, if there is one."""
+        games = [s for s in self.sessions.values() if s.deck == e.deck and s.owner == e.owner and s.ended is None]
+        return max(games, key=lambda s: s.created, default=None)
+
+    def after(self, sid: str) -> str | None:
+        """The PIN of the game that follows the ended game `sid` (app.py: the bye its phones get)."""
+        e = next((e for e in self.ended.values() if e.sid == sid), None)
+        new = self.follows(e) if e is not None else None
+        return new.pin if new is not None else None
 
     def player_by_token(self, token) -> Player:
         pid = self.tokens.get(token_hash(token)) if isinstance(token, str) else None
@@ -964,16 +1017,21 @@ class Engine:
         s.last_active = now
         self._save(s)
         if r.phase == "open" and self.settings.close_when_all_answered:
-            connected = [o for o in s.active_players() if o.connections > 0]
-            if connected and all(o.id in r.answers for o in connected):
+            # everyone here: the phones connected - and those whose connection dropped a moment ago, which
+            # may come back (after the server starts again, every phone: else the first one back would
+            # close the question for all)
+            here = [o for o in s.active_players()
+                    if o.connections > 0 or (o.gone is not None and now - o.gone < self.settings.back_ms)]
+            if any(o.connections > 0 for o in here) and all(o.id in r.answers for o in here):
                 self._close_now(s, r, now, "all")
         self._commit()
         return a
 
-    def connect(self, pid: str, delta: int):
+    def connect(self, pid: str, delta: int, now: int | None = None):
         p = self.players.get(pid)
         if p is not None:
             p.connections = max(0, p.connections + delta)
+            p.gone = None if p.connections else (now if now is not None else int(time.time() * 1000))
 
     # ------------------------------------------------------------ the stage (texstage)
     def screen(self, sid: str, mode, now: int):
@@ -1481,18 +1539,40 @@ class Engine:
 
     # ------------------------------------------------------------ time
     def tick(self, now: int) -> list[str]:
-        """Apply due phase changes; the sessions that changed."""
-        changed = [s.id for s in self.sessions.values() if self._advance(s, now)]
+        """Apply due phase changes; the sessions that changed. Game by game: one game's trouble must not
+        stop the others' clocks (it is logged once)."""
+        changed = []
+        for s in list(self.sessions.values()):
+            try:
+                if self._advance(s, now):
+                    changed.append(s.id)
+                self.stalled.discard(s.id)
+            except Exception:
+                self._stalled(s)
         self._commit()
         return changed
 
     def next_deadline(self) -> int | None:
-        times = [r.opens if r.phase == "get-ready" else r.deadline
-                 for s in self.sessions.values() for r in s.rounds.values()
-                 if r.phase in ("get-ready", "open") and not (r.phase == "open" and r.deadline is None)]
-        times += [r.closed + self.settings.grace_ms for s in self.sessions.values() for r in s.rounds.values()
-                  if r.phase == "closed" and self._auto(s, r)]          # a poll's results, after the grace
+        """The next phase change of any game - game by game, as tick; not of a game whose clock failed
+        (it is tried again at the others' ticks: its deadline, passed, would make the clock spin)."""
+        times = []
+        for s in list(self.sessions.values()):
+            if s.id in self.stalled:
+                continue
+            try:
+                times += [r.opens if r.phase == "get-ready" else r.deadline for r in s.rounds.values()
+                          if r.phase in ("get-ready", "open") and not (r.phase == "open" and r.deadline is None)]
+                times += [r.closed + self.settings.grace_ms for r in s.rounds.values()
+                          if r.phase == "closed" and self._auto(s, r)]      # a poll's results, after the grace
+            except Exception:
+                self._stalled(s)
         return min(times, default=None)
+
+    def _stalled(self, s: Session):
+        if s.id not in self.stalled:
+            self.stalled.add(s.id)
+            logging.getLogger("texstage.server").exception("game %s (PIN %s, deck %s): its clock failed",
+                                                           s.id, s.pin, s.deck)
 
     # ------------------------------------------------------------ views
     def _results(self, s: Session, q: QuizDef, r: Round) -> dict:

@@ -125,3 +125,36 @@ def test_a_decks_builds_are_presented_downloaded_and_an_upload_deleted(tmp_path)
     with TestClient(create_app(config(other))) as elsewhere:                          # to another server
         r = elsewhere.post("/api/bundles", content=z.content, headers=HOST)
         assert r.status_code == 201 and r.json()["bundle"] == older.id and r.json()["new"] is True
+
+
+def test_the_lectures_are_listed_however_many_empty_games_came_after(tmp_path):
+    """A deck had thousands of ended games that left nothing (two builds' windows ended each other's games,
+    until 2026-10): the list held the newest 200 of them, and not one lecture (the 2026-11 review: B1). A game
+    that left only files in the archive - a recording - is a lecture all the same."""
+    from types import SimpleNamespace
+
+    from texstage.server import archive
+    fb = make_bundle(tmp_path / "bundles", stage=True)
+    with TestClient(create_app(config(tmp_path))) as client, client.websocket_connect("/ws") as st:
+        first = say_hello(st, fb, role="stage")
+        with client.websocket_connect("/ws") as phone:
+            join(phone, first["pin"], "Ada")                                  # a lecture: its player
+        st.send_json({"t": "lecture.new", "id": 2})
+        second = recv(st, "ok", until=lambda m: m["re"] == 2)
+        st.send_json({"t": "lecture.new", "id": 3})
+        third = recv(st, "ok", until=lambda m: m["re"] == 3)
+        db = sqlite3.connect(tmp_path / "data" / "texquiz.sqlite3")
+        db.row_factory = sqlite3.Row
+        row = dict(db.execute("SELECT * FROM sessions WHERE id = ?", (second["session"],)).fetchone())
+        place = archive.folder(tmp_path / "data", SimpleNamespace(deck=fb.deck, created=row["created"], pin=row["pin"]))
+        (place / "recording-0123456789ab.webm").write_bytes(b"a recording")                   # ... and one with a recording alone
+        for i in range(250):                                                   # 250 empty ones after them
+            empty = {**row, "id": f"empty{i:04d}", "pin": f"{100000 + i}", "created": row["created"] + 1000 * (i + 1),
+                     "ended": row["ended"] + 1000 * (i + 1), "stage": "{}", "polls": "{}"}
+            db.execute(f"INSERT INTO sessions ({', '.join(empty)}) VALUES ({', '.join('?' * len(empty))})",
+                       list(empty.values()))
+        db.commit()
+        db.close()
+        listed = lectures(client)
+        assert [x["pin"] for x in listed] == [third["pin"], second["pin"], first["pin"]]
+        assert listed[2]["players"] == 1 and [f["name"] for f in listed[1]["files"]] == ["recording-0123456789ab.webm"]

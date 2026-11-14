@@ -51,6 +51,9 @@ export default {
     timesUp: "Time's up", noAnswer: "No answer", correct: "Correct!", wrong: "Not quite", partly: "Partly right",
     thanks: "Thanks!", points: "points", streak: "streak", rank: (r, n) => `Rank ${r} of ${n}`, paused: "Paused",
     finished: "Game over", yourRank: "Your rank", again: "Join again", gameOver: "This game is over.",
+    gameOverNew: "This game is over – a new one has begun.", joinNew: "Join the new game",
+    newPin: "That game is over – this is the new game's PIN.",
+    yourNumber: "Your number", sign: "Change the sign", notNumber: "Please type a number – 42 or 3.5.",
     kicked: "You have been removed from the game.", offline: "Reconnecting …", typeHere: "Your answer",
     several: "Several answers can be correct", tickAll: "Tick all that apply",
     orderHint: "Put them in the right order", practice: "Practice round – no points",
@@ -142,6 +145,7 @@ export default {
     kicked: "You have been removed from the game.",
     "unknown-player": "Please join the game again.",
     "no-session": "This game is over.",
+    "game-over": "This game is over.",
     "unknown-round": "There is no such question.",
     "not-open": "The question is not open yet.",
     paused: "The question is paused.",
@@ -234,6 +238,8 @@ export default {
   // in every language.
   presenter: {
     roundTrip: "the round trip to the server",
+    unreachable: "The server cannot be reached", tryAgain: "Try again",
+    retrying: "Trying again by itself every few seconds - the lecture is kept on the server.",
     offline: "No connection to the server - what you do here reaches neither the projector nor the phones. Trying again …",
     moreTitle: "after the lecture, the results, a new game, the decks", close: "Close",
     pairInstead: (devices, pair) => `An iPad or a second computer is paired instead: in texstage on the laptop, choose ${devices}, then ${pair}, and scan the code it shows.`,

@@ -1,8 +1,10 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
 // Questions and messages in the page instead of the browser's confirm(), alert() and prompt(),
-// which take a full-screen window out of full screen. Enter answers yes (or OK), Esc no; while one
-// is open, no key reaches the presenter (and presenter.js leaves the keys to any open .dialog).
+// which take a full-screen window out of full screen. Enter answers yes (or OK) - no where the No
+// button has the focus -, Esc no; only the top one of dialogs on top of each other takes the keys (one
+// Enter answered them all: a message's OK said yes to the question under it); while one is open, no
+// key reaches the presenter (and presenter.js leaves the keys to any open .dialog).
 //
 //   if (await ask("Reset the timer to 0:00?", "Reset")) ...          // true: yes
 //   await tell("A number of minutes, please.");
@@ -29,10 +31,11 @@ function open(text, { yes = words().ok, no = null, field = null } = {}) {
         ${no ? `<button class="secondary" data-answer="no">${esc(no)}</button>` : ""}</div></div>`;
     const input = el.querySelector(".askfield");
     const keys = (e) => {
+      if ([...document.querySelectorAll(".dialog")].pop() !== el) return;   // a dialog on top: its keys
       e.stopPropagation();                                   // none for the presenter meanwhile
       if (e.key === "Enter" || e.key === "Escape") {
         e.preventDefault();
-        finish(e.key === "Enter");
+        finish(e.key === "Enter" && document.activeElement !== el.querySelector('[data-answer="no"]'));
       }
     };
     const finish = (yes) => {

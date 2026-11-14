@@ -382,8 +382,8 @@ class Conn:
         self.outbox.append(text)
         self.ready.set()
 
-    def bye(self, reason: str, message: str):
-        self.send({"t": "bye", "reason": reason, "message": message})
+    def bye(self, reason: str, message: str, **more):
+        self.send({"t": "bye", "reason": reason, "message": message, **more})
         self.closing = True
 
     async def writer(self):
@@ -480,6 +480,10 @@ class Server:
         self.loop: asyncio.AbstractEventLoop | None = None
         self.engine = Engine(self.bundles, self.store, config.settings, checks=self.checks)
         self.engine.on_end = self.ended                 # a game that ends leaves its archive (ended)
+        for s in self.engine.sessions.values():         # left open by an earlier lecture: it waits
+            if self.bundles.get(s.bundle) is None:
+                log.warning("game %s (PIN %s, deck %s) waits: its build %s is not on this server", s.id, s.pin,
+                            s.deck, s.bundle)
         self.recordings = Recordings(config.data_dir / "archive")      # texstage (archive.py)
         self.downloads: dict[str, tuple[Path, str, int]] = {}         # ticket -> file, its name, valid until
         self.media: dict[str, tuple[str, str, int]] = {}              # ticket -> bundle ID, relative video file, valid until
@@ -510,7 +514,7 @@ class Server:
             return
         if players and only is None and not asking:
             self.engine.due.pop(sid, None)            # every phone gets its state now
-        host_view = None
+        host_view, failed = None, []
         for c in list(self.conns.get(sid, ())):
             try:
                 if c.role in HOSTS and hosts:
@@ -530,17 +534,23 @@ class Server:
             except GameError as err:
                 c.bye(err.code, str(err))
                 self.conns[sid].discard(c)
+            except Exception as err:                 # a bug in one view: the others get theirs all the same
+                failed.append((c, err))
+        if failed:
+            c, err = failed[0]
+            log.error("game %s: %d views failed, the first of a %s", sid, len(failed), c.role, exc_info=err)
         if hosts:
             self.dirty.discard(sid)
 
     def _sweep(self):
         """Connections of sessions that ended: hosts move to the deck's new session, if there
-        is one; players are told to join again."""
+        is one; players are told to join again - the new game, if the deck has one (its PIN)."""
         live = set(self.engine.sessions) | set(self.engine.players)
         for key in [k for k in self.replies if k[1] not in live]:   # retry caches of ended games
             del self.replies[key]
         for sid in [sid for sid in self.conns if sid not in self.engine.sessions]:
             conns = self.conns.pop(sid)
+            pin = self.engine.after(sid)
             for c in conns:
                 if c.role in HOSTS:
                     deck = c.deck
@@ -550,13 +560,20 @@ class Server:
                         self._attach(c, new.id)
                         self.push(new.id, players=False)
                         continue
-                c.bye("no-session", "this game is over - join the new one")
+                if c.role == "player" and pin:
+                    c.bye("no-session", "this game is over - join the new one", pin=pin)
+                else:
+                    c.bye("no-session", "this game is over")
 
     # ------------------------------------------------------------ background
     async def ticker(self):
         """Phase changes at their deadlines (get-ready -> open -> closed)."""
         while True:
-            due = self.engine.next_deadline()
+            try:
+                due = self.engine.next_deadline()
+            except Exception:                        # (a bug must not stop the clock either)
+                log.exception("next deadline failed")
+                due = now_ms() + 1000
             timeout = None if due is None else max(0.0, (due - now_ms()) / 1000) + 0.002
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self.wake.wait(), timeout)
@@ -1762,7 +1779,7 @@ def create_app(config: ServerConfig) -> Starlette:
                             "players": len(s.active_players()), "asked": len({r.quiz for r in s.rounds.values()}),
                             "frames": frames, "boards": boards, "polls": len(s.polls),
                             "questions": sum(1 for q in s.questions.values() if q.state != "deleted")})
-        out += server.store.lectures(deck, lect)
+        out += server.store.lectures(deck, lect, archived=archive.pins(config.data_dir, deck))
         for e in out:
             b = server.bundles.bundles.get(e["bundle"])
             e["built"] = b.built if b is not None else None

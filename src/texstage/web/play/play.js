@@ -15,7 +15,7 @@
 
 import { browserLanguage, errorText, languageOf, markLanguage, supported, texts } from "/static/i18n/i18n.js";
 import { ActivityScreen } from "/static/play/activity.js";
-import { StepScreen } from "/static/play/activities.js";
+import { StepScreen, parseNumber, phoneLanguage } from "/static/play/activities.js";
 import { Kinds } from "/static/kinds.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
@@ -62,6 +62,10 @@ let kindsOf = "";        // ... of these files (the welcome's kindFiles)
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE) || "null"); } catch { return null; } })();
 const query = new URLSearchParams(location.search);
 const urlPin = query.get("pin") || "";
+// what the join form fills in: the QR code's PIN, then the one this phone joined with - or, once its game
+// is over, the deck's new game's (the bye, a join's refusal: game-over); the nickname it joined with
+let pinHere = urlPin;
+let nickHere = saved?.nickname || "";
 
 function speak(tag) {
   // the phone's language: its texts, and what is drawn built again in them (screens, tabs, questions)
@@ -119,11 +123,15 @@ const client = new Client({
   onBye: (m) => {
     forget();
     state = null;
-    showMessage(m.reason === "kicked" ? T.kicked : T.gameOver);
+    if (m.reason === "kicked") return showMessage(T.kicked);
+    if (m.pin) pinHere = m.pin;                         // New game: one tap joins it
+    showMessage(m.pin ? T.gameOverNew : T.gameOver, m.pin ? T.joinNew : T.again);
   },
 });
 
 function remember(pin, token, nickname) {
+  pinHere = pin;
+  nickHere = nickname;
   try { localStorage.setItem(STORE, JSON.stringify({ pin, token, nickname, language: lang })); } catch { /* private mode */ }
 }
 function keepLanguage() {
@@ -150,13 +158,13 @@ function joinForm() {
   app.innerHTML = `<form class="center" id="join" autocomplete="off">
     <h1>texstage</h1>
     <label for="pin">${esc(T.pin)}</label>
-    <input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" value="${esc(urlPin)}" required>
+    <input id="pin" class="pin-input" inputmode="numeric" pattern="[0-9 ]*" maxlength="7" value="${esc(pinHere)}" required>
     <label for="nick">${esc(T.nick)}</label>
-    <input id="nick" type="text" maxlength="20" value="${esc(saved?.nickname || "")}" required autocapitalize="words">
+    <input id="nick" type="text" maxlength="20" value="${esc(nickHere)}" required autocapitalize="words">
     <button class="main" type="submit">${esc(T.join)}</button>
     <div class="error" id="err">${esc(joinError)}</div></form>`;
   const form = $("#join");
-  (urlPin ? $("#nick") : $("#pin")).focus();
+  (pinHere && !nickHere ? $("#nick") : pinHere ? form.querySelector("button") : $("#pin")).focus();
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const pin = $("#pin").value.replace(/\D/g, "");
@@ -169,6 +177,12 @@ function joinForm() {
       client.relogin({ t: "resume", token: w.token });
       joinError = "";
     } catch (err) {
+      if (err?.code === "game-over" && err.detail?.pin) {       // an ended game's PIN: the new game's instead
+        pinHere = err.detail.pin;
+        nickHere = nickname;
+        joinError = T.newPin;
+        return joinForm();
+      }
       joinError = errorText(lang, err);
       $("#err").textContent = joinError;
       button.disabled = false;
@@ -176,13 +190,13 @@ function joinForm() {
   });
 }
 
-function showMessage(text) {
+function showMessage(text, button = T.again) {
   screenKey = "message";
   $("#who").textContent = "";
   $("#score").textContent = "";
   setTab("quiz");
   $("#tabs").hidden = true;
-  app.innerHTML = `<div class="center"><h2>${esc(text)}</h2><button class="main" id="again">${esc(T.again)}</button></div>`;
+  app.innerHTML = `<div class="center"><h2>${esc(text)}</h2><button class="main" id="again">${esc(button)}</button></div>`;
   $("#again").onclick = () => { joinError = ""; joinForm(); };
 }
 
@@ -427,8 +441,12 @@ function question(r) {
     body = slider
       ? `<div class="value"><span id="val">${esc(d.value)}</span> ${esc(n.unit || "")}</div>
          <input class="slider" id="num" type="range" min="${n.min}" max="${n.max}" step="${n.step || 1}" value="${d.value}">`
-      : `<input id="num" type="number" inputmode="decimal" step="any" value="${esc(d.value)}" placeholder="${esc(n.unit || "")}">`;
-    body += `<button class="main" id="send">${esc(T.send)}</button>`;
+      // a number as typed - 3,5 too (type=number lost the comma) - with a ± key: an iPhone's keypad has no minus
+      : `<div class="numline"><input id="num" type="text" inputmode="decimal" maxlength="40" autocomplete="off"
+          autocapitalize="off" autocorrect="off" spellcheck="false" aria-label="${esc(T.yourNumber)}"
+          value="${esc(d.value)}" placeholder="${esc(n.unit || "")}"><button type="button" class="sign" id="sign"
+          aria-label="${esc(T.sign)}">±</button></div>`;
+    body += `<button class="main" id="send"${slider || parseNumber(d.value, phoneLanguage(lang)) !== null ? "" : " disabled"}>${esc(T.send)}</button>`;
   } else if (kind === "sketch") {
     d.pen ??= 0;
     body = `<p>${esc(T.draw)}</p><div class="padbox" id="padbox"></div>
@@ -463,8 +481,13 @@ function question(r) {
   }));
   const num = $("#num");
   const readNumber = () => {
-    d.value = num.value === "" ? "" : Number(num.value);
-    if ($("#val")) $("#val").textContent = num.value;
+    if ($("#val")) {                             // a slider: its value
+      d.value = Number(num.value);
+      $("#val").textContent = num.value;
+    } else {                                     // the text as typed; Submit once it is a number
+      d.value = num.value;
+      $("#send").disabled = parseNumber(num.value, phoneLanguage(lang)) === null;
+    }
   };
   if (num) {
     num.addEventListener("input", readNumber);
@@ -472,6 +495,12 @@ function question(r) {
     // label and submitted draft in sync even before the student first moves its thumb.
     readNumber();
   }
+  $("#sign")?.addEventListener("click", () => {
+    const v = num.value.trim().replace(String.fromCharCode(0x2212), "-");
+    num.value = v.startsWith("-") ? v.slice(1) : `-${v.replace(/^\+/, "")}`;
+    readNumber();
+    num.focus();
+  });
   const text = $("#text");
   text?.addEventListener("input", () => { d.text = text.value; $("#chars").textContent = text.value.length; });
   let pad = null;
@@ -492,7 +521,11 @@ function question(r) {
   $("#send")?.addEventListener("click", () => {
     if (kind === "multiple") submit(r, { choices: d.choices });
     else if (kind === "order") submit(r, { order: d.order });
-    else if (kind === "numeric") submit(r, { value: Number(d.value) });
+    else if (kind === "numeric") {
+      const value = $("#val") ? Number(d.value) : parseNumber(d.value, phoneLanguage(lang));
+      if (value === null) $("#err").textContent = T.notNumber;        // (an empty field sent 0)
+      else submit(r, { value });
+    }
     else if (kind === "sketch") {
       const strokes = pad.encode();
       if (strokes) submit(r, { strokes });

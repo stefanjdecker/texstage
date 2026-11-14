@@ -117,6 +117,24 @@ async function openGame(d) {
     <aside class="side"><div class="panel"><h2 id="ptitle">${esc(H.players)}</h2><div class="players" id="players"></div></div>
       <div class="panel"><h2>${esc(H.quizzes)}</h2><div class="quizzes" id="quizzes"></div></div>
       <div class="panel" id="actspanel" hidden><h2>${esc(H.activities)}</h2><div class="quizzes" id="acts"></div></div></aside></div>`;
+  // the lists' buttons, by delegation: a push draws the lists anew (fill), their buttons with them
+  $("#players").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-rename], button[data-kick]");
+    const p = b && state?.players.find((x) => x.id === (b.dataset.rename || b.dataset.kick));
+    if (!p) return;
+    if (b.dataset.rename) {
+      const name = prompt(T.host.renameAsk, p.nickname);
+      if (name) client.send({ t: "rename", player: p.id, nickname: name }).catch(alertError);
+    } else if (confirm(T.host.removeAsk(p.nickname))) client.send({ t: "kick", player: p.id }).catch(alertError);
+  });
+  $("#quizzes").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-quiz]");
+    if (!b) return;
+    // a quiz starts on its reading slide (the question alone); the next key starts the round
+    const target = deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "read")
+      || deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "question");
+    if (target) go(target.id);
+  });
   client?.close();
   client = new Client({
     onStatus: (s) => { $("#status").className = `status ${s}`; },
@@ -194,32 +212,35 @@ function render() {
   $("#where").textContent = `${H.slideOf(i + 1, deck.slides.length)}${live}`;
   const players = state.players;
   $("#ptitle").textContent = H.playersOf(players.length, state.session.connected);
-  $("#players").innerHTML = players.map((p) => `<div class="player"><span class="rank">${p.rank || ""}</span>
+  fill($("#players"), players.map((p) => `<div class="player"><span class="rank">${p.rank || ""}</span>
       <span class="dot ${p.connected ? "on" : ""}"></span><span class="name">${esc(p.nickname)}</span>
       <span class="pts">${p.score}</span><button data-rename="${p.id}" title="${esc(H.rename)}">✎</button>
       <button data-kick="${p.id}" title="${esc(H.remove)}">✕</button></div>`).join("")
-    || `<div class="empty">${esc(H.nobody)}</div>`;
-  $("#players").querySelectorAll("[data-rename]").forEach((b) => b.onclick = () => {
-    const p = players.find((x) => x.id === b.dataset.rename);
-    const name = prompt(T.host.renameAsk, p.nickname);
-    if (name) client.send({ t: "rename", player: p.id, nickname: name }).catch(alertError);
-  });
-  $("#players").querySelectorAll("[data-kick]").forEach((b) => b.onclick = () => {
-    const p = players.find((x) => x.id === b.dataset.kick);
-    if (confirm(T.host.removeAsk(p.nickname))) client.send({ t: "kick", player: p.id }).catch(alertError);
-  });
-  $("#quizzes").innerHTML = Object.entries(deck.quizzes).map(([id, q]) => {
+    || `<div class="empty">${esc(H.nobody)}</div>`);
+  fill($("#quizzes"), Object.entries(deck.quizzes).map(([id, q]) => {
     const r = state.rounds[id];
     const tag = r ? `<span class="tag ${r.phase}">${esc(textOf(L.round, r.phase))}${r.phase === "open" || r.phase === "get-ready" ? ` · ${r.answered}` : ""}</span>` : "";
     return `<button class="quiz" data-quiz="${esc(id)}"><span class="title" title="${esc(q.title)}">${esc(id)}</span><span class="tag">${esc(q.type)}</span>${tag}</button>`;
-  }).join("");
+  }).join(""));
   activities();
-  $("#quizzes").querySelectorAll("[data-quiz]").forEach((b) => b.onclick = () => {
-    // a quiz starts on its reading slide (the question alone); the next key starts the round
-    const target = deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "read")
-      || deck.slides.find((s) => s.quiz === b.dataset.quiz && s.phase === "question");
-    if (target) go(target.id);
-  });
+}
+
+// The lists are drawn anew with the pushes - five a second while answers come in - and a button drawn anew
+// under a pressed pointer loses its click (rename, remove, a quiz): a list a pointer is down in waits, and
+// is drawn once it is up; a list whose HTML is the same is left alone.
+let pressed = null;
+document.addEventListener("pointerdown", (e) => { pressed = e.target.closest?.("#players, #quizzes") || null; }, true);
+for (const up of ["pointerup", "pointercancel"]) {
+  document.addEventListener(up, () => {
+    if (!pressed) return;
+    pressed = null;
+    setTimeout(() => { if (deck && state) render(); });     // (after the click, which comes next)
+  }, true);
+}
+function fill(el, html) {
+  if (el === pressed || el.drawn === html) return;
+  el.drawn = html;
+  el.innerHTML = html;
 }
 
 // The deck's live activities, with --activities core (the deck's view says so): each one's phase - and of
