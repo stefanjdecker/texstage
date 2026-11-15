@@ -1260,20 +1260,47 @@ Reported after that, the same day:
 - **Not done:** the old copy in lecture-tools that the dbis-vl lecture runs has none of it. (The KG
   lecture moved the same day to lecture-tools-next, which pins texstage - 7194dad - instead of a copy.)
 
-## 32. Record keeps the presenter window full screen (2026-11-15)
+## 32. Record: the recording waits once the screen is chosen; full screen (2026-11-15)
 
-- **Why:** in a lecture, choosing the screen for *Record* took the full-screen presenter window out of full
-  screen: the browser's dialog for the screen (Chromium on Windows) left it, and a page may go back to full
-  screen only within a click (transient user activation, 5 s in Chromium).
-- **The fix** (`recordDialog` in presenter.js): *Record* notes whether the window is full screen - the page's
-  (`document.fullscreenElement`) or the browser's own, F11, which only `display-mode: fullscreen` or the window's
-  size equal to the screen's shows. If it was and no longer is, the page asks for full screen again
+- **Why:** in a lecture (Chromium on Windows), sharing an entire screen - the projector's - for *Record* took the
+  full-screen presenter window on the laptop out of full screen, and a page may go back to full screen only within
+  a click (transient user activation, 5 s in Chromium). The cause is not the browser's dialog for the screen:
+  Chromium's code for it (`display_media_access_handler.cc`, `desktop_media_picker_views.cc`) does nothing with
+  full screen. As the capture starts, though, Chromium shows its "is sharing your screen" bar
+  (`screen_capture_notification_ui_views.cc`, `OnStarted`) - for a screen focused (`widget_->Show()`, "Focus the
+  notification widget if sharing a screen"), for a window without the focus (`ShowInactive()`) - and on the
+  primary display, the laptop's, not the captured one. The presenter window losing the focus to it is the one
+  step tied to a screen's capture; that the focus change ends the full screen is inferred from the lecture, not
+  read in Chromium's code. Until the presenter window has the focus again, a clicker's keys go to the bar, and
+  the bar's *Hide* takes the focus again. 93f7ac7 brought full screen back in the dialog's clicks; the user then
+  asked for the recording to wait after the choice, so that the lecturer puts right whatever needs it first.
+- **The recording waits** (record.js): a `Recording` begins in the state `ready` - the screen chosen, nothing
+  recorded and no file on the server. `start()` (only from `ready`) goes to `starting`, makes the file in
+  `this.session`'s archive and starts the recorder; refused, or the network gone, it is `ready` again and the
+  rejection says why. `drop()` lets a waiting one go - its screen and microphone stop - as `dropped` (✕) or
+  `gone` (its screen went away by itself: the `ended` handler, now in the constructor, so that it covers the wait
+  as well as the recording, which it stops as before).
+- **The presenter window** (presenter.js): `recordDialog` closes as soon as the screen is chosen and makes the
+  waiting recording (`rec`), with a notice of what was chosen; its miniature and *Start recording* are gone.
+  `renderRec`'s `ready` state: the screen live as a miniature (30 px high, six times larger under the pointer -
+  the projector's picture, not the presenter window?), the microphone's level (the ticker runs for it), *● Start*
+  (`startRec`) and ✕ (`dropRec`); `dropped` and `gone` go back to *Record*, `gone` with a notice. `startRec` gives
+  the recording the game open at Start - the deck or the game may have changed since the choice (the recording
+  goes on across both) - and remembers the take once it records. A screen can thus be chosen before the lecture,
+  and *● Start* clicked when it begins.
+- **Full screen:** *Record* notes whether the window is full screen (`recFull`; `fullScreen()`: the page's,
+  `document.fullscreenElement`, or the browser's own, F11, which only `display-mode: fullscreen` or the window's
+  size equal to the screen's shows). If it was and no longer is, `backToFull()` asks for full screen again
   (`requestFullscreen` on the document): right after the choice while the click that opened the browser's dialog
-  still counts (`navigator.userActivation.isActive`), else in the dialog's next click - *Start* (before anything is
-  awaited) or *Cancel*. A window that was not full screen is not made so. Going back gives the page's full screen
-  for an F11 one: the same picture, Esc leaves it.
-- **Tests:** `tests/test_browser_recording.py` - a stand-in for the browser's dialog does what Chromium did
-  (leaves full screen, hands over a canvas's stream); with a choice longer than a click counts, the window is full
-  screen again with Start and records; a quick choice brings it back at once, Cancel keeps it; a window not full
-  screen stays so. `tests/web-client-record.test.cjs` checks the same in the dialog's cut-out source against
-  stubs (its harness now gives `window`, `matchMedia` and the document's full screen). All four fail on 7194dad.
+  still counts (`navigator.userActivation.isActive`), else in the next click of these - *● Start* (before
+  anything is awaited), ✕, or *Cancel* in the dialog. A window that was not full screen is not made so. Going
+  back gives the page's full screen for an F11 one: the same picture, Esc leaves it. The click also gives the
+  presenter window the focus back.
+- **Tests:** `tests/test_browser_recording.py` - a stand-in for the browser's dialog and the capture's start does
+  what Chromium did (hands over a canvas's stream, leaves full screen): after a choice longer than a click counts,
+  the recording waits - dialog closed, miniature live, no take on the server, out of full screen -, and *● Start*
+  brings full screen back and records (a take); a quick choice is full screen at once, ✕ lets it go (the screen's
+  track ended, no take) and keeps full screen; a window not full screen stays so; a waiting recording whose screen
+  goes away is let go with a notice. `tests/web-client-record.test.cjs` checks the dialog's cut-out source and the
+  model against stubs: the wait, Start into the game open then, ✕, the screen gone, full screen with Start and ✕,
+  a refused start that leaves it waiting. The three browser tests fail on 93f7ac7.

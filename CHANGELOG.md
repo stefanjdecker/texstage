@@ -2,11 +2,19 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
-- *Record* keeps a full-screen presenter window full screen: in a lecture the
-  browser's dialog for the screen took it out of full screen (Chromium on
-  Windows), and only a click may bring a page back. It is full screen again at
-  once while the click that opened the dialog still counts, else with *Start*
-  or *Cancel*; a window that was not full screen stays as it was
+- *Record*: once the screen is chosen, the recording waits in the top bar, not
+  started and without a file - the screen as a live miniature (larger under the
+  pointer), the microphone's level, *● Start* and ✕ -, so that whatever needs it
+  is put right first; the dialog's miniature and its *Start recording* are gone.
+  The screen can now be chosen before the lecture and *● Start* clicked when it
+  begins. *● Start* records into the game open then; a refused start leaves it
+  waiting; ✕, or the screen going away, lets the screen and the microphone go.
+- A full-screen presenter window is full screen again after the choice: in a
+  lecture, sharing an entire screen took it out of full screen (Chromium on
+  Windows: as the capture starts, its "is sharing your screen" bar takes the
+  focus, on the primary display), and only a click may bring a page back - at
+  once while the click that opened the browser's dialog still counts (93f7ac7),
+  else with *● Start*, ✕ or *Cancel*; a window that was not full screen stays so
   (`tests/test_browser_recording.py`, `tests/web-client-record.test.cjs`).
 - The deck page helps find today's deck:
   - A card shows the deck's first slide and when you presented it last

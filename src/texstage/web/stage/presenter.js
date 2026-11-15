@@ -91,6 +91,7 @@ let flushing = false;
 let swipe = null;       // a finger's swipe over the slide: the next or the previous step
 let pinger = null;
 let rec = null;         // the recording (record.js) - it goes on when the deck or the game changes
+let recFull = false;     // the window was full screen when Record was clicked (backToFull)
 let recTicker = null;   // its time and the microphone's level, while it runs
 let qaPanel = null;     // the audience's questions while their panel is open (M6)
 let gallery = null;     // a sketch question's drawings while their gallery is open (M6)
@@ -2413,9 +2414,14 @@ function renderRec() {
   // in the top bar - never on the projector -: Record, or while it runs a red dot, the time, the
   // microphone's level (and a warning when it has heard nothing for a while, or is gone), pause and
   // stop; when it ends, whether it was saved - and loudly, until dismissed, when it stopped by itself
-  // (the recorded screen went away), with Record again
+  // (the recorded screen went away), with Record again. Before all that, once the screen is chosen (recordDialog): the
+  // recording waiting, not started - the screen as a live miniature, the microphone's level, Start and ✕
   const el = $("#rec");
   const R = T.record;
+  if (rec?.state === "dropped" || rec?.state === "gone") {       // let go before it started: nothing was recorded
+    if (rec.state === "gone") notice(R.gone);
+    rec = null;
+  }
   const open = Boolean(client && state?.session) && typeof auth === "string" && canRecord();
   const shape = rec ? `${rec.state}${rec.cause ? " recgone" : ""}${rec.late ? " late" : ""}` : open ? "idle" : "";   // (recgone: not .screen, the projector's)
   if (el.dataset.shape !== `${shape}:${lang}`) {            // (the deck page, another deck: another language)
@@ -2425,6 +2431,19 @@ function renderRec() {
     if (!rec) {
       el.innerHTML = open ? `<button id="recbtn" title="${esc(R.buttonTitle)}">● ${esc(R.button)}</button>` : "";
       if (open) $("#recbtn").onclick = recordDialog;
+    } else if (rec.state === "ready") {
+      // the miniature, and a larger one below the bar under the pointer (it takes no clicks: Start stays reachable)
+      el.innerHTML = `<span class="recviews"><video class="recview" id="recview" muted autoplay playsinline title="${esc(R.view)}"></video>
+          <video class="recbig" id="recbig" muted autoplay playsinline aria-hidden="true"></video></span>
+        ${rec.mic ? `<span class="meter" title="${esc(R.meter)}"><i id="reclevel"></i></span>` : `<span class="nosound">${esc(R.noSound)}</span>`}
+        <button class="recgo" id="recgo" title="${esc(R.goTitle)}">● ${esc(R.go)}</button>
+        <button id="recdrop" title="${esc(R.dropTitle)}">✕</button>`;
+      for (const view of [$("#recview"), $("#recbig")]) {
+        view.srcObject = rec.screen;
+        view.play?.()?.catch?.(() => {});
+      }
+      $("#recgo").onclick = startRec;
+      $("#recdrop").onclick = dropRec;
     } else if (rec.state === "recording" || rec.state === "paused") {
       const paused = rec.state === "paused";
       el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span>
@@ -2435,7 +2454,7 @@ function renderRec() {
       $("#recpause").onclick = () => (paused ? rec.resume() : rec.pause());
       $("#recstop").onclick = async () => { if (await ask(T.record.stopAsk, T.record.stop)) rec.stop(); };
     } else if (rec.state === "starting" || rec.state === "stopping") {
-      el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span><span>${esc(R.saving)}</span>${late}`;
+      el.innerHTML = `<span class="recdot"></span><span class="rectime" id="rectime"></span><span>${esc(rec.state === "starting" ? R.starting : R.saving)}</span>${late}`;
     } else if (rec.state === "saved" && rec.cause === "screen") {
       // stopped by itself: the rest of the lecture would go unrecorded - said until the lecturer answers
       el.innerHTML = `<span class="recfail" title="${esc(R.ended)}">${esc(R.endedShort)}</span>
@@ -2452,7 +2471,7 @@ function renderRec() {
       if (saved) setTimeout(() => { if (rec === done) { rec = null; renderRec(); } }, 30000);
     }
   }
-  const running = Boolean(rec?.active);
+  const running = Boolean(rec?.active || rec?.state === "ready");   // (waiting: the microphone's level)
   if (running && !recTicker) recTicker = setInterval(tickRec, 150);
   if (!running && recTicker) {
     clearInterval(recTicker);
@@ -2470,7 +2489,8 @@ function tickRec() {
   const time = $("#rectime");
   if (time) time.textContent = rec.state === "paused" ? T.record.paused(clock(rec.elapsed())) : clock(rec.elapsed());
   const level = $("#reclevel");
-  if (level) level.style.width = `${Math.round((rec.state === "recording" ? rec.mic?.level() || 0 : 0) * 100)}%`;
+  const hears = rec.state === "recording" || rec.state === "ready";
+  if (level) level.style.width = `${Math.round((hears ? rec.mic?.level() || 0 : 0) * 100)}%`;
   const warn = $("#recwarn");                     // the microphone gone, or silent for QUIET_MS while recording
   if (warn) {
     const said = rec.micLost ? T.record.micGone : rec.silence() >= QUIET_MS ? T.record.quiet : "";
@@ -2481,21 +2501,14 @@ function tickRec() {
 }
 
 async function recordDialog() {
-  // Record: the microphone with its level first; then the screen - the browser's dialog, which shows each screen
-  // and window as a miniature (where the projector window is, said here first) -, shown here live as a miniature
-  // before anything is recorded, so that the presenter's own screen (its notes, the next step's answers) is not
-  // recorded by mistake; then Start. The computer's sound (the deck's videos) only when ticked: off each time.
-  if (rec?.active || !state?.session) return;
-  // The browser's dialog for the screen can take the presenter window out of full screen (Chromium on Windows did, in
-  // a lecture), and a page may go back to full screen only in a click: right after the choice while the click that
-  // opened the dialog still counts, else with Start or Cancel - the presenter window as it was before Record.
-  // Full screen: the page's (the Fullscreen API) or the browser's own (F11), which only display-mode or the size shows.
-  const fullScreen = () => Boolean(document.fullscreenElement) || matchMedia("(display-mode: fullscreen)").matches
-    || (Math.abs(window.innerWidth - window.screen.width) <= 1 && Math.abs(window.innerHeight - window.screen.height) <= 1);
-  const wasFull = fullScreen();
-  const backToFull = () => {
-    if (wasFull && !fullScreen()) document.documentElement.requestFullscreen?.().catch(() => {});
-  };
+  // Record: the microphone with its level first, then the screen - the browser's dialog, which shows each screen and
+  // window as a miniature (where the projector window is, said here first). The computer's sound (the deck's videos)
+  // only when ticked: off each time. Once a screen is chosen the dialog closes and the recording waits in the top bar,
+  // not started and without a file (renderRec): the screen live as a miniature - the projector's picture, not this
+  // window with its notes and answers? -, the microphone's level, Start and ✕. Whatever needs it is put right first -
+  // the full screen the browser took (backToFull), its sharing bar, the projector -, then Start records.
+  if (rec?.active || rec?.state === "ready" || !state?.session) return;
+  recFull = fullScreen();
   const mic = new Microphone();                   // made in the click: its level meter may run
   const R = T.record;
   const el = document.createElement("div");
@@ -2506,46 +2519,25 @@ async function recordDialog() {
     <div class="meter large"><i id="miclevel"></i></div><p id="micstate">${esc(R.asking)}</p>
     <label class="recsound"><input type="checkbox" id="recsound"> ${esc(R.sound)}</label>
     <p id="recwhere">${esc(R.screen)}</p>
-    <div class="recpreview" id="recpreview" hidden><video id="recvideo" muted autoplay playsinline></video>
-      <p id="recwhat"></p></div>
-    <div class="buttons"><button class="secondary" id="recpick" disabled>${esc(R.pick)}</button>
-      <button class="primary" id="recstart" disabled>${esc(R.start)}</button>
+    <div class="buttons"><button class="primary" id="recpick" disabled>${esc(R.pick)}</button>
       <button class="secondary" id="closedlg">${esc(T.dialog.cancel)}</button></div></div>`;
   document.body.append(el);
   const select = el.querySelector("#micselect");
   const pickButton = el.querySelector("#recpick");
-  const startButton = el.querySelector("#recstart");
   const soundBox = el.querySelector("#recsound");
-  const video = el.querySelector("#recvideo");
   const say = (text, error = false) => { const p = el.querySelector("#micstate"); p.textContent = text; p.className = error ? "error" : ""; };
   const meter = setInterval(() => { el.querySelector("#miclevel").style.width = `${Math.round(mic.level() * 100)}%`; }, 100);
   let sound = false;                              // the microphone is open
   let micReady = false;                           // ... or its choice settled (none)
-  let screen = null;                              // the screen chosen, shown as a miniature until Start
   let closed = false;
   let micRequest = 0;
-  const starting = new AbortController();
-  const ready = () => {
-    pickButton.disabled = closed || !micReady;
-    startButton.disabled = closed || !micReady || !screen;
-  };
-  const drop = () => {                            // the screen chosen let go: another one, or the dialog closed
-    screen?.getTracks().forEach((t) => t.stop());
-    screen = null;
-    video.srcObject = null;
-    el.querySelector("#recpreview").hidden = true;
-    pickButton.textContent = R.pick;
-    ready();
-  };
+  const ready = () => { pickButton.disabled = closed || !micReady; };
   const close = (keepMic = false) => {
     if (closed) return;
-    backToFull();                                 // Cancel's click (Start's: as it begins)
     closed = true;
     micRequest++;
-    starting.abort();
     clearInterval(meter);
     if (!keepMic) mic.close();
-    drop();
     el.remove();
   };
   const openMic = async (id) => {
@@ -2588,10 +2580,8 @@ async function recordDialog() {
       ready();
     }
   };
-  soundBox.onchange = () => drop();               // asked for in the browser's dialog: the screen chosen anew
   pickButton.onclick = async () => {
     if (closed) return;
-    drop();
     pickButton.disabled = true;
     let chosen;
     try {
@@ -2606,36 +2596,16 @@ async function recordDialog() {
       return;
     }
     if (navigator.userActivation?.isActive) backToFull();      // the click still counts: full screen at once
-    screen = chosen;
-    screen.getVideoTracks()[0]?.addEventListener("ended", () => { if (screen === chosen) drop(); });   // Stop sharing
-    video.srcObject = screen;
-    video.play?.()?.catch?.(() => {});
-    const kind = R.kinds[surfaceOf(screen)] || "";
-    const heard = screen.getAudioTracks().length ? R.withSound : soundBox.checked ? R.noSystemSound : "";
-    el.querySelector("#recwhat").textContent = [kind ? R.chosen(kind) : R.check, heard].filter(Boolean).join(" ");
-    el.querySelector("#recpreview").hidden = false;
-    pickButton.textContent = R.pickAgain;
-    ready();
-  };
-  el.querySelector("#closedlg").onclick = () => close();
-  startButton.onclick = async () => {
-    if (closed || !screen) return;
-    backToFull();                                 // in the click, before anything is awaited
-    startButton.disabled = pickButton.disabled = true;
-    if (!state?.session) return close();
-    const r = new Recording({ auth, session: state.session.id, screen, mic: sound ? mic : null, onChange: () => renderRec() });
-    try {
-      await r.start({ signal: starting.signal });
-    } catch (err) {
-      if (closed) return;
-      ready();
-      return say(R.notStarted(why(err)), true);
-    }
-    rec = r;
-    remember(r);
-    screen = null;                                // the recording has the screen now
-    close(sound);                                 // ... and the microphone
+    rec = new Recording({ auth, session: state.session.id, screen: chosen, mic: sound ? mic : null, onChange: () => renderRec() });
+    close(sound);                                 // the waiting recording has the screen, and the microphone
     renderRec();
+    const kind = R.kinds[surfaceOf(chosen)] || "";
+    const heard = chosen.getAudioTracks().length ? R.withSound : soundBox.checked ? R.noSystemSound : "";
+    notice([R.waiting(kind), heard].filter(Boolean).join(" "));
+  };
+  el.querySelector("#closedlg").onclick = () => {
+    backToFull();                                 // Cancel's click
+    close();
   };
   projectorScreen().then((where) => { if (where && !closed) el.querySelector("#recwhere").textContent = where; });
   if (!(await openMic(prefs.mic || ""))) return;
@@ -2643,6 +2613,45 @@ async function recordDialog() {
   if (closed) return;
   micReady = true;
   ready();
+}
+
+function fullScreen() {
+  // the window fills its screen: the page's full screen (the Fullscreen API) or the browser's own (F11), which only
+  // display-mode or the window's size shows
+  return Boolean(document.fullscreenElement) || matchMedia("(display-mode: fullscreen)").matches
+    || (Math.abs(window.innerWidth - window.screen.width) <= 1 && Math.abs(window.innerHeight - window.screen.height) <= 1);
+}
+
+function backToFull() {
+  // Sharing an entire screen takes the presenter window out of full screen (Chromium on Windows did, in a lecture): as
+  // the capture starts, Chromium shows its "is sharing your screen" bar on the primary display and gives it the focus
+  // (for a window it does not). A page may go back to full screen only in a click - right after the choice while the
+  // click that opened the browser's dialog still counts, else with Start, ✕ or Cancel -: as it was before Record. The
+  // click gives the presenter window the focus back, too (a clicker's keys went to the bar).
+  if (recFull && !fullScreen()) document.documentElement.requestFullscreen?.().catch(() => {});
+}
+
+async function startRec() {
+  // Start in the top bar: the waiting recording records from now on, into the archive of the game open now (the deck
+  // or the game may have changed since the screen was chosen); refused, it waits again, and a notice says why
+  const r = rec;
+  if (r?.state !== "ready") return;
+  backToFull();                                   // in the click, before anything is awaited
+  if (!state?.session) return notice(T.record.noGame);
+  r.session = state.session.id;
+  try {
+    await r.start();
+  } catch (err) {
+    if (rec === r) notice(T.record.notStarted(why(err)));
+    return;
+  }
+  remember(r);
+}
+
+function dropRec() {
+  // ✕ in the top bar: not recorded after all - the screen and the microphone let go, and no file
+  backToFull();
+  rec?.drop();
 }
 
 // Where the projector window is: the screen it is on, by the name, size and side the browser gives (its Window

@@ -663,7 +663,7 @@
               ],
               [
                 "Record",
-                "Choose the microphone and start recording; in the browser chooser select the projector window or display. Select the intended audience output, not the private presenter view. Stop recording before exporting it."
+                "Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it."
               ],
               [
                 "Sketches / Activities",

@@ -255,8 +255,13 @@ window (on the laptop) - check in the dialog that the bar moves when you speak, 
 microphone if not, then *Choose the screen …* and pick the projector's screen (or the projector
 window) in the browser's dialog, which shows every screen and window as a miniature; the
 presenter window says first which screen the projector window is on, where the browser lets it.
-The chosen screen then shows live in the dialog: if it is the projector's picture, *Start
-recording*, else *Choose another …*. *Also record the computer's sound* (off unless ticked) adds the
+Once chosen, the dialog closes and the recording waits in the top bar, not started and without a
+file: the chosen screen as a live miniature (larger under the pointer - the projector's picture, not
+the presenter window?), the microphone's level, *● Start* and ✕. Put right first what needs it -
+sharing an entire screen takes a full-screen presenter window out of full screen (the browser's
+"is sharing your screen" bar takes the focus; *Start* or ✕ brings full screen back), the bar can be
+hidden -, then *● Start*; ✕ lets the screen and the microphone go. The screen can be chosen before
+the lecture, too, and *● Start* clicked when it begins. *Also record the computer's sound* (off unless ticked) adds the
 deck's videos' sound - the browser gives it for an entire screen ("Also share system audio",
 Chromium on Windows), mixed with your voice. The video is what the hall sees - slides, ink,
 pointer, quizzes - with your voice; the red dot, pause and stop are in the presenter window only.

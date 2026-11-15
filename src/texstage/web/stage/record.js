@@ -135,7 +135,10 @@ export class Microphone {
 export class Recording {
   constructor({ auth, session, screen, mic = null, onChange = () => {} }) {
     Object.assign(this, { auth, session, screen, mic, onChange });
-    this.state = "starting";   // recording, paused, stopping, saved, failed
+    // ready: the screen chosen, nothing recorded yet and no file - it waits for start() (the presenter window's
+    // Start); then starting, recording, paused, stopping, saved, failed. Let go while it waits (drop): dropped,
+    // or gone when the screen went away by itself.
+    this.state = "ready";
     this.error = null;         // why it failed: {code, message}
     this.take = null;          // the server's name for it, and its file there
     this.file = null;
@@ -163,6 +166,14 @@ export class Recording {
         fetch(`/api/recording/${this.take}/done`, { method: "POST", keepalive: true, headers: authHeaders(this.auth) });
       }
     };
+    // the screen went away by itself - Stop sharing, the projector window closed, the display gone (a stopped track
+    // fires no "ended": the recording's own stop is not this) - : while it waits, nothing is lost and it is let go;
+    // while it records, what came is saved, and the presenter window says it loudly (cause), not as a Stop
+    screen.getVideoTracks()[0]?.addEventListener("ended", () => {
+      if (this.state === "ready") return this.drop("gone");
+      if (this.state === "recording" || this.state === "paused") this.cause = "screen";
+      this.stop();
+    });
   }
 
   get active() {
@@ -174,15 +185,29 @@ export class Recording {
   }
 
   async start({ signal } = {}) {
+    // the file on the server, in this.session's archive, then the recorder: from here on it records. Refused, or the
+    // network gone: it waits again (ready), and the rejection says why
     signal?.throwIfAborted();
+    if (this.state !== "ready") return;
+    this.state = "starting";
+    this.onChange(this);
     const type = TYPES.find((t) => MediaRecorder.isTypeSupported(t)) || "";
     const ext = type.startsWith("video/mp4") ? "mp4" : "webm";
-    const r = await fetch(`/api/archive/${this.session}/recording`, { method: "POST", signal,
-      headers: { ...authHeaders(this.auth), "Content-Type": "application/json" }, body: JSON.stringify({ ext }) });
-    const info = await r.json().catch(() => ({}));
-    signal?.throwIfAborted();
-    if (!r.ok) throw refusal(r, info);
-    Object.assign(this, { take: info.take, file: info.file, folder: info.folder });
+    try {
+      const r = await fetch(`/api/archive/${this.session}/recording`, { method: "POST", signal,
+        headers: { ...authHeaders(this.auth), "Content-Type": "application/json" }, body: JSON.stringify({ ext }) });
+      const info = await r.json().catch(() => ({}));
+      signal?.throwIfAborted();
+      if (!r.ok) throw refusal(r, info);
+      if (this.state !== "starting") return;      // let go meanwhile (the screen went away)
+      Object.assign(this, { take: info.take, file: info.file, folder: info.folder });
+    } catch (err) {
+      if (this.state === "starting") {
+        this.state = "ready";
+        this.onChange(this);
+      }
+      throw err;
+    }
     const voice = this.mic?.stream?.getAudioTracks() || [];
     const tracks = [...this.screen.getVideoTracks(), ...this.audio(voice, this.screen.getAudioTracks())];
     this.recorder = new MediaRecorder(new MediaStream(tracks), { ...(type ? { mimeType: type } : {}),
@@ -194,13 +219,6 @@ export class Recording {
     };
     this.recorder.onstop = () => this.finish();
     this.recorder.onerror = (e) => this.fail({ code: "recorder", message: e.error?.message || "" });
-    // the recorded screen went away by itself - Stop sharing, the projector window closed, the display gone (a
-    // stopped track fires no "ended": the recording's own stop is not this) - : what came is saved, and the
-    // presenter window says it loudly (cause), not as a Stop
-    this.screen.getVideoTracks()[0]?.addEventListener("ended", () => {
-      if (this.state === "recording" || this.state === "paused") this.cause = "screen";
-      this.stop();
-    });
     voice[0]?.addEventListener("ended", () => {   // the microphone unplugged: the video goes on, without the voice
       if (!this.active) return;
       this.micLost = true;
@@ -236,6 +254,15 @@ export class Recording {
     if (this.micLost) return now - this.loud;
     if (this.loud === null || this.mic.level() > LOUD) this.loud = now;
     return now - this.loud;
+  }
+
+  drop(state = "dropped") {
+    // let go before anything was recorded - ✕ in the presenter window (dropped), or the screen went away (gone):
+    // the screen and the microphone stop, and there is no file
+    if (this.state !== "ready") return;
+    this.release();
+    this.state = state;
+    this.onChange(this);
   }
 
   pause() {

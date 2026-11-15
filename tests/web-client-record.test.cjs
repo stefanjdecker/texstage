@@ -170,7 +170,9 @@ test('an initial login rejection remains a form error, not a game-over event', a
 });
 
 function capture() {
-  const track = {stopped: false, stop() { this.stopped = true; }, getSettings: () => ({deviceId: 'mic'}), addEventListener() {}};
+  const listeners = {};                         // fire('ended'): the track went away by itself (Stop sharing)
+  const track = {stopped: false, stop() { this.stopped = true; }, getSettings: () => ({deviceId: 'mic'}),
+    addEventListener(name, f) { (listeners[name] ||= []).push(f); }, fire(name) { (listeners[name] || []).forEach((f) => f()); }};
   return {track, getTracks: () => [track], getAudioTracks: () => [track], getVideoTracks: () => [track]};
 }
 function mediaContext() {
@@ -213,15 +215,17 @@ function dialogContext() {
     return nodes.get(key);
   }};
   const screens = [], picks = [];               // the browser's dialog: each choice, and what it was asked for
-  let starts = 0, fulls = 0;                    // fulls: how often the dialog asked for full screen
+  const notices = [];                           // what the presenter window said in passing
+  let starts = 0, fulls = 0;                    // fulls: how often the page asked for full screen
   const page = {createElement: () => el, body: {append() {}}, fullscreenElement: null};
   page.documentElement = {requestFullscreen: async () => { fulls++; page.fullscreenElement = page.documentElement; }};
   Object.assign(context, {
     document: page, matchMedia: () => ({matches: false}),
     window: {innerWidth: 1280, innerHeight: 800, screen: {width: 1920, height: 1080}},  // smaller than its screen
     setInterval() { return 1; }, clearInterval() {},
-    rec: null, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key', T: texts('en'),
-    esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {},
+    rec: null, recFull: false, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key', T: texts('en'),
+    esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {}, notice: (text) => notices.push(text),
+    why: (err) => err.message || String(err),
     pickScreen: (options) => { picks.push(options); const d = deferred(); screens.push(d); return d.promise; },
   });
   // Keep actual Recording.start: replacing only its side effects tells us whether it ran.
@@ -229,7 +233,17 @@ function dialogContext() {
   const presenter = source('stage/presenter.js');
   const dialog = presenter.slice(presenter.indexOf('async function recordDialog()'), presenter.indexOf('\nfunction remembered()'));
   vm.runInContext(dialog, context);
-  return {context, requests, nodes, el, screens, picks, page, starts: () => starts, fulls: () => fulls};
+  return {context, requests, nodes, el, screens, picks, page, notices, starts: () => starts, fulls: () => fulls};
+}
+
+// the dialog up to the screen's choice: the microphone allowed, the screen chosen in the browser's dialog
+async function chosen(t, {ticked = false} = {}) {
+  const opened = t.context.recordDialog();
+  const mic = capture(); t.requests[0].resolve(mic); await opened;
+  t.el.querySelector('#recsound').checked = ticked;
+  const pick = t.el.querySelector('#recpick').onclick();
+  const screen = capture(); t.screens[0].resolve(screen); await pick;
+  return {mic, screen};
 }
 
 test('cancelling the recording dialog during microphone permission releases its late stream', async () => {
@@ -251,70 +265,105 @@ test('cancelling while the screen picker is pending never starts a recording', a
   const screen = capture(); t.screens[0].resolve(screen); await pick;
   assert.equal(screen.track.stopped, true);
   assert.equal(mic.track.stopped, true);
+  assert.equal(t.context.rec, null);
   assert.equal(t.starts(), 0);
 });
 
-test('the screen chosen is shown before anything is recorded; Start records it; its sound only when ticked', async () => {
+test('once the screen is chosen the dialog closes and the recording waits; Start records, in the game open then', async () => {
   const t = dialogContext();
-  const opened = t.context.recordDialog();
-  t.requests[0].resolve(capture()); await opened;
-  const start = t.el.querySelector('#recstart'), video = t.el.querySelector('#recvideo');
-  assert.equal(start.disabled, true);                                  // no screen yet: nothing to start
-  const pick = t.el.querySelector('#recpick').onclick();
-  const first = capture(); t.screens[0].resolve(first); await pick;
+  const {mic, screen} = await chosen(t);
   assert.equal(t.picks[0].sound, false);                               // the computer's sound: off unless ticked
-  assert.equal(video.srcObject, first);                                // the miniature, live
-  assert.equal(start.disabled, false);
-  assert.equal(t.starts(), 0);                                         // ... and nothing recorded yet
-  const sound = t.el.querySelector('#recsound');
-  sound.checked = true; sound.onchange();                              // asked for in the browser's dialog:
-  assert.equal(first.track.stopped, true);                             // the choice let go, chosen anew
-  assert.equal(video.srcObject, null);
-  assert.equal(start.disabled, true);
-  const again = t.el.querySelector('#recpick').onclick();
-  const second = capture(); t.screens[1].resolve(second); await again;
-  assert.equal(t.picks[1].sound, true);
-  await start.onclick();
+  assert.equal(t.el.removed, true);                                    // the dialog is closed: the presenter works
+  const rec = t.context.rec;
+  assert.equal(rec.state, 'ready');                                    // waiting - nothing recorded, no file
+  assert.equal(rec.screen, screen);
+  assert.equal(screen.track.stopped, false);                           // the screen and the microphone kept for it
+  assert.equal(mic.track.stopped, false);
+  assert.equal(t.starts(), 0);
+  assert.match(t.notices[0], /waits, not started/);                    // ... and the window says so
+  t.context.state.session = {id: 'next'};                              // a new game since the choice:
+  await t.context.startRec();
   assert.equal(t.starts(), 1);
-  assert.equal(second.track.stopped, false);                           // the recording has it now
+  assert.equal(rec.session, 'next');                                   // the recording goes into its archive
+  const u = dialogContext();
+  await chosen(u, {ticked: true});
+  assert.equal(u.picks[0].sound, true);                                // the computer's sound, as ticked
 });
 
-// The browser's dialog for the screen took a full-screen presenter window out of full screen (a lecture, Chromium on
-// Windows); a page may go back only in a click: at once while the click that opened the dialog counts, else Start or
-// Cancel. The pick below leaves full screen as that browser did.
+test('✕ lets the waiting recording go: the screen and the microphone stop, and there is no file', async () => {
+  const t = dialogContext();
+  const {mic, screen} = await chosen(t);
+  const rec = t.context.rec;
+  t.context.dropRec();
+  assert.equal(rec.state, 'dropped');
+  assert.equal(screen.track.stopped, true);
+  assert.equal(mic.track.stopped, true);
+  assert.equal(t.starts(), 0);
+  await t.context.startRec();                                          // (a late Start: nothing)
+  assert.equal(t.starts(), 0);
+});
+
+test('a waiting recording whose screen goes away by itself is let go', async () => {
+  const t = dialogContext();
+  const {mic, screen} = await chosen(t);
+  const rec = t.context.rec;
+  screen.track.fire('ended');                                          // Stop sharing, the display gone
+  assert.equal(rec.state, 'gone');
+  assert.equal(mic.track.stopped, true);
+  assert.equal(t.starts(), 0);
+});
+
+// Sharing an entire screen took a full-screen presenter window out of full screen (a lecture, Chromium on Windows: as
+// the capture starts, its "is sharing your screen" bar takes the focus); a page may go back only in a click: at once
+// while the click that opened the browser's dialog counts, else Start, ✕ or Cancel. The pick below leaves full screen
+// as that browser did.
 async function pickedOutOfFullScreen(t, {active = false, full = true} = {}) {
   t.page.fullscreenElement = full ? t.page.documentElement : null;     // before Record
   const opened = t.context.recordDialog();
   t.requests[0].resolve(capture()); await opened;
   const pick = t.el.querySelector('#recpick').onclick();
-  t.page.fullscreenElement = null;                                     // the browser's dialog left full screen
+  t.page.fullscreenElement = null;                                     // the capture started: full screen ended
   t.context.navigator.userActivation = {isActive: active};
   t.screens[0].resolve(capture()); await pick;
 }
 
-test('a full-screen presenter window that the browser\'s dialog took out of full screen is full screen again with Start', async () => {
+test('a full-screen presenter window that the capture took out of full screen is full screen again with Start', async () => {
   const t = dialogContext();
   await pickedOutOfFullScreen(t);
   assert.equal(t.fulls(), 0);                                          // the click no longer counts: not yet
-  await t.el.querySelector('#recstart').onclick();
+  await t.context.startRec();
   assert.equal(t.fulls(), 1);                                          // Start: full screen again, once
   assert.equal(t.starts(), 1);                                         // ... and the recording
 });
 
-test('a quick choice is full screen again at once, Cancel too; a window not full screen is not made so', async () => {
+test('a quick choice is full screen again at once, ✕ too; a window not full screen is not made so', async () => {
   let t = dialogContext();
   await pickedOutOfFullScreen(t, {active: true});
   assert.equal(t.fulls(), 1);                                          // the click still counts: at once
   t = dialogContext();
   await pickedOutOfFullScreen(t);
-  t.el.querySelector('#closedlg').onclick();
-  assert.equal(t.fulls(), 1);                                          // Cancel
+  t.context.dropRec();
+  assert.equal(t.fulls(), 1);                                          // ✕
   assert.equal(t.starts(), 0);
   t = dialogContext();
   await pickedOutOfFullScreen(t, {active: true, full: false});
-  await t.el.querySelector('#recstart').onclick();
+  await t.context.startRec();
   assert.equal(t.fulls(), 0);                                          // never full screen: left so
   assert.equal(t.starts(), 1);
+});
+
+test('a start the server refuses leaves the recording waiting, with no recorder', async () => {
+  const {context} = mediaContext();
+  let created = 0;
+  Object.assign(context, {authHeaders: () => ({}),
+    fetch: async () => ({ok: false, status: 409, json: async () => ({error: 'no game', code: 'gone'})}),
+    MediaRecorder: class { static isTypeSupported() { return true; } constructor() { created++; } },
+  });
+  const recording = new context.Recording({auth: 'key', session: 'game', screen: capture()});
+  assert.equal(recording.state, 'ready');
+  await assert.rejects(recording.start(), (error) => error.code === 'gone');
+  assert.equal(recording.state, 'ready');                              // Start may be tried again, or ✕
+  assert.equal(created, 0);
 });
 
 test('cancelling during the recording request prevents MediaRecorder from starting', async () => {

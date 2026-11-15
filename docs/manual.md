@@ -432,7 +432,7 @@ The presenter chooses which question to show and when to mark it done.
 | Whiteboard / Grid | Insert a whiteboard page after the current frame. Write or draw on it as you would on a slide. It can be included in the annotated PDF. |
 | Poll | Ask an unplanned Yes / No, A-F, scale, word-cloud, text or sketch question. Set the question, choices and time, then choose Ask now. Return to the deck with the next-step command or Esc. |
 | Devices | On the laptop choose Pair a device. Open or scan the offered link on the other device, then approve the request on the laptop. Only approve devices you intend to give presenter control. |
-| Record | Choose the microphone and start recording; in the browser chooser select the projector window or display. Select the intended audience output, not the private presenter view. Stop recording before exporting it. |
+| Record | Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it. |
 | Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities provides controls for authored live activities. |
 
 Recording and device/screen integration depend on browser support and permissions. Microphone and screen recording were not part of the screenshot session. Rehearse them on the presenting computer before class. The [authoring guide](authoring.md) and [installation guide](installation.md) cover the wider workflows.
