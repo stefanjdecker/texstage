@@ -71,6 +71,8 @@ jobs:
         if: runner.os == 'Linux' && matrix.python == '3.14'
         run: python maintenance/check_showcase_example.py
       - name: Test
+        env:
+          TEXSTAGE_BROWSER_TESTS: required   # the browser smoke tests drive the runner's Chrome: never skipped here
         run: python -m pytest tests -ra --junitxml=test-results.xml
       - name: Build and verify distributions
         if: runner.os == 'Linux' && matrix.python == '3.14'

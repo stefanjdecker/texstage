@@ -41,7 +41,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "httpx>=0.27", "websockets>=13"]   # tests (Starlette's TestClient), tools/simulate.py
+dev = ["pytest>=8", "httpx>=0.27", "websockets>=13",   # tests (Starlette's TestClient), tools/simulate.py
+       "playwright>=1.49"]                                # the browser smoke tests: they drive the installed Chrome
 docs = ["reportlab==4.4.9"]  # illustrated PDF manual; not needed to run texstage
 
 [project.scripts]

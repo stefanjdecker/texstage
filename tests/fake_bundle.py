@@ -7,7 +7,9 @@ The deck: an ordinary slide, the join slide, then per quiz its reading slide (th
 question alone), its question slide, its reveal slide (reveal=slide) or a later answer
 slide (reveal=none), a leaderboard slide after scored quizzes, the podium and a last
 ordinary slide. Slide IDs count from 256 as in PowerPoint; slide(phase, quiz) finds one.
-stage=True: a --stage build's stand-in for the stage PDF (stage/, "pdf" in deck.json).
+stage=True: a --stage build's stand-in for the stage PDF (stage/, "pdf" in deck.json); stage="pdf": a
+real one, a page per slide ("page", "frame" and "step" in each), that the presenter's PDF.js draws (the
+browser tests).
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ import io
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from time import gmtime
 
 from PIL import Image
 
@@ -43,6 +46,17 @@ QUIZZES = {
 }
 
 
+def stage_pdf(pages: int) -> bytes:
+    """A real PDF of `pages` pages at the stage PDF's size (453.5 x 255.1 pt), each a grey of its own;
+    the same bytes every time (its dates fixed): the bundle ID does not change."""
+    images = [Image.new("RGB", (160, 90), (230 - 5 * (i % 30),) * 3) for i in range(pages)]
+    buf = io.BytesIO()
+    when = gmtime(1767225600)                    # 2026-01-01
+    images[0].save(buf, "PDF", save_all=True, append_images=images[1:], resolution=25.4,
+                   creationDate=when, modDate=when)
+    return buf.getvalue()
+
+
 @dataclass
 class FakeBundle:
     path: Path
@@ -56,7 +70,7 @@ class FakeBundle:
 
 
 def make_bundle(folder: Path, deck: str = "test", quizzes: dict | None = None, time: int = 20,
-                reveal: dict | None = None, title: str = "Test deck", stage: bool = False,
+                reveal: dict | None = None, title: str = "Test deck", stage: bool | str = False,
                 language: str | None = None) -> FakeBundle:
     """quizzes: id -> (type, public extras, keys), default QUIZZES; reveal: id -> 'none' for
     quizzes answered on a later answer slide; language: deck.json's (none: as before 2026-10-24)."""
@@ -108,7 +122,12 @@ def make_bundle(folder: Path, deck: str = "test", quizzes: dict | None = None, t
                  "slides": slides, "quizzes": deck_q, **({"language": language} if language is not None else {})}
     keys_json = {"format": FORMAT, "deck": deck, "quizzes": keys_q}
     files = {**images, phone_name: phone}
-    pdf = f"%PDF-1.5\n% stage PDF of {title}\n%%EOF\n".encode() if stage else None
+    if stage == "pdf":
+        for page, entry in enumerate(slides, 1):         # a frame of one step each, as a build has them
+            entry.update(page=page, frame=page, step=1)
+        pdf = stage_pdf(len(slides))
+    else:
+        pdf = f"%PDF-1.5\n% stage PDF of {title}\n%%EOF\n".encode() if stage else None
     if pdf is not None:
         pdf_name = f"stage/{hashlib.sha256(pdf).hexdigest()[:16]}.pdf"
         deck_json["pdf"] = {"file": pdf_name, "width": 453.543, "height": 255.118}

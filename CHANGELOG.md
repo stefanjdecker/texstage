@@ -2,6 +2,18 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Browser smoke tests (`tests/test_browser_smoke.py`), the review's next step
+  after the lecture room: Playwright drives a real browser - the installed
+  Chrome, nothing downloaded - against a real server on a free port. A phone
+  joins, types 6,5 with the ± key and sees the reveal; a phone rejoins after
+  *New game* in one tap, and the old PIN gets the new one; the presenter
+  pauses a question with a slow click while 40 answers stream in; the
+  projector window's → waits behind *Reset the timer?*; *Decks* in an outage
+  says so and comes back with the server. Each of them failed on the code
+  before the lecture-room fixes. Playwright is a new dev dependency
+  (`requirements/dev.txt`); CI runs the tests in the runners' Chrome and fails
+  instead of skipping them. The fake test deck can have a real stage PDF
+  (`make_bundle(stage="pdf")`).
 - The lecture room, after a critical review of texstage (its first package):
   - One game left open whose build is not on the server any more (its folder
     gone, a kind missing) - with a question closed and not revealed - stopped

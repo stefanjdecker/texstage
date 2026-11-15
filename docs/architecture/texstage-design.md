@@ -1185,3 +1185,34 @@ Reported after that, the same day:
   - → from the projector's channel ignored behind *Reset the timer?*, taken without it;
   - Decks with the server stopped: the outage page, one dialog for two queued commands, no errors,
     the deck page back by itself when the server was.
+
+## 30. Browser smoke tests (2026-11-14)
+
+- **Why:** the review found no browser tests at all: the Node tests run cut-out source text against stubs,
+  and none of the lecture-room bugs that live in the browser (A2, A3, A5, A6, A7) could be caught by
+  them. The user chose Playwright over a driver of texstage's own.
+- **How:** `tests/test_browser_smoke.py` starts a real server (uvicorn in a thread, a free port, a 1 s
+  graceful shutdown - pages stay connected) and drives the installed Chrome through Playwright's sync
+  API: no browser download. The lecturer's moves come over a WebSocket of the protocol from the test
+  (`Socket`, websockets' sync client), so the tests do not depend on the presenter's key steps; the
+  fake phones of the load test are such sockets too.
+- **What:**
+  - a phone joins, finds the free numeric field (text, decimal keypad, Submit disabled while empty),
+    types 6,5, presses ±, sends -6.5 and sees "Not quite" at the reveal;
+  - after `restart` (New game) a phone gets *Join the new game* and joins with one tap; a phone with
+    the old QR code gets the new PIN, and no wrong PIN is counted;
+  - the presenter's ⏸ is pressed for 700 ms while 40 answers come in every 60 ms - the round pauses;
+  - the projector window's → (its BroadcastChannel) is ignored while *Reset the timer?* is open, and
+    taken once it is closed;
+  - *Decks* with the server stopped shows the outage page with at most one dialog and no page
+    errors, and the deck page is back by itself once the server starts again on the same port.
+
+  Each fails on 7ba6a6a, the code before the lecture-room fixes, for its own bug. They take 25-35 s
+  on this laptop.
+- **The fake deck:** `make_bundle(stage="pdf")` writes a real stage PDF with Pillow - a page per
+  slide, at the stage PDF's size, fixed dates (a stable bundle ID) - and gives each slide its page,
+  frame and step: the stand-in PDF of `stage=True` is not one PDF.js can open.
+- **Where they run:** Playwright 1.65.2 (Apache-2.0) and greenlet are in `requirements/dev.txt`; the
+  lock kept every other pin. `TEXSTAGE_BROWSER` picks another channel (msedge, or chromium after
+  `playwright install`). Without Playwright or a browser the tests are skipped; CI sets
+  `TEXSTAGE_BROWSER_TESTS=required`, so a runner without Chrome fails instead.

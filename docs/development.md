@@ -32,6 +32,8 @@ recommended fonts and extra LaTeX packages. CI uses these Ubuntu packages:
 `texlive-latex-extra texlive-fonts-recommended texlive-lang-german latexmk`.
 TeX Live/MiKTeX can supply the Windows equivalents. Node 24 runs the JavaScript
 tests without npm installation; JavaScript libraries are committed with notices.
+The browser smoke tests need Chrome (or Edge) installed - Playwright, in
+`requirements/dev.txt`, drives the installed browser and downloads none.
 
 ## CI scope
 
@@ -42,8 +44,10 @@ tests skip there unless TeX is installed. Linux skips Windows-only registry and
 event-loop tests. Reports show skips explicitly.
 
 This is the intended CI matrix, not a claim that hosted runs have already passed.
-macOS, interactive browser/Office behavior and real-course renderings require
-separate validation. No CI job opens a real course or uses a production server.
+The browser smoke tests run on every job, in the runner's Chrome, and fail there
+instead of skipping (`TEXSTAGE_BROWSER_TESTS=required`). macOS, browsers other than
+Chrome (Safari on iPhones), interactive Office behavior and real-course renderings
+require separate validation. No CI job opens a real course or uses a production server.
 
 A separate Linux job builds the Docker image with locked Python dependencies and
 checks its health endpoint. It uses a disposable container/volume and publishes
@@ -69,8 +73,17 @@ the kinds' own tests find their sources in `kinds/`.
 The tests exercise Python, server/WebSocket behavior, Node-based browser logic,
 LaTeX and PowerPoint file generation. Windows registration tests use the
 temporary `Software\texquiz-tests` registry tree and clean it up. They do not
-configure Office. TeX/Node tests can skip when their tools are missing; install
-both before calling a local result a full suite.
+configure Office. TeX, Node and browser tests can skip when their tools are
+missing; install all three before calling a local result a full suite.
+
+The browser smoke tests (`tests/test_browser_smoke.py`) drive a real browser
+through Playwright: a phone that joins, types a number and rejoins after *New
+game*, the presenter window pausing a question while answers stream in, the
+projector window's keys behind a dialog, and *Decks* while the server is away -
+each against a real server on a free port. They take the installed Chrome;
+`TEXSTAGE_BROWSER=msedge` takes Edge, and `TEXSTAGE_BROWSER=chromium` Playwright's
+own Chromium after `python -m playwright install chromium`. Without Playwright or
+the browser they are skipped, unless `TEXSTAGE_BROWSER_TESTS=required` (CI).
 
 ## Build and test the installed distribution
 
