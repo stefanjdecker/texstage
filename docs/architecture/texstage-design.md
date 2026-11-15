@@ -1216,3 +1216,38 @@ Reported after that, the same day:
   lock kept every other pin. `TEXSTAGE_BROWSER` picks another channel (msedge, or chromium after
   `playwright install`). Without Playwright or a browser the tests are skipped; CI sets
   `TEXSTAGE_BROWSER_TESTS=required`, so a runner without Chrome fails instead.
+
+## 31. The deck page: today's deck, Continue, Put back (2026-11-15)
+
+- **Why:** suggestions for the deck page after the deck reviews (the user chose items 1-4). Cards gave
+  the build time to the second but not when a deck was presented last; the running lecture's card said
+  *Present* like every other; *Remove from the list* could take the running deck's card away without a
+  word and had no way back but the next build (review item 7); on a phone a card with a tag squeezed
+  its text to a word per line.
+- **The deck list** (`GET /api/decks`) gives each deck `presented` - the newest last activity of this
+  lecturer's games of it, ended or open (`Store.presented`, one grouped query; the open game's from
+  memory) -, `thumb` - the first slide's picture (`Bundle.thumb`, `slides/<hash>.png`, served by
+  `/bundle/<id>/slides/...` like every slide, without a key) - and in `game` whether it runs
+  (`running`: not idle for `stale_ms`, the rule by which opening the deck continues the game rather
+  than starting the next lecture's). A game left for hours is no longer shown with its PIN, and its
+  button is *Present*, not *Continue*; the host console's *Resume* follows the same flag.
+- **The cards:** the first slide at 96x54 (lazy; a missing picture is dropped), the folder's icon in
+  the same slot; "presented today, 10:14" / "yesterday, ..." / "12 Nov" (the year when not this one),
+  the build time the same way with its time and without seconds. The tags and buttons are a group of
+  their own (`.acts`), which goes below the text in windows up to 560 px. The order *Recently
+  presented* sorts by `presented` (never presented last, by name), remembered as the others.
+- **Taking a deck off the list and back:** `GET /api/removed` lists the decks the lecturer took off
+  the list whose newest build is not newer than that (`hidden_build`, the rule `GET /api/decks` uses);
+  `PATCH /api/decks/<deck> {"listed": true}` puts one back (`Library.show`, which uploads used; folder
+  and name stay). The page shows them below the cards (folded, at the top level, not while
+  searching), each with *Put back*; the notice after *Remove from the list* has *Undo*
+  (`notice(text, [label, action])` in ask.js: 8 s, clickable only then). A deck whose lecture runs
+  can still be removed - refusing would have blocked tidying for six hours after every lecture -, but
+  the question says that it runs and goes on. *Delete* of an uploaded deck still refuses while its
+  game runs.
+- **Tests:** `test_library.py` (the list's new fields, another lecturer's games not counted; removed,
+  put back, rebuilt) and `tests/test_browser_deck_page.py` with the smoke tests' fixtures: Continue
+  and the order, the thumbnails loaded, back into the same game; a 390 px page keeps a card's name on
+  one line; Remove with its question, Undo, Put back. All five fail on 06300b3.
+- **Not done:** the generated manual (`manual-content.json`, its screenshots) still shows the page
+  before; the old copy in lecture-tools that the KG and dbis-vl lectures run has none of it.

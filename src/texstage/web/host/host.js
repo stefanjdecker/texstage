@@ -91,8 +91,8 @@ async function showDecks(resume = false, uploaded = "") {
   $("#status").className = "status";
   const cards = decks.map((d, i) => `<div class="deckcard"><div class="info"><div class="name">${esc(d.name)}</div>
       <div class="meta">${esc([d.deck, L.quizzes(d.quizzes), L.slides(d.slides), L.built(new Date(d.built).toLocaleString(T.meta.locale))].join(" · "))}</div></div>
-      ${d.game ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
-      <button class="primary" data-i="${i}">${esc(d.game ? T.host.resume : T.host.start)}</button></div>`).join("");
+      ${d.game?.running ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
+      <button class="primary" data-i="${i}">${esc(d.game?.running ? T.host.resume : T.host.start)}</button></div>`).join("");
   app.innerHTML = `<div class="page"><h1>${esc(L.decks)}</h1>
     <p>${T.host.intro("<code>texstage build</code>", "<code>tools/scripts/texstage-build.py</code>")}
     ${L.upload("<code>.bundle.zip</code>")}</p>

@@ -97,6 +97,18 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .deckcard .info { flex: 1; min-width: 0; }
 .deckcard .name { font-weight: 700; font-size: 17px; }
 .deckcard .meta { color: var(--muted); font-size: 13px; }
+/* a card's first slide, small (a folder's icon in its place); its tags and buttons */
+.deckcard .thumb { flex: none; width: 96px; height: 54px; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; overflow: hidden; background: #0d0d11; }
+.deckcard.folder .thumb { background: none; }
+.deckcard .thumb img { width: 100%; height: 100%; object-fit: contain; }
+.deckcard .acts { flex: none; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 560px) {                    /* a phone: the text a row of its own, the tags and buttons below it */
+  .deckcard:not(.folder) { flex-wrap: wrap; gap: 10px 12px; }
+  .deckcard .thumb { width: 64px; height: 36px; }
+  .deckcard .info { flex: 1 1 160px; }
+  .deckcard .acts { flex: 1 1 100%; justify-content: flex-end; flex-wrap: wrap; }
+}
 .tag { font-size: 12px; border-radius: 99px; padding: 2px 9px; background: #2c2c36; color: var(--muted); white-space: nowrap; }
 .tag.open { background: #4a3d00; color: #ffd75e; }
 .tag.bad { background: #4a1616; color: #ff9b9b; }
@@ -110,6 +122,14 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .skipped ul { margin: 8px 0 2px; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
 .skipped .name { font-weight: 700; }
 .skipped .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+/* the decks taken off the list, each with Put back (presenter.js library: removed) */
+.removed { border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; margin-top: 10px; }
+.removed summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+.removed ul { list-style: none; margin: 8px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.removed li { display: flex; align-items: center; gap: 12px; }
+.removed .info { flex: 1; min-width: 0; }
+.removed .name { font-weight: 700; }
+.removed .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 /* a deck's Lectures and Builds (presenter.js lecturesDialog, buildsDialog): a row each, its buttons below it */
 .lectures { display: flex; flex-direction: column; }
 .lecture { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -122,7 +142,7 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .lecture .acts button:disabled { opacity: .45; }
 /* the deck page's folders (presenter.js library): the path, the search, the order, the cards' ⋯ */
 .libbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; flex: 1 1 240px; min-width: 0; }
+.crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; flex: 1 1 120px; min-width: 0; }
 .crumb { border: 0; background: none; color: var(--muted); font-weight: 600; padding: 4px 6px; border-radius: 6px; }
 .crumb:hover, .crumb.here { color: var(--ink); }
 .crumb:hover { background: var(--panel); }
@@ -473,6 +493,9 @@ body.projector.idle { cursor: none; }
   background: rgba(30, 30, 36, .88); color: #fff; font: 15px system-ui, sans-serif; opacity: 0; transition: opacity .4s; pointer-events: none;
 }
 .hint.show { opacity: 1; }
+.hint.note.act.show { pointer-events: auto; }             /* a notice with a button: Undo (ask.js notice) */
+.hint.note button { margin-left: 14px; border: 0; border-radius: 99px; padding: 3px 12px; background: var(--brand, #5b2bb3); color: #fff;
+  font: inherit; font-weight: 700; cursor: pointer; }
 .hint.stay { bottom: 50%; transform: translate(-50%, 50%); }
 @media (max-height: 520px) {                                   /* a short window: one row each */
   .toolbar, .bar { flex-wrap: nowrap; overflow-x: auto; }

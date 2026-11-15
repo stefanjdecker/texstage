@@ -10,6 +10,7 @@
 //   await tell("A number of minutes, please.");
 //   const text = await askText("Target duration in minutes", "45");  // null: cancelled
 //   notice("All ink of this frame erased - ↶ or Ctrl+Z brings it back");  // fades by itself
+//   notice("Talk: off the list", ["Undo", () => putBack()]);   // with a button, a while longer
 //
 // The texts are the caller's; the buttons a question does not name are OK and Cancel in the
 // page's language (i18n.js pageTexts: the open deck's, else the browser's).
@@ -57,14 +58,22 @@ export const ask = (text, yes = words().ok, no = words().cancel) => open(text, {
 export const tell = (text) => open(text);
 export const askText = (text, value = "", yes = words().ok) => open(text, { yes, no: words().cancel, field: value });
 
-export function notice(text) {
+export function notice(text, action = null) {
   let el = document.querySelector(".hint.note");
   if (!el) {
     el = Object.assign(document.createElement("div"), { className: "hint note", role: "status" });
     document.body.append(el);
   }
   el.textContent = text;
+  const hide = () => el.classList.remove("show", "act");
+  if (action) {                                   // [label, what it does]: once, and the notice goes
+    const [label, run] = action;
+    const b = Object.assign(document.createElement("button"), { type: "button", textContent: label });
+    b.onclick = () => { clearTimeout(el.timer); hide(); run(); };
+    el.append(b);
+  }
   el.classList.add("show");
+  el.classList.toggle("act", Boolean(action));
   clearTimeout(el.timer);
-  el.timer = setTimeout(() => el.classList.remove("show"), 4000);
+  el.timer = setTimeout(hide, action ? 8000 : 4000);
 }

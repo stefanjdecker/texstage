@@ -17,9 +17,10 @@
         /api/results/<session>.csv           it holds every reveal page), a game's results
     PATCH|DELETE /api/decks/<deck>,          texstage's deck page (library.py), for hosts: a deck's
         GET|POST /api/folders,               folder and shown name, off the list (an uploaded deck
-        PATCH|DELETE /api/folders/<id>       deleted); the lecturer's folders
+        PATCH|DELETE /api/folders/<id>       deleted) and back on it; the lecturer's folders
     GET /api/skipped                         for hosts: the decks the server found and does not play,
                                              each with why (bundles.py Skipped; as GET /api/decks found them)
+    GET /api/removed                         for hosts: the decks taken off the list (Put back)
     GET /api/decks/<deck>/lectures,          for hosts: the deck's games, open and ended, with what each left
         GET /api/decks/<deck>/builds         and its archive's files; every build of it on disk (the deck page)
     GET /api/bundles/<id>.zip,               a build as one file (presenter key); an upload of it deleted
@@ -1450,7 +1451,10 @@ def create_app(config: ServerConfig) -> Starlette:
     async def decks(request: Request):
         """The decks this lecturer can play, newest build of each first, with their games - and
         each deck's folder and shown name on the lecturer's deck page (library.py). A deck taken
-        off the list stays off it until a newer build of it comes."""
+        off the list stays off it until a newer build of it comes, or until Put back. Each deck
+        says when this lecturer presented it last (`presented`: its newest game's last activity), its
+        open game whether it runs (`running`: not idle for hours - opening the deck again continues
+        it; else it is the next lecture's new game), and its first slide's picture (`thumb`)."""
         lect = lecturer(request)
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
@@ -1458,10 +1462,13 @@ def create_app(config: ServerConfig) -> Starlette:
         lib = server.library.view(lect)["decks"]
 
         def listed(b) -> bool:
-            hidden = (lib.get(b.deck) or {}).get("hidden") if isinstance(lib.get(b.deck), dict) else None
-            return b.open_to(lect) and (not isinstance(hidden, int) or built_ms(b) > hidden)
+            return b.open_to(lect) and not hidden_build(lib, b)
 
+        now = now_ms()
         running = {s.deck: s for s in server.engine.sessions.values() if s.owner == lect}
+        presented = server.store.presented(lect)
+        for s in running.values():                       # (the open game's newest activity: in memory)
+            presented[s.deck] = max(presented.get(s.deck) or 0, s.last_active)
         newest = {}                                      # per deck its newest build, and the one played
         for b in server.bundles.current():
             if listed(b) and (b.deck not in newest or built_ms(b) > built_ms(newest[b.deck])):
@@ -1478,12 +1485,39 @@ def create_app(config: ServerConfig) -> Starlette:
             out.append({"bundle": b.id, "deck": b.deck, "name": b.name, "quizzes": len(b.quizzes),
                         "slides": len(b.slides), "built": built_ms(b),
                         "complete": b.complete(), "stage": b.stage_pdf() is not None,
-                        "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id}
+                        "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id,
+                                 "running": now - s.last_active < server.engine.settings.stale_ms}
                         if s and s.bundle == b.id else None,
                         "failing": stage_types.failing(server.engine, s) if s and s.bundle == b.id else [],
                         "folder": entry.get("folder"), "label": entry.get("label"),
-                        "uploaded": bool(uploaded_builds(lect, b.deck))})   # deleting deletes them
+                        "uploaded": bool(uploaded_builds(lect, b.deck)),   # deleting deletes them
+                        "presented": presented.get(b.deck), "thumb": b.thumb})
         out.sort(key=lambda d: (d["name"].casefold(), -d["built"]))
+        return JSONResponse(out)
+
+    def hidden_build(lib: dict, b) -> bool:
+        """Whether build b is off the lecturer's list: its deck taken off it (library.py hidden), b
+        built before then."""
+        entry = lib.get(b.deck)
+        hidden = entry.get("hidden") if isinstance(entry, dict) else None
+        return isinstance(hidden, int) and built_ms(b) <= hidden
+
+    async def removed(request: Request):
+        """GET /api/removed: the decks this lecturer took off the list and has builds of, none built since -
+        the newest first, with when (`hidden`) -, which the deck page puts back (PATCH /api/decks/<deck>
+        {listed: true}); as the last scan found them (GET /api/decks scans: the page asks after it)."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        lib = server.library.view(lect)["decks"]
+        newest: dict = {}
+        for b in server.bundles.current():
+            if b.open_to(lect) and (b.deck not in newest or built_ms(b) > built_ms(newest[b.deck])):
+                newest[b.deck] = b
+        out = [{"deck": b.deck, "name": b.name, "label": lib[b.deck].get("label"), "built": built_ms(b),
+                "hidden": lib[b.deck]["hidden"]}
+               for b in newest.values() if hidden_build(lib, b)]
+        out.sort(key=lambda d: -d["hidden"])
         return JSONResponse(out)
 
     async def skipped(request: Request):
@@ -1554,8 +1588,9 @@ def create_app(config: ServerConfig) -> Starlette:
         return JSONResponse({"ok": True})
 
     async def deck_entry(request: Request):
-        """PATCH /api/decks/<deck> {folder, label}: moves it (folder null: to the top) or gives it
-        another shown name (label "" or null: its own). DELETE: off the deck page - the builds of it
+        """PATCH /api/decks/<deck> {folder, label, listed}: moves it (folder null: to the top), gives it
+        another shown name (label "" or null: its own), puts it back on the list (listed: true - after
+        Remove from the list, its Undo or the page's Removed decks). DELETE: off the deck page - the builds of it
         this lecturer uploaded are deleted, a laptop's builds only leave the list (the next build
         brings the deck back). A game this lecturer plays from an uploaded build refuses the delete
         while it runs; one left over from an earlier lecture ends (its results stay in the archive)."""
@@ -1568,7 +1603,13 @@ def create_app(config: ServerConfig) -> Starlette:
         if request.method == "PATCH":
             try:
                 data = await json_body(request)
-                server.library.change_deck(lect, deck, {k: data[k] for k in ("folder", "label") if k in data})
+                if "listed" in data and data["listed"] is not True:
+                    raise LibraryError("listed: only true (DELETE takes a deck off the list)")
+                changes = {k: data[k] for k in ("folder", "label") if k in data}
+                if changes:
+                    server.library.change_deck(lect, deck, changes)
+                if data.get("listed") is True:
+                    server.library.show(lect, deck)
             except LibraryError as err:
                 return refused(err)
             return JSONResponse({"ok": True})
@@ -2012,6 +2053,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/decks", decks),
         Route("/api/decks/{deck}", deck_entry, methods=["PATCH", "DELETE"]),
         Route("/api/skipped", skipped),
+        Route("/api/removed", removed),
         Route("/api/decks/{deck}/lectures", lectures),
         Route("/api/decks/{deck}/builds", builds),
         Route("/api/folders", folders, methods=["GET", "POST"]),

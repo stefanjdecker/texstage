@@ -2,6 +2,21 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- The deck page helps find today's deck:
+  - A card shows the deck's first slide and when you presented it last
+    (*presented today, 10:14*, *presented 12 Nov*); the build time lost its
+    seconds. *Recently presented* is a third order besides *By name* and
+    *Newest first*.
+  - Where a deck's lecture runs, its button says *Continue* (its tag the PIN);
+    a lecture left for hours shows neither - the next opening is a new one. The
+    host console's *Resume* follows the same rule.
+  - *Remove from the list* asks first when the deck's lecture runs (it goes
+    on), and the deck comes back: *Undo* in the notice, or *Put back* in the
+    list of removed decks below the cards (`GET /api/removed`,
+    `PATCH /api/decks/<deck> {"listed": true}`). Before, only the deck's next
+    build brought it back.
+  - On a phone (a paired device), a card with a tag squeezed its name to a word
+    per line; its tags and buttons now go below the text.
 - Browser smoke tests (`tests/test_browser_smoke.py`), the review's next step
   after the lecture room: Playwright drives a real browser - the installed
   Chrome, nothing downloaded - against a real server on a free port. A phone

@@ -397,14 +397,19 @@ takes the presenter key the page is signed in with. A deck built before 2026-10-
 `.bundle.zip`: zip its `.bundle` folder (Explorer: Send to â†’ Compressed folder) and upload
 that.
 
-**The deck page.** texstage's presenter (`â€¦/stage`) keeps the decks in folders of your own:
+**The deck page.** texstage's presenter (`…/stage`) keeps the decks in folders of your own:
 *New folder*, then drag a deck onto a folder - or onto a step of the path above the list - or
-use the deck's â‹¯ (*Move to â€¦*, *Rename â€¦*: a name of its own on the page). The search field looks
-through all folders; *By name* or *Newest first* orders them. â‹¯ â€º *Remove from the list* takes a
-deck built on this computer off the list - its build folder stays, and its next build brings it
-back -; a deck uploaded to the server is deleted instead (â‹¯ â€º *Delete*), not while a game of it
-is under way. A folder's â‹¯ renames, moves or deletes it (what it holds moves up; no deck is
-deleted). Folders and names are each lecturer's own, kept by the server (`library.json` in its
+use the deck's ⋯ (*Move to …*, *Rename …*: a name of its own on the page). A card shows the deck's
+first slide and when you presented it last (*presented today, 10:14*, *presented 12 Nov*); where its
+lecture runs, its button says *Continue* and its tag the game's PIN - elsewhere *Present* (a lecture
+left for hours is over: the deck's next opening is a new one). The search field looks through all
+folders; *By name*, *Newest first* or *Recently presented* orders them. ⋯ › *Remove from the list*
+takes a deck built on this computer off the list - its build folder stays -; the window asks first
+if its lecture runs (the lecture goes on). The notice's *Undo*, *Put back* in the list of removed
+decks below the cards, or the deck's next build brings it back. A deck uploaded to the server is
+deleted instead (⋯ › *Delete*), not while a game of it is under way. A folder's ⋯ renames, moves or
+deletes it (what it holds moves up; no deck is deleted). On a phone, a card's buttons go below its
+text. Folders and names are each lecturer's own, kept by the server (`library.json` in its
 data folder). A deck the server finds and does not play - a kind of activity it lacks (a deck of
 texstage's own kinds wants `--activities core`), a format it is too old for, a broken
 `deck.json` - is on no list; the page says at the top which and why, and so does the server's

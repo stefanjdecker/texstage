@@ -115,6 +115,59 @@ def test_a_laptop_build_leaves_the_list_until_the_next_build(laptop):
     assert set(listed(client)) == {"alpha", "beta"}
 
 
+def test_a_deck_taken_off_the_list_is_put_back(laptop):
+    """Remove from the list had no way back but the deck's next build (the review of 2026-11-14): GET
+    /api/removed lists the decks taken off it, PATCH {listed: true} puts one back - its folder and name
+    kept. A deck whose lecture runs may leave the list too (the page asks first); the lecture goes on."""
+    client, alpha, beta, _ = laptop
+    assert client.get("/api/removed").status_code == 403
+    assert client.get("/api/removed", headers=HOST).json() == []
+    engine = client.app.state.server.engine
+    s = engine.open_session("alpha", alpha.id, int(time.time() * 1000), owner="local")   # its lecture runs
+    assert client.patch("/api/decks/alpha", json={"label": "Alpha, the talk"}, headers=HOST).status_code == 200
+    assert client.delete("/api/decks/alpha", headers=HOST).json() == {"deleted": 0, "hidden": True}
+    assert engine.sessions[s.id].ended is None                            # the lecture goes on
+    assert set(listed(client)) == {"beta"}
+    (gone,) = client.get("/api/removed", headers=HOST).json()
+    assert (gone["deck"], gone["name"], gone["label"]) == ("alpha", "Alpha", "Alpha, the talk")
+    assert gone["hidden"] >= gone["built"]
+    assert client.patch("/api/decks/alpha", json={"listed": False}, headers=HOST).status_code == 400
+    assert client.patch("/api/decks/alpha", json={"listed": True}, headers=HOST).status_code == 200
+    decks = listed(client)
+    assert set(decks) == {"alpha", "beta"} and decks["alpha"]["label"] == "Alpha, the talk"
+    assert client.get("/api/removed", headers=HOST).json() == []
+    # taken off, then built again: listed by its new build, no longer among the removed
+    assert client.delete("/api/decks/beta", headers=HOST).status_code == 200
+    assert set(listed(client)) == {"alpha"} and [d["deck"] for d in client.get("/api/removed", headers=HOST).json()] == ["beta"]
+    later = time.time() + 60
+    os.utime(beta.path / "deck.json", (later, later))
+    assert set(listed(client)) == {"alpha", "beta"} and client.get("/api/removed", headers=HOST).json() == []
+
+
+def test_a_card_says_when_its_deck_was_presented_and_whether_its_lecture_runs(laptop):
+    """The deck page's cards (2026-11-15): when this lecturer presented each deck last, whether its open
+    game runs - Present continues it - or was left hours ago (the next opening is a new lecture, so no
+    Continue, no PIN), and the first slide's picture, served as every slide is."""
+    client, alpha, beta, _ = laptop
+    decks = listed(client)
+    assert decks["alpha"]["presented"] is None and decks["alpha"]["game"] is None
+    assert decks["alpha"]["thumb"] == alpha.slides[0]["image"]
+    r = client.get(f"/bundle/{alpha.id}/{decks['alpha']['thumb']}")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    engine = client.app.state.server.engine
+    now = int(time.time() * 1000)
+    s = engine.open_session("alpha", alpha.id, now, owner="local")
+    engine.open_session("beta", beta.id, now, owner="bob")               # another lecturer's: not on this page
+    decks = listed(client)
+    assert decks["alpha"]["game"]["running"] is True and decks["alpha"]["presented"] == now
+    assert decks["beta"]["presented"] is None and decks["beta"]["game"] is None
+    s.last_active = now - engine.settings.stale_ms - 1000                # left open hours ago
+    assert listed(client)["alpha"]["game"]["running"] is False
+    engine.end(s.id, now)                                                 # ended: from the store
+    decks = listed(client)
+    assert decks["alpha"]["game"] is None and decks["alpha"]["presented"] is not None
+
+
 def test_an_uploaded_deck_is_deleted(tmp_path):
     (tmp_path / "bundles").mkdir()
     fb = make_bundle(tmp_path / "elsewhere", deck="talk", title="Talk")

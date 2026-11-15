@@ -328,7 +328,8 @@ def test_pages_and_the_host_api(world):
         recv(p, "ok")
         h.send_json({"t": "slide", "slide": fb.slide("reveal", "pick")})
         recv(p, "state", until=round_phase("revealed"))
-    assert client.get("/api/decks", headers=key).json()[0]["game"] == {"pin": pin, "players": 1, "session": sid}
+    assert client.get("/api/decks", headers=key).json()[0]["game"] == {"pin": pin, "players": 1, "session": sid,
+                                                                       "running": True}
     r = client.get(f"/api/results/{sid}.csv", headers=key)
     assert f"-{pin}.csv" in r.headers["content-disposition"] and r.headers["content-type"].startswith("text/csv")
     rows = [line.split(",") for line in r.text.lstrip("﻿").splitlines()]

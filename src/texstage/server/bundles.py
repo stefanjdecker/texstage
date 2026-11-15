@@ -102,6 +102,15 @@ class Bundle:
         path = self.path / rel
         return path if path.is_file() else None
 
+    @property
+    def thumb(self) -> str | None:
+        """The first slide's picture (slides/<hash>.png), the deck page's card shows it small; None if
+        deck.json names none."""
+        slides = self.deck_json.get("slides")
+        first = slides[0] if isinstance(slides, list) and slides and isinstance(slides[0], dict) else {}
+        image = first.get("image")
+        return image if isinstance(image, str) and FILE.match(image) and image.startswith("slides/") else None
+
     def media(self, rel: str) -> Path | None:
         """A video file the deck names (served by ticket only); None for anything else."""
         if rel not in stage_types.video.media(self.items.get("video", {})):

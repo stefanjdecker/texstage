@@ -334,6 +334,7 @@ const folderList = () => hostFetch("/api/folders", auth).then((r) => r.json()).c
 // the decks the server found and does not play, each with why - as the deck list's scan found them, so asked
 // after it; none from a server older than the list (2026-11-14)
 const skippedList = () => hostFetch("/api/skipped", auth).then((r) => r.json()).catch(() => []);
+const removedList = () => hostFetch("/api/removed", auth).then((r) => r.json()).catch(() => []);   // Put back
 
 // a build the server has and does not list - an older one than its deck's newest, or a deck taken off the
 // list -, which texstage present or a reload in the lecture asks for: it opens all the same (null: not here)
@@ -348,7 +349,7 @@ async function unlisted(bundle) {
 
 async function showDecks(resume = false, uploaded = "") {
   const [decks, folders] = await Promise.all([hostFetch("/api/decks", auth).then((r) => r.json()), folderList()]);
-  const skipped = await skippedList();
+  const [skipped, removed] = await Promise.all([skippedList(), removedList()]);   // (as the deck list's scan found them)
   const wanted = new URLSearchParams(location.search).get("bundle");    // texstage present: this deck
   let missing = null;
   if (wanted) {
@@ -368,7 +369,7 @@ async function showDecks(resume = false, uploaded = "") {
   offline(false);
   state = null;
   renderRec();
-  library(decks, folders, uploaded, skipped);
+  library(decks, folders, uploaded, skipped, removed);
   if (missing) tell(absent(missing, skipped));
 }
 
@@ -382,11 +383,14 @@ function absent({ bundle, here }, skipped) {
 }
 
 // The deck page (server: library.py): folders, opened like a file browser with the path above, the
-// decks in them, a search over all of them, by name or newest build first. A card's ⋯ renames,
-// moves or deletes it; cards can also be dragged onto a folder or onto a step of the path. Delete
-// deletes an uploaded deck; a build on this computer only leaves the list (its next build is back).
-// Above them, at the top: the decks the server found and does not play, each with why (skipped).
-function library(decks, folders, uploaded = "", skipped = []) {
+// decks in them, a search over all of them, by name, newest build or most recently presented first. A
+// card shows the deck's first slide, when it was presented last, and Continue where its lecture runs
+// (Present elsewhere). Its ⋯ renames, moves or deletes it; cards can also be dragged onto a folder or
+// onto a step of the path. Delete deletes an uploaded deck; a build on this computer only leaves the
+// list (its next build is back, and so is it with the notice's Undo or Removed decks' Put back). Above
+// them, at the top: the decks the server found and does not play, each with why (skipped); below them
+// the decks taken off the list (removed).
+function library(decks, folders, uploaded = "", skipped = [], removed = []) {
   const B = T.presenter.library, L = T.lecturer;
   let byId = new Map(folders.map((f) => [f.id, f]));
   const pathOf = (fid) => {                       // the folder and the folders it is in, from the top
@@ -410,37 +414,51 @@ function library(decks, folders, uploaded = "", skipped = []) {
     <div class="libbar"><nav class="crumbs" aria-label="${esc(B.path)}"></nav>
       <input type="search" class="libsearch" placeholder="${esc(B.search)}" aria-label="${esc(B.searchLabel)}">
       <select class="libsort" aria-label="${esc(B.order)}"><option value="name">${esc(B.byName)}</option>
-        <option value="newest">${esc(B.newest)}</option></select>
+        <option value="newest">${esc(B.newest)}</option><option value="recent">${esc(B.recent)}</option></select>
       <button class="secondary" id="newfolder">${esc(B.newFolder)}</button></div>
-    <div class="skippedbox"></div><div class="decks"></div></div>`;
+    <div class="skippedbox"></div><div class="decks"></div><div class="removedbox"></div></div>`;
   const list = app.querySelector(".decks");
   const skippedBox = app.querySelector(".skippedbox");
-  let skippedOpen = false;
+  const removedBox = app.querySelector(".removedbox");
+  let skippedOpen = false, removedOpen = false;
   const crumbs = app.querySelector(".crumbs");
   const search = app.querySelector(".libsearch");
   const sort = app.querySelector(".libsort");
-  sort.value = prefs.deckSort === "newest" ? "newest" : "name";
-  const built = (ms) => new Date(ms).toLocaleString(T.meta.locale);
+  sort.value = ["newest", "recent"].includes(prefs.deckSort) ? prefs.deckSort : "name";
+  // a day as people say it: today, yesterday, 12 Nov (with the year if not this one); the time with it if asked
+  const day = (ms, time = false) => {
+    const t = new Date(ms), now = new Date();
+    const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      - new Date(t.getFullYear(), t.getMonth(), t.getDate())) / 864e5);
+    const date = days === 0 ? B.today : days === 1 ? B.yesterday : t.toLocaleDateString(T.meta.locale,
+      { day: "numeric", month: "short", ...(t.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
+    return time || days === 0 ? `${date}, ${t.toLocaleTimeString(T.meta.locale, { hour: "2-digit", minute: "2-digit" })}` : date;
+  };
+  const running = (d) => Boolean(d.game?.running);   // its game runs (not idle for hours): Present continues it
+  const thumb = (d) => `<span class="thumb" aria-hidden="true">${d.thumb && d.bundle
+    ? `<img src="/bundle/${esc(d.bundle)}/${esc(d.thumb)}" alt="" loading="lazy" decoding="async" draggable="false">` : ""}</span>`;
 
   const folderCard = (f) => {
     const subs = folders.filter((g) => g.parent === f.id).length;
     const parts = [subs ? B.folders(subs) : "", B.decks(decks.filter((d) => d.folder === f.id).length),
       query ? B.within(where(f.parent)) : ""];
     return `<div class="deckcard folder" draggable="true" data-folder="${esc(f.id)}" tabindex="0">
-      <span class="ficon" aria-hidden="true"></span>
+      <span class="thumb" aria-hidden="true"><span class="ficon"></span></span>
       <div class="info"><div class="name">${esc(f.name)}</div><div class="meta">${esc(parts.filter(Boolean).join(" · "))}</div></div>
       <button class="more" data-more-folder="${esc(f.id)}" title="${esc(B.folderMenu)}" aria-label="${esc(B.folderActions)}">⋯</button></div>`;
   };
-  const deckCard = (d) => `<div class="deckcard" draggable="true" data-deck="${esc(d.deck)}">
+  const deckCard = (d) => `<div class="deckcard" draggable="true" data-deck="${esc(d.deck)}">${thumb(d)}
       <div class="info"><div class="name">${esc(shown(d))}</div>
-      <div class="meta">${esc([query && byId.has(d.folder) ? B.within(where(d.folder)) : "", d.label ? d.name : "", d.deck,
-    L.quizzes(d.quizzes), L.slides(d.slides), L.built(built(d.built))].filter(Boolean).join(" · "))}</div></div>
-      ${d.game ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
+      <div class="meta">${esc([query && byId.has(d.folder) ? B.within(where(d.folder)) : "", d.label ? d.name : "",
+    d.presented ? B.presented(day(d.presented)) : "", L.built(day(d.built, true)), L.quizzes(d.quizzes), L.slides(d.slides),
+    d.deck].filter(Boolean).join(" · "))}</div></div>
+      <div class="acts">${running(d) ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
       ${d.failing?.length ? `<span class="tag bad" title="${esc(d.failing.map((f) => B.refFailed(f.activity, f.reference, f.error))
     .join("\n"))}">${esc(B.refsFail(d.failing.length))}</span>` : ""}
-      ${d.stage ? `<button class="primary" data-present="${esc(d.bundle)}">${esc(B.present)}</button>`
+      ${d.stage ? `<button class="primary" data-present="${esc(d.bundle)}"${running(d) ? ` title="${esc(B.continueTitle(d.game.pin))}"` : ""}>${
+    esc(running(d) ? B.continue : B.present)}</button>`
     : `<span class="tag" title="${esc(B.noStageWhy)}">${esc(B.noStage)}</span>`}
-      <button class="more" data-more-deck="${esc(d.bundle)}" title="${esc(B.deckMenu)}" aria-label="${esc(B.deckActions)}">⋯</button></div>`;
+      <button class="more" data-more-deck="${esc(d.bundle)}" title="${esc(B.deckMenu)}" aria-label="${esc(B.deckActions)}">⋯</button></div></div>`;
 
   const render = () => {
     try { sessionStorage.setItem(FOLDER, here || ""); } catch { /* ignore */ }
@@ -451,7 +469,9 @@ function library(decks, folders, uploaded = "", skipped = []) {
     const hit = (...texts) => texts.some((t) => String(t || "").toLocaleLowerCase().includes(q));
     const fs = folders.filter((f) => (q ? hit(f.name) : (f.parent || null) === here)).sort((a, b) => byName(a.name, b.name));
     const ds = decks.filter((d) => (q ? hit(d.label, d.name, d.deck) : (byId.has(d.folder) ? d.folder : null) === here))
-      .sort((a, b) => (sort.value === "newest" ? b.built - a.built : byName(shown(a), shown(b))));
+      .sort((a, b) => (sort.value === "newest" ? b.built - a.built
+        : sort.value === "recent" ? (b.presented || 0) - (a.presented || 0) || byName(shown(a), shown(b))
+          : byName(shown(a), shown(b))));
     list.innerHTML = fs.map(folderCard).join("") + ds.map(deckCard).join("")
       || `<p class="empty">${esc(q ? B.noMatch : here ? B.empty : L.noDecks)}</p>`;
     skippedBox.innerHTML = here || q || !skipped.length ? "" : `<details class="skipped"><summary>${esc(B.skipped(skipped.length))}</summary>
@@ -463,10 +483,21 @@ function library(decks, folders, uploaded = "", skipped = []) {
       details.open = skippedOpen;
       details.ontoggle = () => { skippedOpen = details.open; };
     }
+    // the decks taken off the list (Remove from the list): each can be put back
+    removedBox.innerHTML = here || q || !removed.length ? "" : `<details class="removed"><summary>${esc(B.removedDecks(removed.length))}</summary>
+      <ul>${removed.map((r) => `<li><div class="info"><span class="name">${esc(r.label || r.name)}</span>
+        <div class="meta">${esc([r.label ? r.name : "", B.removedAt(day(r.hidden)), L.built(day(r.built, true)), r.deck]
+    .filter(Boolean).join(" · "))}</div></div>
+        <button class="secondary" data-put-back="${esc(r.deck)}">${esc(B.putBack)}</button></li>`).join("")}</ul></details>`;
+    const back = removedBox.querySelector("details");
+    if (back) {
+      back.open = removedOpen;
+      back.ontoggle = () => { removedOpen = back.open; };
+    }
   };
   const refresh = async () => {
     [decks, folders] = await Promise.all([hostFetch("/api/decks", auth).then((r) => r.json()), folderList()]);
-    skipped = await skippedList();
+    [skipped, removed] = await Promise.all([skippedList(), removedList()]);
     byId = new Map(folders.map((f) => [f.id, f]));
     if (!byId.has(here)) here = null;
     render();
@@ -559,10 +590,18 @@ function library(decks, folders, uploaded = "", skipped = []) {
       if (to !== undefined) moveTo({ deck: d.deck }, to);
     }],
     [d.uploaded ? B.delete : B.unlist, async () => {
-      const question = d.uploaded ? B.deleteAsk(shown(d)) : B.unlistAsk(shown(d));
-      if (await ask(question, d.uploaded ? B.deleteYes : B.unlistYes))
-        act(() => send("DELETE", `/api/decks/${encodeURIComponent(d.deck)}`), d.uploaded ? B.deleted(shown(d)) : B.unlisted(shown(d)));
+      // a deck whose lecture runs can leave the list too - asked so: its card, the way back to it, goes
+      const name = shown(d);
+      const question = d.uploaded ? B.deleteAsk(name)
+        : running(d) ? B.unlistRunningAsk(name, d.game.pin, d.game.players) : B.unlistAsk(name);
+      if (!await ask(question, d.uploaded ? B.deleteYes : B.unlistYes)) return;
+      let info = null;
+      await act(async () => { info = await send("DELETE", `/api/decks/${encodeURIComponent(d.deck)}`); });
+      if (info?.hidden && !info.deleted) notice(B.unlisted(name), [B.undo, () => putBack(d.deck, name)]);
+      else if (info) notice(B.deleted(name));
     }]]);
+  const putBack = (deck, name) => act(() => send("PATCH", `/api/decks/${encodeURIComponent(deck)}`, { listed: true }),
+    B.putBackDone(name));
   const folderMenu = (button, f) => menu(button, [
     [B.rename, async () => {
       const name = await askText(B.folderName, f.name, B.renameYes);
@@ -600,6 +639,12 @@ function library(decks, folders, uploaded = "", skipped = []) {
     const step = e.target.closest("[data-to]");
     if (step) openFolder(step.dataset.to || null);
   });
+  removedBox.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-put-back]");
+    const r = b && removed.find((x) => x.deck === b.dataset.putBack);
+    if (r) putBack(r.deck, r.label || r.name);
+  });
+  list.addEventListener("error", (e) => { if (e.target.matches?.(".thumb img")) e.target.remove(); }, true);   // (no picture)
   search.addEventListener("input", () => { query = search.value.trim(); render(); });
   sort.addEventListener("change", () => { prefs.deckSort = sort.value; savePrefs(); render(); });
   app.querySelector("#newfolder").onclick = async () => {

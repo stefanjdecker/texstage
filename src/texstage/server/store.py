@@ -164,6 +164,12 @@ class Store:
                         "questions": questions.get(r["id"], 0)})
         return out
 
+    def presented(self, owner: str) -> dict[str, int]:
+        """When the lecturer presented each deck last: its newest game's last activity, ended or not
+        ({deck: ms}; the deck page's cards and its order Recently presented)."""
+        return {r[0]: r[1] for r in self.db.execute(
+            "SELECT deck, MAX(last_active) FROM sessions WHERE COALESCE(owner, '') = ? GROUP BY deck", (owner,))}
+
     def played(self, deck: str, owner: str) -> dict[str, int]:
         """How many ended games of a deck and lecturer each build played: {bundle id: games}."""
         return {r[0]: r[1] for r in self.db.execute(
