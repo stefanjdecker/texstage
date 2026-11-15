@@ -81,6 +81,10 @@ or exported participant results. Review each capture for private content.
 
 Update captures.json with the source revision, capture date, viewport dimensions,
 descriptions and SHA-256 of each new image. The image paths are relative to docs.
+A screenshot retaken on its own records its own version, source_revision and
+captured_on in its entry; the top-level values remain those of the other screenshots.
+The deck library is captured from a second browser tab while the demonstration
+lecture runs, with the deck's three-dot menu open.
 For an individual image, calculate its digest with:
 
 ```sh

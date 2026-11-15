@@ -1249,5 +1249,9 @@ Reported after that, the same day:
   put back, rebuilt) and `tests/test_browser_deck_page.py` with the smoke tests' fixtures: Continue
   and the order, the thumbnails loaded, back into the same game; a 390 px page keeps a card's name on
   one line; Remove with its question, Undo, Put back. All five fail on 06300b3.
-- **Not done:** the generated manual (`manual-content.json`, its screenshots) still shows the page
-  before; the old copy in lecture-tools that the KG and dbis-vl lectures run has none of it.
+- **The manual** (afterwards, the same day): *Choose a deck* in `manual-content.json` describes the
+  page, the deck menu's *Lectures* and *Builds* (2026-11-14) and the skipped decks; `01-deck-library.jpg`
+  was retaken from caf0549 with the demo deck's lecture running and the card's menu open. Its entry in
+  `captures.json` carries its own `version`, `source_revision` and `captured_on`; the top-level values
+  stay those of the other 18 screenshots (27 October), and the provenance paragraph says both.
+- **Not done:** the old copy in lecture-tools that the KG and dbis-vl lectures run has none of it.

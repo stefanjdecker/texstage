@@ -287,18 +287,21 @@ Handout /\allowbreak{} solutions PDF & Choose the intended audience explicitly.\
 The presenter is at \texttt{/\allowbreak{}stage} on your quiz server.\allowbreak{} On the server laptop it normally obtains the local presenter key automatically.\allowbreak{} A remote presenter uses an authorized key or a paired device.\par
 
 \begin{itemize}
-\item Choose \textbf{Present} on the deck you want to use.
-\item Use search to find a deck across folders.\allowbreak{} Choose \textbf{By name} or \textbf{Newest first} to change the order.
-\item Use \textbf{New folder} and the deck actions menu to organize your library.
+\item Choose \textbf{Present} on the deck you want to use.\allowbreak{} Each card shows the deck's first slide and when you last presented it.
+\item While a deck's lecture is running, its card shows the session PIN and the button says \textbf{Continue}, which returns to the same session.\allowbreak{} A lecture left idle for six hours has ended; the next \textbf{Present} starts a new session.
+\item Use search to find a deck across folders.\allowbreak{} Choose \textbf{By name}, \textbf{Newest first} or \textbf{Recently presented} to change the order.
+\item Use \textbf{New folder} to organize your library.\allowbreak{} Drag a deck onto a folder, or use \textbf{Move to} or \textbf{Rename} in the deck's three-\allowbreak{}dot menu.
+\item The same menu lists the deck's \textbf{Lectures}, each with its results, archive and recordings, and its \textbf{Builds}, so you can present or download an older build.
+\item \textbf{Remove from the list} hides a deck; its build stays.\allowbreak{} Choose \textbf{Undo} in the notice, or \textbf{Put back} in the list of removed decks below the cards.\allowbreak{} The deck's next build also brings it back.\allowbreak{} A deck uploaded to the server offers \textbf{Delete} instead.
 \item Use \textbf{Upload a deck} for a \texttt{.\allowbreak{}bundle.\allowbreak{}zip} created by texstage build.\allowbreak{} Upload the bundle, not an arbitrary PDF.
 \end{itemize}
 
-A deck built while the library is open appears after a reload.\allowbreak{} A browser presentation requires a build containing the stage PDF; rebuild without \texttt{-\allowbreak{}-\allowbreak{}no-\allowbreak{}stage} if it is missing.\par
+A deck built while the library is open appears after a reload.\allowbreak{} If the server cannot present a deck, for example because it lacks an activity type the deck uses, the top of the page names the deck and the reason.\allowbreak{} A browser presentation requires a build containing the stage PDF; rebuild without \texttt{-\allowbreak{}-\allowbreak{}no-\allowbreak{}stage} if it is missing.\par
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/01-deck-library.jpg}
-\caption{Deck library.\allowbreak{} Present opens the private presenter workspace; the three-\allowbreak{}dot menu contains deck actions.}
+\caption{Deck library during a lecture.\allowbreak{} The card shows the first slide, when the deck was last presented and the running session's PIN; Continue returns to it.\allowbreak{} The three-\allowbreak{}dot menu holds the deck actions.}
 \end{figure}
 \manualsection{Know your presenter workspace}
 \begin{itemize}
@@ -634,7 +637,7 @@ Whiteboard /\allowbreak{} Grid & N /\allowbreak{} Shift+N & Undo /\allowbreak{} 
 This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\par
 
 \manualsection{About the screenshots and further help}
-The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} They are retained as illustrations in this 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 manual; the capture version is recorded separately from the manual version.\par
+The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev0 from the release-\allowbreak{}preparation source revision \texttt{daf0976b67\allowbreak{}954613a839\allowbreak{}b111f9696e\allowbreak{}41ab000433}, captured on 27 October 2026.\allowbreak{} The deck library screenshot was retaken with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 from source revision \texttt{caf0549ea4\allowbreak{}2081874da4\allowbreak{}819021bf19\allowbreak{}7276472958} on 15 November 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} They are retained as illustrations in this 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 manual; the capture version is recorded separately from the manual version.\par
 
 All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.\par
 

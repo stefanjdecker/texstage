@@ -18,8 +18,11 @@
       "file": "images/manual/01-deck-library.jpg",
       "width": 1280,
       "height": 720,
-      "sha256": "cd1b4ee92a466a3c31f8068e051e667d8e4ed4c9dc39c89ad06b02951b86fd25",
-      "description": "Deck library. Present opens the private presenter workspace; the three-dot menu contains deck actions."
+      "sha256": "08c5a69cecca77d50c017781697ed1d35e66a2ad4acfb6313ac5d3e6d1056559",
+      "description": "Deck library during a lecture. The card shows the first slide, when the deck was last presented and the running session's PIN; Continue returns to it. The three-dot menu holds the deck actions.",
+      "version": "0.2.1.dev3",
+      "source_revision": "caf0549ea42081874da4819021bf197276472958",
+      "captured_on": "2026-11-15"
     },
     {
       "file": "images/manual/02-presenter-workspace.jpg",
