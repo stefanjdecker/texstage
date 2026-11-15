@@ -1251,7 +1251,10 @@ Reported after that, the same day:
   one line; Remove with its question, Undo, Put back. All five fail on 06300b3.
 - **The manual** (afterwards, the same day): *Choose a deck* in `manual-content.json` describes the
   page, the deck menu's *Lectures* and *Builds* (2026-11-14) and the skipped decks; `01-deck-library.jpg`
-  was retaken from caf0549 with the demo deck's lecture running and the card's menu open. Its entry in
-  `captures.json` carries its own `version`, `source_revision` and `captured_on`; the top-level values
-  stay those of the other 18 screenshots (27 October), and the provenance paragraph says both.
+  was retaken from caf0549 with the demo deck's lecture running and the card's menu open (261776b, its
+  own provenance in `captures.json`). Then, on the user's word, all 19 screenshots anew from 261776b in
+  one scripted session (Playwright: the presenter at 1280 x 720, the phone Alex at 390 x 844, the deck
+  page in a third window), so `captures.json` has one revision and date again. The text now says where
+  the presenter's top bar keeps *After the lecture*, *Results (CSV)*, *New game* and *Decks* (its ⋯ menu)
+  and that a question's controls sit at the slide's foot.
 - **Not done:** the old copy in lecture-tools that the KG and dbis-vl lectures run has none of it.

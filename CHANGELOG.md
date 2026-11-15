@@ -19,8 +19,12 @@
     per line; its tags and buttons now go below the text.
   - The illustrated manual's *Choose a deck* describes the page as it is now -
     with the deck menu's *Lectures* and *Builds* and the decks a server does not
-    play - and has a new screenshot of it; captures.json records that one
-    screenshot's own revision and date.
+    play.
+- The illustrated manual's 19 screenshots are new, from one session of today's
+  texstage (they were from 27 October). The text follows the windows: the
+  presenter's top bar keeps *After the lecture*, *Results (CSV)*, *New game* and
+  *Decks* in its three-dot menu, and a question's *Pause*, *+10 s* and *Stop the
+  question* sit at the foot of the slide.
 - Browser smoke tests (`tests/test_browser_smoke.py`), the review's next step
   after the lecture room: Playwright drives a real browser - the installed
   Chrome, nothing downloaded - against a real server on a free port. A phone

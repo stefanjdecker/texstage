@@ -283,7 +283,7 @@ Deck library during a lecture. The card shows the first slide, when the deck was
 - **Current slide, left:** the step being presented, including live quiz content.
 - **Next, upper right:** a preview of the next step. It may show the correct answer before the audience sees it.
 - **Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.
-- **Top bar:** session PIN, connection indicator, latency, player count and join address. Projector, exports and session controls are here.
+- **Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices**. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.
 - **Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview.
 
 Show the **Projector** window to the audience. Keep this presenter window private: its notes, previews and controls are for you. Drag the dividers to adjust the slide and notes areas; double-click a divider to restore its default position.
@@ -327,7 +327,7 @@ Read first; the answers open on the next step.
 
 - **Read:** advance onto the reading step. The question appears on the shared screen and phones, without starting the round.
 - **Open:** advance once more. A three-second Get ready countdown precedes the answer timer.
-- **Control:** move the pointer over the live quiz to find **Pause**, **+10 s** and **Stop the question**. Pausing the quiz also pauses the answering interface on phones.
+- **Control:** **Pause**, **+10 s** and **Stop the question** sit at the foot of the current slide while the question is open; pointing at the slide shows them in full. Pausing the quiz also pauses the answering interface on phones.
 - **Close:** the round can close when the time runs out, when all connected participants have answered, or when you stop it.
 - **Reveal:** advance to the reveal step or use **Show the answer** when offered. Discuss the explanation and results.
 
@@ -440,9 +440,9 @@ Recording and device/screen integration depend on browser support and permission
 
 ## Finish the session and export the material
 
-A podium slide finishes the quiz session and shows final standings on phones. **After the lecture** opens the export tools; opening that panel alone does not end a quiz. **New game**, or returning to the join slide after a podium, starts a new session with a new PIN.
+A podium slide finishes the quiz session and shows final standings on phones. **After the lecture**, in the top bar's three-dot menu, opens the export tools; opening that panel alone does not end a quiz. **New game**, or returning to the join slide after a podium, starts a new session with a new PIN.
 
-Choose **Make the PDF** for the last-shown version of each frame, ink and whiteboard pages; the PDF is also saved to the server archive. **Results (CSV)** exports participant results. The archive ZIP combines the annotated PDF, if generated, and results. Recorded takes appear in the Recordings list. Review student-facing files before sharing; keep result data and presenter credentials private.
+Choose **Make the PDF** for the last-shown version of each frame, ink and whiteboard pages; the PDF is also saved to the server archive. **Results (CSV)**, in the same menu, exports participant results. The archive ZIP combines the annotated PDF, if generated, and results. Recorded takes appear in the Recordings list. Review student-facing files before sharing; keep result data and presenter credentials private.
 
 ![The phone displays the final rank at the end.](images/manual/18-phone-final-rank.jpg)
 
@@ -542,7 +542,7 @@ This shortcut card is for the texstage browser presenter. PowerPoint uses its ow
 
 ## About the screenshots and further help
 
-The screenshots were captured with texstage 0.2.1.dev0 from the release-preparation source revision `daf0976b67954613a839b111f9696e41ab000433`, captured on 27 October 2026. The deck library screenshot was retaken with texstage 0.2.1.dev3 from source revision `caf0549ea42081874da4819021bf197276472958` on 15 November 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. They are retained as illustrations in this 0.2.1.dev3 manual; the capture version is recorded separately from the manual version.
+The screenshots were captured with texstage 0.2.1.dev3 from source revision `261776bbf3ed6b8e9275cd9fe3650ccbe67af737` on 15 November 2026, in one session. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. The capture version is recorded separately from the manual version.
 
 All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.
 

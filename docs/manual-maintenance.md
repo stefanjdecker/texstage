@@ -83,8 +83,14 @@ Update captures.json with the source revision, capture date, viewport dimensions
 descriptions and SHA-256 of each new image. The image paths are relative to docs.
 A screenshot retaken on its own records its own version, source_revision and
 captured_on in its entry; the top-level values remain those of the other screenshots.
-The deck library is captured from a second browser tab while the demonstration
-lecture runs, with the deck's three-dot menu open.
+The deck library is captured from a second browser window while the demonstration
+lecture runs, with the deck's three-dot menu open. Give the presenter, the phone
+and the deck page a browser window each: a tab behind another one is hidden, and
+a hidden page stops drawing (the phone then misses its next screen). The question
+on the phone is a picture of the slide's text, and its answers are labelled
+Answer A, Answer B and so on. Take the Q&A shots while the question is still open;
+once every player has answered, an "All answers are in!" banner covers the slide
+until the reveal.
 For an individual image, calculate its digest with:
 
 ```sh
