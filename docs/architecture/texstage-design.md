@@ -1257,4 +1257,23 @@ Reported after that, the same day:
   page in a third window), so `captures.json` has one revision and date again. The text now says where
   the presenter's top bar keeps *After the lecture*, *Results (CSV)*, *New game* and *Decks* (its ⋯ menu)
   and that a question's controls sit at the slide's foot.
-- **Not done:** the old copy in lecture-tools that the KG and dbis-vl lectures run has none of it.
+- **Not done:** the old copy in lecture-tools that the dbis-vl lecture runs has none of it. (The KG
+  lecture moved the same day to lecture-tools-next, which pins texstage - 7194dad - instead of a copy.)
+
+## 32. Record keeps the presenter window full screen (2026-11-15)
+
+- **Why:** in a lecture, choosing the screen for *Record* took the full-screen presenter window out of full
+  screen: the browser's dialog for the screen (Chromium on Windows) left it, and a page may go back to full
+  screen only within a click (transient user activation, 5 s in Chromium).
+- **The fix** (`recordDialog` in presenter.js): *Record* notes whether the window is full screen - the page's
+  (`document.fullscreenElement`) or the browser's own, F11, which only `display-mode: fullscreen` or the window's
+  size equal to the screen's shows. If it was and no longer is, the page asks for full screen again
+  (`requestFullscreen` on the document): right after the choice while the click that opened the browser's dialog
+  still counts (`navigator.userActivation.isActive`), else in the dialog's next click - *Start* (before anything is
+  awaited) or *Cancel*. A window that was not full screen is not made so. Going back gives the page's full screen
+  for an F11 one: the same picture, Esc leaves it.
+- **Tests:** `tests/test_browser_recording.py` - a stand-in for the browser's dialog does what Chromium did
+  (leaves full screen, hands over a canvas's stream); with a choice longer than a click counts, the window is full
+  screen again with Start and records; a quick choice brings it back at once, Cancel keeps it; a window not full
+  screen stays so. `tests/web-client-record.test.cjs` checks the same in the dialog's cut-out source against
+  stubs (its harness now gives `window`, `matchMedia` and the document's full screen). All four fail on 7194dad.

@@ -213,9 +213,13 @@ function dialogContext() {
     return nodes.get(key);
   }};
   const screens = [], picks = [];               // the browser's dialog: each choice, and what it was asked for
-  let starts = 0;
+  let starts = 0, fulls = 0;                    // fulls: how often the dialog asked for full screen
+  const page = {createElement: () => el, body: {append() {}}, fullscreenElement: null};
+  page.documentElement = {requestFullscreen: async () => { fulls++; page.fullscreenElement = page.documentElement; }};
   Object.assign(context, {
-    document: {createElement: () => el, body: {append() {}}}, setInterval() { return 1; }, clearInterval() {},
+    document: page, matchMedia: () => ({matches: false}),
+    window: {innerWidth: 1280, innerHeight: 800, screen: {width: 1920, height: 1080}},  // smaller than its screen
+    setInterval() { return 1; }, clearInterval() {},
     rec: null, state: {session: {id: 'game'}}, prefs: {mic: ''}, auth: 'key', T: texts('en'),
     esc: (s) => s, savePrefs() {}, renderRec() {}, remember() {},
     pickScreen: (options) => { picks.push(options); const d = deferred(); screens.push(d); return d.promise; },
@@ -225,7 +229,7 @@ function dialogContext() {
   const presenter = source('stage/presenter.js');
   const dialog = presenter.slice(presenter.indexOf('async function recordDialog()'), presenter.indexOf('\nfunction remembered()'));
   vm.runInContext(dialog, context);
-  return {context, requests, nodes, el, screens, picks, starts: () => starts};
+  return {context, requests, nodes, el, screens, picks, page, starts: () => starts, fulls: () => fulls};
 }
 
 test('cancelling the recording dialog during microphone permission releases its late stream', async () => {
@@ -273,6 +277,44 @@ test('the screen chosen is shown before anything is recorded; Start records it; 
   await start.onclick();
   assert.equal(t.starts(), 1);
   assert.equal(second.track.stopped, false);                           // the recording has it now
+});
+
+// The browser's dialog for the screen took a full-screen presenter window out of full screen (a lecture, Chromium on
+// Windows); a page may go back only in a click: at once while the click that opened the dialog counts, else Start or
+// Cancel. The pick below leaves full screen as that browser did.
+async function pickedOutOfFullScreen(t, {active = false, full = true} = {}) {
+  t.page.fullscreenElement = full ? t.page.documentElement : null;     // before Record
+  const opened = t.context.recordDialog();
+  t.requests[0].resolve(capture()); await opened;
+  const pick = t.el.querySelector('#recpick').onclick();
+  t.page.fullscreenElement = null;                                     // the browser's dialog left full screen
+  t.context.navigator.userActivation = {isActive: active};
+  t.screens[0].resolve(capture()); await pick;
+}
+
+test('a full-screen presenter window that the browser\'s dialog took out of full screen is full screen again with Start', async () => {
+  const t = dialogContext();
+  await pickedOutOfFullScreen(t);
+  assert.equal(t.fulls(), 0);                                          // the click no longer counts: not yet
+  await t.el.querySelector('#recstart').onclick();
+  assert.equal(t.fulls(), 1);                                          // Start: full screen again, once
+  assert.equal(t.starts(), 1);                                         // ... and the recording
+});
+
+test('a quick choice is full screen again at once, Cancel too; a window not full screen is not made so', async () => {
+  let t = dialogContext();
+  await pickedOutOfFullScreen(t, {active: true});
+  assert.equal(t.fulls(), 1);                                          // the click still counts: at once
+  t = dialogContext();
+  await pickedOutOfFullScreen(t);
+  t.el.querySelector('#closedlg').onclick();
+  assert.equal(t.fulls(), 1);                                          // Cancel
+  assert.equal(t.starts(), 0);
+  t = dialogContext();
+  await pickedOutOfFullScreen(t, {active: true, full: false});
+  await t.el.querySelector('#recstart').onclick();
+  assert.equal(t.fulls(), 0);                                          // never full screen: left so
+  assert.equal(t.starts(), 1);
 });
 
 test('cancelling during the recording request prevents MediaRecorder from starting', async () => {

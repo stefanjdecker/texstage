@@ -2,6 +2,12 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- *Record* keeps a full-screen presenter window full screen: in a lecture the
+  browser's dialog for the screen took it out of full screen (Chromium on
+  Windows), and only a click may bring a page back. It is full screen again at
+  once while the click that opened the dialog still counts, else with *Start*
+  or *Cancel*; a window that was not full screen stays as it was
+  (`tests/test_browser_recording.py`, `tests/web-client-record.test.cjs`).
 - The deck page helps find today's deck:
   - A card shows the deck's first slide and when you presented it last
     (*presented today, 10:14*, *presented 12 Nov*); the build time lost its

@@ -2486,6 +2486,16 @@ async function recordDialog() {
   // before anything is recorded, so that the presenter's own screen (its notes, the next step's answers) is not
   // recorded by mistake; then Start. The computer's sound (the deck's videos) only when ticked: off each time.
   if (rec?.active || !state?.session) return;
+  // The browser's dialog for the screen can take the presenter window out of full screen (Chromium on Windows did, in
+  // a lecture), and a page may go back to full screen only in a click: right after the choice while the click that
+  // opened the dialog still counts, else with Start or Cancel - the presenter window as it was before Record.
+  // Full screen: the page's (the Fullscreen API) or the browser's own (F11), which only display-mode or the size shows.
+  const fullScreen = () => Boolean(document.fullscreenElement) || matchMedia("(display-mode: fullscreen)").matches
+    || (Math.abs(window.innerWidth - window.screen.width) <= 1 && Math.abs(window.innerHeight - window.screen.height) <= 1);
+  const wasFull = fullScreen();
+  const backToFull = () => {
+    if (wasFull && !fullScreen()) document.documentElement.requestFullscreen?.().catch(() => {});
+  };
   const mic = new Microphone();                   // made in the click: its level meter may run
   const R = T.record;
   const el = document.createElement("div");
@@ -2529,6 +2539,7 @@ async function recordDialog() {
   };
   const close = (keepMic = false) => {
     if (closed) return;
+    backToFull();                                 // Cancel's click (Start's: as it begins)
     closed = true;
     micRequest++;
     starting.abort();
@@ -2594,6 +2605,7 @@ async function recordDialog() {
       chosen.getTracks().forEach((t) => t.stop());
       return;
     }
+    if (navigator.userActivation?.isActive) backToFull();      // the click still counts: full screen at once
     screen = chosen;
     screen.getVideoTracks()[0]?.addEventListener("ended", () => { if (screen === chosen) drop(); });   // Stop sharing
     video.srcObject = screen;
@@ -2608,6 +2620,7 @@ async function recordDialog() {
   el.querySelector("#closedlg").onclick = () => close();
   startButton.onclick = async () => {
     if (closed || !screen) return;
+    backToFull();                                 // in the click, before anything is awaited
     startButton.disabled = pickButton.disabled = true;
     if (!state?.session) return close();
     const r = new Recording({ auth, session: state.session.id, screen, mic: sound ? mic : null, onChange: () => renderRec() });
