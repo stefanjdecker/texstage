@@ -12,7 +12,7 @@ while the click that opened the dialog still counts."""
 from __future__ import annotations
 
 from fake_bundle import make_bundle
-from test_browser_smoke import DECK, browser, host, new_page, running  # noqa: F401  (the fixtures)
+from test_browser_smoke import DECK, browser, host, new_page, running, wait_until  # noqa: F401  (the fixtures)
 
 # a window smaller than its screen, so that its size alone is not full screen
 LAPTOP = {"viewport": {"width": 1280, "height": 800}, "screen": {"width": 1920, "height": 1080}}
@@ -46,7 +46,7 @@ def presenter(new_page, live, fb):
     page = new_page(**LAPTOP)
     page.add_init_script(PICKER)
     page.goto(f"{live.url}/stage?bundle={fb.id}")
-    page.wait_for_function("/PIN \\d/.test(document.querySelector('#pin')?.textContent || '')")
+    wait_until(page, "/PIN \\d/.test(document.querySelector('#pin')?.textContent || '')")
     page.locator("#recbtn").wait_for()
     return page
 
@@ -58,7 +58,7 @@ def full_screen(page):
         b.onclick = () => { b.remove(); document.documentElement.requestFullscreen(); };
         document.body.append(b); }""")
     page.click("#fulltest")
-    page.wait_for_function(FULL)
+    wait_until(page, FULL)
 
 
 def choose_screen(page, ms: int):
@@ -86,13 +86,13 @@ def test_the_chosen_screen_waits_until_start_which_records_it_full_screen_again(
         full_screen(page)
         choose_screen(page, 6000)
         assert page.locator(".dialog").count() == 0                          # the presenter works meanwhile
-        page.wait_for_function("() => document.querySelector('#recview').srcObject === window.picked")
+        wait_until(page, "() => document.querySelector('#recview').srcObject === window.picked")
         assert takes(live) == 0                                              # waiting: no file yet
         assert not page.evaluate("Boolean(document.fullscreenElement)")      # as the capture left it
         page.hover("#recview")                                               # the larger one, below the bar,
         page.locator("#recbig").wait_for()                                   # ... takes no click from Start
         page.click("#recgo")
-        page.wait_for_function(FULL, timeout=5000)
+        wait_until(page, FULL, timeout=5000)
         page.locator("#rec.recording").wait_for(timeout=10000)               # and it records
         assert takes(live) == 1
         h.close()
@@ -108,14 +108,14 @@ def test_a_quick_choice_is_full_screen_at_once_x_lets_it_go_and_a_window_not_ful
         page = presenter(new_page, live, fb)
         full_screen(page)
         choose_screen(page, 0)
-        page.wait_for_function(FULL, timeout=5000)                               # at once, before Start
+        wait_until(page, FULL, timeout=5000)                                     # at once, before Start
         page.click("#recdrop")
         page.locator("#recbtn").wait_for()                                       # Record again
         assert page.evaluate("window.picked.getVideoTracks()[0].readyState") == "ended"   # the screen let go
         assert page.evaluate(FULL)
         assert takes(live) == 0
         page.evaluate("document.exitFullscreen()")
-        page.wait_for_function("() => !document.fullscreenElement")
+        wait_until(page, "() => !document.fullscreenElement")
         choose_screen(page, 0)
         page.click("#recdrop")
         page.locator("#recbtn").wait_for()

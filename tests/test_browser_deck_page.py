@@ -8,7 +8,7 @@ list coming back with Undo or Put back."""
 from __future__ import annotations
 
 from fake_bundle import make_bundle
-from test_browser_smoke import WINDOW, browser, host, new_page, running  # noqa: F401  (the fixtures)
+from test_browser_smoke import WINDOW, browser, host, new_page, running, wait_until  # noqa: F401  (the fixtures)
 
 PHONE_WIDE = {"viewport": {"width": 390, "height": 844}, "is_mobile": True, "has_touch": True, "device_scale_factor": 2}
 
@@ -44,13 +44,13 @@ def test_the_running_lecture_continues_and_the_last_presented_comes_first(new_pa
         assert f"game {pin}" in card(page, "Gamma").inner_text()
         assert "presented today" in card(page, "Gamma").locator(".meta").inner_text()
         assert "presented" not in card(page, "Alpha").locator(".meta").inner_text()
-        page.wait_for_function("""() => { const imgs = [...document.querySelectorAll('.deckcard .thumb img')];
+        wait_until(page, """() => { const imgs = [...document.querySelectorAll('.deckcard .thumb img')];
             return imgs.length === 3 && imgs.every((i) => i.complete && i.naturalWidth > 0); }""")
         assert page.locator(".deckcard .name").all_inner_texts() == ["02 RDF basics", "Alpha", "Gamma"]   # by name
         page.select_option(".libsort", "recent")
         assert page.locator(".deckcard .name").all_inner_texts() == ["Gamma", "02 RDF basics", "Alpha"]
         card(page, "Gamma").locator("[data-present]").click()       # back into it: the same game
-        page.wait_for_function(f"(document.querySelector('#pin')?.textContent || '').replace(/\\D/g, '') === '{pin}'")
+        wait_until(page, f"(document.querySelector('#pin')?.textContent || '').replace(/\\D/g, '') === '{pin}'")
         h.close()
 
 

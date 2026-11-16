@@ -154,11 +154,29 @@ def host(live: Live, fb) -> tuple[Socket, str]:
     return h, welcome["pin"]
 
 
+def wait_until(page, expression: str, timeout: float = 30000):
+    """page.wait_for_function(expression), asked from here. Playwright's own wait evaluates an expression - all but
+    a function `() => ...`, whose text it evaluates once - with eval anew in each animation frame, and the pages'
+    Content-Security-Policy refuses that (no 'unsafe-eval', as it should be); page.evaluate's eval runs within the
+    browser's DevTools call, which the policy lets be. A navigation on the way is waited out, as by Playwright's."""
+    from playwright.sync_api import Error
+    end = time.monotonic() + timeout / 1000
+    while True:
+        try:
+            if page.evaluate(expression):
+                return
+        except Error as err:                         # (a navigation took the page's scripts away)
+            if "Execution context was destroyed" not in str(err):
+                raise
+        assert time.monotonic() < end, f"not within {timeout / 1000:g} s: {expression}"
+        page.wait_for_timeout(50)
+
+
 def present(new_page, live: Live, fb):
     """The presenter window (texstage present: /stage?bundle=)."""
     page = new_page(**WINDOW)
     page.goto(f"{live.url}/stage?bundle={fb.id}")
-    page.wait_for_function("/PIN \\d/.test(document.querySelector('#pin')?.textContent || '')")
+    wait_until(page, "/PIN \\d/.test(document.querySelector('#pin')?.textContent || '')")
     return page
 
 
@@ -280,7 +298,7 @@ def test_the_projector_windows_keys_wait_behind_a_dialog(new_page, tmp_path):
         page.keyboard.press("Escape")
         page.locator(".dialog").wait_for(state="detached")
         projector.evaluate(key)
-        page.wait_for_function("/frame 2\\b/.test(document.querySelector('#where').textContent)")
+        wait_until(page, "/frame 2\\b/.test(document.querySelector('#where').textContent)")
 
 
 def test_decks_in_an_outage_say_so_and_come_back_with_the_server(new_page, tmp_path):
