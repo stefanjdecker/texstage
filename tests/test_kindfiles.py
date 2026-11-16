@@ -171,5 +171,7 @@ def test_the_server_serves_a_kinds_files_by_their_hash(tmp_path, monkeypatch):
             assert client.get(path).status_code == 404, path
         worker = client.get("/static/play/hint-worker.js")
         assert worker.status_code == 200 and worker.headers["content-security-policy"] == HINTS_POLICY
-        assert HINTS_POLICY == "default-src 'none'; script-src 'self'"
-        assert client.get("/static/stage/evaluator-worker.js").headers["content-security-policy"] == "connect-src 'none'"
+        assert HINTS_POLICY == "default-src 'none'; script-src 'self'; worker-src 'none'; report-uri /api/csp-report"
+        assert client.get("/static/stage/evaluator-worker.js").headers["content-security-policy"] == \
+            "connect-src 'none'; worker-src 'none'; report-uri /api/csp-report"
+        assert r.headers["content-security-policy"] == HINTS_POLICY      # a kind's file, as a worker: nothing either

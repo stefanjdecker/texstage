@@ -407,11 +407,17 @@ its hints too, which their worker takes from the browser's cache - not in the se
 on 1,000 phones (section 15.2).
 
 Every page gets a Content-Security-Policy - scripts and connections from the server only -, so
-that a kind's modules reach no network in fact, not by convention. Today the evaluator's worker
-has one, and the hints' worker since F2's package 8 (`default-src 'none'; script-src 'self'`: a
-worker's `import()` is a script's, so blocking `fetch` alone is not enough); F2 fits the pages'
-own to today's pages - KaTeX's inline styles, the add-in's Office.js
-([activity-framework-plan.md](activity-framework-plan.md), 4.12).
+that a kind's modules reach no network in fact, not by convention. The evaluator's worker has one,
+and the hints' worker since F2's package 8 (`default-src 'none'; script-src 'self'`: a worker's
+`import()` is a script's, so blocking `fetch` alone is not enough); the pages since F2's package 10
+(`server/policy.py`), fitted to them: inline styles everywhere (KaTeX's, the pages' style
+attributes), YouTube's and Vimeo's players and a deck's video files in the presenter's and the
+projector's windows, WebAssembly compiled in the presenter's (F1's checks), Office.js in the add-in
+([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.5). A worker takes its policy from
+its own response, not from its page: so every script the server sends carries one, and a kind's file
+reaches nothing as a worker. What a policy refuses, the page or worker reports to the server's log.
+Not shut: the windows' media from any address (a deck's video) and what no policy governs -
+navigation, DNS prefetch, WebRTC; a kind is the lecturer's choice, trusted as the server's Python is.
 
 A hint knows what the phone knows: the step's public item - its tokens, the seed's table and
 column names, its prefixes - and the student's text. "A parenthesis is not closed in line 2" and

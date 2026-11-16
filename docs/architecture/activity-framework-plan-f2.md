@@ -845,6 +845,63 @@ lecture-tools once it has taken F2 (package 11).
   Microsoft's CDN, and the pages whose KaTeX and `web/shared/live.js` write inline styles allow
   those; tried in the app's Chromium and in PowerPoint before it lands.
 
+  As built (package 10, 2026-11-16; `server/policy.py`): every page - `/play`, `/stage`,
+  `/stage/projector`, `/host`, `/addin/`, and their files under `/static` - takes scripts from the
+  server alone and connects to it alone (its WebSocket named by the request's host too, for browsers
+  before CSP 3's `'self'` matched `ws:`), draws pictures from the server, `data:` and `blob:`, and
+  frames nothing; no inline script, no `eval`. Styles may be inline everywhere: the pages write
+  style attributes - KaTeX's, the phone's coloured buttons, `live.js`'s - and an attribute fetches
+  nothing the policy does not allow. Beyond that:
+  - the presenter's and the projector's windows take YouTube's and Vimeo's players (their
+    scripts and frames, and Vimeo's oEmbed, which its script asks for every player) and a deck's
+    video files from any `http(s)` address (`build/video.py`), and only the server's own pages may
+    frame them, as the host console; the presenter's may compile WebAssembly
+    (`'wasm-unsafe-eval'`): F1's checks compile their engines in the window (`stage/evaluator.js`);
+  - the add-in takes Office.js from `appsforoffice.microsoft.com` and says nothing of framing
+    (PowerPoint on the web frames it); another site may frame the phone's page too (a course's page
+    may embed the join page);
+  - only the phone's page and the windows start workers (`worker-src 'self'`; the host console and
+    the add-in `'none'`).
+
+  A worker takes its policy from its own response, not from the page that starts it - so every
+  script the server sends carries one: a kind's file (`/kinds/...`) and the hints' worker reach
+  nothing and start no worker, texstage's other scripts reach the server and may compile WebAssembly
+  (PDF.js's worker does), and the evaluator's worker keeps `connect-src 'none'`.
+
+  Pages and workers report what their policy refuses (`report-uri /api/csp-report`): the server logs
+  one line per page or worker, directive and origin - 1,000 phones refused the same say it once -, a
+  kind's file named by its kinds, at most 20 new lines a minute, since nobody sees the console of a
+  phone or of PowerPoint; a report is anybody's, so one that cannot be read is ignored and nothing of
+  its query (a PIN) is logged. `tests/test_policy.py` writes each page's policy out, derives from the
+  pages' imports what they need (WebAssembly, workers, the players' addresses) and holds the pages and
+  texstage's scripts to it: no inline script or handler, no `javascript:` address, no `eval` or
+  `Function`.
+
+  The limits: the windows load media from any address (a deck's video), so a script there can still
+  send something out as a video's address; no policy governs navigation (a link, `location`,
+  `window.open`), DNS prefetch or WebRTC - a kind is the lecturer's choice and trusted as the server's
+  Python is (AF 7.3), and the policies shut the ways a page or a worker fetches. `'wasm-unsafe-eval'`
+  needs Chrome 97, Safari 16 or Firefox 102: an iPad before iPadOS 16 as the presenter's window
+  cannot run F1's checks there. Office.js was tried in PowerPoint for Windows only (not on the web,
+  a Mac or an iPad). A proxy that rewrites Host names its backend in the WebSocket's sources, which is
+  harmless where `'self'` matches `ws:`, as today's browsers do.
+
+  Its review (2026-11-16: an independent reviewer with a probe kind and headless Chrome, planted
+  faults, my own probes) found three faults - a worker started from a kind's own file had no policy
+  and reached any host (also nested in the hints' worker), the report endpoint raised on a malformed
+  address or deeply nested JSON, and the docs said more than the code did -, nine doubts and four
+  nits; all are fixed as above.
+
+  Tried 2026-11-16 in the app's Chromium against two scratch servers - F1's type with the window's
+  checks (a deck with a quiz, an SQL activity and a local, a YouTube and a Vimeo video: presenter,
+  phone, projector, host console) and the core's type (the showcase: the phone with choice, number
+  and text, the kinds' files, the box and the panel, a poll and its formulas in KaTeX on both
+  sides) - and in PowerPoint (16.0, the add-in registered for `localhost:8470`: the first slide
+  preparing the live ones, the join slide, the quiz with its timer, the activity, the videos'
+  posters): nothing refused but what was refused on purpose. Outside PowerPoint, Office.js asks for
+  Microsoft's telemetry frame (`telemetryservice.firstpartyapps.oaspapps.com`), which the add-in's
+  policy refuses; inside PowerPoint it asked for nothing beyond its CDN.
+
 As built (package 8, 2026-11-13): the core's type has browser code of its own beside F1's, which
 F1's type keeps as it is. A page learns the type from its welcome and from the deck's view
 (`activities`: `f1` or `core`) and takes that type's modules; `texstage serve --activities core`
@@ -919,7 +976,8 @@ Node, replaced `JSON.stringify` or reached the network through `process`, and mo
 own globals passed; a Turtle text "ran". Found while fixing them: the phone sent the hints' worker
 its words with functions in them, which a worker cannot be sent - hints would never have come.
 
-Left: the pages' policy (package 10); the inputs and views of texstage's own kinds (package 9);
+Left: the pages' policy (package 10 - built since, as the list's first part says); the inputs and
+views of texstage's own kinds (package 9);
 a kind's `view()` for the whole box (AF 7.3); steps beyond the one (F3).
 
 ### 4.6 Short checks first (decided, from F0)
@@ -1350,7 +1408,11 @@ Persian phone's digits, a formula broken by a line in a reference), fixed with t
 next; left as they are, by decision: " + " between the options of a choice of several where it is
 written out, a right option's bar counting all who chose it, a bar of one whole number labelled as a
 stretch. F1's type stays the server's default;
-whether the core's replaces it, and F1's browser code goes, is open.
+whether the core's replaces it, and F1's browser code goes, is open. Package 10 is built on it
+(2026-11-16, on `main`): every page has its Content-Security-Policy, the phone's the strictest, the
+windows' with the video platforms' players, the add-in's with Office.js, and what a policy refuses
+reaches the server's log (4.5); the phone, the windows and the host console work in the app's
+Chromium, the add-in in PowerPoint.
 
 ### 4.13 Risks
 

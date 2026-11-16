@@ -116,6 +116,7 @@ from types import SimpleNamespace
 
 import segno
 from starlette.applications import Starlette
+from starlette.datastructures import Headers
 from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route, WebSocketRoute
@@ -128,6 +129,7 @@ from texstage.builds import build_folders
 from texstage.keys import load_presenter_key  # noqa: F401  (the server's key: texstage serve)
 from texstage.publish import pack
 from texstage.server import archive, sheets
+from texstage.server import policy as pages
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
 from texstage.server.bundles import BundleError, BundleStore, holds, load_bundle
@@ -173,23 +175,26 @@ WRONG_PINS = (300, 600)     # wrong PINs per client address and window (s): a wh
 mimetypes.add_type("text/javascript", ".mjs")      # PDF.js's modules (web/vendor); a Windows registry
                                                     # may say text/plain, and browsers refuse that
 mimetypes.add_type("application/wasm", ".wasm")    # Oxigraph's engine (web/vendor/oxigraph): compiled as it comes
-EVALUATOR = "evaluator-worker.js"                   # a live activity's queries run there: no network (web/stage)
-HINTS = "hint-worker.js"                            # a kind's hints run there: no network either (web/play)
-HINTS_POLICY = "default-src 'none'; script-src 'self'"   # (a worker's import() is a script's: script-src)
+HINTS_POLICY = pages.HINTS     # a kind's hints run in web/play/hint-worker.js: no fetch, no import from elsewhere
 
 
 class Static(StaticFiles):
     """The pages' files, revalidated on every load (a server update must not leave old
-    scripts in the phones' caches)."""
+    scripts in the phones' caches) - each with its policy (server/policy.py): a page's
+    file its page's, a script its own for when it runs as a worker."""
 
     def file_response(self, *args, **kwargs):
         response = super().file_response(*args, **kwargs)
         response.headers["Cache-Control"] = "no-cache"
         name = str(args[0] if args else kwargs.get("full_path", ""))
-        if name.endswith(EVALUATOR):
-            response.headers["Content-Security-Policy"] = "connect-src 'none'"    # a student's query reaches nothing
-        elif name.endswith(HINTS):                    # nor does a kind's hint: no fetch, no import from elsewhere
-            response.headers["Content-Security-Policy"] = HINTS_POLICY
+        scope = args[2] if len(args) > 2 else kwargs.get("scope")
+        try:
+            below = Path(name).resolve().relative_to(Path(self.directory).resolve()).as_posix()
+        except ValueError:
+            below = ""
+        if below.lower().endswith((".html", ".htm", ".js", ".mjs")):
+            host = Headers(scope=scope).get("host") if scope else None
+            response.headers["Content-Security-Policy"] = pages.of_file(below, host)
         return response
 
 
@@ -1103,7 +1108,7 @@ class Server:
         """A game's results as CSV - (file name, text): a row per player (game.py results_table). An
         ended game, as the store has it (Store.load_session), is counted from that."""
         game = None if self.engine.sessions.get(s.id) is s else s
-        return self.results_name(s), "﻿" + sheets.csv_text(self.engine.results_table(s.id, game=game))   # BOM: Excel reads UTF-8
+        return self.results_name(s), "\ufeff" + sheets.csv_text(self.engine.results_table(s.id, game=game))   # BOM: Excel reads UTF-8
 
     def write_archive(self, s) -> Path:
         """The game's folder in the lecture archive with what the game has now: the results,
@@ -1121,7 +1126,7 @@ class Server:
             row[3] = time.strftime("%H:%M:%S", time.localtime(row[3] / 1000))
         for file, rows in tables.items():
             if len(rows) > 1:
-                (folder / file).write_text("﻿" + sheets.csv_text(rows), encoding="utf-8", newline="")
+                (folder / file).write_text("\ufeff" + sheets.csv_text(rows), encoding="utf-8", newline="")
         for quiz, n, strokes in self.engine.sketch_answers(s.id, game=game):
             (folder / f"sketch-{quiz}-{n}.svg").write_text(archive.sketch_svg(strokes), encoding="utf-8", newline="")
         if game is not None:
@@ -1286,7 +1291,8 @@ def create_app(config: ServerConfig) -> Starlette:
         if found is None:
             return PlainTextResponse("not found", status_code=404)
         data, packed, mime = found
-        headers = {"Cache-Control": "public, max-age=31536000, immutable", "Vary": "Accept-Encoding"}
+        headers = {"Cache-Control": "public, max-age=31536000, immutable", "Vary": "Accept-Encoding",
+                   "Content-Security-Policy": pages.KIND}     # (as a worker it reaches nothing: policy.py)
         if gzip_taken(request.headers.get("accept-encoding", "")):
             return Response(packed, media_type=mime, headers=headers | {"Content-Encoding": "gzip"})
         return Response(data, media_type=mime, headers=headers)
@@ -1433,10 +1439,29 @@ def create_app(config: ServerConfig) -> Starlette:
             return refuse("key-required", "presenter key required", 403)
         return JSONResponse({"removed": server.remove_device(lect, request.path_params["device"])})
 
-    def page(name: str, file: str = "index.html"):
+    def page(name: str, file: str = "index.html", policy: str | None = None):
+        """A page of web/ with its policy (server/policy.py: the page's, by its folder unless named)."""
         async def endpoint(request: Request):
-            return FileResponse(WEB / name / file, headers={"Cache-Control": "no-cache"})
+            return FileResponse(WEB / name / file, headers={
+                "Cache-Control": "no-cache",
+                "Content-Security-Policy": pages.policy(policy or name, request.headers.get("host"))})
         return endpoint
+
+    reports = pages.Reports(kinds=lambda digest: ", ".join(
+        sorted(name for name, files in server.kinds.by_name.items() if files.hash == digest)))
+
+    async def csp_report(request: Request):
+        """What a page's policy refused, as its browser reports it (report-uri): one line in the log
+        each (policy.Reports: once per page and thing, a few a minute at most)."""
+        body = b""
+        async for chunk in request.stream():         # (anybody's: read no more than a report is)
+            body += chunk
+            if len(body) > pages.REPORT_BYTES:
+                break
+        line = reports.take(body)
+        if line:
+            log.warning("policy: %s", line)
+        return Response(status_code=204)
 
     def built_ms(b) -> int:
         return b.built                                   # (as Engine.open_session takes it: which build is newer)
@@ -2037,7 +2062,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/play", page("play")),
         Route("/host", page("host")),
         Route("/stage", page("stage")),
-        Route("/stage/projector", page("stage", "projector.html")),
+        Route("/stage/projector", page("stage", "projector.html", "projector")),
         Route("/addin/", page("addin")),
         Route("/addin/manifest.xml", addin_manifest),
         Route("/addin/icon-{size:int}.png", addin_icon),
@@ -2075,6 +2100,7 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/recording/{take}/{part:int}", recording_part, methods=["PUT"]),
         Route("/download/{ticket}/{name}", download_file),
         Route("/api/client-log", client_log, methods=["POST"]),
+        Route(pages.REPORTS, csp_report, methods=["POST"]),
         Route("/api/bundles/{bundle}.zip", bundle_zip),
         Route("/api/bundles/{bundle}", bundle_entry, methods=["PUT", "DELETE"]),
         Route("/api/bundles", upload, methods=["POST"]),

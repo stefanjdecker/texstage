@@ -2,6 +2,15 @@
 
 ## Unreleased — 0.2.1.dev3 candidate
 
+- Every page sends a Content-Security-Policy (`server/policy.py`): scripts come
+  from the server alone and a page connects to it alone - the phone's page
+  loads the least; the presenter's and the projector's windows also take
+  YouTube's and Vimeo's players and a deck's video files from their addresses,
+  the add-in Office.js. Every script carries a policy for when it runs as a
+  worker, so a kind's file reaches nothing that way. Another site may no
+  longer frame the presenter's window, the projector's or the host console.
+  What a policy refuses is reported to the server, whose log says it once
+  (`policy: the page ... refused ...`).
 - *Record*: once the screen is chosen, the recording waits in the top bar, not
   started and without a file - the screen as a live miniature (larger under the
   pointer), the microphone's level, *● Start* and ✕ -, so that whatever needs it
