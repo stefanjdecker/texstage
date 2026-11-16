@@ -70,8 +70,9 @@ F2 builds on each:
 
 As P1's (P1, 2), and:
 
-- **The branch `f2-core`;** F2 comes to `main` when its test of done holds, and to the lectures
-  when lecture-tools takes it, after a dry run.
+- **On `main`;** packages 1 to 9 were built on the branch `f2-core`, which `main` followed after
+  each of them; since 2026-11-16 F2 is built on `main` alone and `f2-core` is retired. F2 comes to
+  the lectures when lecture-tools takes it, after a dry run.
 - **The four kinds first:** the contract is cut from today's four kinds (AF 2, "Order of the
   work"), so they are moved behind a provisional contract before the contract is written down -
   not fitted into one afterwards, as the plugin system's kinds were (AF 3.2).
@@ -1307,7 +1308,8 @@ and a number written with other digits than ASCII's, in the build. Package 2 is 
 the four, and a kind that breaks a rule fails the kit with the rule. Its review is done too -
 thirteen faults, fixed (4.2). What F1 still changes reaches
 `f2-core` by a merge; the checks' move into the packages waits for that (4.2). Both are on `main`
-since 2026-11-11, with F1 and the presenter view's improvements; `f2-core` goes on from there.
+since 2026-11-11, with F1 and the presenter view's improvements; `f2-core` went on from there
+until 2026-11-16, when it was retired: F2 goes on on `main` (3).
 Package 3 is built on it (2026-11-11): the steps and their phases, the entries, the storage with its
 writer, a restart, and the move of F1's rows (4.3 says what it settled). It rewires nothing either:
 F1's type runs the server, and the core's tables are made only where its own code is asked to. Its
