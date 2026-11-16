@@ -216,7 +216,36 @@
   \end{activity}
   \note{Feature example: two-field tuples, automatic opening, exact terms, minimum agreement. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 21: plain-language setup for code activities
+% EXAMPLE 21: choice of several options, live tally, references in the body
+\begin{frame}[t,fragile]{What has to stay cool?}
+  \begin{activity}[id=cool-bag,kind=choice,options={Yoghurt,Bread,Butter,Apples},
+    select=many,limit=5,height=.57\textheight]
+    \prompt{Yoghurt, bread, butter, apples: choose everything that goes into the cool bag. Your latest choice counts.}
+    \reference{Yoghurt}
+    \reference{Butter}
+  \end{activity}
+  \note{Feature example: choice of several options, live tally, references in the body. These notes are visible in the presenter view.}
+\end{frame}
+% EXAMPLE 22: number with a tolerance, histogram
+\begin{frame}[t,fragile]{How long is our walk?}
+  \say{The path from the gate to the trees is 450 m long.\\We walk about 60 m per minute.}
+  \begin{activity}[id=walk,kind=number,tolerance=0.5,limit=3,height=.46\textheight]
+    \prompt{How many minutes do we walk? Decimals are fine: 2.5 or 2,5.}
+    \reference{7.5}
+  \end{activity}
+  \note{Feature example: number with a tolerance, histogram. These notes are visible in the presenter view.}
+\end{frame}
+% EXAMPLE 23: short text answers, grouped, several references
+\begin{frame}[t,fragile]{What do we take home?}
+  \begin{activity}[id=take-home,kind=text,limit=3,height=.57\textheight]
+    \prompt{One word: what do we take home with us, so that the meadow stays clean?}
+    \reference{rubbish}
+    \reference{litter}
+    \reference{trash}
+  \end{activity}
+  \note{Feature example: short text answers, grouped, several references. These notes are visible in the presenter view.}
+\end{frame}
+% EXAMPLE 24: plain-language setup for code activities
 \begin{frame}{Our fixed packing list for the next examples}
   \begin{columns}[T,onlytextwidth]
     \column{.46\textwidth}\large
@@ -232,7 +261,7 @@
   No coding experience is needed to follow the story.
   \note{Feature example: plain-language setup for code activities. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 22: SQL, inline seed/reference, token buttons, result groups
+% EXAMPLE 25: SQL, inline seed/reference, token buttons, result groups
 \begin{frame}[t,fragile]{Ask the packing list with SQL}
   \codeexample{SELECT item FROM packing WHERE quantity = 6;}
   \begin{activity}[id=packing-sql,input=code,engine=sql,
@@ -244,7 +273,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \end{activity}
   \note{Feature example: SQL, inline seed/reference, token buttons, result groups. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 23: explain graph data
+% EXAMPLE 26: explain graph data
 \begin{frame}{The same plan can be written as facts}
   \say{Alex brings apples.}\smallgap
   \say{Sam brings water.}\smallgap
@@ -252,7 +281,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \vspace{7mm} A graph connects each person to the item they bring.
   \note{Feature example: explain graph data. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 24: SPARQL, file seed/reference and manual opening
+% EXAMPLE 27: SPARQL, file seed/reference and manual opening
 \begin{frame}[t,fragile]{Ask the graph with SPARQL}
   \codeexample{SELECT ?person WHERE \{ ?person :brings :water . \}}
   \begin{activity}[id=water-sparql,input=code,engine=sparql,seed=picnic.ttl,
@@ -262,7 +291,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \end{activity}
   \note{Feature example: SPARQL, file seed/reference and manual opening. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 25: Turtle graph comparison
+% EXAMPLE 28: Turtle graph comparison
 \begin{frame}[t,fragile]{Add one fact with Turtle}
   \codeexample{:Sam :brings :bread .}
   \begin{activity}[id=bread-turtle,input=code,engine=turtle,seed=picnic.ttl,
@@ -271,14 +300,14 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \end{activity}
   \note{Feature example: Turtle graph comparison. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 26: whiteboards and optional paired tablet
+% EXAMPLE 29: whiteboards and optional paired tablet
 \begin{frame}{Our final shared checklist}
   \say{Meeting place agreed.}\smallgap
   \say{Food and equipment assigned.}\smallgap
   \say{Space left for everyone's ideas.}
   \note{Feature example: whiteboards and optional paired tablet. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 27: hyperlinks and final standings
+% EXAMPLE 30: hyperlinks and final standings
 \begin{frame}{We have a plan}
   \say{Meet at the gate at 12:00.}
   \smallgap Sit under the trees, share the supplies and leave the area tidy.\par
@@ -288,7 +317,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \note{Feature example: hyperlinks and final standings. These notes are visible in the presenter view.}
 \end{frame}
 \quizpodiumframe[note={Feature example: hyperlinks and final standings. These notes are visible in the presenter view.}]
-% EXAMPLE 28: outputs and recording
+% EXAMPLE 31: outputs and recording
 \begin{frame}{One source, several useful results}
   \begin{itemize}
     \item A live browser presentation with phone participation.
@@ -299,7 +328,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \smallgap \say{The content stays in a readable LaTeX file.}
   \note{Feature example: outputs and recording. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 29: operations that cannot be activated by a static .tex file
+% EXAMPLE 32: operations that cannot be activated by a static .tex file
 \appendix
 \begin{frame}{Behind the scenes: prepare the next session}
   \begin{itemize}
@@ -311,7 +340,7 @@ INSERT INTO packing VALUES ('Apples',6),('Cups',6),('Blankets',2);}
   \smallgap Save session results before starting a new session.
   \note{Feature example: operations that cannot be activated by a static .tex file. These notes are visible in the presenter view.}
 \end{frame}
-% EXAMPLE 30: deployment/platform boundaries
+% EXAMPLE 33: deployment/platform boundaries
 \begin{frame}{Choose the setup for your audience}
   \begin{tabular}{@{}p{.25\linewidth}p{.66\linewidth}@{}}
     \toprule

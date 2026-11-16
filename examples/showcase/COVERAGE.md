@@ -35,15 +35,18 @@ configure a public server.
 | Timing defaults and overrides; choice columns | Preamble and individual quiz keys |
 | Answer explanations | All built-in scored reveals except the delayed text answer |
 | Automatic and explicit leaderboard | meeting and explicit standings after sequence |
-| Podium | Example 27 |
+| Podium | Example 30 |
 | Local video, poster, width, ID, start/end, loop, muted | packing, example 17; actual H.264 MP4 |
 | Three-field tuple activity, suggestions, manual opening, review, loose terms | bring, example 19 |
 | Two-field tuples, automatic opening, exact terms, minimum support | carry, example 20 |
-| Per-person activity limits and box height | All five activities |
-| SQL with inline seed/reference; fragile frame; token bar | packing-sql, example 22 |
-| SPARQL with file seed/reference and manual opening | water-sparql, example 24 |
-| Turtle with seed prefixes and reference graph | bread-turtle, example 25 |
-| Internal/external hyperlinks | Example 27 |
+| Choice activity: several options, references in the body | cool-bag, example 21 |
+| Number activity: tolerance, decimal answers | walk, example 22 |
+| Short-answer activity: several references, case and spacing ignored | take-home, example 23 |
+| Per-person activity limits and box height | All eight activities |
+| SQL with inline seed/reference; fragile frame; token bar | packing-sql, example 25 |
+| SPARQL with file seed/reference and manual opening | water-sparql, example 27 |
+| Turtle with seed prefixes and reference graph | bread-turtle, example 28 |
+| Internal/external hyperlinks | Example 30 |
 | Handout, solutions, live bundle, stage PDF, PPTX | Build commands and verification script |
 
 ## Live presenter and participant features
@@ -58,15 +61,16 @@ configure a public server.
 | Sketch drawing and presenter-selected gallery | Example 16 |
 | Navigation, overview, number jump, Home/End, black/white/freeze | Example 06 and operational appendix |
 | Pen, marker, eraser, undo/redo/clear, laser and zoom | Example 06; leave one useful mark after demonstrating Clear |
-| Blank/grid whiteboards and persistent per-slide ink | Example 26 and return-to-map example 27 |
+| Blank/grid whiteboards and persistent per-slide ink | Example 29 and return-to-map example 30 |
 | Q&A enable/close, ask, upvote, show/hide, done, remove/block | Example 18 and operational appendix |
 | Six spontaneous poll formats | Example 18 montage |
 | Activity open/close, approval, hide/show, merge/unmerge, minimum support | Examples 19-20 and operational appendix |
-| Code result clusters, equivalent answers, errors, reference reveal, hide/block | Examples 22-25 and operational appendix |
-| Pair/revoke device, remote navigation and pen | Example 26, optional physical device |
-| Record, microphone level, capture selection, pause/resume/stop/download | Examples 01 and 28, operational appendix |
-| Annotated PDF, results CSV, archive, polls/questions and sketch exports | Example 28 |
-| Library search/folders/sort/upload, resume/new presentation, replay/new game | Example 29 and operational appendix |
+| Live tally, number histogram, grouped short answers; the reveal marks the references | Examples 21-23 |
+| Code result clusters, equivalent answers, errors, reference reveal, hide/block | Examples 25-28 and operational appendix |
+| Pair/revoke device, remote navigation and pen | Example 29, optional physical device |
+| Record, microphone level, capture selection, pause/resume/stop/download | Examples 01 and 31, operational appendix |
+| Annotated PDF, results CSV, archive, polls/questions and sketch exports | Example 31 |
+| Library search/folders/sort/upload, resume/new presentation, replay/new game | Example 32 and operational appendix |
 
 ## Optional environments
 
@@ -78,9 +82,11 @@ not exercised by the supplied silent local clip.
 
 PowerPoint's live add-in, real projector hardware, tablet/stylus behavior,
 HTTPS/tunnels, server publication, lecturer/key management and retargeting require
-their own setup. Example 30 explains these paths; see the
+their own setup. Example 33 explains these paths; see the
 [user manual](../../docs/manual.md) and [installation guide](../../docs/installation.md).
 Activities are browser-only. The static PowerPoint export remains a static deck.
+Examples 21-23 use texstage's own kinds, which the activity framework's core runs:
+start the server with --activities core (see the [README](README.md)).
 
 The example does not exercise every display-string override, color/theme
 implementation hook, legacy alias or developer-only asset/geometry macro. These
@@ -91,6 +97,8 @@ experiences; see the reference for all four style files.
 
 The verification script compiles present/solutions/handout, checks the generated
 bundle's feature inventory and notes, verifies the local media and private answer
-separation, and runs the actual SQL/SPARQL/Turtle engines on the sample data.
+separation, runs the actual SQL/SPARQL/Turtle engines on the sample data, and
+rehearses answers to the choice, number and text activities with texstage's own
+kinds, judged as the server's reveal judges them.
 It does not claim to test a physical phone, Office, recording permission, network
 access or a tablet. Check these features on the intended presentation equipment.

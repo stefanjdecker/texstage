@@ -8,7 +8,8 @@ short silent clip for local video playback and tiny fictional datasets.
 ## What is included?
 
 - All nine quiz types across 13 questions, including alternative phone inputs.
-- Five activities: two- and three-field contributions, SQL, SPARQL and Turtle.
+- Eight activities: two- and three-field contributions; a choice, a number and a
+  short answer (texstage's own kinds); SQL, SPARQL and Turtle.
 - An original silent video, with a real poster, packaged for offline local playback.
 - Ordinary slides, overlays, math, links, notes, join, leaderboard and podium frames.
 - A [feature checklist](COVERAGE.md) distinguishing executable source examples
@@ -40,7 +41,11 @@ Pillow and ffmpeg are needed only to regenerate it with make_media.py.
 
 From the repository root, with a free port and a dedicated demo data folder:
 
-    texstage present examples/showcase/showcase.tex --port 8766 --data .showcase-data --no-tunnel
+    texstage present examples/showcase/showcase.tex --port 8766 --data .showcase-data --no-tunnel --activities core
+
+The option --activities core runs the live activities on the activity framework's
+core: the server checks every answer, and the choice, number and text activities
+need it. A server of the default type skips this deck and says why.
 
 Keep the terminal and presenter open. The first build takes longer than later
 starts. Projector opens the audience window. Notes are private to the presenter.
@@ -97,11 +102,13 @@ With the project's development/build dependencies and a recent Node.js installed
 
     python maintenance/check_showcase_example.py
 
-This builds and checks the deck, verifies all nine quiz types and five activities,
+This builds and checks the deck, verifies all nine quiz types and eight activities,
 checks the media packaging and private references, runs the three code examples
-against texstage's actual JavaScript/WASM engines, and writes slide-only preview,
-solutions and handout PDFs under .showcase-build/output/. It does not start a
-server or publish anything. Visual review and hardware rehearsal remain separate.
+against texstage's actual JavaScript/WASM engines, rehearses answers to the choice,
+number and text activities with texstage's own kinds, judged as the server's reveal
+judges them, and writes slide-only preview, solutions and handout PDFs under
+.showcase-build/output/. It does not start a server or publish anything. Visual
+review and hardware rehearsal remain separate.
 
 All original source, sample data, illustration/video and documentation in this
 directory are provided under the project's Apache-2.0 license. There is no

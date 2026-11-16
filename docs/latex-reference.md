@@ -19,6 +19,7 @@ Packages, commands, options and developer interfaces
 - [Video output and portability](#video-output-and-portability)
 - [Activity environment and common options](#activity-environment-and-common-options)
 - [Tuple activities: options and example](#tuple-activities-options-and-example)
+- [Choice, number and text activities](#choice-number-and-text-activities)
 - [Code activities: engines and data](#code-activities-engines-and-data)
 - [SQL activities: permitted statements](#sql-activities-permitted-statements)
 - [Code activity example and build checks](#code-activity-example-and-build-checks)
@@ -39,7 +40,7 @@ This reference covers all four shipped LaTeX packages and their author-facing co
 | `texstage.sty` | Shared mode selection, page records, geometry and phone assets. Loaded automatically by every content package; it does not select a course theme. |
 | `texquiz.sty` | Quizzes, quiz/answer frame options, join/leaderboard/podium frames and customizable answer rendering. Requires the core, TikZ and pdftexcmds; QR support is optional. |
 | `texvideo.sty` | The video command, static posters and live playback metadata. Requires the core, graphicx and TikZ; qrcode is optional. |
-| `texactivity.sty` | Tuple and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. |
+| `texactivity.sty` | Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. |
 | `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck. |
 
 ```
@@ -286,16 +287,16 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | --- | --- |
 | `\begin{activity}[keys] ... \end{activity}` | Place inside a Beamer frame; one activity per frame. The environment does not create a frame. A repeated frame may reuse the same unchanged activity id. |
 | `\prompt{formatted text}` | Activity instruction. Used in the static box and rendered for phones. One prompt per activity is the supported authoring pattern. |
-| `\reference{verbatim text}` | Code activity reference answer; may be repeated for alternative solutions. Use a fragile frame for inline verbatim. File form: reference=answer.rq or an engine-appropriate text file. |
+| `\reference{verbatim text}` | A reference answer, read verbatim: a code activity's query or graph, a choice's option, a number or a short answer. May be repeated for alternative solutions. Use a fragile frame for inline verbatim. Code activities also take a file, reference=answer.rq or an engine-appropriate text file; choice, number and text take their references only in the body. |
 | `\seed{verbatim text}` | Inline code-activity data. Use a fragile frame, or prefer seed=data.ttl / seed=data.sql. If a seed file and inline seed are both supplied, the file takes precedence. |
 | `\reveal<n>` | Inside activity, at most once, n a slide's number: the frame's slides from the n-th on - Beamer overlays - reveal the activity, and the slides before it open it. Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. |
 | `id` | Required, 1-63 lower-case letters/digits/hyphens, starting with a letter or digit. Same id must keep the same definition. |
-| `kind` | The activity's kind, as an installed package of kinds names it: triples, sql-query, sparql-query, turtle-graph (texstage-kinds-rdf, texstage-kinds-sql). texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
+| `kind` | The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own, see Choice, number and text activities), triples, sql-query, sparql-query, turtle-graph (texstage-kinds-rdf, texstage-kinds-sql). texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
 | `input` | tuple (default) or code: the activity's kind as decks named it before kinds - input=tuple is kind=triples, input=code with engine=sql, sparql or turtle is kind=sql-query, sparql-query or turtle-graph. Code input requires engine and seed data. |
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
-| `limit` | Contributions per student: 1-50. Default 10 for tuple, 5 for code. |
-| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2 (in development): counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; the activity type texstage serve runs today leaves them aside. |
+| `limit` | Contributions per student: 1-50. Default 10 for tuple and choice, 5 for code, number and text. |
+| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2 (in development): counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; texstage serve and present use them with `--activities core`, and the default activity type leaves them aside. |
 
 The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.
 
@@ -321,6 +322,47 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 ```
 
 Handout, solutions and PowerPoint show the static activity prompt. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
+
+
+## Choice, number and text activities
+
+Three kinds come with texstage itself and need no extra package: kind=choice, kind=number and kind=text. Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right. These kinds run only on the activity framework's core (in development): start the server with `texstage present deck.tex --activities core` or `texstage serve --activities core`. A server of the default activity type skips such a deck and says why.
+
+| Syntax / option | Meaning and default |
+| --- | --- |
+| `kind=choice` | One option, or several with select=many, of those listed in options. The projector counts each option in the deck's order, an option nobody chose included - with select=many, the students who chose it, alone or with others. A student may change their mind: the latest choice counts. |
+| `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
+| `select` | For choice: one (default) or many. With many, a phone marks several options and sends them together. |
+| `kind=number` | A number, positive or negative. Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers - 3.141 on a German phone, 3141 on an English one. The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width - numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. |
+| `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. |
+| `kind=text` | A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-width space) is no part of it. The projector groups the answers by that form. |
+| `\reference{answer}` | In the body; a reference= key is refused. A choice's reference names one of its options, read as they are, and with select=many the references together are the right choice. A number's reference is a number, and each text reference is an accepted answer. Repeat it for alternatives; without one, nothing is judged. |
+
+```
+\begin{frame}[fragile]{What has to stay cool?}
+  \begin{activity}[id=cool-bag, kind=choice, select=many,
+      options={Yoghurt, Bread, Butter, Apples}, height=.5\textheight]
+    \prompt{Yoghurt, bread, butter, apples: what goes into the cool bag?}
+    \reference{Yoghurt}
+    \reference{Butter}
+  \end{activity}
+\end{frame}
+\begin{frame}[fragile]{How long is our walk?}
+  \begin{activity}[id=walk, kind=number, tolerance=0.5, height=.5\textheight]
+    \prompt{450 m at about 60 m per minute: how many minutes?}
+    \reference{7.5}
+  \end{activity}
+\end{frame}
+\begin{frame}[fragile]{What do we take home?}
+  \begin{activity}[id=take-home, kind=text, height=.5\textheight]
+    \prompt{One word: what do we take home with us?}
+    \reference{rubbish}
+    \reference{litter}
+  \end{activity}
+\end{frame}
+```
+
+The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build. Handout and PowerPoint show only the prompt, so name a choice's options in the prompt or on the slide when the static copy should list them; the solutions add the references. The [feature showcase](../examples/showcase/README.md) and the [live-activity demo deck](../examples/demo/README.md) present one activity of each kind.
 
 
 ## Code activities: engines and data
@@ -450,6 +492,7 @@ Names containing @, names beginning __, parser temporaries and global state vari
 | `No correct slider value` | Choose bounds and a positive step that actually contain a value in answer +/- tolerance. |
 | `Answers appear in a handout` | Check the selected build mode and whether authored answer frames carry the answer option. |
 | `Static activity in PowerPoint` | Expected for this candidate. Use the browser presenter for live activities. |
+| `Deck skipped: start it with --activities core` | The deck has a choice, number or text activity, which only the activity framework's core runs. Start the server with `texstage present deck.tex --activities core` or `texstage serve --activities core`. |
 | `Overfull or excessive shrink` | Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
 | `Theme overlay is misaligned` | Keep answer-box width/height and lower-left reference point consistent with the hook contract. |
 
