@@ -830,6 +830,8 @@ OWN_DECK = r"""\documentclass[aspectratio=169]{beamer}
   \prompt{Which?}
   \reference{$\sigma$}
   \reference{R\&D}
+  \reference{$\{A,B
+    \}$}
 \end{activity}
 \end{frame}
 \begin{frame}[t,fragile]{Accents}
@@ -864,9 +866,10 @@ def test_a_deck_of_texstages_own_kinds(tmp_path):
                      "accents": {"kind": "choice", "limit": 10, "select": "one",     # (\^ a key's ^, as for Turtle's ^^)
                                  "options": ["Espa" + chr(0xF1) + "a", chr(0xC9) + "cole", "x^2", "Dr. Smith"]}}
     spain = "Espa" + chr(0xF1) + "a"
+    pair = "$" + chr(92) + "{A, B" + chr(92) + "}$"     # (named by a reference a line broke, without the option's space)
     assert {aid: (k["reference"], k["referenceKeys"]) for aid, k in keys.items()} == {
         "coast": (["Nice" + chr(10) + "Marseille"], ["Nice" + chr(10) + "Marseille"]), "rows": (["12"], ["12"]),
-        "word": (["Berlin"], ["berlin"]), "op": ([sigma, "R&D"], [sigma, "R&D"]), "accents": ([spain], [spain])}
+        "word": (["Berlin"], ["berlin"]), "op": ([sigma, "R&D", pair], [sigma, "R&D", pair]), "accents": ([spain], [spain])}
     assert r.warnings == [] and sorted(deck["kinds"]) == ["choice", "number", "text"]
     assert {k["package"] for k in deck["kinds"].values()} == {"texstage"}
     with pytest.raises(BuildError, match="reference=answer.txt - write .reference"):

@@ -29,7 +29,8 @@ import unicodedata
 from decimal import Decimal
 
 from texstage.activities.kind import SEVERAL, Built, Check, Entry, Kind, fixed
-from texstage.activities.options import NUMBER, Choice as OneOf, InBody, Number as NumberOption, Unbuildable, Words, unescaped
+from texstage.activities.options import (MATH, NUMBER, Choice as OneOf, InBody, Number as NumberOption, Unbuildable, Words,
+                                         unescaped)
 from texstage.checks.cleaning import Unfit, norm_term
 
 __all__ = ["Choice", "Number", "Text"]
@@ -49,6 +50,8 @@ MARKS = {"~": chr(0x303), "'": chr(0x301), "`": chr(0x300), '"': chr(0x308), "="
          "c": chr(0x327), "v": chr(0x30C), "u": chr(0x306), "H": chr(0x30B), "r": chr(0x30A), "k": chr(0x328)}
 #                                             an accent's combining mark: \~n is n and U+0303, which NFC makes ñ;
 #                                             \^ is no accent but a key's ^ (options.unescaped)
+TEX_TOKEN = re.compile(r"\\[A-Za-z]+|\\.|\s+|.", re.S)     # a formula's pieces as TeX reads them: \alpha, \%, \ , a space
+CONTROL_NAME = re.compile(r"\\[A-Za-z]+")
 JOINERS = chr(0x200C) + chr(0x200D)           # of an emoji's sequence, a Persian word: kept between what is seen
 LOOSE = re.compile(f"(?<![^\\s{JOINERS}])[{JOINERS}]+|[{JOINERS}]+(?![^\\s{JOINERS}])")     # ... and not at an end
 
@@ -78,6 +81,27 @@ def option_text(text: str, verbatim: bool = False) -> str:
     text = " ".join(text.split())
     text = CONTROL_WORD.sub(r"\1", unescaped(text) if verbatim else text)
     return " ".join(_latex(text).split())
+
+
+def _formula(formula: str) -> str:
+    """A formula without the spaces TeX does not read - all but one that ends a control word before a letter
+    ($\\alpha b$); a control space (\\ ) is a piece of its own and stays."""
+    pieces = TEX_TOKEN.findall(formula)
+    kept = []
+    for i, piece in enumerate(pieces):
+        if not piece.isspace():
+            kept.append(piece)
+        elif 0 < i < len(pieces) - 1 and CONTROL_NAME.fullmatch(pieces[i - 1]) and pieces[i + 1][:1].isascii() \
+                and pieces[i + 1][:1].isalpha():
+            kept.append(" ")
+    return "".join(kept)
+
+
+def alike(text: str) -> str:
+    """An option or a reference as option_text gives it, as the kind compares the two: in a formula without the
+    spaces TeX does not read - $50\\%$ and $50 \\%$ are one formula, as a reference broken over two lines in a
+    formula writes it. Only which option a reference names is decided so: a phone shows option_text's."""
+    return "".join(_formula(part) if i % 2 else part for i, part in enumerate(MATH.split(text)))
 
 
 def _seen(c: str) -> bool:
@@ -127,12 +151,19 @@ class Choice(Kind):
         twice = next((o for i, o in enumerate(given) if o in given[:i]), None)
         if twice is not None:
             raise Unbuildable(f"options= names {twice} twice")
+        named = {}                                          # an option as the kind compares it -> the option
+        for o in given:
+            if alike(o) in named:
+                raise Unbuildable(f"options= names {named[alike(o)]} twice - {o} is the same formula")
+            named[alike(o)] = o
         select = options["select"]
         options["reference"]                                # (written in the body, not as a key)
-        references = [option_text(r, verbatim=True) for r in bodies.get("references") or []]
-        other = next((r for r in references if r not in given), None)
-        if other is not None:
-            raise Unbuildable(f"the reference {other} is none of the options ({', '.join(given)})")
+        references = []                                     # each as its option writes it: the keys name options
+        for r in bodies.get("references") or []:
+            text = option_text(r, verbatim=True)
+            if alike(text) not in named:
+                raise Unbuildable(f"the reference {text} is none of the options ({', '.join(given)})")
+            references.append(named[alike(text)])
         keys = {}
         if references and select == "many":                 # together, the right choice
             keys["reference"] = [SEVERAL.join(o for o in given if o in references)]

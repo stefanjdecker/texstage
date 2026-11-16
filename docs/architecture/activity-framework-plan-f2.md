@@ -1207,9 +1207,12 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   character code), so ô is written ô -, a tie `~` that joins text a space as LaTeX sets it -
   `New~York`, `Dr.~Smith` - while a tilde that joins nothing stays - `~/bin` -, and so does the
   tilde `\~{}` sets - `example.org/\~{}user` -, `\textasciitilde` a tilde); a short answer's
-  reference is read so too (`text_reference`). A key of digits alone is refused: a decimal comma
-  split a number (`tolerance=0,5` is the keys `tolerance=0` and `5`). No change to
-  `texactivity.sty`: its records take every key of a kind's, a list as a list.
+  reference is read so too (`text_reference`). Which option a reference names is decided without
+  the spaces TeX does not read in a formula (`kinds`: `alike`) - `$50\%$` written over two lines
+  is `$50 \%$` -, but for one that ends a control word before a letter (`$\alpha b$`); the keys
+  name the option as it is written, and two options that differ only so are one, refused. A key of
+  digits alone is refused: a decimal comma split a number (`tolerance=0,5` is the keys `tolerance=0`
+  and `5`). No change to `texactivity.sty`: its records take every key of a kind's, a list as a list.
 - **The contract:** an entry is a text, the fields, a choice - the places of the item's options, in
   order - or a number (`kind.py`: `Entry`, `stored()`, `of()`); `Kind.reference(step, text)` makes a
   reference an entry of the kind's input, by default the text. The option types `Number` (0.5, -2:

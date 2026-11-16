@@ -622,6 +622,42 @@
     "reference": "answer.txt"
    },
    "refused": "reference=answer.txt - write \\reference{...} in the activity instead"
+  },
+  {
+   "options": {
+    "options": [
+     "$50\\%$",
+     "x"
+    ]
+   },
+   "bodies": {
+    "references": [
+     "$50\n\\%$"
+    ]
+   },
+   "built": {
+    "item": {
+     "options": [
+      "$50\\%$",
+      "x"
+     ],
+     "select": "one"
+    },
+    "keys": {
+     "reference": [
+      "$50\\%$"
+     ]
+    }
+   }
+  },
+  {
+   "options": {
+    "options": [
+     "$a+b$",
+     "$a + b$"
+    ]
+   },
+   "refused": "options= names $a+b$ twice - $a + b$ is the same formula"
   }
  ]
 }

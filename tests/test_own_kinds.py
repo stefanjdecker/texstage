@@ -117,6 +117,32 @@ def test_a_decks_options_and_references_are_read_alike():
         "", "Berlin", "x", "x y", "x", "y"]                              # (a joiner at an end; noncharacters)
 
 
+def test_a_reference_names_its_option_whatever_spaces_its_formula_has():
+    """kinds.alike: a choice's reference names the option it is in a formula without the spaces TeX does not read
+    - $50\\%$ written over two lines is $50 \\%$ -, but for the one that ends a control word before a letter and a
+    control space. The keys name the option as it is written; two options that differ only so are one."""
+    from texstage.activities.kinds import alike
+    B = chr(92)
+    assert [alike(t) for t in ("$50 " + B + "%$", "$" + B + "{A, B" + B + "}$ and $x + y$", "$" + B + "alpha +b$",
+                               "$" + B + "alpha b$", "$a" + B + " b$", "Paris and Nice")] == [
+        "$50" + B + "%$", "$" + B + "{A,B" + B + "}$ and $x+y$", "$" + B + "alpha+b$", "$" + B + "alpha b$", "$a" + B + " b$",
+        "Paris and Nice"]                                                   # (\alpha b is no \alphab; \ is a space)
+    choice = Choice()
+
+    def built(options: list, references: list, select: str = "one"):
+        b = choice.build(Options(choice.OPTIONS, {"options": options, "select": select}), {"references": references})
+        return b.item["options"], b.keys
+
+    percent, pair = "$50" + B + "%$", "$" + B + "{A, B" + B + "}$"
+    assert built([percent, "x"], ["$50" + NL + B + "%$"]) == ([percent, "x"], {"reference": [percent]})
+    assert built([pair, "x"], ["$" + B + "{A,B" + NL + B + "}$", "x"], "many") == ([pair, "x"], {"reference": [pair + NL + "x"]})
+    assert built(["$" + B + "alpha b$", "$" + B + "alphab$"], ["$" + B + "alpha b$"])[1] == {"reference": ["$" + B + "alpha b$"]}
+    with pytest.raises(Unbuildable, match=r"options= names \$a\+b\$ twice - \$a \+ b\$ is the same formula"):
+        built(["$a+b$", "$a + b$"], [])
+    with pytest.raises(Unbuildable, match=r"the reference \$\\alpha\$ is none of the options"):
+        built(["$" + B + "alpha b$", "x"], ["$" + B + "alpha$"])
+
+
 def test_the_archive_writes_a_choice_by_its_options_and_a_number_with_every_digit():
     from texstage.server.activities import written
     item = {"options": ["Paris", "Nice", "$" + chr(92) + "sigma$"]}
