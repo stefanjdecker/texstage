@@ -2,6 +2,19 @@
 
 ## Unreleased — 0.2.1.dev5 candidate
 
+- With `--activities core`, the presenter window says in words of its own what
+  the activity framework refused a control or an act for, in the deck's
+  language - an activity that is revealed and has to be reset first, a merge
+  that would merge two terms into each other, more acts than a game takes and
+  the like. A German window said these in the server's English after *Das hat
+  nicht geklappt*, and a few in a quiz's words (*This question is closed.*).
+- The manual has a page on running a live activity with `--activities core` -
+  the panel, its keys, what the phones show -, the activity keys on the
+  shortcut card, live activities in the participant quick reference and in
+  troubleshooting, and on the SQL page where a submission runs: in the
+  presenter's browser by default, on the server with `--checks server` or
+  `--activities core`. The design documents of the live activities and of the
+  activity framework say what its stage F2 built, and what it left to F3.
 - The deck list no longer stops the server: it looks at the build folders in a
   worker thread and reads only those whose files changed (a lecture's phones
   waited 0.5 to 2 s at every deck list). The deck page and the host console

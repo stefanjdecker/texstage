@@ -3,6 +3,18 @@
 Status: 2026-10-18 - built through L5, the dry run in the KG lecture, with a second engine (SQL)
 since, and a third (Turtle, 2026-10-21, branch `texstage-turtle-engine`); what is done and what is
 left: section 14. Branch `texstage-live-activities`.
+
+**Since then (2026-11-17):** this design is the activity type the lectures run - `server/activity.py`,
+F1's type in [activity-framework-design.md](activity-framework-design.md) (here **AF**) - with one
+change: the server can check the queries in worker processes instead of the presenter's browser
+(F1: `texstage serve --checks server`, or `both`, which compares; the browser stays the default).
+Beside it, `main` has the activity framework's core (AF; its stage F2), a type of its own that a
+server runs when it is started with `--activities core`: a kind of activity is a package
+(`kind=sql-query`, `triples`, `choice`, ...; `input=` and `engine=` stay as aliases), every entry is
+checked on the server, and the windows and the phones have one panel and one screen for every kind.
+A section here that F2 changed says so at its end (*F2:*). Whether the core's type replaces this
+one is still open (AF section 19).
+
 Decided on 2026-10-17: student input is evaluated in the presenter's browser, and the first
 milestone builds the shared framework together with two pilots - a crowd graph from triples, and
 SPARQL queries clustered by their results. It builds on
@@ -160,6 +172,12 @@ the present compile records the box (`\texstage_box`) and writes a record line
 the same without phone pages. One activity per frame, and none on a quiz's frame: the phones show
 one thing at a time (section 10).
 
+*F2:* the environment names its kind - `kind=triples` for `input=tuple`, `kind=sql-query`,
+`sparql-query` or `turtle-graph` for `input=code` with `engine=sql`, `sparql` or `turtle`, which stay
+as aliases -, knows the core's keys `counts=`, `gap=`, `time=`, `budget=`, `feedback=`, `projector=`
+and `solution=` and `\reveal<n>`, and records every other key for the kind, which checks it at build;
+its record lines name their fields (`activity|id=...|kind=...`; AF 8.1, 9).
+
 ## 6. In the build: build/activity.py
 
 A type module as `build/video.py`, in the registry `build/types.py:25`: `NAME = "activity"`,
@@ -188,6 +206,12 @@ the engine's, an engine is unknown or an id is taken. It runs no query in this m
 shows in the presenter window when the activity opens (section 8.5) - and in the dry run. Later
 the build can run it with pyoxigraph, the same engine built for Python and released with it, and
 the solutions PDF can show its result.
+
+*F2:* the build asks the activity's kind, which checks its keys and gives the item, the keys and
+the files, and runs every reference as the server does - one that does not run, or a seed that does
+not load, stops the build; `deck.json` names the deck's kinds with their packages, which the server
+must have (AF 7.2, 9). So the kinds are installed where the decks are built. The solutions do not
+show a reference's result yet.
 
 ## 7. On the server: server/activity.py
 
@@ -281,6 +305,14 @@ The messages, in the type's namespace (CT section 6.2, item 1):
 | presenter window | clusters: `activity.show {activity, cluster \| null}` - the projector shows it |
 | presenter and projector windows | `activity.view {activity}` -> the picture |
 | the presenter window with the lease (8.1) | `activity.work` -> `{lease, jobs: [{activity, input, text}], references: {activity: [texts]}, known: {activity: [keys]}, engines: {activity: {engine, seed}}}`; `activity.result {activity, input \| reference, status, key?, error?, summary?}`; crowd: `activity.layout {activity, at: {term: [x, y]}}` |
+
+*F2:* the core's type is `server/activities.py` with `activities/`: a step of each activity with its
+phases (`ready`, `open`, `paused`, `closed`, `revealed`; a time; *Reset*, a new epoch), entries,
+checks through the pool, groups, pictures and the lecturer's acts, each of which can be undone, in
+tables of its own (AF 5.2, 10.2); a game of this type moves into them when the core's type first
+loads it. Its messages are AF 10.4's - `activity.enter` and `activity.withdraw` from the phones,
+the controls, `activity.moderate`, `activity.undo`, `activity.view`, `activity.layout` -, and the
+lease of 8.1 is left for the crowd graph's layout alone (the lead window, AF 13).
 
 ### 7.5 What the core gains
 
@@ -591,6 +623,14 @@ engine's library (8.6) - and takes the seed's prologue and a graph's terms from 
   verbatim) and a server test (the engine in the phone's view, the refusal's words, the work, the
   reveal). The browser and real phones: the live test with chapter 3's deck.
 
+*F1 and F2:* this section's evaluator is still the default of this type. F1 lets the server check
+instead (`--checks server`): the same three checks in Python - SQLite of the server's Python,
+pyoxigraph for SPARQL and Turtle - in a pool of worker processes, each text within a budget of CPU
+time, held to golden fixtures from these engines; `--checks both` takes the window's results and
+writes every difference to `checks-compare.csv` in the game's archive. The core's type checks on the
+server alone, through the kinds, which carry those checks (AF 11, 17); its phones never wait for a
+presenter window.
+
 ## 9. The windows
 
 - **The box** (`web/stage/activity.js`, `ActivityBox`, a renderer as `VideoBox` is - registered
@@ -667,6 +707,14 @@ engine's library (8.6) - and takes the seed's prologue and a graph's terms from 
 - Freeze, zoom, the black screen, whiteboard pages and the recording work as on every slide. The
   host console and PowerPoint's add-in show nothing of activities.
 
+*F2:* the core's box (`web/stage/activities.js`: `StepBox`) draws the projector's picture in both
+windows - bars for groups and a tally, the crowd graph as above, laid out by the lead window, a
+histogram for numbers -, and holds back what the projector holds back (`projector=`). Its panel is
+the same for every kind - the phase and the time, the counts, the controls, the groups or the
+graph's terms with their buttons, the last acts with *Undo* -, and its controls are keys of the
+presenter window too: O, C, S, R, X, + and - (AF 13). The host console has a line per activity. The
+add-in still shows an activity's static form.
+
 ## 10. The phones
 
 - **One thing at a time:** a phone shows the quiz's round while one is open, else the open
@@ -689,6 +737,12 @@ engine's library (8.6) - and takes the seed's prologue and a graph's terms from 
   is shown as text, never as HTML, in every window: a "term" can be `<img onerror=...>` (CT
   section 6.4).
 
+*F2:* the core's phone (`web/play/activities.js`) has one screen for every kind: the inputs `code`
+and `fields` as above, `choice`, `number` and `text` for texstage's own kinds, or a kind's own; an
+entry's states - received, being checked, the check's status in the kind's words, replaced, taken
+back, hidden - and, after the reveal, its verdict; what `feedback=` allows before it (AF 5.3); a
+kind's hints while the student types, from a worker (AF 12).
+
 ## 11. The archive
 
 Per activity, in the game's folder of the lecture archive: `activity-<id>.csv`, a row per
@@ -698,6 +752,9 @@ clusters with their summaries and the reference's keys; and for a graph `activit
 written by the server from that picture as the sketches are (`server/archive.py:62`). Not in this
 milestone: the picture in the annotated PDF - the frame's page shows the static form there;
 later drawn into it as vector paths, as the ink is (`web/stage/export.js`).
+
+*F2:* the core's archive has the same three files; its CSV a row per entry with its step and
+epoch, its JSON each activity's final picture (AF 10.5).
 
 ## 12. Limits and load
 
@@ -724,6 +781,11 @@ within 10 s, 2 ms (7 ms), the last evaluated 0.57 s after it was sent; all 300 w
 second, 6 ms (20 ms) and 1.09 s. The host windows got at most five pushes a second throughout -
 39 before the evaluator's results became quiet messages (7.5, item 9).
 
+*F2:* the core's limits are a step's: 10,000 entries and 2,000 distinct normalized texts at a time,
+a check's CPU time the kind's - 1 s for each of today's kinds -, less with `budget=`, the
+projector's picture at most four times a second; the load with 1,000 phones is measured for F1,
+and is F2's package 13 for the core (AF 15).
+
 ## 13. Later
 
 | | what it is | what it needs |
@@ -740,6 +802,10 @@ second, 6 ms (20 ms) and 1.09 s. The host windows got at most five pushes a seco
 | a time limit | `time=` closes the activity by itself | the engine's deadlines (`game.py`, `next_deadline`) |
 | the reference at build time | the solutions PDF shows its result | pyoxigraph in the build |
 | canonical blank nodes | a graph's key that counts which blank node is which - a collection's order (8.9) | canonical labels (RDFC-1.0, or a colour refinement) in both RDF engines' canonical forms at once; the SPARQL engine's keys change |
+
+*F2:* three rows are done in the core's type - inputs, reductions and views apart (a kind names its
+input and its reduction, AF 6.2), a time limit (`time=`, a step's, AF 5.2), and the reference at
+build time, which the build runs, though the solutions do not show its result yet (AF 9).
 
 ## 14. Plan
 

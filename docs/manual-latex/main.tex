@@ -39,7 +39,7 @@ Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev5 -\allowbreak{} develop
 \manualsection{What texstage does}
 texstage turns a LaTeX Beamer presentation into an interactive teaching session.\allowbreak{} You write ordinary slides and add quiz commands in a .\allowbreak{}tex file.\allowbreak{} texstage compiles that source, prepares the presentation files, and runs a server that connects your presenter browser, the audience display and participants' phones.\allowbreak{} You can also create a static PDF handout or a PDF with solutions.\par
 
-For example, a lecturer writes a multiple-\allowbreak{}choice question, presents its reading step, opens answering, and then reveals the explanation.\allowbreak{} Students open a join link, enter the session PIN and answer in a browser.\allowbreak{} The presenter sees the accepted answers and controls what the audience sees.\par
+For example, a lecturer writes a multiple-\allowbreak{}choice question, presents its reading step, opens answering, and then reveals the explanation.\allowbreak{} Students open a join link, enter the session PIN and answer in a browser.\allowbreak{} The presenter sees the accepted answers and controls what the audience sees.\allowbreak{} A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide (Run a live activity).\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
@@ -81,6 +81,7 @@ The browser workflow is the starting path in this manual.\allowbreak{} PowerPoin
 Join a lecture & Go directly to Join and wait on your phone, or the Participant quick reference.\allowbreak{} Obtain the address and PIN from your presenter.\allowbreak{} Skip installation. \\ \addlinespace[3pt]
 Author and present my own slides & Install Python, TeX and texstage below.\allowbreak{} Follow the supplied demonstration before editing your first quiz. \\ \addlinespace[3pt]
 Present a supplied bundle & Install Python and texstage.\allowbreak{} TeX is only needed to rebuild source.\allowbreak{} Start texstage serve with a private data directory, open /\allowbreak{}stage, and use Upload a deck for the supplied .\allowbreak{}bundle.\allowbreak{}zip. \\ \addlinespace[3pt]
+Run live activities & Install texstage with its kinds of activities, then read Run a live activity.\allowbreak{} The LaTeX reference describes the activity environment and its options. \\ \addlinespace[3pt]
 Organize a course as separate slide files & Use the separate lecture-\allowbreak{}tools project and its workflow manual.\allowbreak{} It assembles numbered slides and can call texstage for live output. \\ \addlinespace[3pt]
 Use DBIS notation or appearance & Use lecture-\allowbreak{}tools' reusable LaTeX modules.\allowbreak{} DBIS branding is an optional theme, not a texstage prerequisite. \\ \addlinespace[3pt]
 Edit a Jupyter notebook & Use the lecture-\allowbreak{}tools notebook manual.\allowbreak{} This path needs neither texstage nor TeX. \\ \addlinespace[3pt]
@@ -481,6 +482,52 @@ Use \textbf{Show} to place a question on the projector, \textbf{Hide} to remove 
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/15-presenter-questions.jpg}
 \caption{The presenter chooses which question to show and when to mark it done.}
 \end{figure}
+\manualsection{Run a live activity}
+A live activity lets every student send something -\allowbreak{} a query, triples, a choice, a number or a short answer -\allowbreak{}; texstage checks each entry on the server and gathers what the class sent into one picture in the activity's box on the slide.\allowbreak{} This page describes the activity framework's core (in development), which a server runs when it is started with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} core}:\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+texstage present deck.tex --activities core
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
+\texttt{texstage serve} takes the same option.\allowbreak{} A server started without it runs the default activity type, which the lectures use: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries -\allowbreak{} keep it open, or start the server with \texttt{-\allowbreak{}-\allowbreak{}checks server}, which checks them on the server.\allowbreak{} Either way the kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools); the deck page names a deck the server does not play, and why.\par
+
+\manualsubheading{Open, close and reveal}
+An activity opens when its frame comes to the projector, unless it says \texttt{open=\allowbreak{}manual}; leaving the frame closes it, and going back does not open it again.\allowbreak{} With \texttt{time=} its time counts down on the phones, in the panel and on the host console, and closes it at zero.\allowbreak{} A frame with \texttt{\textbackslash{}\allowbreak{}reveal<n>} reveals the activity on its n-\allowbreak{}th slide.\allowbreak{} Everything else is in the panel: choose \textbf{Activities} in the presenter's tools.\par
+
+{\small
+\begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.220000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.100000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.680000\linewidth-2\tabcolsep\relax}}
+\toprule
+\textbf{Control} & \textbf{Key} & \textbf{What it does} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Control} & \textbf{Key} & \textbf{What it does} \\
+\midrule
+\endhead
+\midrule
+\endfoot
+\bottomrule
+\endlastfoot
+\textbf{Open} & O & Opens the activity -\allowbreak{} also again after it closed, going on with what was sent.\allowbreak{} A paused activity resumes. \\ \addlinespace[3pt]
+\textbf{Close} & C & Nothing new comes in; what waits is still checked. \\ \addlinespace[3pt]
+\textbf{Pause} /\allowbreak{} \textbf{Resume} & S & Stops the time, and the phones cannot send until it resumes.\allowbreak{} A quiz question that opens pauses the activity, and its end resumes it. \\ \addlinespace[3pt]
+\textbf{+30 s} /\allowbreak{} \textbf{No time} & + /\allowbreak{} - & Adds half a minute, or stops the countdown: the activity stays open until it is closed. \\ \addlinespace[3pt]
+\textbf{Reveal} & R & Asks first.\allowbreak{} Every window marks the reference's group, and every phone shows whether its entry is right.\allowbreak{} With \texttt{solution=\allowbreak{}show}, the default, the reference and its result appear on the projector. \\ \addlinespace[3pt]
+\textbf{Reset} & X & Asks first.\allowbreak{} The activity starts anew: what was sent stays in the archive but no longer counts. \\ \addlinespace[3pt]
+\end{longtable}}
+
+The keys work in the presenter for the activity on the current slide.\par
+
+\manualsubheading{Watch and moderate}
+The panel shows the phase and the time, the counts -\allowbreak{} students, entries, checked, waiting, unchecked -\allowbreak{}, and the groups, the largest first: the entries whose checks give the same result, each group with the text most of them sent and its result.\allowbreak{} No name is shown.\allowbreak{} \textbf{Show} puts a group's text and result on the projector, \textbf{Hide} keeps a group off it, and \textbf{Block} stops whoever sent the text shown: what they sent is hidden, and they cannot send more.\allowbreak{} A crowd graph lists its terms instead: \textbf{Merge…} a term into another, \textbf{Unmerge}, \textbf{Hide}, \textbf{Approve} with \texttt{review}, and the students a triple needs before it shows (\textbf{On the projector from}).\allowbreak{} Each act is listed under \textbf{Last acts}, where \textbf{Undo} takes it back.\par
+
+What the projector shows -\allowbreak{} and so the box on your slide -\allowbreak{} is the deck's choice: \texttt{projector=\allowbreak{}live} (the default) lets the picture grow, \texttt{count} shows only how many sent until the activity closes, \texttt{hidden} shows nothing until the reveal.\allowbreak{} What the phones learn before the reveal is \texttt{feedback=}: by default whether an entry runs, or its syntax error.\allowbreak{} The host console has a line per activity with its phase, time and counts.\par
+
+\manualsubheading{On the phones}
+Students see the prompt and its input -\allowbreak{} a query field with the deck's tokens, two or three fields, the options, a number or a short answer -\allowbreak{}, tap \textbf{Send} (\textbf{Add} for a triple; a choice of one option goes as it is tapped) and see each entry's state: \textbf{Received}, \textbf{Being checked …}, then what the deck lets them see.\allowbreak{} An entry the server could not check says so -\allowbreak{} not the student's fault -\allowbreak{} and is checked again when it is sent again.\allowbreak{} The server checks every entry itself, so the presenter window need not stay open for it.\allowbreak{} The game's archive keeps each activity's entries (\texttt{activity-\allowbreak{}<id>.\allowbreak{}csv}, without names), its final picture and, for a crowd graph, the graph as SVG.\par
+
 \manualsection{Use annotation and optional presenter tools}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.200000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.800000\linewidth-2\tabcolsep\relax}}
@@ -502,7 +549,7 @@ Whiteboard /\allowbreak{} Grid & Insert a whiteboard page after the current fram
 Poll & Ask an unplanned Yes /\allowbreak{} No, A-\allowbreak{}F, scale, word-\allowbreak{}cloud, text or sketch question.\allowbreak{} Set the question, choices and time, then choose Ask now.\allowbreak{} Return to the deck with the next-\allowbreak{}step command or Esc. \\ \addlinespace[3pt]
 Devices & On the laptop choose Pair a device.\allowbreak{} Open or scan the offered link on the other device, then approve the request on the laptop.\allowbreak{} Only approve devices you intend to give presenter control. \\ \addlinespace[3pt]
 Record & Choose the microphone, then in the browser chooser the projector's display or window -\allowbreak{} the intended audience output, not the private presenter view.\allowbreak{} The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose \textbf{Start}; the cross beside it cancels.\allowbreak{} Stop recording before exporting it. \\ \addlinespace[3pt]
-Sketches /\allowbreak{} Activities & These controls appear for matching content in the deck.\allowbreak{} Sketches lets you choose submitted drawings to display; Activities provides controls for authored live activities. \\ \addlinespace[3pt]
+Sketches /\allowbreak{} Activities & These controls appear for matching content in the deck.\allowbreak{} Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (Run a live activity). \\ \addlinespace[3pt]
 \end{longtable}}
 
 Recording and device/\allowbreak{}screen integration depend on browser support and permissions.\allowbreak{} Microphone and screen recording were not part of the screenshot session.\allowbreak{} Rehearse them on the presenting computer before class.\allowbreak{} The \href{\manualdocroot authoring.md}{authoring guide} and \href{\manualdocroot installation.md}{installation guide} cover the wider workflows.\par
@@ -592,6 +639,10 @@ Projector does not open or move & Allow its pop-\allowbreak{}up for this server.
 The projector seems stuck & Check Freeze, Black and White.\allowbreak{} Return to normal display.\allowbreak{} Also check the presenter connection indicator. \\ \addlinespace[3pt]
 A question will not restart & Going backwards preserves its state.\allowbreak{} Choose Ask again for practice or New game for a new session; review the rewind effects first. \\ \addlinespace[3pt]
 A deck or stage PDF is missing & Reload the library after building, upload the .\allowbreak{}bundle.\allowbreak{}zip to the intended server, or rebuild without -\allowbreak{}-\allowbreak{}no-\allowbreak{}stage.\allowbreak{} Check the first LaTeX error if the build failed. \\ \addlinespace[3pt]
+A deck is not on the list & The top of the deck page says why this server does not play it: a kind of activity it lacks -\allowbreak{} install the kind's package where the server runs, as where the deck is built -\allowbreak{}, or choice, number or text activities on a server started without -\allowbreak{}-\allowbreak{}activities core. \\ \addlinespace[3pt]
+Phones wait for the lecturer's computer & The default activity type checks queries in the presenter window: keep it open, or start the server with -\allowbreak{}-\allowbreak{}checks server or -\allowbreak{}-\allowbreak{}activities core, which check on the server. \\ \addlinespace[3pt]
+A phone says it could not be checked & The server could not check that entry -\allowbreak{} not the student's fault; sent again, it is checked again.\allowbreak{} When nothing of an activity is checked, its panel says why: a seed that does not load, a kind the server lacks. \\ \addlinespace[3pt]
+A deck says a reference fails & This server's check gives a reference of the deck no result, or another one than the build did -\allowbreak{} another engine, or a seed whose data change.\allowbreak{} The tag's tooltip names the activity and the reason; check the seed and the reference, and build again. \\ \addlinespace[3pt]
 Recording has no sound & Check browser permission, the selected microphone and its level meter.\allowbreak{} Make a short rehearsal recording and play it back. \\ \addlinespace[3pt]
 \end{longtable}}
 
@@ -612,6 +663,14 @@ Before class: verify the build, join from a real phone, rehearse one question an
 \item Multiple choice: select all intended answers, then tap Submit.
 \item Number, text, ordering or sketch: complete the input, then tap Submit.
 \item Wait for Answer sent and then the reveal.\allowbreak{} Your result and score appear when the round allows it.
+\end{itemize}
+
+\manualsubheading{Take part in a live activity}
+\begin{itemize}
+\item Type your query or answer, or fill in the fields, then tap Send (Add for a triple).\allowbreak{} A single choice is sent as you tap it; for several, tap them, then Send.
+\item Each entry is listed with its state: Received, Being checked …, then what the presenter lets you see, such as whether your query runs or where its syntax error is.\allowbreak{} After the reveal you see whether it is right.
+\item Where only your latest entry counts, a later one replaces it.\allowbreak{} The × takes an entry back while the activity is open.
+\item Could not be checked is not your fault: send it again, or tell the presenter.
 \end{itemize}
 
 \manualsubheading{Ask for help}
@@ -641,9 +700,12 @@ Jump to frame & Number, then Enter & Black /\allowbreak{} White & B /\allowbreak
 Freeze /\allowbreak{} unfreeze & F & Elapsed timer & T \\ \addlinespace[3pt]
 Pen /\allowbreak{} Marker /\allowbreak{} Eraser & P /\allowbreak{} H /\allowbreak{} E & Laser /\allowbreak{} Zoom & L /\allowbreak{} Z \\ \addlinespace[3pt]
 Whiteboard /\allowbreak{} Grid & N /\allowbreak{} Shift+N & Undo /\allowbreak{} Redo & Ctrl+Z /\allowbreak{} Ctrl+Y \\ \addlinespace[3pt]
+Activity: open or resume & O & Activity: close & C \\ \addlinespace[3pt]
+Activity: pause or resume & S & Activity: reveal /\allowbreak{} reset & R /\allowbreak{} X \\ \addlinespace[3pt]
+Activity: +30 s /\allowbreak{} no time & + /\allowbreak{} - &  &  \\ \addlinespace[3pt]
 \end{longtable}}
 
-This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\par
+This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\allowbreak{} The activity keys are for the activity on the current slide, with -\allowbreak{}-\allowbreak{}activities core; Reveal and Reset ask first.\par
 
 \manualsection{About the screenshots and further help}
 The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 from source revision \texttt{261776bbf3\allowbreak{}ed6b8e9275\allowbreak{}cd9fe3650c\allowbreak{}cbe67af737} on 15 November 2026, in one session.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} The capture version is recorded separately from the manual version.\par
@@ -1144,7 +1206,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Handout, solutions and PowerPoint show the static activity prompt -\allowbreak{} and a choice's options.\allowbreak{} Live interaction is implemented in the texstage browser presenter and phones.\allowbreak{} The current PowerPoint add-\allowbreak{}in implements quizzes, not live activities.\par
+A tuple activity is of the kind triples (texstage-\allowbreak{}kinds-\allowbreak{}rdf): kind=\allowbreak{}triples and input=\allowbreak{}tuple, the default, are the same.\allowbreak{} Handout, solutions and PowerPoint show the static activity prompt -\allowbreak{} and a choice's options.\allowbreak{} Live interaction is implemented in the texstage browser presenter and phones.\allowbreak{} The current PowerPoint add-\allowbreak{}in implements quizzes, not live activities.\par
 
 \manualsection{Choice, number and text activities}
 Three kinds come with texstage itself and need no extra package: kind=\allowbreak{}choice, kind=\allowbreak{}number and kind=\allowbreak{}text.\allowbreak{} Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right.\allowbreak{} These kinds run only on the activity framework's core (in development): start the server with \texttt{texstage present deck.\allowbreak{}tex -\allowbreak{}-\allowbreak{}activities\allowbreak{} core} or \texttt{texstage serve -\allowbreak{}-\allowbreak{}activities\allowbreak{} core}.\allowbreak{} A server of the default activity type skips such a deck and says why.\par
@@ -1215,23 +1277,23 @@ The build checks the references as the server checks them: a choice's reference 
 \endfoot
 \bottomrule
 \endlastfoot
-\texttt{engine=\allowbreak{}sparql} & Queries a Turtle seed (.\allowbreak{}ttl).\allowbreak{} References contain SPARQL queries. \\ \addlinespace[3pt]
-\texttt{engine=\allowbreak{}sql} & Read-\allowbreak{}only queries over tables initialized by SQL statements (.\allowbreak{}sql), using the bundled SQLite browser engine.\allowbreak{} References contain SQL queries.\allowbreak{} See SQL activities: permitted statements below. \\ \addlinespace[3pt]
-\texttt{engine=\allowbreak{}turtle} & Participants write Turtle.\allowbreak{} A .\allowbreak{}ttl seed supplies base/\allowbreak{}prefix declarations; seed triples are not copied into the participant graph.\allowbreak{} References contain Turtle graphs. \\ \addlinespace[3pt]
+\texttt{kind=\allowbreak{}sparql-\allowbreak{}query} (\texttt{engine=\allowbreak{}sparql}) & Queries a Turtle seed (.\allowbreak{}ttl).\allowbreak{} References contain SPARQL queries.\allowbreak{} In texstage-\allowbreak{}kinds-\allowbreak{}rdf. \\ \addlinespace[3pt]
+\texttt{kind=\allowbreak{}sql-\allowbreak{}query} (\texttt{engine=\allowbreak{}sql}) & Read-\allowbreak{}only queries over tables initialized by SQL statements (.\allowbreak{}sql), run by SQLite -\allowbreak{} sql.\allowbreak{}js in the presenter's browser, or Python's on the server.\allowbreak{} References contain SQL queries.\allowbreak{} In texstage-\allowbreak{}kinds-\allowbreak{}sql.\allowbreak{} See SQL activities: permitted statements below. \\ \addlinespace[3pt]
+\texttt{kind=\allowbreak{}turtle-\allowbreak{}graph} (\texttt{engine=\allowbreak{}turtle}) & Participants write Turtle.\allowbreak{} A .\allowbreak{}ttl seed supplies base/\allowbreak{}prefix declarations; seed triples are not copied into the participant graph.\allowbreak{} References contain Turtle graphs.\allowbreak{} In texstage-\allowbreak{}kinds-\allowbreak{}rdf. \\ \addlinespace[3pt]
 \texttt{seed} & Required for code input, as a file or inline seed.\allowbreak{} UTF-\allowbreak{}8 text; a BOM is accepted for files.\allowbreak{} Maximum encoded seed size is 2 MiB. \\ \addlinespace[3pt]
 \texttt{reference} & Optional reference file.\allowbreak{} Its text is appended to any inline references.\allowbreak{} Each reference is 1-\allowbreak{}2000 characters.\allowbreak{} References are private bundle answer data, not public phone seed data. \\ \addlinespace[3pt]
 \texttt{tokens} & Extra keyboard buttons: up to 40 entries of 1-\allowbreak{}60 characters.\allowbreak{} Engine punctuation is added automatically.\allowbreak{} Escape TeX punctuation in key values, e.\allowbreak{}g.\allowbreak{} backslash followed by \# or \%. \\ \addlinespace[3pt]
 \texttt{Unused tuple keys} & fields, suggest, min, review and terms have no code-\allowbreak{}input effect and cause warnings when non-\allowbreak{}default values are supplied. \\ \addlinespace[3pt]
 \end{longtable}}
 
-The seed is distributed with the activity and is visible to participants; it must contain synthetic/\allowbreak{}public teaching data.\allowbreak{} A code activity can omit references for an exploratory task.\allowbreak{} Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.\par
+The seed is distributed with the activity and is visible to participants; it must contain synthetic/\allowbreak{}public teaching data.\allowbreak{} A code activity can omit references for an exploratory task.\allowbreak{} Providing a reference is what permits comparison with a model result.\allowbreak{} Students' code runs only in the checks texstage brings -\allowbreak{} in the presenter's browser or in the server's worker processes, in memory and within a time budget -\allowbreak{}, never against a course database.\par
 
 The builder validates data sizes and engine-\allowbreak{}specific seed extensions.\allowbreak{} A plain PDF compile cannot establish that SQL/\allowbreak{}SPARQL/\allowbreak{}Turtle semantics or results match the teaching objective.\par
 
 \manualsection{SQL activities: permitted statements}
-An SQL activity is a read-\allowbreak{}only query exercise.\allowbreak{} The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data.\allowbreak{} After loading that seed, Texstage switches the in-\allowbreak{}memory SQLite database to read-\allowbreak{}only mode.\allowbreak{} Each submission is evaluated in a worker in the presenter's browser.\allowbreak{} The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.\par
+An SQL activity is a read-\allowbreak{}only query exercise.\allowbreak{} The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data.\allowbreak{} After loading that seed, texstage switches the in-\allowbreak{}memory SQLite database to read-\allowbreak{}only mode.\allowbreak{} Where a submission runs depends on how the server is started: by default in a worker of the presenter's browser (sql.\allowbreak{}js), which sends the server its result; with -\allowbreak{}-\allowbreak{}checks server, or with the activity framework's core (-\allowbreak{}-\allowbreak{}activities core), in one of the server's worker processes, by Python's SQLite, against an in-\allowbreak{}memory copy of the seed and within a budget of CPU time.\allowbreak{} Either way no student's SQL runs against the server's own database or a course database.\par
 
-Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH .\allowbreak{}.\allowbreak{}.\allowbreak{} SELECT.\allowbreak{} It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE.\allowbreak{} PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission.\allowbreak{} The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.\par
+Students can type any SQL text, but the check accepts only one query statement: SELECT, VALUES or WITH .\allowbreak{}.\allowbreak{}.\allowbreak{} SELECT.\allowbreak{} It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE.\allowbreak{} PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission.\allowbreak{} The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.500000\linewidth-2\tabcolsep\relax}}
@@ -1255,7 +1317,7 @@ Students can type any SQL text, but the evaluator accepts only one query stateme
 
 Result grouping compares returned values.\allowbreak{} Column names and row order do not affect the group; repeated rows and column positions do.\allowbreak{} If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.\par
 
-The current activity engine has no writable exercise mode.\allowbreak{} To teach table creation or updates, use a separately isolated notebook or database lab.\allowbreak{} The instructor's seed initialization is distinct from the student submissions above.\par
+The SQL check has no writable exercise mode.\allowbreak{} To teach table creation or updates, use a separately isolated notebook or database lab.\allowbreak{} The instructor's seed initialization is distinct from the student submissions above.\par
 
 \manualsection{Code activity example and build checks}
 \par\noindent\begin{minipage}{\linewidth}

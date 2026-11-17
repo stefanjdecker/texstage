@@ -6,8 +6,10 @@ day. Written at the lecturer's request before F1 is built and before F0's runs o
 laptop: it takes for granted what the plan of F0 and F1
 ([activity-framework-plan.md](activity-framework-plan.md), here **P1**) delivers, and changes where
 F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
-to 4 are built (2026-11-10 and 2026-11-11, on `f2-core`, ahead of F1's last packages - 4.12 says
-where it stands); of the server, only the pool has changed with them (4.6). File references are to `src/texstage/` unless they name another folder.
+to 12 are built (2026-11-10 to 2026-11-17 - on `f2-core` until package 9, on `main` since -, ahead
+of F1's last packages; 4.12 says where it stands): the core's type runs beside F1's, which a server
+runs unless it is told otherwise (4.3). File references are to `src/texstage/` unless they name
+another folder.
 
 ## 1. In short
 
@@ -99,7 +101,7 @@ As P1's (P1, 2), and:
 | the server's pages | `server/app.py` | a kind's files under `/kinds/<name>/<hash>/`; a policy per page (4.5) |
 | texstage's own kinds | `activities/kinds/`: `choice`, `number`, `text` | through the same entry points (4.8) |
 | the kit | `activities/kit.py`; `cli.py`: `texstage kinds`, `texstage kinds check` | AF 7.5 (4.9) |
-| texts | `web/i18n/en.js`, `de.js`; each kind's `texts/` | the core's new words; a kind's under `kinds.<name>` (AF 7.4) |
+| texts | `web/i18n/en.js`, `de.js`; each kind's `texts/` | the core's new words; a kind's in its package, which `web/kinds.js` says (AF 7.4) |
 | installing | `requirements/`, `maintenance/lock_dependencies.py`, `deploy/Dockerfile`, `.github/workflows/ci.yml`, `docs/installation.md` | the kinds' dependencies locked, the kinds installed, tested and in the image (4.7) |
 | the lectures | lecture-tools (its own repository) | its copy of texstage taking F2, its environment installing the kinds (2.3) |
 
@@ -1069,8 +1071,10 @@ run away - the runs now say them apart -, 95 % and the slowest, in ms:
   with texstage's version; one with activities of texstage's own kinds gets a new bundle ID when
   it is built again, since deck.json names the texstage of its kinds - a server compares a kind's
   version by its numbers (`server/activities.py`: `_version`, 0.2.1.dev3 and dev4 alike), so none
-  refuses it. An editable install keeps the version it was installed with until it is installed
-  anew (`docs/development.md`; `tests/test_packaging.py` says so).
+  refuses it. Since D3's fix (2026-11-17, with package 9's leftovers; texstage 0.2.1.dev5) it
+  compares them as PEP 440 orders them: a deck built with a kind's later development release is
+  refused by a server with an earlier one. An editable install keeps the version it was installed
+  with until it is installed anew (`docs/development.md`; `tests/test_packaging.py` says so).
 - *The locks:* `maintenance/lock_dependencies.py` reads the kinds' `pyproject.toml` beside
   texstage's - their dependencies but texstage and the kinds' own packages, which are on no index,
   join `requirements/runtime.in` as written, markers too; today pyoxigraph, which texstage needs
@@ -1532,9 +1536,23 @@ texstage's kinds from them, and has a server of the core's type - from the wheel
 image - check a phone's entry of each in its pool; the guides and the manual install them (4.7).
 Tried with lecture-tools-next and the KG lecture: paired with it, they build the lecture's 17
 live decks as before, bundle for bundle, and the image serves those with activities (4.7). Its
-review found six faults, ten doubts and fourteen nits, all fixed but two doubts left as they are;
+review found six faults, ten doubts and fourteen nits, all fixed but two doubts left as they are
+(one of them, D3, fixed since with package 9's leftovers);
 a check of the fixes found one fault more - the served check's own key - and rules no test held
-during a run, fixed as well (4.7). lecture-tools takes it as 0.1.0.dev5.
+during a run, fixed as well (4.7). lecture-tools takes it as 0.1.0.dev5. Package 12 is built on it
+(2026-11-17, on `main` after package 9's leftovers - texstage 0.2.1.dev5 - and the deck
+housekeeping): the texts and the documents. The core's windows say what the core refuses
+a control or an act for in words of their own (`presenter.steps.refused`, AF 7.4) - before, a German
+window said a merge's cycle, a revealed step, a blocked student's entry and the like in the server's
+English, and a step that is not open and the acts' limit in a quiz's words; the phone's words for a
+revealed step, which no refusal says, are gone. The i18n test reads the codes the core refuses
+with in its source - the phone's in `entries.py` and in what the kinds' normalize refuses, the
+windows' in the moves, the acts and the type - and holds each to a text of the page that meets it,
+none beside; and German to texts of its own at any depth, but for the words both languages share.
+AF says where F2 built otherwise than designed and what is F3's, LA what F1 and F2 changed of it,
+and the manual has a page on running an activity with the core - its panel, its keys, the phones -,
+the keys on the shortcut card, activities in the participant's reference and in troubleshooting,
+and where an SQL submission runs, in the browser or on the server.
 
 ### 4.13 Risks
 

@@ -47,7 +47,7 @@ import { BATCH, ERASER, MARKER, MARKERS, PENS, SIZES, deviceId } from "/static/s
 import { VideoBox, mediaAddresses } from "/static/stage/video.js";
 import { ActivityAgent, ActivityBox, codeWords, resultLabel, resultTable } from "/static/stage/activity.js";
 import { Evaluator } from "/static/stage/evaluator.js";
-import { StepAgent, StepBox, openStepPanel } from "/static/stage/activities.js";
+import { StepAgent, StepBox, openStepPanel, refusedText } from "/static/stage/activities.js";
 import { Kinds } from "/static/kinds.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -1210,7 +1210,7 @@ async function openDeck(d, chosen = false, options = {}) {     // chosen: Presen
   stage = new Stage($("#stage"), { send: (cmd) => client.send(cmd).catch(alertError), controls: true, surface: new PdfSurface(pdf),
     sketches: (quiz, players) => client.send({ t: "sketch.get", quiz, players }).then((r) => r.sketches),
     types: { video: VideoBox, activity: core() ? StepBox : ActivityBox },
-    host: { role: "presenter", send: (msg) => client.send(msg).catch(alertError), media: mediaAddresses(deck.bundle, auth),
+    host: { role: "presenter", send: sendTyped, media: mediaAddresses(deck.bundle, auth),
       read: (msg) => client.send(msg), agent, kinds, ask } });      // (ask: a key's reveal or reset asks first)
   box = $("#stage");
   ink = new InkLayer(book, aspect);
@@ -1419,11 +1419,24 @@ function send(cmd) {
   return client.send(cmd).catch(alertError);
 }
 
+function sendTyped(msg) {
+  // a live box's or the activities panel's message: what the activity framework's core refuses - a control or
+  // an act (activities.js) - in its own words for the lecturer, whose codes a quiz's refusals share; the rest as ever
+  return client.send(msg).catch((err) => {
+    const words = core() && String(msg?.t || "").startsWith("activity.") ? refusedText(lang, err) : null;
+    if (words) alertText(words);
+    else alertError(err);
+  });
+}
+
 let telling = null;          // the error a dialog shows now
 function alertError(err) {
   // one dialog for one error: the commands queued while the connection was gone fail together, each with it
   if (err?.code === "no-round") return;
-  const text = why(err);
+  alertText(why(err));
+}
+
+function alertText(text) {
   if (text === telling) return;
   telling = text;
   tell(text).finally(() => { if (telling === text) telling = null; });
@@ -2333,7 +2346,7 @@ function renderQa() {
 function openActivities() {
   if (core()) {                         // the activity framework's panel (activities.js)
     if (qaPanel) closeQa();
-    actPanel = openStepPanel({ dock, undock, ask, kinds, language: lang, send: (msg) => send(msg),
+    actPanel = openStepPanel({ dock, undock, ask, kinds, language: lang, send: sendTyped,
       read: (msg) => client.send(msg), items: () => deck.items?.activity, state: () => state,
       onSlide: () => itemFor(local)?.live?.find((b) => b.type === "activity")?.item, now: serverNow,
       onClose: () => { actPanel = null; } });

@@ -1,8 +1,13 @@
 # texstage - the activity framework (design)
 
-Status: 2026-11-09, a design to refine; of its stages (section 18), F0's spike, F1's packages
-1 to 5 (2026-11-10) and F2's packages 1 and 2 - the contract of 7.1, the registry, the kit's Python
-half (2026-11-11) - are built on their branches, nothing of it is in `main` yet. It comes from the
+Status: 2026-11-09, a design to refine; brought up to date with what is built on 2026-11-17. Of
+its stages (section 18), F0's spike is built on its branch, F1 - the server checks today's four
+kinds - is in `main` since 2026-11-11, and so are F2's packages 1 to 12: the core, the contract
+(7.1), the four kinds as packages and texstage's own, the kit, the pages' policy, the installing,
+the texts and these documents. The core's type runs beside F1's: a server runs F1's unless it is
+started with `--activities core`, and whether the core's replaces it is still open (section 19).
+Where F2 built something otherwise than designed, its section says so (*as built*); steps beyond
+the one, `from=`, the vote, points and the ledger are F3's. The design comes from the
 brainstorm of 2026-11-09, whose last open questions were decided the same day (section 2), was
 revised after a critical review the same day, and redesigns the live activities of October
 ([live-activities-design.md](live-activities-design.md), here **LA**): the server checks what
@@ -15,8 +20,8 @@ to `src/texstage/` unless they name another folder.
 
 An **activity** is a live exercise on a slide: every student sends something - a query, triples,
 a choice -, texstage checks it, gathers what the class sent into one picture on the projector,
-and the lecturer steers it. Today `server/activity.py` and its windows know two such things by
-name, and the presenter's browser runs the checks. The framework splits this into a **core** that
+and the lecturer steers it. In October `server/activity.py` and its windows knew two such things
+by name, and the presenter's browser ran the checks. The framework splits this into a **core** that
 owns the classroom - steps and their phases, entries, limits, checking on the server, groups,
 points, the views, the lecturer's controls - and **kinds** that own a subject: what an entry is,
 how it is checked, what a group of equal entries shows. A kind is a package, installed per
@@ -68,9 +73,12 @@ This changes two of CT's principles (CT section 3) and keeps the others:
 Of LA's decisions, evaluation in the presenter's browser (LA section 8) goes, and with it the
 lease for evaluating; "phones never run code" becomes "phones check nothing": a phone may run a
 kind's hint module, which sees public data only (section 7.3). With the evaluator goes the
-barrier that kept students' queries off the network - the worker's Content-Security-Policy
-(`server/app.py:167`) and a WebAssembly build without HTTP: on the server, each kind has to keep
-its engine from the outside itself (section 11).
+barrier that kept students' queries off the network - the worker's Content-Security-Policy and a
+WebAssembly build without HTTP: on the server, each kind has to keep its engine from the outside
+itself (section 11). As built: the core's type checks on the server alone; F1's type keeps the
+evaluator as its default (`--checks browser`, the server's worker processes with `--checks
+server`) until the core's type replaces it (section 19), and the evaluator's worker keeps its
+policy, now `server/policy.py`'s, as every page and script has one (7.3).
 
 ## 3. Why a redesign
 
@@ -95,6 +103,11 @@ it does not grow - with new kinds, and with more phones:
   own (`server/activity.py:569`, `:580`), and every message is saved in a transaction of its own
   (`server/store.py:5-6`); only the picture is computed once per version
   (`server/activity.py:602-612`). Fine for 300 phones (LA section 12), not the way to 1,000.
+
+That was `main` on 2026-11-09. F1 moved the checks to the server, behind the same type; F2's core
+answers the rest beside it - a kind is a package and a deck's LaTeX needs no change for a new one
+(7, 8.1), one panel and one phone screen for every kind, the host console's line (13), a step's
+timer (5.2), the same work for every entry however large the class (15.2); points are F3's.
 
 ### 3.2 What the plugin system taught
 
@@ -183,6 +196,10 @@ F3 builds write-then-vote and write-see-fix first (decided 2026-11-09): between 
 both mechanisms - a step built on another step's groups, and one kind twice with the points at
 the end. Predict-then-do follows with little more; peer review later.
 
+As built (F2): an activity has one step, named `main` - *write* -, and the messages refuse any
+other; the shapes beyond it are F3's. F2's `choice` offers the options the deck lists
+(`options=`); a choice among an earlier step's groups comes with `from=`.
+
 ### 5.2 Phases
 
 ```
@@ -214,6 +231,11 @@ ready ──open──► open ──close──► closed ──reveal──►
   count; after the reveal it takes the step's points back too (section 14). The panel asks first.
 - A step without a reference has nothing to reveal: its reveal only ends it.
 
+As built (F2's packages 3, 6 and 7): all of it but *Next*, which comes with the steps (F3), and the
+points. The slides open, close and reveal - a page that `\reveal<n>` marks (8.1) reveals its step
+if it was opened -; a restart of the server pauses a step whose time runs, as a sleep does; *Open*
+on a paused step resumes it; *Reveal* takes a step in any phase.
+
 ### 5.3 What each audience learns, and when
 
 Per step, set in LaTeX (section 8.1):
@@ -226,6 +248,11 @@ Per step, set in LaTeX (section 8.1):
 
 The reference reaches no phone and not the projector before the reveal (LA section 8.5), and no
 view names a student (LA section 7.4).
+
+As built (F2's packages 5 and 6): the three keys, with `feedback=status` for every kind. At the
+reveal every phone has its verdict, whatever `feedback=` held back. What a group's detail says of
+the reference (its `diff`, 6.3) the panel has at once, a phone with `feedback=full`, and the
+projector at the reveal.
 
 ## 6. The core and the kinds
 
@@ -260,6 +287,10 @@ A kind that needs more brings an input or a view of its own as a browser module 
 A reduction of its own is not in the contract (decided 2026-11-09): the kinds F4 has in mind -
 functional dependencies, relational algebra, normal forms - all fit `groups`, and the first kind
 that does not is where the contract grows next.
+
+As built (F2's packages 5, 8 and 9): the five inputs, the three reductions and the views - bars,
+the graph, a histogram -; a choice among an earlier step's groups is F3's, and a kind's own view of
+the whole box (7.3) is not built: none of the kinds needs one yet.
 
 ### 6.3 A check
 
@@ -300,7 +331,7 @@ class SqlQuery(Kind):
     REDUCTION = "groups"                         # groups | crowd | tally: the core's (6.2)
     OPTIONS = fixed(tokens=Words(), seed=File(".sql"), reference=File())    # the deck's keys it takes, typed
     MESSAGES = fixed(queriesOnly=(), engine=("text",))                     # what its checks may say, by code
-    BUDGET_S = 2.0                               # a check's CPU time in seconds; a step may set less (budget=)
+    BUDGET_S = 1.0                               # a check's CPU time in seconds (the default, section 2); a step may set less (budget=)
     LIMIT = 5                                    # a student's entries, unless the deck says
 
     # the build, on the author's machine
@@ -445,12 +476,23 @@ its hints -; and Oxigraph's engine alone is 1.4 MB compressed - above the limit,
 
 ### 7.4 Texts
 
-A kind's texts join the core's catalogs under `kinds.<name>` (`web/i18n`); the phones and the
-windows speak the deck's language, in English where a kind lacks a text. A check's `message` is a
-code into those texts, so the server sends no words. As built (F2, package 8): a kind's package has
-`texts/en.js` and `texts/de.js` - a function of the message's arguments for each code -, and a key
-`<kind>:<status>` there is the kind's own word for a check's status in place of the core's: a
-Turtle text is valid, it does not run (`"turtle-graph:ok": "Valid Turtle ✓"`).
+A kind's texts stay in its package - `texts/en.js` and `texts/de.js`, a function of the message's
+arguments for each code of its `MESSAGES` -, and the phones and the windows load them with its
+other files (7.3): `web/kinds.js` says a check's message in the kind's words, in the deck's language,
+in English where the kind has no German, and else in the core's words for the code (`web/i18n`: what
+an entry is refused for). A check's `message` is a code into those texts, so the server sends no
+words. A key `<kind>:<status>` there is the kind's own word for a check's status in place of the
+core's: a Turtle text is valid, it does not run (`"turtle-graph:ok": "Valid Turtle ✓"`), a choice
+is chosen (`"choice:ok": "Chosen ✓"`). The kit holds both files to the same keys (7.5). (The first
+design had a kind's texts join the core's catalogs under `kinds.<name>`; as built in F2's package 8,
+nothing of a kind is in texstage's catalogs, so a kind brings its words as it brings its code.)
+
+The core's own words - the controls, the phases, an entry's states, the refusals - are in
+`web/i18n`'s catalogs, in English and German: what an entry is refused for in the phone's
+(`steps.refused`), what a control or an act is refused for in the windows' (`presenter.steps.refused`),
+each by the refusal's code - the server sends the code and its words for the log, the page says it.
+`tests/web-i18n.test.mjs` reads the codes the core refuses with in its source and holds each to a
+text in the catalog of the page that meets it, and German to texts of its own.
 
 ### 7.5 The kit
 
@@ -528,6 +570,15 @@ environment only, as `\prompt` does.
   `input=code, engine=sparql` is `kind=sparql-query`, and so on (section 17).
 - PowerPoint shows an activity's static form, as today (CT principle 3).
 
+As built (F2's package 7): one step, without `\step`. `texactivity.sty` knows the core's keys
+`id=`, `kind=`, `limit=`, `counts=`, `gap=`, `time=`, `budget=`, `feedback=`, `projector=`,
+`solution=`, `open=`, `width=`, `height=`, the aliases `input=` and `engine=`, and `seed=` and
+`reference=`; every other key it records for the kind as written, and the build warns of one the
+kind does not take - the one-step example above gets that warning for `points=`. `\prompt`,
+`\reference` and `\seed` are as designed, and `\reveal<n>` marks the frame's slides from the n-th on
+as the reveal's (8.2). Not built yet: `credit=`, `points=`, `speed`, `from=`, `\step`,
+`\activitystep` and `\activityview` (F3), and `\activitysetup`, a deck's defaults.
+
 ### 8.2 The slides drive the steps
 
 The present compile records which page is which step and phase, as it records a quiz's pages
@@ -542,6 +593,12 @@ and its timer closes it, the second opens the vote with its choices made without
 once *write*'s last checks are in (5.1), the third reveals. Only the panel and the keys pause,
 add time, reopen, moderate, and pick a vote's choices by hand (section 13).
 
+As built (F2's package 7): a page's record says whether it opens its activity or reveals it
+(`G|activity|<id>|open` or `revealed`, from `\reveal<n>`), and so does its live box; a server of
+the core's type moves the step when the projector shows such a page. One step alone, so the clicker
+runs *write* and its reveal: the frame's first page opens it with its `time=`, the time or the
+lecturer closes it, the page `\reveal` marks reveals it.
+
 ## 9. In the build
 
 `build/activity.py` stays the type's build step and asks the kind: `build(options, bodies, files)`
@@ -554,6 +611,12 @@ starts - and says in the deck list, not during the lecture, when its engine give
 (another SQLite, say). The record lines name their fields (`activity|id=...|kind=...`) instead
 of counting on their positions, and one module reads them. The build also says how much a phone
 loads for the deck's kinds together, since the limits of 7.3 are a kind's alone.
+
+As built (F2's package 7): all of it but the solutions, which do not show a reference's result yet,
+and the server checking a bundle's references when it comes: it checks them when a game of the deck
+has them prepared. The build checks each reference twice, each time on its seed anew, and keeps a
+key only where both runs agree - a seed with `random()` gives none (`null`) -, so that a deck's
+bundle is the same from build to build; a reference or a seed that does not run stops the build.
 
 ## 10. On the server
 
@@ -598,6 +661,12 @@ Tables of the type (the `ROWS` of `server/types.py`, every one with its `session
   (the crowd graph's minimum; the entries a block hid and those it found hidden), created, undone - every act a row, so that
   it can be undone: what holds is what the acts that are not undone say, in their order (F2's
   plan, 4.3). No row names a student.
+
+As built (F2's packages 3 to 6, `activities/store.py`): `steps`, `entries`, `checks`, `details` and
+`moderation`, with a step's `paused_by` and `seq` and a check's `parts` and `aside` beyond these
+columns, and `target`, `onto`, `off` for the acts' `group`, `into`, `on`, which are SQL's own words;
+`ledger` and the vote's choices are F3's. A game of F1's type moves into these tables when a server
+of the core's type first loads it, and F1's tables stay (F2's plan, 4.10).
 
 In memory, per step: the entries by student, the groups by key with their students, the counts -
 what the views read, so that no view goes through the entries. Writes are gathered and committed
@@ -645,6 +714,18 @@ One namespace for every kind; a kind has no messages of its own:
 
 A phone gets the step's state in two parts: the step's own - the same for every phone, so it is
 serialized once and sent 1,000 times - and its own entries and verdicts, small, as they change.
+
+As built (F2's package 6, `server/activities.py`): these messages but `activity.next` and the act
+`pick`, which come with the steps (F3); a step other than `main` is refused. Beyond them:
+`activity.undo {activity, act?}` - an act by its number, or the last -, for 13's "every moderation can
+be undone"; `activity.moderate {activity, act, group?, role?, into?, entry?, on?, value?}`, its acts
+`show`, `hide`, `merge`, `unmerge`, `approve`, `min` (a crowd graph's minimum, as LA's) and `block`;
+`activity.open` and `activity.time` count in seconds - `open` may bring a time, and a ready step
+opened without one gets the deck's `time=` -; `activity.view {activity, window?}` gives the panel's
+picture to a presenter window and the host console, the projector's (`window: "display"`) to the
+box and the projector window, with whether the asking window leads (13); and the step's own part
+goes to the phones as `activity.step`. A refusal carries a code, which the page says in its
+language (7.4).
 
 ### 10.5 The archive
 
@@ -731,6 +812,13 @@ the texts are not.
 - **What a student typed shows as text,** never as HTML, in every window (LA section 10).
 - An iPad that presents checks nothing any more (3.1).
 
+As built (F2's packages 8 and 9, `web/play/activities.js`): one screen for the current step - its
+picture, the time left, the phase; the input `code` with the deck's tokens, `fields` with what the
+graph offers, `choice`, `number`, `text`, or the kind's `input.js`; *Send*, and the student's
+entries, each with its state - sending, received, being checked, could not be checked, the status
+with the kind's message, replaced, taken back, hidden -, and after the reveal its verdict. A refusal
+is said in words; a kind's hint comes from its worker 300 ms after the last key. Points are F3's.
+
 ## 13. In the windows
 
 - **The panel** in the presenter window is the same for every kind: the activity and its steps,
@@ -748,10 +836,26 @@ the texts are not.
 - **The lead window:** what every window must draw alike and one must compute - the crowd graph's
   layout - is computed in one presenter window and sent to the others (LA's lease, kept for this
   alone, LA section 9). No window is needed for checking.
-- **The host console** shows the open activity, its step and phase - today it shows nothing of
-  activities.
+- **The host console** shows the open activity, its step and phase - in October it showed nothing
+  of activities.
+
+As built (F2's packages 8 and 9, `web/stage/activities.js`, `web/host/acts.js`): the panel has the
+phase and the time, the counts - students, entries, checked, waiting, unchecked; full, hidden -,
+the controls *Open* (a closed step too; a paused one resumes), *Close*, *Pause* or *Resume*, +30 s,
+*No time*, *Reveal* and *Reset* (both asked first), the references' standing, the groups with their
+messages, details and buttons - *Show*, *Hide*, *Block* -, a crowd graph's terms - *Merge*,
+*Unmerge*, *Hide*, *Approve* with `review`, the minimum -, and the last acts with *Undo*. The
+controls are keys of the presenter window too, for the activity on the slide: O open or resume, C
+close, S pause or resume, R reveal, X reset, + 30 s, - no time. *Next step* and *Pick* come with the
+steps (F3). The small copy of what the projector shows is the slide itself, whose box draws the
+projector's picture in both windows; what the projector holds back (`projector=`) the presenter's
+slide holds back too. The host console has a line per activity - its phase, and for the current one
+its time and counts, whatever the projector holds back.
 
 ## 14. Points
+
+Not built in F2: points, the ledger and the leaderboard's share of activities are F3's (section
+18). The contract has a check's `credit` (6.3) already, which the kit holds to its rules.
 
 - **One ledger for everything:** a row per student and source - a quiz's round or an activity's
   step - with points and bonus. A student's score is the sum of their rows; the leaderboard and
@@ -795,11 +899,16 @@ phones on the same laptop as the server, a slide on the last phone within 0.27 s
 accepted within 19 ms (95 %); and LA's 300 phones (LA section 12).
 
 Three things the measurement adds. The burst runs also with 1 % of the texts running into their
-CPU budget, and F0 reports what that does to the others' verdicts. The server takes at most
-1,000 players today (`max_players`, `server/game.py:82`); the setting rises, so that 1,000
-students have room, and F0 simulates 1,100. And one machine that plays 1,000 phones over Wi-Fi
-measures the server and one link, not a hall's Wi-Fi with 1,000 radios: that, only a lecture
-shows (F5).
+CPU budget, and F0 reports what that does to the others' verdicts. The server took at most
+1,000 players (`max_players`, `server/game.py:82`); F1 made it a setting (`--max-players`), so
+that 1,000 students have room, and F0 simulates 1,100. And one machine that plays 1,000 phones
+over Wi-Fi measures the server and one link, not a hall's Wi-Fi with 1,000 radios: that, only a
+lecture shows (F5).
+
+Measured so far: F0 on one machine, and F1 on a laptop with its phones simulated on it, alone and
+through its tunnel ([activity-framework-plan.md](activity-framework-plan.md), 4.9) - the phones from
+a second machine, over Wi-Fi, are still to come; the core's type with 1,000 phones is F2's package
+13 ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.12).
 
 ### 15.2 How the design keeps them
 
@@ -886,6 +995,13 @@ The same program, as today (CT section 9):
   engines' two tables. What stays: the boxes, the graph's layout and its labels (LA section 9),
   the archive's files (LA section 11), the phones' inputs (LA section 10).
 
+As built (F2's packages 1, 2, 7 and 11): the four kinds are classes in `kinds/texstage-kinds-rdf` and
+`kinds/texstage-kinds-sql`, their checks F1's Python ones, held against F1's golden fixtures; the
+aliases build the KG lecture's decks unchanged, bundle for bundle. Nothing has gone yet: the core's
+type runs beside F1's, which a server runs unless it is started with `--activities core`, and F1's
+type keeps the evaluator, its messages, its box, panel and phone screen until the core's replaces it
+(section 19). Whether the core gives the KG decks the same groups as F1 is F2's package 13.
+
 ## 18. Plan
 
 The semester runs: the lectures stay on `main`, and each stage is built on a branch and comes to
@@ -907,6 +1023,15 @@ and F1 are planned in detail in [activity-framework-plan.md](activity-framework-
 | F4 | a kind of another subject, installed separately - functional dependencies, relational algebra or normal forms from the DBIS lectures; then the shared kinds move to texstage-plugins (7.2) | it needs no change of the core - or the contract changes; then the contract is called API 1 |
 | F5 | a dry run in a lecture, steps and all | the class used it; the archive has it |
 
+Where it stands (2026-11-17): F0's spike is built and measured on one machine, its runs from a
+second machine still to come. F1 came to `main` on 2026-11-11 with F2's first packages; its last
+packages - a lecture with `--checks both` among them - are its plan's (section 5 there), and the
+lectures run lecture-tools' copy of texstage. F2 is built on `main` itself since 2026-11-16, its
+type beside F1's, so that `main` keeps the lectures' type: packages 1 to 12 are done -
+lecture-tools-next takes the kinds with texstage 0.2.1.dev4, and the KG lecture builds with it -,
+package 13 measures the core's type with 1,000 phones and compares its groups with F1's, and
+package 14 is the dry run in a lecture (F2's plan, 4.12).
+
 ## 19. Open questions
 
 The first draft's seven - what a kind may do, where kinds live, which steps first, memory on
@@ -921,4 +1046,8 @@ open:
 - **To find out on the way:** how far a Mac's memory overshoots, and whether a budget holds on
   efficient cores (section 11; F0, Q5); whether texstage-plugins is renamed when the kinds move
   there (after F4).
+- **The lecturer's to decide:** whether the core's type replaces F1's as the server's default, and
+  F1's type - the evaluator and its lease, F1's box, panel and phone screen, `--checks` - goes with
+  it; until then a server runs F1's unless it is started with `--activities core`, and the decks of
+  texstage's own kinds need that (F2's plan, 4.3 and 4.12).
 - **Not settled:** how long a server keeps games - their answers, entries and ledger (10.2).

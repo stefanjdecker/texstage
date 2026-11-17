@@ -24,6 +24,7 @@
 - [Use the different answer formats](#use-the-different-answer-formats)
 - [Navigate and control the shared display](#navigate-and-control-the-shared-display)
 - [Ask and moderate audience questions](#ask-and-moderate-audience-questions)
+- [Run a live activity](#run-a-live-activity)
 - [Use annotation and optional presenter tools](#use-annotation-and-optional-presenter-tools)
 - [Finish the session and export the material](#finish-the-session-and-export-the-material)
 - [Author a small quiz and choose the right export](#author-a-small-quiz-and-choose-the-right-export)
@@ -73,7 +74,7 @@ A participant answers in the browser.
 
 texstage turns a LaTeX Beamer presentation into an interactive teaching session. You write ordinary slides and add quiz commands in a .tex file. texstage compiles that source, prepares the presentation files, and runs a server that connects your presenter browser, the audience display and participants' phones. You can also create a static PDF handout or a PDF with solutions.
 
-For example, a lecturer writes a multiple-choice question, presents its reading step, opens answering, and then reveals the explanation. Students open a join link, enter the session PIN and answer in a browser. The presenter sees the accepted answers and controls what the audience sees.
+For example, a lecturer writes a multiple-choice question, presents its reading step, opens answering, and then reveals the explanation. Students open a join link, enter the session PIN and answer in a browser. The presenter sees the accepted answers and controls what the audience sees. A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide (Run a live activity).
 
 | Component | Your part in the session |
 | --- | --- |
@@ -92,6 +93,7 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 | Join a lecture | Go directly to Join and wait on your phone, or the Participant quick reference. Obtain the address and PIN from your presenter. Skip installation. |
 | Author and present my own slides | Install Python, TeX and texstage below. Follow the supplied demonstration before editing your first quiz. |
 | Present a supplied bundle | Install Python and texstage. TeX is only needed to rebuild source. Start texstage serve with a private data directory, open /stage, and use Upload a deck for the supplied .bundle.zip. |
+| Run live activities | Install texstage with its kinds of activities, then read Run a live activity. The LaTeX reference describes the activity environment and its options. |
 | Organize a course as separate slide files | Use the separate lecture-tools project and its workflow manual. It assembles numbered slides and can call texstage for live output. |
 | Use DBIS notation or appearance | Use lecture-tools' reusable LaTeX modules. DBIS branding is an optional theme, not a texstage prerequisite. |
 | Edit a Jupyter notebook | Use the lecture-tools notebook manual. This path needs neither texstage nor TeX. |
@@ -431,6 +433,42 @@ A participant submits a question from the Questions tab.
 The presenter chooses which question to show and when to mark it done.
 
 
+## Run a live activity
+
+A live activity lets every student send something - a query, triples, a choice, a number or a short answer -; texstage checks each entry on the server and gathers what the class sent into one picture in the activity's box on the slide. This page describes the activity framework's core (in development), which a server runs when it is started with `--activities core`:
+
+```
+texstage present deck.tex --activities core
+```
+
+`texstage serve` takes the same option. A server started without it runs the default activity type, which the lectures use: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--checks server`, which checks them on the server. Either way the kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools); the deck page names a deck the server does not play, and why.
+
+### Open, close and reveal
+
+An activity opens when its frame comes to the projector, unless it says `open=manual`; leaving the frame closes it, and going back does not open it again. With `time=` its time counts down on the phones, in the panel and on the host console, and closes it at zero. A frame with `\reveal<n>` reveals the activity on its n-th slide. Everything else is in the panel: choose **Activities** in the presenter's tools.
+
+| Control | Key | What it does |
+| --- | --- | --- |
+| **Open** | O | Opens the activity - also again after it closed, going on with what was sent. A paused activity resumes. |
+| **Close** | C | Nothing new comes in; what waits is still checked. |
+| **Pause** / **Resume** | S | Stops the time, and the phones cannot send until it resumes. A quiz question that opens pauses the activity, and its end resumes it. |
+| **+30 s** / **No time** | + / - | Adds half a minute, or stops the countdown: the activity stays open until it is closed. |
+| **Reveal** | R | Asks first. Every window marks the reference's group, and every phone shows whether its entry is right. With `solution=show`, the default, the reference and its result appear on the projector. |
+| **Reset** | X | Asks first. The activity starts anew: what was sent stays in the archive but no longer counts. |
+
+The keys work in the presenter for the activity on the current slide.
+
+### Watch and moderate
+
+The panel shows the phase and the time, the counts - students, entries, checked, waiting, unchecked -, and the groups, the largest first: the entries whose checks give the same result, each group with the text most of them sent and its result. No name is shown. **Show** puts a group's text and result on the projector, **Hide** keeps a group off it, and **Block** stops whoever sent the text shown: what they sent is hidden, and they cannot send more. A crowd graph lists its terms instead: **Merge…** a term into another, **Unmerge**, **Hide**, **Approve** with `review`, and the students a triple needs before it shows (**On the projector from**). Each act is listed under **Last acts**, where **Undo** takes it back.
+
+What the projector shows - and so the box on your slide - is the deck's choice: `projector=live` (the default) lets the picture grow, `count` shows only how many sent until the activity closes, `hidden` shows nothing until the reveal. What the phones learn before the reveal is `feedback=`: by default whether an entry runs, or its syntax error. The host console has a line per activity with its phase, time and counts.
+
+### On the phones
+
+Students see the prompt and its input - a query field with the deck's tokens, two or three fields, the options, a number or a short answer -, tap **Send** (**Add** for a triple; a choice of one option goes as it is tapped) and see each entry's state: **Received**, **Being checked …**, then what the deck lets them see. An entry the server could not check says so - not the student's fault - and is checked again when it is sent again. The server checks every entry itself, so the presenter window need not stay open for it. The game's archive keeps each activity's entries (`activity-<id>.csv`, without names), its final picture and, for a crowd graph, the graph as SVG.
+
+
 ## Use annotation and optional presenter tools
 
 | Tool | How to use it |
@@ -441,7 +479,7 @@ The presenter chooses which question to show and when to mark it done.
 | Poll | Ask an unplanned Yes / No, A-F, scale, word-cloud, text or sketch question. Set the question, choices and time, then choose Ask now. Return to the deck with the next-step command or Esc. |
 | Devices | On the laptop choose Pair a device. Open or scan the offered link on the other device, then approve the request on the laptop. Only approve devices you intend to give presenter control. |
 | Record | Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it. |
-| Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities provides controls for authored live activities. |
+| Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (Run a live activity). |
 
 Recording and device/screen integration depend on browser support and permissions. Microphone and screen recording were not part of the screenshot session. Rehearse them on the presenting computer before class. The [authoring guide](authoring.md) and [installation guide](installation.md) cover the wider workflows.
 
@@ -507,6 +545,10 @@ See [plain PowerPoint conversion](powerpoint.md) for resolution, output and note
 | The projector seems stuck | Check Freeze, Black and White. Return to normal display. Also check the presenter connection indicator. |
 | A question will not restart | Going backwards preserves its state. Choose Ask again for practice or New game for a new session; review the rewind effects first. |
 | A deck or stage PDF is missing | Reload the library after building, upload the .bundle.zip to the intended server, or rebuild without --no-stage. Check the first LaTeX error if the build failed. |
+| A deck is not on the list | The top of the deck page says why this server does not play it: a kind of activity it lacks - install the kind's package where the server runs, as where the deck is built -, or choice, number or text activities on a server started without --activities core. |
+| Phones wait for the lecturer's computer | The default activity type checks queries in the presenter window: keep it open, or start the server with --checks server or --activities core, which check on the server. |
+| A phone says it could not be checked | The server could not check that entry - not the student's fault; sent again, it is checked again. When nothing of an activity is checked, its panel says why: a seed that does not load, a kind the server lacks. |
+| A deck says a reference fails | This server's check gives a reference of the deck no result, or another one than the build did - another engine, or a seed whose data change. The tag's tooltip names the activity and the reason; check the seed and the reference, and build again. |
 | Recording has no sound | Check browser permission, the selected microphone and its level meter. Make a short rehearsal recording and play it back. |
 
 Before class: verify the build, join from a real phone, rehearse one question and its reveal, check the projector and notes, and know which static PDF/PPTX you will use if the live connection fails.
@@ -528,6 +570,13 @@ Before class: verify the build, join from a real phone, rehearse one question an
 - Number, text, ordering or sketch: complete the input, then tap Submit.
 - Wait for Answer sent and then the reveal. Your result and score appear when the round allows it.
 
+### Take part in a live activity
+
+- Type your query or answer, or fill in the fields, then tap Send (Add for a triple). A single choice is sent as you tap it; for several, tap them, then Send.
+- Each entry is listed with its state: Received, Being checked …, then what the presenter lets you see, such as whether your query runs or where its syntax error is. After the reveal you see whether it is right.
+- Where only your latest entry counts, a later one replaces it. The × takes an entry back while the activity is open.
+- Could not be checked is not your fault: send it again, or tell the presenter.
+
 ### Ask for help
 
 - If Questions is available, submit a question there or upvote another question.
@@ -544,8 +593,11 @@ Before class: verify the build, join from a real phone, rehearse one question an
 | Freeze / unfreeze | F | Elapsed timer | T |
 | Pen / Marker / Eraser | P / H / E | Laser / Zoom | L / Z |
 | Whiteboard / Grid | N / Shift+N | Undo / Redo | Ctrl+Z / Ctrl+Y |
+| Activity: open or resume | O | Activity: close | C |
+| Activity: pause or resume | S | Activity: reveal / reset | R / X |
+| Activity: +30 s / no time | + / - |  |  |
 
-This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown.
+This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown. The activity keys are for the activity on the current slide, with --activities core; Reveal and Reset ask first.
 
 
 ## About the screenshots and further help
@@ -864,7 +916,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 \end{frame}
 ```
 
-Handout, solutions and PowerPoint show the static activity prompt - and a choice's options. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
+A tuple activity is of the kind triples (texstage-kinds-rdf): kind=triples and input=tuple, the default, are the same. Handout, solutions and PowerPoint show the static activity prompt - and a choice's options. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
 
 
 ## Choice, number and text activities
@@ -912,24 +964,24 @@ The build checks the references as the server checks them: a choice's reference 
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `engine=sparql` | Queries a Turtle seed (.ttl). References contain SPARQL queries. |
-| `engine=sql` | Read-only queries over tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. See SQL activities: permitted statements below. |
-| `engine=turtle` | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. |
+| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. |
+| `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - sql.js in the presenter's browser, or Python's on the server. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
+| `kind=turtle-graph` (`engine=turtle`) | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. In texstage-kinds-rdf. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
 | `tokens` | Extra keyboard buttons: up to 40 entries of 1-60 characters. Engine punctuation is added automatically. Escape TeX punctuation in key values, e.g. backslash followed by # or %. |
 | `Unused tuple keys` | fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied. |
 
-The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.
+The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result. Students' code runs only in the checks texstage brings - in the presenter's browser or in the server's worker processes, in memory and within a time budget -, never against a course database.
 
 The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.
 
 
 ## SQL activities: permitted statements
 
-An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, Texstage switches the in-memory SQLite database to read-only mode. Each submission is evaluated in a worker in the presenter's browser. The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.
+An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, texstage switches the in-memory SQLite database to read-only mode. Where a submission runs depends on how the server is started: by default in a worker of the presenter's browser (sql.js), which sends the server its result; with --checks server, or with the activity framework's core (--activities core), in one of the server's worker processes, by Python's SQLite, against an in-memory copy of the seed and within a budget of CPU time. Either way no student's SQL runs against the server's own database or a course database.
 
-Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
+Students can type any SQL text, but the check accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
 
 | Submission against the people example | Outcome |
 | --- | --- |
@@ -940,7 +992,7 @@ Students can type any SQL text, but the evaluator accepts only one query stateme
 
 Result grouping compares returned values. Column names and row order do not affect the group; repeated rows and column positions do. If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.
 
-The current activity engine has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
+The SQL check has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
 
 
 ## Code activity example and build checks

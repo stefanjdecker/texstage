@@ -138,6 +138,14 @@ export function keyAct(key, phase) {
   return null;
 }
 
+export function refusedText(language, err) {
+  // what the core refused a control or an act of a window for (presenter.steps.refused, by the refusal's code),
+  // in the deck's language - null for a code it has no words for, which errorText says as any other
+  const table = texts(language).presenter.steps.refused;
+  const code = err?.code;
+  return typeof code === "string" && Object.prototype.hasOwnProperty.call(table, code) ? table[code] : null;
+}
+
 export async function stepAct({ send, ask, words }, activity, act) {
   // a control, from the panel or a key: the move it sends - a reveal and a reset once asked
   if (["open", "close", "pause", "resume"].includes(act)) return send({ t: `activity.${act}`, activity });

@@ -103,7 +103,7 @@ export default {
     fieldsOk: "In ✓",
     verdict: { correct: "Right ✓", partial: "Partly right", incorrect: "Not right" },
     state: { replaced: "replaced by a later one", withdrawn: "taken back", hidden: "hidden by the lecturer" },
-    refused: { closed: "The activity is closed.", paused: "The activity is paused.", revealed: "The activity is revealed.",
+    refused: { closed: "The activity is closed.", paused: "The activity is paused.",
       blocked: "The lecturer has closed contributions for you.", "too-fast": "Please wait a few seconds before you send again.",
       "too-many": "You have sent as many as you may.", full: "The activity takes no more entries.",
       duplicate: "You have sent this one already.", text: "Please type your text first.",
@@ -496,6 +496,18 @@ export default {
       act: { hide: "hidden", approve: "approved", merge: "merged", unmerge: "unmerged", show: "shown", min: "minimum",
         block: "blocked" },
       lead: "This window lays the graph out.",
+      // what the core refuses a control or an act of this window for, by its code (activities/phases.py,
+      // moderation.py, views.py, server/activities.py), said in place of the server's words (presenter.js:
+      // sendTyped; stage/activities.js: refusedText) - the errors' words of a code are a quiz's
+      refused: {
+        closed: "The activity is not open.",
+        revealed: "The activity is revealed - reset it to ask again.",
+        time: "An activity's time is between 1 second and 4 hours.",
+        reduction: "That is not for this activity.",
+        cycle: "That would merge two terms into each other - unmerge one of them first.",
+        blocked: "Whoever sent it is blocked - undo the block first.",
+        "too-many": "This game has had as many acts as it takes.",
+      },
     },
     activity: {
       title: "Activities", closeTitle: "close the panel",

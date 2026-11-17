@@ -321,7 +321,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 \end{frame}
 ```
 
-Handout, solutions and PowerPoint show the static activity prompt - and a choice's options. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
+A tuple activity is of the kind triples (texstage-kinds-rdf): kind=triples and input=tuple, the default, are the same. Handout, solutions and PowerPoint show the static activity prompt - and a choice's options. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
 
 
 ## Choice, number and text activities
@@ -369,24 +369,24 @@ The build checks the references as the server checks them: a choice's reference 
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `engine=sparql` | Queries a Turtle seed (.ttl). References contain SPARQL queries. |
-| `engine=sql` | Read-only queries over tables initialized by SQL statements (.sql), using the bundled SQLite browser engine. References contain SQL queries. See SQL activities: permitted statements below. |
-| `engine=turtle` | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. |
+| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. |
+| `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - sql.js in the presenter's browser, or Python's on the server. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
+| `kind=turtle-graph` (`engine=turtle`) | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. In texstage-kinds-rdf. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
 | `tokens` | Extra keyboard buttons: up to 40 entries of 1-60 characters. Engine punctuation is added automatically. Escape TeX punctuation in key values, e.g. backslash followed by # or %. |
 | `Unused tuple keys` | fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied. |
 
-The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result; it does not make arbitrary code input safe to run outside the supported browser engines.
+The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result. Students' code runs only in the checks texstage brings - in the presenter's browser or in the server's worker processes, in memory and within a time budget -, never against a course database.
 
 The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.
 
 
 ## SQL activities: permitted statements
 
-An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, Texstage switches the in-memory SQLite database to read-only mode. Each submission is evaluated in a worker in the presenter's browser. The server stores submissions and receives results; it does not execute students' SQL against its own database or a course database.
+An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, texstage switches the in-memory SQLite database to read-only mode. Where a submission runs depends on how the server is started: by default in a worker of the presenter's browser (sql.js), which sends the server its result; with --checks server, or with the activity framework's core (--activities core), in one of the server's worker processes, by Python's SQLite, against an in-memory copy of the seed and within a budget of CPU time. Either way no student's SQL runs against the server's own database or a course database.
 
-Students can type any SQL text, but the evaluator accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
+Students can type any SQL text, but the check accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
 
 | Submission against the people example | Outcome |
 | --- | --- |
@@ -397,7 +397,7 @@ Students can type any SQL text, but the evaluator accepts only one query stateme
 
 Result grouping compares returned values. Column names and row order do not affect the group; repeated rows and column positions do. If an exercise asks for ORDER BY, inspect the result order separately rather than treating a matching group as proof that the ordering is correct.
 
-The current activity engine has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
+The SQL check has no writable exercise mode. To teach table creation or updates, use a separately isolated notebook or database lab. The instructor's seed initialization is distinct from the student submissions above.
 
 
 ## Code activity example and build checks
