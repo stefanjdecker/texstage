@@ -89,9 +89,13 @@ def bundle_id(deck: dict, keys: dict) -> str:
     return hashlib.sha256(blob).hexdigest()[:16]
 
 
-def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes]):
+BUILT = "built.json"            # when the build was made, {"built": ms} - beside deck.json, no part of its ID
+
+
+def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None):
     """Write the bundle afresh. The folder is generated output; anything else there is
-    refused rather than deleted."""
+    refused rather than deleted. built: when the build was made (ms) - built.json, which its copies
+    keep (a server takes it for the build's time: server/bundles.py, built_time)."""
     if folder.exists():
         if any(folder.iterdir()) and not (folder / "deck.json").exists():
             raise FileExistsError(f"{folder} exists and is not a texstage bundle - not overwriting it")
@@ -101,11 +105,13 @@ def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes]):
     for name, data in files.items():
         (folder / name).parent.mkdir(exist_ok=True)              # stage/: the stage PDF
         (folder / name).write_bytes(data)
+    if built is not None:
+        (folder / BUILT).write_text(json.dumps({"built": built}) + "\n", encoding="utf-8")
     for name, data in (("deck.json", deck), ("keys.json", keys)):
         (folder / name).write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes]):
+def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None):
     """The whole bundle as one file, <name>.bundle.zip next to the PowerPoint file: what a
     server takes as it is - the deck lists of texstage and of the host page upload it by hand
     (POST /api/bundles), `texstage publish` sends the same."""
@@ -114,6 +120,8 @@ def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes]):
     with zipfile.ZipFile(tmp, "w") as z:
         for name, data in (("deck.json", deck), ("keys.json", keys)):
             z.writestr(name, json.dumps(data, indent=1, ensure_ascii=False) + "\n", compress_type=zipfile.ZIP_DEFLATED)
+        if built is not None:
+            z.writestr(BUILT, json.dumps({"built": built}) + "\n", compress_type=zipfile.ZIP_DEFLATED)
         for name in sorted(files):                                 # PNGs are packed already
             z.writestr(name, files[name], compress_type=zipfile.ZIP_STORED if name.endswith(".png") else zipfile.ZIP_DEFLATED)
     tmp.replace(path)

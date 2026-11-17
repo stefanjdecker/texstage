@@ -76,3 +76,10 @@ main { flex: 1; min-height: 0; }
 .stagewrap:fullscreen { background: #000; }
 .stagewrap:fullscreen .tq-stage { width: min(100vw, 177.78vh); max-height: none; box-shadow: none; border-radius: 0; }
 @media (max-width: 900px) { .game { grid-template-columns: 1fr; } }
+
+/* a question in the page (stage/ask.js: a build that would end the deck's running game), as stage.css draws it */
+.dialog { position: fixed; inset: 0; z-index: 20; background: rgba(10, 10, 14, .72); display: grid; place-items: center; }
+.dialog .box { background: #fff; color: #222; border-radius: 14px; padding: 20px 24px; max-width: min(560px, 92vw);
+  display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, .35); }
+.dialog p.ask { margin: 0; font-size: 16px; line-height: 1.45; }
+.dialog .buttons { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }

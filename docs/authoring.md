@@ -396,7 +396,8 @@ little for a chapter.
 **Uploading a deck by hand.** If a server does not have a deck - the build could not reach
 it, or it was built for another one - open that server's deck list in a browser (the host
 page `â€¦/host`, or texstage's presenter `â€¦/stage`) and click **Upload a deck**, or drop the
-file onto the list: the chapter's `<chapter>.bundle.zip` from `build/texquiz/`. The list says
+file onto the list: the chapter's `<chapter>.bundle.zip` from `build/texquiz/` - several at once, a
+semester's chapters, go up one after the other. The list says
 what arrived ("uploaded, 12 quizzes, 64 slides"), or that the server has it already. It
 takes the presenter key the page is signed in with. A deck built before 2026-10-09 has no
 `.bundle.zip`: zip its `.bundle` folder (Explorer: Send to â†’ Compressed folder) and upload
@@ -424,7 +425,22 @@ and the ended ones, each with what it left: the results (CSV), the archive (ZIP)
 from that lecture's ink, its recordings, and *Delete …* for an ended one - its results, ink,
 questions and recordings leave the server. ⋯ › *Builds …* lists every build of the deck on the
 server: *Present* an older one to go back to it (the window asks before it ends a game of
-another build), *Download* one as the `.bundle.zip` another server takes, *Delete …* an upload.
+another build), *Download* one as the `.bundle.zip` another server takes, *Delete …* an upload -
+each says what changed since the build before it (*3 slides changed, 1 quiz added*).
+`texstage present` goes back from the command line too: name the build folder itself (a
+`<name>.bundle`, a server's kept copy in `served/`, an upload), and that build is presented. *End
+lecture …* in *Lectures …* ends the open game at once - its results go to the archive, the phones are
+told, and an upload of the deck can be deleted right away -; *Continue* presents an earlier lecture's
+build with its ink and whiteboard pages, to go on with it. *Select* ticks several decks (Shift: a
+range) to move them at once - *Move to …* makes a new folder on the spot - or to remove them. A deck
+built meanwhile appears by itself, as does the host console's list (which shows your names and
+folders too); the host console also asks before a new build ends a game with players. *Storage*
+shows what your decks hold on the server (uploads, copies kept for games, lectures, their archive and
+recordings). Nothing is deleted by itself but a deck's builds beyond its newest ten, as before: a lecture
+goes with its *Delete …*, and on the server's
+machine `texstage data` shows the whole data folder per deck, while `texstage data clean --before
+2026-04-01 --recordings` (or `--lectures`, `--copies`, one `--deck`) lists what would go and deletes
+it with `--yes` - never an open game, nor a copy it plays, nor a recording still being made.
 
 ## Laptop or hosted server
 

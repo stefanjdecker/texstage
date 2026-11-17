@@ -57,6 +57,7 @@ const KEY = "texquiz:presenter-key";
 const DEVICE = "texstage:device-token";    // a paired presenter device's token (an iPad: no key)
 const LAST = "texstage:deck";          // this tab's deck, for reloads
 const FOLDER = "texstage:folder";      // this tab's open folder on the deck page
+const FOLLOW_MS = 8000;                 // the deck page asks this often whether its list changed (a build arrived)
 const TAKES = "texstage:takes";        // this tab's recordings, for After the lecture
 const PREFS = "texstage:prefs";        // notes as page or text, the text's size, pen and highlighter, microphone, dividers
 
@@ -408,17 +409,25 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
   if (!byId.has(here)) here = null;
   let query = "";
   let dragged = null;
+  let picking = false;                            // Select: the cards take a tick each, the bar below acts on them
+  const picked = new Set();                       // (deck IDs)
+  let order = [], anchor = null;                  // the decks as shown, the last ticked (shift-click: the range)
   const laptop = typeof auth === "string";        // the presenter key (a paired device uploads nothing)
   app.innerHTML = `<div class="page"><h1>${esc(L.decks)}</h1>
-    <p>${B.intro("<code>texstage present &lt;deck&gt;</code>")}${laptop ? ` ${L.upload("<code>.bundle.zip</code>")}` : ""}</p>
+    <details class="libhelp"><summary>${esc(B.help)}</summary>
+      <p>${B.intro("<code>texstage present &lt;deck&gt;</code>")}${laptop ? ` ${L.upload("<code>.bundle.zip</code>")}` : ""}</p></details>
     ${laptop ? '<div class="uploadbar"><span id="upload"></span><span class="uploaded">' + esc(uploaded) + "</span></div>" : ""}
     <div class="libbar"><nav class="crumbs" aria-label="${esc(B.path)}"></nav>
       <input type="search" class="libsearch" placeholder="${esc(B.search)}" aria-label="${esc(B.searchLabel)}">
       <select class="libsort" aria-label="${esc(B.order)}"><option value="name">${esc(B.byName)}</option>
         <option value="newest">${esc(B.newest)}</option><option value="recent">${esc(B.recent)}</option></select>
-      <button class="secondary" id="newfolder">${esc(B.newFolder)}</button></div>
-    <div class="skippedbox"></div><div class="decks"></div><div class="removedbox"></div></div>`;
+      <button class="secondary" id="newfolder">${esc(B.newFolder)}</button>
+      <button class="secondary" id="select" aria-pressed="false" title="${esc(B.selectTitle)}">${esc(B.select)}</button>
+      <button class="secondary" id="storage" title="${esc(T.presenter.storage.title)}">${esc(T.presenter.storage.button)}</button></div>
+    <div class="skippedbox"></div><div class="decks"></div><div class="removedbox"></div>
+    <div class="pickbar" role="toolbar" aria-label="${esc(B.selected(0))}" hidden></div></div>`;
   const list = app.querySelector(".decks");
+  const pickbar = app.querySelector(".pickbar");
   const skippedBox = app.querySelector(".skippedbox");
   const removedBox = app.querySelector(".removedbox");
   let skippedOpen = false, removedOpen = false;
@@ -448,7 +457,9 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
       <div class="info"><div class="name">${esc(f.name)}</div><div class="meta">${esc(parts.filter(Boolean).join(" · "))}</div></div>
       <button class="more" data-more-folder="${esc(f.id)}" title="${esc(B.folderMenu)}" aria-label="${esc(B.folderActions)}">⋯</button></div>`;
   };
-  const deckCard = (d) => `<div class="deckcard" draggable="true" data-deck="${esc(d.deck)}">${thumb(d)}
+  const deckCard = (d) => `<div class="deckcard${picked.has(d.deck) ? " picked" : ""}" draggable="true" data-deck="${esc(d.deck)}">${
+    picking ? `<input type="checkbox" class="pick" data-pick="${esc(d.deck)}"${picked.has(d.deck) ? " checked" : ""}
+      aria-label="${esc(B.pickLabel(shown(d)))}">` : ""}${thumb(d)}
       <div class="info"><div class="name">${esc(shown(d))}</div>
       <div class="meta">${esc([query && byId.has(d.folder) ? B.within(where(d.folder)) : "", d.label ? d.name : "",
     d.presented ? B.presented(day(d.presented)) : "", L.built(day(d.built, true)), L.quizzes(d.quizzes), L.slides(d.slides),
@@ -473,8 +484,18 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
       .sort((a, b) => (sort.value === "newest" ? b.built - a.built
         : sort.value === "recent" ? (b.presented || 0) - (a.presented || 0) || byName(shown(a), shown(b))
           : byName(shown(a), shown(b))));
+    order = [...new Set(ds.map((d) => d.deck))];     // (a deck with two cards: once)
+    for (const deck of [...picked]) if (!decks.some((d) => d.deck === deck)) picked.delete(deck);   // (gone meanwhile)
     list.innerHTML = fs.map(folderCard).join("") + ds.map(deckCard).join("")
       || `<p class="empty">${esc(q ? B.noMatch : here ? B.empty : L.noDecks)}</p>`;
+    list.classList.toggle("picking", picking);
+    pickbar.hidden = !picking;
+    pickbar.setAttribute("aria-label", B.selected(picked.size));
+    pickbar.innerHTML = picking ? `<span class="count">${esc(B.selected(picked.size))}</span>
+      <button class="secondary" data-pickall>${esc(B.selectAll)}</button>
+      <button class="primary" data-pickmove${picked.size ? "" : " disabled"}>${esc(B.moveMany)}</button>
+      <button class="secondary" data-pickremove${picked.size ? "" : " disabled"}>${esc(B.removeMany)}</button>
+      <button class="secondary" data-pickdone>${esc(B.selectDone)}</button>` : "";
     skippedBox.innerHTML = here || q || !skipped.length ? "" : `<details class="skipped"><summary>${esc(B.skipped(skipped.length))}</summary>
       <ul>${skipped.map((s) => `<li><span class="name">${esc(s.name || s.deck || s.folder || s.bundle || "?")}</span>${
     s.name && s.deck ? ` <span class="meta">${esc(s.deck)}</span>` : ""}: ${esc(s.error)}${
@@ -501,8 +522,30 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
     [skipped, removed] = await Promise.all([skippedList(), removedList()]);
     byId = new Map(folders.map((f) => [f.id, f]));
     if (!byId.has(here)) here = null;
+    seen = JSON.stringify(decks);
+    const focused = document.activeElement?.closest?.("[data-present], [data-more-deck], [data-more-folder], [data-pick], .deckcard.folder");
+    const again = focused && list.contains(focused) ? [...focused.attributes].find((a) => /^data-(present|more-deck|more-folder|pick|folder)$/
+      .test(a.name)) : null;
     render();
+    if (again) list.querySelector(`[${again.name}="${CSS.escape(again.value)}"]`)?.focus({ preventScroll: true });
   };
+  // a deck built meanwhile, a lecture started or ended elsewhere: the page follows by itself - while nothing is
+  // open over it, and only where the list changed (the server looks at its folders off its event loop, and reads
+  // only those whose files changed: cheap)
+  let seen = JSON.stringify(decks);
+  const follow = async () => {                    // (the next look once this one has answered: none overlap)
+    if (!list.isConnected) return;
+    if (!document.hidden && !dragged && !document.querySelector(".dialog, .libmenu")) {
+      try {
+        const now = JSON.stringify(await hostFetch("/api/decks", auth).then((r) => r.json()));
+        if (list.isConnected && now !== seen) await refresh();
+      } catch {
+        /* the server away: the next turn */
+      }
+    }
+    if (list.isConnected) setTimeout(follow, FOLLOW_MS);
+  };
+  setTimeout(follow, FOLLOW_MS);
   const send = async (method, path, body) => {
     const r = await fetch(path, { method, body: body === undefined ? undefined : JSON.stringify(body),
       headers: { ...authHeaders(auth), "Content-Type": "application/json" } });
@@ -523,7 +566,8 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
     ? send("PATCH", `/api/decks/${encodeURIComponent(item.deck)}`, { folder: to })
     : send("PATCH", `/api/folders/${encodeURIComponent(item.folder)}`, { parent: to })), B.moved(to ? byId.get(to)?.name : B.all));
   const menu = (button, entries) => {             // a small menu under a card's ⋯: [label, action]
-    document.querySelector(".libmenu")?.remove();
+    const open = document.querySelector(".libmenu");      // (closed, its key handler with it)
+    if (open) (open.close ? open.close() : open.remove());
     const el = document.createElement("div");
     el.className = "libmenu";
     el.setAttribute("role", "menu");
@@ -533,20 +577,28 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
     el.style.top = `${Math.max(8, Math.min(r.bottom + 4, innerHeight - el.offsetHeight - 8))}px`;
     el.style.left = `${Math.max(8, r.right - el.offsetWidth)}px`;
     const outside = (e) => { if (!el.contains(e.target)) close(); };
-    const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+    const keys = (e) => {                         // Esc closes; the arrows, Home and End go through the entries
+      if (e.key === "Escape") { e.stopPropagation(); close(); return; }
+      const items = [...el.querySelectorAll("button[data-i]")];
+      const at = items.indexOf(document.activeElement);
+      const to = { ArrowDown: at + 1, ArrowUp: at - 1, Home: 0, End: items.length - 1 }[e.key];
+      if (to === undefined || !items.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      items[(to + items.length) % items.length].focus();
+    };
     const close = () => {
       el.remove();
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("keydown", keys, true);
     };
+    el.close = close;
     el.addEventListener("click", (e) => {
       const b = e.target.closest("button[data-i]");
       if (b) { close(); entries[+b.dataset.i][1](); }
     });
-    setTimeout(() => {
-      document.addEventListener("pointerdown", outside, true);
-      document.addEventListener("keydown", keys, true);
-    });
+    document.addEventListener("keydown", keys, true);       // (at once: the arrows right after it opens)
+    setTimeout(() => document.addEventListener("pointerdown", outside, true));   // (not the click that opened it)
     el.querySelector("button")?.focus();
   };
   const chooseFolder = (title, item) => new Promise((resolve) => {    // undefined: cancelled, null: the top
@@ -558,23 +610,38 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
         walk(f.id, depth + 1);
       });
     walk(null, 1);
-    const now = item.deck ? (decks.find((d) => d.deck === item.deck)?.folder ?? null) : (byId.get(item.folder)?.parent ?? null);
+    const now = item.deck ? (decks.find((d) => d.deck === item.deck)?.folder ?? null)     // (several decks: none)
+      : item.folder ? (byId.get(item.folder)?.parent ?? null) : undefined;
     const el = document.createElement("div");
     el.className = "dialog";
     el.innerHTML = `<div class="box"><h2>${esc(title)}</h2><div class="folderpick">
       <button data-to="" ${now === null ? "disabled" : ""}>${esc(B.all)}</button>
       ${rows.map(([f, depth]) => `<button data-to="${esc(f.id)}" style="padding-left:${12 + depth * 18}px" ${now === f.id ? "disabled" : ""}>${esc(f.name)}</button>`).join("")}
-      </div><div class="buttons"><button class="secondary" data-cancel>${esc(T.dialog.cancel)}</button></div></div>`;
-    const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); finish(undefined); } };
+      </div><div class="buttons"><button class="secondary" data-newfolder>${esc(B.newFolderHere)}</button>
+      <button class="secondary" data-cancel>${esc(T.dialog.cancel)}</button></div></div>`;
+    const keys = (e) => {
+      if (e.key === "Escape" && [...document.querySelectorAll(".dialog")].pop() === el) { e.stopPropagation(); finish(undefined); }
+    };
     const finish = (to) => {
       document.removeEventListener("keydown", keys, true);
       el.remove();
       resolve(to);
     };
-    el.addEventListener("click", (e) => {
+    el.addEventListener("click", async (e) => {
       const b = e.target.closest("button[data-to]");
       if (b) finish(b.dataset.to || null);
       else if (e.target.closest("[data-cancel]") || e.target === el) finish(undefined);
+      else if (e.target.closest("[data-newfolder]")) {            // a new folder - in the page's open one - to move into
+        const name = await askText(here ? B.newFolderIn(byId.get(here)?.name) : B.newFolderAsk, "", B.create);
+        if (name === null || !name.trim()) return;
+        try {
+          const made = await send("POST", "/api/folders", { name, parent: here });
+          byId.set(made.id, { id: made.id, name: made.name ?? name.trim(), parent: here ?? null });
+          finish(made.id);
+        } catch (err) {
+          await tell(B.notDone(why(err)));
+        }
+      }
     });
     document.addEventListener("keydown", keys, true);
     document.body.append(el);
@@ -622,7 +689,25 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
     render();
   };
 
+  const tick = (deck, range) => {
+    const on = !picked.has(deck);
+    const from = order.indexOf(anchor), to = order.indexOf(deck);
+    const decksOf = range && from >= 0 && to >= 0 ? order.slice(Math.min(from, to), Math.max(from, to) + 1) : [deck];
+    for (const d of decksOf) {
+      if (on) picked.add(d);
+      else picked.delete(d);
+    }
+    anchor = deck;
+    render();
+    list.querySelector(`[data-pick="${CSS.escape(deck)}"]`)?.focus({ preventScroll: true });
+  };
   list.addEventListener("click", (e) => {
+    const card = picking && e.target.closest(".deckcard[data-deck]");
+    if (card && !e.target.closest("button")) {    // (the card's own buttons still do theirs)
+      if (e.target.matches?.("input.pick")) e.preventDefault();      // (drawn anew, ticked or not, by tick)
+      tick(card.dataset.deck, e.shiftKey);
+      return;
+    }
     const present = e.target.closest("[data-present]");
     const moreDeck = e.target.closest("[data-more-deck]");
     const moreFolder = e.target.closest("[data-more-folder]");
@@ -646,6 +731,72 @@ function library(decks, folders, uploaded = "", skipped = [], removed = []) {
     if (r) putBack(r.deck, r.label || r.name);
   });
   list.addEventListener("error", (e) => { if (e.target.matches?.(".thumb img")) e.target.remove(); }, true);   // (no picture)
+  const pickButton = app.querySelector("#select");
+  const pickMode = (on) => {
+    picking = on;
+    picked.clear();
+    anchor = null;
+    pickButton.setAttribute("aria-pressed", String(on));
+    pickButton.classList.toggle("on", on);
+    render();
+  };
+  pickButton.onclick = () => pickMode(!picking);
+  app.querySelector("#storage").onclick = () => storageDialog(decks);
+  // each deck once - a deck has two cards while its game plays an older build -, uploaded or running if either is
+  const pickedDecks = () => [...picked].map((deck) => {
+    const cards = decks.filter((d) => d.deck === deck);
+    return cards.length ? { ...cards[0], uploaded: cards.some((d) => d.uploaded), running: cards.some(running) } : null;
+  }).filter(Boolean);
+  const eachOf = async (list, job) => {           // a change per deck: the ones that failed, and why, said at the end
+    const failed = [];
+    for (const d of list) {
+      try {
+        await job(d);
+      } catch (err) {
+        failed.push(`${shown(d)}: ${why(err)}`);
+      }
+    }
+    return failed;
+  };
+  pickbar.addEventListener("click", async (e) => {
+    const chosen = pickedDecks();
+    if (e.target.closest("[data-pickdone]")) return pickMode(false);
+    if (e.target.closest("[data-pickall]")) {
+      order.forEach((d) => picked.add(d));
+      return render();
+    }
+    if (!chosen.length) return;
+    if (e.target.closest("[data-pickmove]")) {
+      const to = await chooseFolder(B.moveManyAsk(chosen.length), { decks: chosen.map((d) => d.deck) });
+      if (to === undefined) return;
+      const name = to ? byId.get(to)?.name : B.all;
+      const failed = await eachOf(chosen, (d) => send("PATCH", `/api/decks/${encodeURIComponent(d.deck)}`, { folder: to }));
+      pickMode(false);
+      await refresh();
+      if (chosen.length > failed.length) notice(B.movedMany(chosen.length - failed.length, name));
+      if (failed.length) await tell(B.notDone(failed.join("; ")));
+    } else if (e.target.closest("[data-pickremove]")) {
+      // as a card's own Remove: a build on this computer leaves the list (Undo puts it back), an upload is deleted
+      const uploads = chosen.filter((d) => d.uploaded), builds = chosen.filter((d) => !d.uploaded);
+      if (!await ask(B.removeManyAsk(builds.length, uploads.map(shown), chosen.filter((d) => d.running).length),
+        uploads.length ? B.deleteYes : B.removeManyYes)) return;
+      const hidden = [];
+      const failed = await eachOf(chosen, async (d) => {
+        const info = await send("DELETE", `/api/decks/${encodeURIComponent(d.deck)}`);
+        if (info?.hidden && !info.deleted) hidden.push(d);
+      });
+      pickMode(false);
+      await refresh();
+      if (failed.length) await tell(B.notDone(failed.join("; ")));
+      if (hidden.length) notice(B.removedMany(chosen.length - failed.length), [B.undo, async () => {
+        const back = await eachOf(hidden, (d) => send("PATCH", `/api/decks/${encodeURIComponent(d.deck)}`, { listed: true }));
+        await refresh();
+        if (hidden.length > back.length) notice(B.putBackMany(hidden.length - back.length));
+        if (back.length) await tell(B.notDone(back.join("; ")));
+      }]);
+      else if (chosen.length > failed.length) notice(B.removedMany(chosen.length - failed.length));
+    }
+  });
   search.addEventListener("input", () => { query = search.value.trim(); render(); });
   sort.addEventListener("change", () => { prefs.deckSort = sort.value; savePrefs(); render(); });
   app.querySelector("#newfolder").onclick = async () => {
@@ -742,7 +893,7 @@ function localDay(ms) {                            // a lecture's day as the arc
 // its data. Once a game had ended, no window reached any of it (the review of deck management, 2026-11-14).
 async function lecturesDialog(d) {
   const C = T.presenter.lectures, E = T.presenter.earlier, L = T.lecturer;
-  const { el } = listDialog();
+  const { el, close } = listDialog();
   const when = (ms) => new Date(ms).toLocaleString(T.meta.locale, { dateStyle: "medium", timeStyle: "short" });
   const row = (e) => {
     const state = e.ended === null ? (e.running ? C.running : C.open) : C.ended;
@@ -758,7 +909,10 @@ async function lecturesDialog(d) {
       <div class="acts"><button data-act="csv">${esc(C.csv)}</button><button data-act="zip">${esc(C.zip)}</button>
         <button data-act="pdf"${e.pdf ? "" : ` disabled title="${esc(C.noPdf)}"`}>${esc(C.pdf)}</button>
         ${takes.map((f, i) => `<button data-take="${esc(f.take)}">${esc(C.recording(i + 1))}</button>`).join("")}
-        ${e.ended === null ? "" : `<button data-act="remove">${esc(C.remove)}</button>`}</div></div>`;
+        ${e.ended !== null && (e.frames || e.boards) && e.pdf ? `<button data-act="continue" title="${esc(C.continueTitle)}">${
+    esc(C.continue)}</button>` : ""}
+        ${e.ended === null ? `<button data-act="end" title="${esc(C.endTitle)}">${esc(C.end)}</button>`
+    : `<button data-act="remove">${esc(C.remove)}</button>`}</div></div>`;
   };
   let items = [];
   const list = async () => {
@@ -781,6 +935,10 @@ async function lecturesDialog(d) {
     const b = ev.target.closest("button[data-act], button[data-take]");
     const e = b && items.find((x) => x.game === b.closest("[data-game]")?.dataset.game);
     if (!e) return;
+    if (b.dataset.act === "continue") {           // that lecture's build, its ink and pages copied into the game
+      close(true);
+      return openDeck({ ...d, bundle: e.bundle, stage: true }, true, { continueGame: e.game, when: when(e.created) });
+    }
     b.disabled = true;
     try {
       if (b.dataset.take) await saveRecording(b.dataset.take);
@@ -791,6 +949,13 @@ async function lecturesDialog(d) {
         const said = await lecturePdf(e);
         await list();                                  // (its files: the annotated PDF too)
         say(...said);
+      } else if (b.dataset.act === "end" && await ask(C.endAsk(e.pin, L.players(e.players)), C.endYes)) {
+        const r = await fetch(`/api/decks/${encodeURIComponent(d.deck)}/lectures/${encodeURIComponent(e.game)}/end`,
+          { method: "POST", headers: authHeaders(auth) });
+        const info = await r.json().catch(() => ({}));
+        if (!r.ok) throw refusal(r, info);
+        notice(C.endedNow(e.pin));
+        await list();
       } else if (b.dataset.act === "remove" && await ask(C.removeAsk(when(e.created), e.pin), C.removeYes)) {
         const r = await fetch(`/api/archive/${encodeURIComponent(e.game)}`, { method: "DELETE", headers: authHeaders(auth) });
         const info = await r.json().catch(() => ({}));
@@ -805,6 +970,40 @@ async function lecturesDialog(d) {
     }
   });
   await list();
+}
+
+// What this lecturer's decks hold on this server (GET /api/storage), the largest first: uploads, copies kept for
+// games, lectures, the archive and its recordings - and how it is cleaned: nothing by itself; a lecture by its
+// Delete (the deck's Lectures), the rest on the server's machine with texstage data clean.
+async function storageDialog(decks) {
+  const S = T.presenter.storage;
+  const { el } = listDialog();
+  const amount = (n) => {
+    const f = (x, unit) => `${new Intl.NumberFormat(T.meta.locale, { maximumFractionDigits: x < 100 ? 1 : 0 }).format(x)} ${unit}`;
+    return n >= 1e9 ? f(n / 1e9, "GB") : n >= 1e6 ? f(n / 1e6, "MB") : n >= 1e3 ? f(n / 1e3, "kB") : `${n} B`;
+  };
+  const named = (deck) => { const d = decks.find((x) => x.deck === deck); return d ? (d.label || d.name) : deck; };
+  el.innerHTML = `<div class="box wide"><h2>${esc(S.title)}</h2><p>${esc(S.loading)}</p></div>`;
+  let items;
+  try {
+    items = await (await hostFetch("/api/storage", auth)).json();
+  } catch (err) {
+    items = null;
+    el.innerHTML = `<div class="box wide"><h2>${esc(S.title)}</h2><p class="error">${esc(why(err))}</p>
+      <div class="buttons"><button class="secondary" data-close>${esc(T.presenter.close)}</button></div></div>`;
+    return;
+  }
+  const total = items.reduce((n, d) => n + d.total, 0);
+  const rows = items.map((d) => `<div class="lecture"><div class="head"><span class="name">${esc(named(d.deck))}</span>
+      <span class="tag">${esc(amount(d.total))}</span><span class="meta">${esc(d.deck)}</span></div>
+      <div class="meta">${esc([d.uploads ? S.uploads(d.uploads, amount(d.uploadsBytes)) : "",
+    d.copies ? S.copies(d.copies, amount(d.copiesBytes)) : "", d.lectures ? S.lectures(d.lectures) : "",
+    d.archiveBytes ? S.archive(amount(d.archiveBytes)) : "",
+    d.recordings ? S.recordings(d.recordings, amount(d.recordingsBytes)) : ""].filter(Boolean).join(" · "))}</div></div>`).join("");
+  el.innerHTML = `<div class="box wide"><h2>${esc(S.title)}</h2><p>${esc(S.intro(amount(total)))}</p>
+    <div class="lectures">${rows || `<p class="empty">${esc(S.none)}</p>`}</div>
+    <p>${S.clean("<code>texstage data</code>", "<code>texstage data clean --before 2026-04-01 --recordings</code>")}</p>
+    <div class="buttons"><button class="secondary" data-close>${esc(T.presenter.close)}</button></div></div>`;
 }
 
 // An earlier lecture's annotated PDF, as After the lecture makes the open game's: its ink and whiteboard pages (GET
@@ -832,17 +1031,26 @@ async function buildsDialog(d, changed) {
   let deleted = false;
   const { el, close } = listDialog(() => { if (deleted) changed(); });
   const laptop = typeof auth === "string";          // the presenter key: a download (a paired device: none)
-  const when = (ms) => new Date(ms).toLocaleString(T.meta.locale);
+  const when = (ms) => new Date(ms).toLocaleString(T.meta.locale, { dateStyle: "medium", timeStyle: "short" });
   const row = (b) => `<div class="lecture" data-bundle="${esc(b.bundle)}"><div class="head">
       <span class="name">${esc(L.built(when(b.built)))}</span>${b.newest ? `<span class="tag">${esc(B.newest)}</span>` : ""}
       ${b.game ? `<span class="tag open">${esc(L.game(b.game.pin, b.game.players))}</span>` : ""}
       ${b.stage ? "" : `<span class="tag">${esc(B.noStage)}</span>`}</div>
       <div class="meta">${esc([B.source[b.source] || b.source, L.quizzes(b.quizzes), L.slides(b.slides),
     b.lectures ? B.lectures(b.lectures) : ""].filter(Boolean).join(" · "))}</div>
+      ${b.changes ? `<div class="meta">${esc(whatChanged(b.changes))}</div>` : ""}
       ${b.folder ? `<div class="meta">${esc(b.folder)}</div>` : ""}
       <div class="acts">${b.stage ? `<button data-act="present" class="primary">${esc(T.presenter.library.present)}</button>` : ""}
         ${laptop ? `<button data-act="download">${esc(B.download)}</button>` : ""}
         ${b.uploaded && !b.game?.running ? `<button data-act="remove">${esc(B.remove)}</button>` : ""}</div></div>`;
+  // what changed since the build before it (bundles.py: changes): "3 slides changed, 1 quiz added"
+  const whatChanged = (c) => {
+    const parts = [];
+    const count = (n, noun, how) => { if (n) parts.push(B.change(n, noun, how)); };
+    for (const how of ["changed", "added", "removed"]) count(c.slides?.[how] || 0, "slide", how);
+    for (const [kind, n] of Object.entries(c.items || {})) for (const how of ["changed", "added", "removed"]) count(n[how] || 0, kind, how);
+    return parts.length ? B.since(parts.join(", ")) : B.same;
+  };
   let items = [];
   const list = async () => {
     let body;
@@ -885,7 +1093,8 @@ async function buildsDialog(d, changed) {
   await list();
 }
 
-async function openDeck(d, chosen = false) {     // chosen: Present clicked (not a reload in the lecture)
+async function openDeck(d, chosen = false, options = {}) {     // chosen: Present clicked (not a reload in the lecture);
+  //                                                               options.continueGame: an earlier lecture goes on
   app.innerHTML = `<div class="page"><p>${esc(T.presenter.library.loading(d.name))}</p></div>`;
   try {
     deck = await (await hostFetch(`/api/deck/${d.bundle}`, auth)).json();
@@ -1110,7 +1319,8 @@ async function openDeck(d, chosen = false) {     // chosen: Present clicked (not
   clearInterval(pinger);
   pinger = setInterval(ping, 5000);
   ping();
-  if (chosen && welcome?.earlier && !welcome.presenters) await newOrContinued(welcome.earlier);
+  if (options.continueGame) await continueLecture(options.continueGame, options.when);
+  else if (chosen && welcome?.earlier && !welcome.presenters) await newOrContinued(welcome.earlier);
 }
 
 // The server would not give this window its game, or took it away: a newer build of the deck is played (a
@@ -1147,6 +1357,21 @@ async function newOrContinued(e) {
   if (fresh && e.open) r = await client.send({ t: "lecture.new" }).catch(alertError);
   else if (!fresh && !e.open) r = await client.send({ t: "lecture.continue", game: e.game }).catch(alertError);
   if (r) inkAnew();
+}
+
+async function continueLecture(game, when) {
+  // an earlier lecture goes on (the deck page's Lectures: Continue): its ink and whiteboard pages copied into
+  // this game - a game with ink or pages of its own gives way to a new presentation first, if the lecturer says so
+  const C = T.presenter.lectures;
+  const go = () => client.send({ t: "lecture.continue", game }).then(() => null, (err) => err);
+  let failed = await go();
+  if (failed?.code === "has-ink") {               // (no-earlier, the lecture deleted meanwhile: said as it is)
+    if (!await ask(C.continueAsk(when), C.continueYes)) return;
+    const fresh = await client.send({ t: "lecture.new" }).then(() => null, (err) => err);
+    failed = fresh || await go();
+  }
+  if (failed) return alertError(failed);
+  inkAnew();
 }
 
 function lectureTime(ms) {

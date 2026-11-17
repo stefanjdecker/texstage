@@ -158,3 +158,111 @@ def test_the_lectures_are_listed_however_many_empty_games_came_after(tmp_path):
         listed = lectures(client)
         assert [x["pin"] for x in listed] == [third["pin"], second["pin"], first["pin"]]
         assert listed[2]["players"] == 1 and [f["name"] for f in listed[1]["files"]] == ["recording-0123456789ab.webm"]
+
+
+def test_a_builds_changes_since_the_build_before(tmp_path):
+    """Builds told two builds apart by their time alone (the deck page's suggestion 7): each build now says what
+    changed since the build before it - its slides by their pictures (content-addressed: the same picture is the
+    same slide), added, removed or changed; its quizzes, activities, videos by ID, added, removed or changed (a
+    definition or a key: a right answer)."""
+    import copy
+
+    from texstage.server.bundles import changes, load_bundle
+    older = make_bundle(tmp_path / "bundles" / "a", deck="talk", title="Talk", stage=True)
+    newer = make_bundle(tmp_path / "bundles" / "b", deck="talk", title="Talk", stage=True, time=30)   # quizzes' time
+    now = int(time.time())
+    for fb, at in ((older, now - 600), (newer, now)):
+        os.utime(fb.path / "deck.json", (at, at))
+    a, b = load_bundle(older.path), load_bundle(newer.path)
+    quizzes = len(b.quizzes)
+    assert changes(b, a) == {"slides": {"added": 0, "removed": 0, "changed": 0},
+                             "items": {"quiz": {"added": 0, "removed": 0, "changed": quizzes}}}
+    assert changes(a, a) == {"slides": {"added": 0, "removed": 0, "changed": 0}, "items": {}}
+    c = copy.deepcopy(b)
+    slides = c.deck_json["slides"]
+    slides[0] = {**slides[0], "image": "slides/" + "0" * 16 + ".png"}            # a picture changed in place
+    c.deck_json["slides"] = slides + [{"image": "slides/" + "1" * 16 + ".png"}]   # one added at the end
+    first = sorted(c.items["quiz"])[0]
+    c.items = {**c.items, "quiz": {k: v for k, v in c.items["quiz"].items() if k != first}}   # a quiz removed
+    c.keys = copy.deepcopy(c.keys)
+    assert changes(c, b) == {"slides": {"added": 1, "removed": 0, "changed": 1},
+                             "items": {"quiz": {"added": 0, "removed": 1, "changed": 0}}}
+    d = copy.deepcopy(b)
+    d.deck_json["slides"] = d.deck_json["slides"][1:]                            # the first slide gone
+    keys = (d.keys.get("items") or {}).get("quiz") or d.keys["quizzes"]          # (format 1's keys: quizzes)
+    second = sorted(keys)[0]
+    keys[second] = {**keys[second], "_": "another"}                            # only its right answer changed
+    assert changes(d, b)["items"] == {"quiz": {"added": 0, "removed": 0, "changed": 1}}
+    assert changes(d, b)["slides"] == {"added": 0, "removed": 1, "changed": 0}
+    with TestClient(create_app(config(tmp_path))) as client:
+        builds = client.get("/api/decks/talk/builds", headers=HOST).json()
+        assert [x["bundle"] for x in builds] == [newer.id, older.id]
+        assert builds[0]["changes"] == {"slides": {"added": 0, "removed": 0, "changed": 0},
+                                        "items": {"quiz": {"added": 0, "removed": 0, "changed": quizzes}}}
+        assert builds[1]["changes"] is None                                     # (the oldest: none before it)
+
+
+def test_end_lecture_ends_the_game_writes_its_archive_and_frees_its_upload(tmp_path):
+    """End lecture (the deck page's suggestion 8): a game left open ended only by itself - the next lecture, a new
+    build, hours idle -, and an upload of its deck could not be deleted for six hours after it. Now the lecturer
+    ends it: what it left goes to the archive, the phones are told it is over, its PIN is free, and the upload
+    can be deleted at once. Not another lecturer's game, nor one whose recording is still being made."""
+    from texstage.server.archive import Take
+    bob = {"X-Texquiz-Key": Lecturers(tmp_path / "data" / "lecturers.json").add("bob")}
+    fb = make_bundle(tmp_path / "elsewhere", deck="talk", title="Talk", stage=True)
+    (b,), _ = find_bundles([fb.path])
+    with TestClient(create_app(config(tmp_path))) as client:
+        assert client.put(f"/api/bundles/{fb.id}", content=pack(b), headers=HOST).status_code == 201   # an upload
+        with client.websocket_connect("/ws") as st, client.websocket_connect("/ws") as phone:
+            game = say_hello(st, fb, role="stage")
+            join(phone, game["pin"], "Ada")
+            assert client.delete("/api/decks/talk", headers=HOST).status_code == 409          # (its game is open)
+            end = f"/api/decks/talk/lectures/{game['session']}/end"
+            assert client.post(end).status_code == 403
+            assert client.post(end, headers=bob).status_code == 404                           # not bob's game
+            assert client.post("/api/decks/talk/lectures/nosuchgame/end", headers=HOST).status_code == 404
+            server = client.app.state.server
+            folder = tmp_path / "data" / "archive"
+            from texstage.server import archive
+            place = archive.folder(tmp_path / "data", server.engine.sessions[game["session"]], make=True)
+            server.recordings.takes["t1"] = Take("t1", "local", "webm", 0, folder=place)     # a recording runs
+            assert client.post(end, headers=HOST).status_code == 409
+            server.recordings.takes["t1"].finished = 1                                        # ... and is done
+            assert client.post(end, headers=HOST).json() == {"ended": game["session"]}
+            bye = recv(phone, "bye")
+            assert bye["reason"] == "no-session"
+            del server.recordings.takes["t1"]
+        (lecture,) = lectures(client, "talk")
+        assert lecture["ended"] is not None and lecture["players"] == 1
+        assert any(f["name"].endswith(".csv") for f in lecture["files"]), "its results: in the archive"
+        assert client.post(end, headers=HOST).status_code == 404                              # (ended already)
+        assert game["pin"] in server.engine.ended                                             # its PIN: free again
+        assert client.delete("/api/decks/talk", headers=HOST).status_code == 200              # the upload: at once
+        assert folder.exists()
+
+
+def test_continue_takes_up_an_older_lecture_not_only_the_last(tmp_path):
+    """Lectures › Continue (the deck page's suggestion 8): the Present question offered only the last lecture's ink;
+    any earlier lecture of the build goes on now - its ink copied into the game (lecture.continue), the lecture
+    in between left as it is."""
+    fb = make_bundle(tmp_path / "bundles", stage=True)
+    pen = {"tool": "pen", "color": "#e21b3c", "width": 0.005, "sim": False}
+    with TestClient(create_app(config(tmp_path))) as client, client.websocket_connect("/ws") as st:
+        first = say_hello(st, fb, role="stage")
+
+        def ink(stroke: str, frame: str, mid: int):
+            st.send_json({"t": "ink.begin", "device": "laptop", "frame": frame, "stroke": {"id": stroke, **pen},
+                          "points": [[0.1, 0.1, 0.5]], "id": mid})
+            st.send_json({"t": "ink.end", "stroke": stroke, "id": mid + 1})
+            recv(st, "ok", until=lambda m: m["re"] == mid + 1)
+        ink("s1", "2", 10)                                                 # the first lecture: ink on frame 2
+        st.send_json({"t": "lecture.new", "id": 20})
+        recv(st, "ok", until=lambda m: m["re"] == 20)
+        ink("s2", "3", 30)                                                 # the second: ink on frame 3
+        st.send_json({"t": "lecture.new", "id": 40})
+        recv(st, "ok", until=lambda m: m["re"] == 40)                      # the third: none yet
+        st.send_json({"t": "lecture.continue", "game": first["session"], "id": 50})
+        assert recv(st, "ok", until=lambda m: m["re"] == 50)["frames"] == 1     # the first's: its frame
+        st.send_json({"t": "lecture.continue", "game": first["session"], "id": 51})
+        assert recv(st, "error", until=lambda m: m["re"] == 51)["error"] == "has-ink"   # (once)
+

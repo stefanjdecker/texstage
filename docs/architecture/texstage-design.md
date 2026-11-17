@@ -1304,3 +1304,70 @@ Reported after that, the same day:
   goes away is let go with a notice. `tests/web-client-record.test.cjs` checks the dialog's cut-out source and the
   model against stubs: the wait, Start into the game open then, ✕, the screen gone, full screen with Start and ✕,
   a refused start that leaves it waiting. The three browser tests fail on 93f7ac7.
+
+## 33. Deck housekeeping: the scan, rollback, End lecture, Select, Storage (2026-11-17)
+
+- **Why:** the open points of the deck management review (2026-11-14) and of the deck page's suggestions
+  5-11, which the lecturer asked to have fixed; the lecturer chose: cleaning **by hand only** (nothing is
+  deleted by itself but, as before, a deck's builds beyond its newest ten - prune), and for rollback
+  **texstage present taking a build folder** (the Builds dialog
+  presented older builds since 0201201).
+- **The scan** (review item 5: 0.5 s - 2.2 s cold - on the event loop at every deck list): the store keeps
+  what it found per folder with the stamp of `deck.json`, `keys.json` and `built.json` (time, size;
+  `bundles.Seen`), and reads a folder again only where the stamp changed. `collect()` reads, safely in a
+  worker thread (one at a time), changing nothing the server reads but its own record, which it replaces
+  whole; `apply()` merges on the event loop. `GET /api/decks` awaits `Server.rescan()` (collect in
+  `asyncio.to_thread`); `current()`, `holds()` and `complete()` answer from the record. Pruned copies are
+  removed in a worker thread (an upload waits for it, a game's first hello does not). The deck page and the
+  host console ask every 8 s while nothing is open over them, and draw anew only when the list changed.
+- **A build's own time:** `built.json` (`{"built": ms}`, no part of the bundle ID) beside `deck.json`, written
+  by the build and its `.bundle.zip`, carried by `texstage publish`, a download and an upload, read before
+  `deck.json`'s file time - an old build copied or checked out again is no longer the newest, and an
+  upload from another time zone keeps its time.
+- **Rollback from the command line:** `texstage present <folder>` with a `deck.json` in it presents that
+  build (`?bundle=`, chosen: the window asks before ending a game of another build); a running server finds
+  a folder outside its data folder through `builds.json` (a server's own copies and uploads are never
+  recorded there: a build folder is open to every lecturer).
+- **The host console asks** before a build ends the deck's game on another build with players, answers or
+  ink (`ask: true`, the presenter window's question; `stage/ask.js`).
+- **Builds** say what changed since the build before (`bundles.changes`): slides by their content-addressed
+  pictures in order (added, removed, changed in place), quizzes, activities and videos by ID (added,
+  removed, changed: a definition or a key).
+- **End lecture** (`POST /api/decks/<deck>/lectures/<game>/end`, `Engine.end_lecture`): the archive is
+  written, the phones and windows are told, the PIN is free, and an upload can be deleted at once - not
+  while the game's recording runs. **Continue** in *Lectures* presents an earlier lecture's build and
+  copies its ink and whiteboard pages (`lecture.continue`, any ended game of the same build - before, the
+  Present question offered only the last); an open game with ink of its own gives way to a new
+  presentation if the lecturer says so.
+- **The deck page:** *Select* (ticks, Shift for a range, *All shown*) with *Move to …* - whose dialog makes a
+  *New folder* - and *Remove …* (one question: how many leave the list, how many uploads are deleted, how
+  many are presented now; *Undo* puts the listed ones back); several files per upload; the intro folded
+  into *How decks get here*; arrow keys, Home and End in a card's menu; build times without seconds; the
+  host console's list with the lecturer's names and folder paths.
+- **Storage** (`GET /api/storage`, `datafolder.overview` in a worker thread: a lecturer's uploads, the
+  copies of their decks, their lectures - games that left something -, the archive and its recordings)
+  and **`texstage data`** (the whole data folder per deck); **`texstage data clean --before DATE`** with
+  `--lectures` (rows and archive folders, as *Lectures › Delete*; games that left nothing in one line per
+  deck), `--recordings` or `--copies` (not played by an open game), `--deck`: listed first, deleted with
+  `--yes`; never an open game, a copy it plays, or a folder whose recording is still being made
+  (`.part`). It may run beside a server: open games and their files are left alone.
+- **Tested:** `tests/test_bundle_store.py` (the record, the worker thread, `built.json`), `test_present.py`
+  (a build folder), `test_lectures.py` (changes, End lecture), `test_datafolder.py` (sizes, cleaning), and in
+  the browser (`test_browser_deck_page.py`): the host console's question, Select with a new folder and
+  Undo, a build appearing by itself, the menu's keys, what changed, End lecture, Storage.
+- **Reviewed (2026-11-17)** by an independent reviewer, before any commit: six faults, all fixed. They were a
+  read error kept until the files changed; cleaning that deleted rows before files and counted what stayed;
+  whiteboard-only lectures taken for empty games; a deck with two cards selected twice; a look running
+  during a drop bringing the build back; and a notice naming a new folder "undefined". The doubts were acted
+  on too:
+  - the record's keys need no `resolve()`, `drop()` merges from the record, and `get()` does not wait for a
+    running look;
+  - looks are shared, but none answers a request asked after it began;
+  - `built.json` within bounds;
+  - abandoned `.part` recordings and what cleaning leaves are said;
+  - Continue's two refusals are told apart (`no-earlier` first, then `has-ink`);
+  - Remove … names the uploads it deletes, and partial failures are reported;
+  - the host console asks again after a break;
+  - the record is fresh for uploads, Builds, Removed and Skipped.
+  New tests hold each one, the planted faults the review found uncaught among them.
+

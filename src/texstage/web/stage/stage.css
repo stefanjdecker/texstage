@@ -149,6 +149,9 @@ main:has(> .page) { overflow-y: auto; }   /* the deck list (and the other pages)
 .lecture .acts button:disabled { opacity: .45; }
 /* the deck page's folders (presenter.js library): the path, the search, the order, the cards' ⋯ */
 .libbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.libhelp { margin: 0 0 10px; color: var(--muted); }   /* the deck page's intro, folded: How decks get here */
+.libhelp summary { cursor: pointer; width: fit-content; }
+.libhelp p { margin: 6px 0 0; }
 .crumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; flex: 1 1 120px; min-width: 0; }
 .crumb { border: 0; background: none; color: var(--muted); font-weight: 600; padding: 4px 6px; border-radius: 6px; }
 .crumb:hover, .crumb.here { color: var(--ink); }
@@ -529,3 +532,13 @@ body.projector.idle { cursor: none; }
   .toolbar { grid-row: 4; margin-top: 10px; }
   .bar { grid-row: 5; margin-top: 10px; }
 }
+
+/* the deck page's Select: a tick on each card, the ticked ones marked, the bar that acts on them */
+.decks.picking .deckcard[data-deck] { cursor: pointer; }
+.deckcard input.pick { width: 20px; height: 20px; flex: none; margin: 0 4px 0 0; accent-color: var(--accent, #8a6fc2); }
+.deckcard.picked { outline: 2px solid var(--accent, #8a6fc2); outline-offset: -2px; }
+#select.on { background: var(--accent, #8a6fc2); color: #fff; }
+.pickbar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 12px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, .25); }
+.pickbar .count { font-weight: 700; margin-right: auto; }

@@ -12,6 +12,7 @@ import { Client, hostFetch } from "/static/shared/client.js";
 import { Stage } from "/static/shared/live.js";
 import { uploadButton } from "/static/shared/upload.js";
 import { ActsLine } from "/static/host/acts.js";
+import { ask } from "/static/stage/ask.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -27,6 +28,7 @@ let stage = null;
 let local = null;       // the slide this console shows (follows the server unless we just moved)
 let pending = null;     // a slide we asked for and the server has not confirmed yet
 let T = null;           // the page's texts (speak): the open deck's language, else the browser's
+let following = null;   // the deck list's look for changes (showDecks)
 
 function speak(tag) {
   // the page's language from now on - the open deck's (a deck built before 2026-10-24 names none:
@@ -75,7 +77,8 @@ function keyForm(error = "") {
 }
 
 async function showDecks(resume = false, uploaded = "") {
-  const decks = await (await hostFetch("/api/decks", key)).json();
+  const [decks, folders] = await Promise.all([hostFetch("/api/decks", key).then((r) => r.json()),
+    hostFetch("/api/folders", key).then((r) => r.json()).catch(() => [])]);
   if (resume) {                        // a reload in the middle of a game: back into it
     let last = null;
     try { last = sessionStorage.getItem(LAST); } catch { /* ignore */ }
@@ -89,8 +92,20 @@ async function showDecks(resume = false, uploaded = "") {
   $("#join").textContent = "";
   $("#actions").innerHTML = "";
   $("#status").className = "status";
-  const cards = decks.map((d, i) => `<div class="deckcard"><div class="info"><div class="name">${esc(d.name)}</div>
-      <div class="meta">${esc([d.deck, L.quizzes(d.quizzes), L.slides(d.slides), L.built(new Date(d.built).toLocaleString(T.meta.locale))].join(" · "))}</div></div>
+  // as the deck page names and files them (library.py): the lecturer's own name for a deck, its folder - by
+  // folder, then by name
+  const byId = new Map((Array.isArray(folders) ? folders : []).map((f) => [f.id, f]));
+  const path = (fid) => {
+    const out = [];
+    for (let f = byId.get(fid); f && out.length < 64; f = byId.get(f.parent)) out.unshift(f.name);
+    return out.join(" › ");
+  };
+  const byName = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+  decks.sort((a, b) => byName(path(a.folder), path(b.folder)) || byName(a.label || a.name, b.label || b.name) || b.built - a.built);
+  const built = (ms) => new Date(ms).toLocaleString(T.meta.locale, { dateStyle: "medium", timeStyle: "short" });
+  const cards = decks.map((d, i) => `<div class="deckcard"><div class="info"><div class="name">${esc(d.label || d.name)}</div>
+      <div class="meta">${esc([path(d.folder), d.label ? d.name : "", d.deck, L.quizzes(d.quizzes), L.slides(d.slides),
+    L.built(built(d.built))].filter(Boolean).join(" · "))}</div></div>
       ${d.game?.running ? `<span class="tag open">${esc(L.game(d.game.pin, d.game.players))}</span>` : ""}
       <button class="primary" data-i="${i}">${esc(d.game?.running ? T.host.resume : T.host.start)}</button></div>`).join("");
   app.innerHTML = `<div class="page"><h1>${esc(L.decks)}</h1>
@@ -100,6 +115,24 @@ async function showDecks(resume = false, uploaded = "") {
     <div class="decks">${cards || `<p class="empty">${esc(L.noDecks)}</p>`}</div></div>`;
   app.querySelectorAll("button[data-i]").forEach((b) => b.addEventListener("click", () => openGame(decks[+b.dataset.i])));
   uploadButton($("#upload"), key, (message) => showDecks(false, message));
+  // a deck built meanwhile, a game started or ended elsewhere: the list follows by itself while it is shown
+  const list = app.querySelector(".decks"), was = JSON.stringify(decks.map((d) => [d.bundle, d.game, d.label, d.folder]));
+  clearTimeout(following);
+  const look = async () => {                      // (the next once this one has answered: none overlap)
+    if (!list.isConnected || client) return;
+    if (!document.hidden && !document.querySelector(".dialog")) {
+      try {
+        const now = await (await hostFetch("/api/decks", key)).json();
+        if (list.isConnected && !client && JSON.stringify(now.map((d) => [d.bundle, d.game, d.label, d.folder])) !== was) {
+          return showDecks(false, uploaded);
+        }
+      } catch {
+        /* the server away: the next turn */
+      }
+    }
+    if (list.isConnected && !client) following = setTimeout(look, 8000);
+  };
+  following = setTimeout(look, 8000);
 }
 
 async function openGame(d) {
@@ -143,12 +176,25 @@ async function openGame(d) {
   });
   stage = new Stage($("#stage"), { send: (cmd) => client.send(cmd).catch(alertError), controls: true });
   const mine = client;
+  // a game of the deck on another build with players, answers or ink (replaces-game): asked first, as the
+  // presenter window asks - this build ends that game, or the running build is opened instead
+  const hello = { t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle, ask: true };
   try {
-    await client.login({ t: "hello", role: "host", key, deck: deck.deck, bundle: deck.bundle });
+    await client.login(hello);
   } catch (err) {
-    if (client === mine) refused(err);            // (not when this console has left the game meanwhile)
-    return;
+    if (client !== mine) return;                  // (not when this console has left the game meanwhile)
+    if (err?.code !== "replaces-game" || !err.detail) return refused(err);
+    const replace = await replaceOrKeep(err.detail);
+    if (client !== mine) return;
+    if (!replace) return openGame({ bundle: err.detail.bundle });           // the running build
+    try {
+      await client.login({ ...hello, ask: false });
+    } catch (again) {
+      if (client === mine) refused(again);
+      return;
+    }
   }
+  mine.relogin(hello);                            // after a break: asking again, as the presenter window does
   $("#prev").onclick = () => move(-1);
   $("#next").onclick = () => move(1);
   $("#full").onclick = fullscreen;
@@ -163,6 +209,20 @@ async function openGame(d) {
     await client.send({ t: "restart" }).catch(alertError);
   };
   $("#csv").onclick = downloadResults;
+}
+
+// What a build would end, as the presenter window says it (presenter.js: replaceOrKeep), and the choice
+async function replaceOrKeep(e) {
+  const R = T.presenter.replace, E = T.presenter.earlier;
+  const what = [e.players ? T.lecturer.players(e.players) : "", e.asked ? R.asked(e.asked) : "",
+    e.frames ? E.ink(e.frames) : "", e.boards ? E.boards(e.boards) : ""].filter(Boolean).join(", ");
+  let when = "";
+  if (e.built) {
+    const d = new Date(e.built), hm = d.toLocaleTimeString(T.meta.locale, { hour: "2-digit", minute: "2-digit" });
+    when = d.toDateString() === new Date().toDateString() ? E.today(hm)
+      : E.on(d.toLocaleDateString(T.meta.locale, { day: "numeric", month: "long" }), hm);
+  }
+  return ask(R.ask(when, e.pin, what, e.newer), R.open, R.keep);
 }
 
 const textOf = (table, key) => (Object.prototype.hasOwnProperty.call(table, key) ? table[key] : key);   // a phase's name, else itself

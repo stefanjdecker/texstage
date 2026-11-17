@@ -173,6 +173,8 @@ export default {
     "no-round": "No question has been asked yet.",
     "unknown-bundle": "This deck is not on this server.",
     "newer-build": "A newer build of this deck is being played – open that build instead.",
+    "has-ink": "This game has ink or whiteboard pages of its own.",
+    "no-earlier": "That lecture is not on this server any more.",
     "replaces-game": "A game of this deck runs on another build – choose here which build to present.",
     "unknown-quiz": "This deck has no such quiz.",
     "too-many-polls": "This game has had enough polls.",
@@ -266,7 +268,20 @@ export default {
     },
     // the deck page (server/library.py): folders and decks - in the browser's language
     library: {
-      intro: (command) => `The decks of this quiz server (${command} builds one if needed and opens it here); a deck built now appears after a reload. Folders keep them in order: drag a deck onto a folder, or use its ⋯.`,
+      help: "How decks get here",
+      select: "Select", selectTitle: "tick decks to move or remove several at once (Shift: a range)",
+      selected: (n) => `${n} selected`, selectAll: "All shown", selectDone: "Done",
+      pickLabel: (deck) => `select ${deck}`,
+      moveMany: "Move to …", moveManyAsk: (n) => `Move ${n} ${n === 1 ? "deck" : "decks"} to`,
+      movedMany: (n, folder) => `${n} ${n === 1 ? "deck" : "decks"} moved to ${folder}`,
+      newFolderHere: "New folder …",
+      removeMany: "Remove …", removeManyYes: "Remove",
+      removeManyAsk: (unlisted, deleted, running) => [unlisted ? `Take ${unlisted} ${unlisted === 1 ? "deck" : "decks"} off the list (built on this computer: a new build brings ${unlisted === 1 ? "it" : "them"} back)?` : "",
+        deleted.length ? `Delete ${deleted.length === 1 ? "the uploaded deck" : `${deleted.length} uploaded decks`} ${deleted.join(", ")} from this server - this cannot be undone?` : "",
+        running ? `${running} of them ${running === 1 ? "is" : "are"} being presented now.` : ""].filter(Boolean).join(" "),
+      removedMany: (n) => `${n} ${n === 1 ? "deck" : "decks"} removed`,
+      putBackMany: (n) => `${n} ${n === 1 ? "deck" : "decks"} back on the list`,
+      intro: (command) => `The decks of this quiz server (${command} builds one if needed and opens it here); a deck built now appears by itself. Folders keep them in order: drag a deck onto a folder, or use its ⋯.`,
       all: "All decks", path: "folder", search: "Search all decks", searchLabel: "search all decks",
       order: "order", byName: "By name", newest: "Newest first", recent: "Recently presented", newFolder: "New folder",
       today: "today", yesterday: "yesterday", presented: (when) => `presented ${when}`,
@@ -373,10 +388,21 @@ export default {
       asked: (n) => `${n} ${n === 1 ? "question" : "questions"} asked`,
       open: "Open this build", keep: "Keep the running build",
     },
+    // the deck page's Storage: what this lecturer's decks hold on the server, and how it is cleaned (by hand)
+    storage: {
+      button: "Storage", title: "what your decks hold on this server - and how to clean it",
+      loading: "Counting …", none: "Nothing of your decks on this server yet.",
+      intro: (total) => `Your decks hold ${total} on this server, the largest first. Nothing is deleted by itself, but a deck's builds beyond its newest ten.`,
+      uploads: (n, size) => `${n} ${n === 1 ? "upload" : "uploads"} (${size})`,
+      copies: (n, size) => `${n} ${n === 1 ? "copy" : "copies"} kept for games (${size})`,
+      lectures: (n) => `${n} ${n === 1 ? "lecture" : "lectures"}`,
+      archive: (size) => `archive ${size}`, recordings: (n, size) => `${n} ${n === 1 ? "recording" : "recordings"} (${size})`,
+      clean: (list, example) => `A lecture is deleted with its Delete in the deck's ⋯ › Lectures. On the server's machine, ${list} shows the whole data folder, and ${example} lists what would go - with --yes it deletes them; --lectures and --copies take lectures and copies.`,
+    },
     // a deck's lectures and builds (the deck page's ⋯ › Lectures …, Builds …)
     lectures: {
       title: (deck) => `Lectures of ${deck}`,
-      intro: "Every game of this deck, the newest first, with what it left in the archive. A lecture ends with New game, a new presentation, a new build or the next lecture.",
+      intro: "Every game of this deck, the newest first, with what it left in the archive. A lecture ends with End lecture here, New game, a new presentation, a new build or the next lecture; Continue takes an earlier lecture's ink and whiteboard pages up again.",
       none: "No lecture of this deck yet.",
       running: "running now", open: "left open", ended: "ended",
       polls: (n) => `${n} ${n === 1 ? "poll" : "polls"}`,
@@ -389,6 +415,12 @@ export default {
       notKept: (why) => `The PDF is saved here, but the archive did not take it: ${why}`,
       remove: "Delete …", removeAsk: (when, pin) => `Delete the lecture of ${when} (PIN ${pin})? Its results, ink, questions and recordings are deleted from this server; this cannot be undone.`,
       removeYes: "Delete", removed: (when) => `The lecture of ${when}: deleted`,
+      end: "End lecture …", endTitle: "end this game now: its results go to the archive, its PIN is free",
+      endAsk: (pin, players) => `End the lecture (PIN ${pin}, ${players})? What it left goes to the archive, and the phones are told that it is over.`,
+      endYes: "End lecture", endedNow: (pin) => `The lecture (PIN ${pin}) has ended`,
+      continue: "Continue", continueTitle: "present this lecture's build with its ink and whiteboard pages, to go on with it",
+      continueAsk: (when) => `This deck's open game has ink or whiteboard pages of its own. Start a new presentation that continues the lecture of ${when}? The phones then join again with a new PIN.`,
+      continueYes: "New presentation",
     },
     builds: {
       title: (deck) => `Builds of ${deck}`,
@@ -400,6 +432,11 @@ export default {
       download: "Download", remove: "Delete …",
       removeAsk: (when) => `Delete the build of ${when} from this server? A game playing it can no longer be presented with it.`,
       removeYes: "Delete", removed: (when) => `The build of ${when}: deleted`,
+      // what changed since the build before (the server's changes): "3 slides changed, 1 quiz added"
+      since: (what) => `Since the build before: ${what}`,
+      same: "The same slides, quizzes and activities as the build before",
+      change: (n, kind, how) => `${n} ${({ slide: ["slide", "slides"], quiz: ["quiz", "quizzes"], activity: ["activity", "activities"],
+        video: ["video", "videos"] }[kind] || [kind, kind])[n === 1 ? 0 : 1]} ${({ added: "added", removed: "removed", changed: "changed" })[how]}`,
     },
     // a poll typed now (Poll)
     poll: {
@@ -575,7 +612,7 @@ export default {
   // the host console (host/host.js, host/index.html): the decks, then a game's slides, players and quizzes
   host: {
     title: "texstage host",
-    intro: (build, script) => `Built with ${build} / ${script}; a deck built now appears after a reload.`,
+    intro: (build, script) => `Built with ${build} / ${script}; a deck built now appears by itself.`,
     resume: "Continue", start: "Start", prev: "previous slide (←)", next: "next slide (→)", full: "full screen (F)",
     players: "Players", playersOf: (n, online) => `Players (${n}, ${online} online)`, quizzes: "Quizzes",
     nobody: "Nobody has joined yet.", rename: "rename", remove: "remove",

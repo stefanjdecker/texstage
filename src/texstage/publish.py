@@ -21,7 +21,7 @@ from pathlib import Path
 
 from texstage import keys
 from texstage.keys import remember_key  # noqa: F401  (texstage publish --remember)
-from texstage.server.bundles import Bundle, BundleStore, bundle_files
+from texstage.server.bundles import BUILT, Bundle, BundleStore, bundle_files
 
 
 class PublishError(RuntimeError):
@@ -51,6 +51,8 @@ def pack(b: Bundle) -> bytes:
     with zipfile.ZipFile(buf, "w") as z:
         for name in ("deck.json", "keys.json"):
             z.write(b.path / name, name, compress_type=zipfile.ZIP_DEFLATED)
+        if (b.path / BUILT).is_file():                   # the build's time (built.json), which its copies keep
+            z.write(b.path / BUILT, BUILT, compress_type=zipfile.ZIP_DEFLATED)
         for kind in ("slides", "phone"):
             for p in sorted((b.path / kind).glob("*.png")):
                 z.write(p, f"{kind}/{p.name}", compress_type=zipfile.ZIP_STORED)   # PNGs are packed

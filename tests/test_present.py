@@ -105,6 +105,38 @@ def test_present_on_the_server_that_runs(tmp_path, monkeypatch, opened):
     assert opened[-1] == ("file", "talk.pptx")
 
 
+def test_present_takes_a_build_folder_itself_an_older_build_too(tmp_path, monkeypatch, opened):
+    """A rollback from the command line: texstage present names a build folder itself - <name>.bundle, an older
+    build kept elsewhere, a server's kept copy - and that build is presented (?bundle=), not its output
+    folder's newest. A running server finds a folder outside its data folder by builds.json; a server's own
+    copies and uploads are never recorded there (a build folder is open to every lecturer)."""
+    import json
+    tex, out, fb = built(tmp_path)
+    data = tmp_path / "data"
+    old = make_bundle(tmp_path / "kept", deck="talk", time=30, title="talk")     # an older build, kept elsewhere
+    monkeypatch.setattr(cli, "server_up", lambda port: True)
+    monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("a build folder is presented as it is"))
+    monkeypatch.setattr(cli, "cmd_serve", lambda args: pytest.fail("a server runs already"))
+    assert cli.main(["present", str(old.path), "--data", str(data)]) == 0
+    assert opened[-1] == ("browser", f"http://localhost:8470/stage?bundle={old.id}")
+    assert json.loads((data / "builds.json").read_text(encoding="utf-8")) == [str(old.path.resolve())]
+    assert cli.main(["present", str(fb.path), "--powerpoint", "--data", str(data)]) == 0     # its PowerPoint file
+    assert opened[-1] == ("file", "talk.pptx")
+    copy = data / "served" / "talk" / old.id                                        # a server's kept copy
+    shutil.copytree(old.path, copy)
+    assert cli.main(["present", str(copy), "--data", str(data)]) == 0
+    assert opened[-1] == ("browser", f"http://localhost:8470/stage?bundle={old.id}")
+    assert str(copy.resolve()) not in json.loads((data / "builds.json").read_text(encoding="utf-8"))
+    assert cli.main(["present", str(copy), "--powerpoint", "--data", str(data)]) == 2       # (a copy has no PPTX)
+    started = []
+    monkeypatch.setattr(cli, "server_up", lambda port: False)
+    monkeypatch.setattr(cli, "cmd_serve", lambda args: started.append(args) or 0)
+    assert cli.main(["present", str(old.path), "--no-tunnel", "--data", str(data)]) == 0
+    assert started[-1].bundles == [str(old.path)]                                   # served: that folder
+    started[-1].opener()
+    assert opened[-1] == ("browser", f"http://localhost:8470/stage?bundle={old.id}")
+
+
 def test_present_starts_the_server(tmp_path, monkeypatch, opened):
     tex, out, fb = built(tmp_path)
     monkeypatch.setattr(cli, "server_up", lambda port: False)

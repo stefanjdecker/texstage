@@ -511,7 +511,9 @@ def test_a_new_presentation_or_the_lecture_continued(world):
             dp.send_json({"t": "ink.load", "frame": "2", "id": 4})
             assert recv(dp, "ok", until=lambda m: m["re"] == 4)["strokes"][0]["id"].startswith("s1-")
             again.send_json({"t": "lecture.continue", "game": first["session"], "id": "a4"})
-            assert recv(again, "error", until=lambda m: m["re"] == "a4")["error"] == "invalid"
+            assert recv(again, "error", until=lambda m: m["re"] == "a4")["error"] == "has-ink"   # (its own now)
+            again.send_json({"t": "lecture.continue", "game": "nosuchgame", "id": "a5"})
+            assert recv(again, "error", until=lambda m: m["re"] == "a5")["error"] == "no-earlier"
 
 
 def built(fb, at: float):

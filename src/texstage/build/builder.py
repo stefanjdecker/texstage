@@ -24,6 +24,7 @@ PowerPoint file; check the quiz and answer frames in the present and solutions b
 from __future__ import annotations
 
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -258,8 +259,9 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     if stage is not None:
         files[stage.file] = stage_pdf
     bundle_dir = out_dir / f"{name}.bundle"
-    bnd.write_bundle(bundle_dir, deck, keys, files)
-    bnd.write_zip(out_dir / f"{name}.bundle.zip", deck, keys, files)      # to upload by hand
+    made = int(time.time() * 1000)                                       # the build's time, which its copies keep
+    bnd.write_bundle(bundle_dir, deck, keys, files, built=made)
+    bnd.write_zip(out_dir / f"{name}.bundle.zip", deck, keys, files, built=made)      # to upload by hand
 
     # The PowerPoint file carries no bundle: every deck reaches its server through its build
     # (texstage build: recorded for this machine's quiz server, uploaded to any other one -

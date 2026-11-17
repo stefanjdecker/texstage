@@ -43,6 +43,17 @@ for _cls, (_table, _cols, _key, _json) in stage_types.ROWS.items():     # the co
     TABLES[_cls], KEYS[_table], JSON[_cls] = (_table, _cols), _key, _json
 
 
+# What makes a game a lecture - it left something: players (not removed), questions asked, ink, the
+# audience's questions, polls or whiteboard pages (a folder in the archive besides: its callers'). The deck
+# page's Lectures and datafolder.py's sizes and cleaning go by the same rule. (s: the sessions' row)
+LEFT = ("EXISTS (SELECT 1 FROM players p WHERE p.session = s.id AND NOT COALESCE(p.kicked, 0)) "
+        "OR EXISTS (SELECT 1 FROM rounds r WHERE r.session = s.id) "
+        "OR EXISTS (SELECT 1 FROM strokes k WHERE k.session = s.id AND k.erased IS NULL) "
+        "OR EXISTS (SELECT 1 FROM questions q WHERE q.session = s.id AND q.state != 'deleted') "
+        "OR COALESCE(polls, '') NOT IN ('', '{}') "
+        "OR (COALESCE(stage, '') LIKE '%\"boards\": [%' AND stage NOT LIKE '%\"boards\": []%')")
+
+
 class Store:
     def __init__(self, path: Path | str):
         self.db = sqlite3.connect(str(path), check_same_thread=False)  # used by one event loop
@@ -130,13 +141,7 @@ class Store:
         pins = sorted(set(archived))
         rows = self.db.execute(
             "SELECT id, pin, bundle, created, last_active, ended, finished, stage, polls FROM sessions s "
-            "WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL AND ("
-            "EXISTS (SELECT 1 FROM players p WHERE p.session = s.id AND NOT COALESCE(p.kicked, 0)) "
-            "OR EXISTS (SELECT 1 FROM rounds r WHERE r.session = s.id) "
-            "OR EXISTS (SELECT 1 FROM strokes k WHERE k.session = s.id AND k.erased IS NULL) "
-            "OR EXISTS (SELECT 1 FROM questions q WHERE q.session = s.id AND q.state != 'deleted') "
-            "OR COALESCE(polls, '') NOT IN ('', '{}') "
-            "OR (COALESCE(stage, '') LIKE '%\"boards\": [%' AND stage NOT LIKE '%\"boards\": []%')"
+            "WHERE deck = ? AND COALESCE(owner, '') = ? AND ended IS NOT NULL AND (" + LEFT
             + (f" OR pin IN ({', '.join('?' * len(pins))})" if pins else "")
             + ") ORDER BY created DESC LIMIT ?", (deck, owner, *pins, limit)).fetchall()
         if not rows:

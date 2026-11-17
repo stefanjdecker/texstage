@@ -125,8 +125,8 @@ function presenterHello(t) {
   const told = [], refusals = [];
   Object.assign(t.context, {auth: 'key', deck: {deck: 'demo', bundle: 'b1'}, client: t.client, pinger: 0,
     follow: {postMessage: (m) => told.push(m)}, refused: (err) => refusals.push(err), ping() {},
-    setInterval: () => 0, clearInterval() {}, newOrContinued: async () => {}});
-  vm.runInContext(`globalThis.helloOf = async function (chosen) {\n${presenter.slice(from, to)}\n};`, t.context);
+    setInterval: () => 0, clearInterval() {}, newOrContinued: async () => {}, continueLecture: async () => {}});
+  vm.runInContext(`globalThis.helloOf = async function (chosen, options = {}) {\n${presenter.slice(from, to)}\n};`, t.context);
   return {open: (chosen) => t.context.helloOf(chosen), told, refusals};
 }
 

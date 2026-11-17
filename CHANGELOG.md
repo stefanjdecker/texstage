@@ -2,6 +2,28 @@
 
 ## Unreleased — 0.2.1.dev5 candidate
 
+- The deck list no longer stops the server: it looks at the build folders in a
+  worker thread and reads only those whose files changed (a lecture's phones
+  waited 0.5 to 2 s at every deck list). The deck page and the host console
+  show a deck built meanwhile by themselves. A build's time is its own
+  (`built.json`, which its copies keep): an old build copied again is not the
+  newest.
+- Rollback from the command line: `texstage present <build folder>` presents
+  that build - a `<name>.bundle`, a server's kept copy, an upload. *Builds …*
+  says what changed since the build before. The host console asks, as the
+  presenter window does, before a new build ends a game with players.
+- *Lectures …*: *End lecture …* ends the open game at once (its archive written,
+  its PIN free, an upload deletable right away); *Continue* takes up an earlier
+  lecture's ink and whiteboard pages, any one of the build, not only the last.
+- The deck page: *Select* moves or removes several decks at once (*Move to …*
+  makes a new folder on the spot), several files go up in one upload, the intro
+  folds away, a card's menu goes by the arrow keys, build times lose their
+  seconds; the host console's list shows the lecturer's names and folders.
+- *Storage* on the deck page and `texstage data` show what the decks hold on the
+  server; `texstage data clean --before DATE` removes ended lectures, their
+  recordings or copies kept for games - listed first, deleted with `--yes`,
+  never an open game's. Nothing is deleted by itself but, as before, a
+  deck's builds beyond its newest ten.
 - A choice's options are in its box on the slide - handout, solutions,
   PowerPoint -, each with its shape in its colour and as the phones show it
   (a formula typeset, `first_name`, `x^2`, `R&D` or `x < 5` as written), so

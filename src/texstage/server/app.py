@@ -106,6 +106,7 @@ import os
 import re
 import secrets
 import shutil
+import threading
 import time
 import zipfile
 import zlib
@@ -132,7 +133,8 @@ from texstage.server import archive, sheets
 from texstage.server import policy as pages
 from texstage.server import types as stage_types
 from texstage.server.archive import ArchiveError, Recordings
-from texstage.server.bundles import BundleError, BundleStore, holds, load_bundle
+from texstage.server.bundles import BundleError, BundleStore, built_time, changes, holds, load_bundle
+from texstage.server import datafolder
 from texstage.server.checking import MODES, Checks
 from texstage.server.devices import PAIR_MS, Devices
 from texstage.server.lecturers import Lecturers
@@ -159,7 +161,7 @@ BUNDLE_MAX = 200 * 1024 * 1024                       # a published bundle, packe
 ARCHIVE_MAX = 300 * 1024 * 1024                      # an annotated PDF (texstage)
 DOWNLOAD_MS = 600_000                                 # a recording's download address stays valid
 MEDIA_MS = 12 * 3_600_000                             # a video's address (a ticket): a lecture day
-BUNDLE_ENTRY = re.compile(r"^(deck\.json|keys\.json|(slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(mp4|m4v|webm|mov|jpg|png)"
+BUNDLE_ENTRY = re.compile(r"^(deck\.json|keys\.json|built\.json|(slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(mp4|m4v|webm|mov|jpg|png)"
                           r"|stage/[0-9a-f]{16}\.pdf" + "".join(f"|{p}" for p in stage_types.FILES) + r")$")
 ZIP_JUNK = re.compile(r"(^|/)(__MACOSX/|\.DS_Store$|Thumbs\.db$|desktop\.ini$)", re.IGNORECASE)   # zipped by hand
 ZIP_ERRORS = (zipfile.BadZipFile, EOFError, NotImplementedError, RuntimeError, zlib.error)  # broken, Deflate64, encrypted
@@ -465,6 +467,8 @@ class Server:
         for own in (self.published, self.served):
             if not any(r.resolve() == own.resolve() for r in roots):
                 roots.append(own)
+        self.looking: asyncio.Future | None = None           # the look under way (rescan), and when it began
+        self.look_began = 0.0
         self.bundles = BundleStore(roots, published=self.published,     # <lecturer>/<deck>.bundle
                                    more=lambda: build_folders(config.data_dir))   # this machine's builds
         self.lecturers = Lecturers(config.data_dir / "lecturers.json", {config.owner: config.presenter_key})
@@ -730,16 +734,44 @@ class Server:
         finally:
             shutil.rmtree(work, ignore_errors=True)
 
-    def prune(self, folder: Path):
+    def prune(self, folder: Path) -> list[Path]:
         """Keeps the newest KEEP_BUILDS builds in a deck's folder (<id>/ each) and every
-        build a game plays."""
+        build a game plays. The others are forgotten here, and returned to be removed off the
+        event loop (remove; the store does not find them again meanwhile: BundleStore.drop)."""
         playing = {s.bundle for s in self.engine.sessions.values()}
-        builds = sorted((d for d in folder.iterdir() if (d / "deck.json").is_file()),
-                        key=lambda d: (d / "deck.json").stat().st_mtime, reverse=True)
-        for d in builds[KEEP_BUILDS:]:
-            if d.name not in playing:
-                self.bundles.drop(d)
-                shutil.rmtree(d, ignore_errors=True)
+        builds = sorted((d for d in folder.iterdir() if (d / "deck.json").is_file()),     # (by a build's own time)
+                        key=lambda d: built_time(d) or (d / "deck.json").stat().st_mtime * 1000, reverse=True)
+        doomed = [d for d in builds[KEEP_BUILDS:] if d.name not in playing]
+        for d in doomed:
+            self.bundles.drop(d)
+        return doomed
+
+    @staticmethod
+    def remove(folders: list[Path]):
+        """Folders pruned (prune) removed - in a worker thread."""
+        for d in folders:
+            shutil.rmtree(d, ignore_errors=True)
+
+    async def rescan(self):
+        """The bundle folders looked at again in a worker thread - only those whose files changed are
+        read (bundles.py: collect) -, what it found merged here, on the event loop. Looks are shared: one
+        under way that began after this was asked is waited for, one that began before it is waited out and
+        the next one shared (eight deck pages polling at once: two looks, not eight - and none answered
+        from a look older than its question: a deck built just now is there)."""
+        asked = time.monotonic()
+        while True:
+            look, began = self.looking, self.look_began
+            if look is None or look.done():
+                self.look_began = time.monotonic()
+                self.looking = look = asyncio.ensure_future(self._look())
+                await asyncio.shield(look)
+                return
+            await asyncio.shield(look)
+            if began >= asked:
+                return
+
+    async def _look(self):
+        self.bundles.apply(await asyncio.to_thread(self.bundles.collect))
 
     def snapshot(self, b):
         """A deck from a served folder (a laptop's build folder) that a game plays is copied
@@ -756,7 +788,9 @@ class Server:
             dest.parent.mkdir(parents=True, exist_ok=True)
             rename(tmp, dest, tries=3)                # on the event loop: 0.15 s at most
         b.path = dest
-        self.prune(dest.parent)
+        doomed = self.prune(dest.parent)
+        if doomed:                                       # (a game's first hello: not to wait for)
+            threading.Thread(target=self.remove, args=(doomed,), name="texstage-prune", daemon=True).start()
 
     # ------------------------------------------------------------ the protocol
     async def handle(self, conn: Conn, msg: dict):
@@ -1236,6 +1270,7 @@ def create_app(config: ServerConfig) -> Starlette:
         bid = request.path_params["bundle"]
         if not re.fullmatch(r"[0-9a-f]{16}", bid):
             return refuse("unknown-bundle", "not a bundle ID", 404)
+        await server.rescan()
         if have(bid, lect):
             server.library.show(lect, server.bundles.bundles[bid].deck)    # uploaded again: listed again
             return JSONResponse(bundle_info(server.bundles.bundles[bid]) | {"new": False})
@@ -1252,7 +1287,8 @@ def create_app(config: ServerConfig) -> Starlette:
     def have(bid: str, lect: str) -> bool:
         """The lecturer's server has this bundle complete already (an incomplete one is replaced)."""
         known = server.bundles.bundles.get(bid)
-        return known is not None and known.open_to(lect) and known in server.bundles.current() and known.complete()
+        return known is not None and known.open_to(lect) and known in server.bundles.current() and \
+            server.bundles.complete(known)
 
     async def receive(request: Request, lect: str, bid: str | None):
         """An upload into incoming/ (at most BUNDLE_MAX), checked and unpacked; bid None: the
@@ -1269,13 +1305,14 @@ def create_app(config: ServerConfig) -> Starlette:
                     f.write(chunk)
             if bid is None:
                 bid = await asyncio.to_thread(zip_bundle_id, packed)
+                await server.rescan()
                 if have(bid, lect):
                     server.library.show(lect, server.bundles.bundles[bid].deck)
                     return JSONResponse(bundle_info(server.bundles.bundles[bid]) | {"new": False})
             async with server.publishing:
                 target = await asyncio.to_thread(server.unpack_bundle, packed, bid, lect)
                 b = server.bundles.add(target)
-                server.prune(target.parent)
+                await asyncio.to_thread(server.remove, server.prune(target.parent))
             server.library.show(lect, b.deck)            # a deck taken off the list, uploaded again
         except BundleError as err:
             return refuse("bad-bundle", str(err), 400)
@@ -1483,7 +1520,7 @@ def create_app(config: ServerConfig) -> Starlette:
         lect = lecturer(request)
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
-        server.bundles.scan()
+        await server.rescan()                            # (in a worker thread: no phone waits for it)
         lib = server.library.view(lect)["decks"]
 
         def listed(b) -> bool:
@@ -1509,7 +1546,7 @@ def create_app(config: ServerConfig) -> Starlette:
             entry = lib.get(b.deck) if isinstance(lib.get(b.deck), dict) else {}
             out.append({"bundle": b.id, "deck": b.deck, "name": b.name, "quizzes": len(b.quizzes),
                         "slides": len(b.slides), "built": built_ms(b),
-                        "complete": b.complete(), "stage": b.stage_pdf() is not None,
+                        "complete": server.bundles.complete(b), "stage": b.stage_pdf() is not None,
                         "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id,
                                  "running": now - s.last_active < server.engine.settings.stale_ms}
                         if s and s.bundle == b.id else None,
@@ -1527,6 +1564,18 @@ def create_app(config: ServerConfig) -> Starlette:
         hidden = entry.get("hidden") if isinstance(entry, dict) else None
         return isinstance(hidden, int) and built_ms(b) <= hidden
 
+    async def storage(request: Request):
+        """GET /api/storage: what this lecturer's decks hold on this server - uploads, copies kept for their games,
+        lectures, the archive and its recordings (datafolder.py), the largest first; counted in a worker thread.
+        Nothing is deleted by itself but a deck's builds beyond its newest ten (prune): a lecture by its Delete
+        (the deck's Lectures), the rest by texstage data
+        clean on the server's machine."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        decks = await asyncio.to_thread(datafolder.overview, config.data_dir, lect)
+        return JSONResponse([d.view() for d in decks])
+
     async def removed(request: Request):
         """GET /api/removed: the decks this lecturer took off the list and has builds of, none built since -
         the newest first, with when (`hidden`) -, which the deck page puts back (PATCH /api/decks/<deck>
@@ -1534,6 +1583,7 @@ def create_app(config: ServerConfig) -> Starlette:
         lect = lecturer(request)
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
+        await server.rescan()
         lib = server.library.view(lect)["decks"]
         newest: dict = {}
         for b in server.bundles.current():
@@ -1552,6 +1602,8 @@ def create_app(config: ServerConfig) -> Starlette:
         the deck page asks for this list after it). The folder of one not uploaded is named - relative to
         the data folder where it is in it -, so that the lecturer finds it."""
         lect = lecturer(request)
+        if lect is not None:
+            await server.rescan()
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
         data = config.data_dir.resolve()
@@ -1825,6 +1877,24 @@ def create_app(config: ServerConfig) -> Starlette:
         log.info("lecture %s of %s deleted by %s", s.pin, s.deck, lect)
         return JSONResponse({"deleted": sid})
 
+    async def end_lecture(request: Request):
+        """POST /api/decks/<deck>/lectures/<game>/end: the lecturer's open game of the deck ended (End lecture):
+        its archive written, its PIN free; its windows and phones told that it is over."""
+        lect = lecturer(request)
+        if lect is None:
+            return refuse("key-required", "presenter key required", 403)
+        deck, sid = request.path_params["deck"], request.path_params["game"]
+        s = server.engine.sessions.get(sid)
+        if s is None or s.deck != deck or s.owner != lect:
+            return refuse("no-game", "no open game of this deck", 404)
+        folder = archive.folder(config.data_dir, s, make=False).resolve()
+        if any(take.finished is None and take.folder.resolve() == folder for take in server.recordings.takes.values()):
+            return refuse("recording-running", "a recording of this lecture is still being made - stop it first", 409)
+        server.engine.end(sid, now_ms())
+        server._sweep()                                  # (its windows and phones: over)
+        log.info("lecture %s of %s ended by %s", s.pin, deck, lect)
+        return JSONResponse({"ended": sid})
+
     async def lectures(request: Request):
         """GET /api/decks/<deck>/lectures: the lecturer's games of the deck, the newest first - the open
         one (running, or left open since an earlier lecture) and the ended ones (Store.lectures) -, each
@@ -1864,15 +1934,19 @@ def create_app(config: ServerConfig) -> Starlette:
         earlier lectures played it; as the last scan found them (the deck page's GET /api/decks). The deck
         page's Builds: present one (an older one too: a rollback), download it, delete an upload."""
         lect = lecturer(request)
+        if lect is not None:
+            await server.rescan()
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
         deck, now = request.path_params["deck"], now_ms()
         games = {s.bundle: s for s in server.engine.sessions.values()
                  if s.deck == deck and s.owner == lect and s.ended is None}
         played = server.store.played(deck, lect)
-        found = sorted((b for b in server.bundles.bundles.values() if b.deck == deck and b.open_to(lect) and holds(b)),
+        found = sorted((b for b in server.bundles.bundles.values() if b.deck == deck and b.open_to(lect) and server.bundles.holds(b)),
                        key=lambda b: -b.built)
         data, served = config.data_dir.resolve(), server.served.resolve()
+        befores = await asyncio.to_thread(lambda: [changes(b, found[i + 1]) if i + 1 < len(found) else None
+                                                   for i, b in enumerate(found)])     # (pictures compared: a thread)
         out = []
         for i, b in enumerate(found):
             path = b.path.resolve()
@@ -1880,8 +1954,9 @@ def create_app(config: ServerConfig) -> Starlette:
             folder = None if source == "uploaded" else \
                 path.relative_to(data).as_posix() if path.is_relative_to(data) else str(path)
             s = games.get(b.id)
-            out.append({"bundle": b.id, "name": b.name, "built": b.built, "quizzes": len(b.quizzes),
-                        "slides": len(b.slides), "stage": b.stage_pdf() is not None, "complete": b.complete(),
+            since = befores[i]                                                       # (the build before it)
+            out.append({"bundle": b.id, "name": b.name, "built": b.built, "quizzes": len(b.quizzes), "changes": since,
+                        "slides": len(b.slides), "stage": b.stage_pdf() is not None, "complete": server.bundles.complete(b),
                         "newest": i == 0, "source": source, "folder": folder,
                         "uploaded": bool(DECK_ID.match(deck)) and (server.published / lect / deck / b.id / "deck.json").is_file(),
                         "game": {"pin": s.pin, "players": len(s.active_players()), "session": s.id,
@@ -2079,7 +2154,9 @@ def create_app(config: ServerConfig) -> Starlette:
         Route("/api/decks/{deck}", deck_entry, methods=["PATCH", "DELETE"]),
         Route("/api/skipped", skipped),
         Route("/api/removed", removed),
+        Route("/api/storage", storage),
         Route("/api/decks/{deck}/lectures", lectures),
+        Route("/api/decks/{deck}/lectures/{game}/end", end_lecture, methods=["POST"]),
         Route("/api/decks/{deck}/builds", builds),
         Route("/api/folders", folders, methods=["GET", "POST"]),
         Route("/api/folders/{folder}", folder, methods=["PATCH", "DELETE"]),

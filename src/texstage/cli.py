@@ -327,6 +327,19 @@ def built(out: Path, name: str | None = None) -> tuple[str | None, str | None, P
     return deck.get("bundle"), deck.get("deck"), pptx if pptx.is_file() else None
 
 
+def bundle_here(folder: Path) -> tuple[str | None, str | None, Path | None]:
+    """A build folder itself (its deck.json in it - <name>.bundle, a server's kept copy, an upload):
+    (bundle ID, deck ID, the live PowerPoint file beside a <name>.bundle)."""
+    import json
+    try:
+        deck = json.loads((folder / "deck.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        deck = {}
+    deck = deck if isinstance(deck, dict) else {}
+    pptx = folder.parent / (folder.name.removesuffix(".bundle") + ".pptx") if folder.name.endswith(".bundle") else None
+    return deck.get("bundle"), deck.get("deck"), pptx if pptx is not None and pptx.is_file() else None
+
+
 def server_up(port: int) -> bool:
     """Whether a texstage server already answers on this machine's port."""
     import json
@@ -470,7 +483,17 @@ def cmd_present(args: argparse.Namespace) -> int:
                 print("texstage present: the check found problems in the quiz frames (above) - presenting the deck anyway")
     else:
         out, name = path, None
-    bid, deck, pptx = built(out, name)
+    if name is None and (out / "deck.json").is_file():       # a build folder itself: that build - an older one
+        bid, deck, pptx = bundle_here(out)                     # too, a rollback (the deck page's Builds offers it)
+        data = Path(args.data) if args.data else DEFAULT_DATA
+        if not out.resolve().is_relative_to(data.resolve()):  # (a server's own copies and uploads it has: never
+            from texstage.builds import remember_build         # one of them as a build folder - open to all)
+            try:
+                remember_build(out, data)                      # the server running here finds it (builds.json)
+            except OSError as err:
+                print(f"texstage present: the quiz server on this machine may not find {out} ({err})", file=sys.stderr)
+    else:
+        bid, deck, pptx = built(out, name)
     if args.powerpoint and pptx is None:
         print(f"texstage: no live PowerPoint file in {out}" + ("" if bid else " - build the deck first"), file=sys.stderr)
         return 2
@@ -607,7 +630,85 @@ def cmd_retarget(args: argparse.Namespace) -> int:
     return 0
 
 
-COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin", "kinds")
+COMMANDS = ("present", "pdf", "pptx", "build", "check", "retarget", "serve", "lecturer", "publish", "addin", "kinds", "data")
+
+
+def amount(n: int) -> str:
+    """Bytes as people read them: 812 kB, 33.2 MB, 3.4 GB."""
+    for unit, size in (("GB", 1e9), ("MB", 1e6), ("kB", 1e3)):
+        if n >= size:
+            return f"{n / size:.1f} {unit}" if n < 100 * size else f"{n / size:.0f} {unit}"
+    return f"{n} B"
+
+
+def cmd_data(args: argparse.Namespace) -> int:
+    """texstage data: what the data folder holds per deck - nothing is deleted by itself; texstage data clean
+    --before DATE removes, as asked, ended lectures (rows and archive folders), recordings alone, or copies kept
+    for games - never an open game's - and lists them first: --yes deletes."""
+    import datetime
+
+    from texstage.server import datafolder
+    data = Path(args.data) if args.data else DEFAULT_DATA
+    if not data.is_dir():
+        print(f"texstage: no data folder {data}", file=sys.stderr)
+        return 2
+    if args.action != "clean":
+        decks = datafolder.overview(data)
+        if not decks:
+            print(f"nothing of decks in {data}")
+            return 0
+        rows = [("deck", "uploads", "copies", "lectures", "archive", "recordings", "total")]
+        for d in decks:
+            rows.append((d.deck, f"{d.uploads} ({amount(d.uploads_bytes)})" if d.uploads else "-",
+                         f"{d.copies} ({amount(d.copies_bytes)})" if d.copies else "-", str(d.lectures or "-"),
+                         amount(d.archive_bytes) if d.archive_bytes else "-",
+                         f"{d.recordings} ({amount(d.recordings_bytes)})" if d.recordings else "-", amount(d.total)))
+        widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
+        for r in rows:
+            print("  ".join(c.ljust(w) if i == 0 else c.rjust(w) for i, (c, w) in enumerate(zip(r, widths))))
+        store = data / datafolder.STORE
+        print(f"\n{amount(sum(d.total for d in decks))} for {len(decks)} decks in {data}"
+              + (f" (and the store of games, {store.name}: {amount(store.stat().st_size)})" if store.is_file() else ""))
+        print("Nothing is deleted by itself but a deck's builds beyond its newest ten. To clean by hand, e.g.: "
+              "texstage data clean --before 2026-04-01 "
+              "--recordings (lists what would go; --yes deletes)")
+        return 0
+    if not args.before:
+        print("texstage data clean: --before DATE, e.g. --before 2026-04-01 (what ended or was built before it)",
+              file=sys.stderr)
+        return 2
+    if not (args.lectures or args.recordings or args.copies):
+        print("texstage data clean: say what goes - --lectures (ended lectures: their results, ink, questions, "
+              "recordings), --recordings (their recordings alone), --copies (copies kept for games)", file=sys.stderr)
+        return 2
+    try:
+        day = datetime.date.fromisoformat(args.before)
+    except ValueError:
+        print(f"texstage data clean: --before {args.before} is no date (YYYY-MM-DD)", file=sys.stderr)
+        return 2
+    before = int(datetime.datetime.combine(day, datetime.time()).timestamp() * 1000)    # (local midnight)
+    gone = datafolder.plan(data, before, lectures=args.lectures, recordings=args.recordings, copies=args.copies,
+                           deck=args.deck)
+    words = {"lecture": "lecture", "empty": "games", "recording": "recording", "copy": "copy"}
+    going = [g for g in gone if g.kind != "held"]
+    for g in going:
+        print(f"  {words[g.kind]:9}  {g.deck}  {g.what}  ({amount(g.bytes)})")
+    for g in gone:
+        if g.kind == "held":
+            print(f"  left alone {g.deck}  {g.what}")
+    if not going:
+        print(f"nothing to clean before {day} in {data}")
+        return 0
+    total = sum(g.bytes for g in going)
+    if not args.yes:
+        print(f"{len(going)} to clean, {amount(total)} - nothing deleted yet: the same command with --yes deletes them"
+              + (" (lectures: their results, ink, the audience's questions and recordings, for good)" if args.lectures else ""))
+        return 0
+    freed, failed = datafolder.clean(data, going)   # (a server may run meanwhile: open games and what they use stay)
+    for why in failed:
+        print(f"  not cleaned: {why}", file=sys.stderr)
+    print(f"{len(going) - len([f for f in failed if not f.endswith('next cleaning')])} cleaned, {amount(freed)} freed")
+    return 1 if any(not f.endswith("next cleaning") for f in failed) else 0
 
 
 def cmd_kinds(args: argparse.Namespace) -> int:
@@ -792,14 +893,31 @@ def main(argv: list[str] | None = None) -> int:
     k.add_argument("action", nargs="?", choices=["check"], help="check: run the kit")
     k.add_argument("names", nargs="*", help="check: the kinds to check (default: every installed one)")
     k.set_defaults(func=cmd_kinds)
+
+    dt = sub.add_parser("data", help="what the data folder holds per deck (uploads, copies kept for games, lectures, "
+                                     "their archive and recordings); data clean --before DATE: remove by hand")
+    dt.add_argument("action", nargs="?", choices=["clean"], help="clean: remove what --lectures, --recordings, "
+                                                                 "--copies name (listed first; --yes deletes)")
+    dt.add_argument("--before", help="clean: what ended (lectures, their recordings) or was built (copies) before "
+                                     "this day, YYYY-MM-DD")
+    dt.add_argument("--lectures", action="store_true", help="clean: ended lectures - their results, ink, the "
+                                                            "audience's questions and recordings, for good")
+    dt.add_argument("--recordings", action="store_true", help="clean: the recordings of ended lectures alone")
+    dt.add_argument("--copies", action="store_true", help="clean: copies kept for games (served/) no open game plays")
+    dt.add_argument("--deck", help="clean: of this deck only")
+    dt.add_argument("--yes", action="store_true", help="clean: delete them (without it: listed only)")
+    dt.add_argument("--data", help=f"the data folder (default ~/{DEFAULT_DATA.name})")
+    dt.set_defaults(func=cmd_data)
     args = parser.parse_args(argv)
     return args.func(args)
 
 
 def present_options(parser: argparse.ArgumentParser):
     parser.add_argument("targets", nargs="*", help="the deck: its .tex file (built first if its build is missing or "
-                                                   "older than its sources), or a build folder; further folders are "
-                                                   "served too; default: the current folder")
+                                                   "older than its sources), a build's output folder (its newest "
+                                                   "build), or a build folder itself - a <name>.bundle, a server's "
+                                                   "kept copy or upload: that build, an older one too; further "
+                                                   "folders are served too; default: the current folder")
     parser.add_argument("--powerpoint", action="store_true",
                         help="open the deck's live PowerPoint file instead of texstage's presenter window")
     b = parser.add_mutually_exclusive_group()

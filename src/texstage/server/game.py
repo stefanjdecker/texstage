@@ -563,8 +563,8 @@ class Engine:
         self._commit()
 
     def end(self, sid: str, now: int):
-        """Ends a game (its deck is deleted): what a new game of the deck would do with it - its
-        results, ink and pages stay in the archive."""
+        """Ends a game (its deck is deleted, or End lecture): what a new game of the deck would do with it -
+        its results, ink and pages stay in the archive, its PIN is free."""
         self._end(self.session(sid), now)
         self._commit()
 
@@ -611,11 +611,11 @@ class Engine:
         pages of its own, gets those of `game` - an ended game of the same deck, build and
         lecturer - as copies, so that lecture keeps its own in the archive."""
         s = self.session(sid)
-        if any(self.marks(s)):
-            raise GameError("invalid", "this game has ink or whiteboard pages of its own")
         old = self.store.ended_session(game) if self.store is not None and isinstance(game, str) else None
         if old is None or (old.deck, old.bundle, old.owner) != (s.deck, s.bundle, s.owner):
-            raise GameError("invalid", "no earlier lecture of this build of the deck")
+            raise GameError("no-earlier", "no earlier lecture of this build of the deck")   # (first: what a
+        if any(self.marks(s)):                                                          # new presentation cannot mend)
+            raise GameError("has-ink", "this game has ink or whiteboard pages of its own")
         copies = [replace(st, id=f"{st.id[:28]}-{secrets.token_hex(5)}", session=s.id)
                   for st in self.store.load_strokes([old.id])]
         for st in copies:
