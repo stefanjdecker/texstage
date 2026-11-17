@@ -241,8 +241,11 @@ class Number(Kind):
             if abs(_read(t)) > NUMBER_MAX:
                 raise Unbuildable(f"the reference {t} is too large - at most 10^15")
             references.append(written(canonical(_read(t))))
+        said = [] if references or not tolerance else [
+            f"tolerance={written(canonical(tolerance))} but no \\reference{{...}} - with nothing to compare, no "
+            f"number is judged right or wrong, and the tolerance does nothing"]
         return Built({"tolerance": canonical(tolerance)} if tolerance else {},
-                     {"reference": references} if references else {})
+                     {"reference": references} if references else {}, warnings=said)
 
     def normalize(self, step, entry: Entry) -> Entry:
         if entry.number is None or isinstance(entry.number, bool) or not isinstance(entry.number, (int, float)):

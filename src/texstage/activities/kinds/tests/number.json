@@ -329,6 +329,20 @@
     ]
    },
    "refused": "the reference 10000000000000000 is too large - at most 10^15"
+  },
+  {
+   "options": {
+    "tolerance": "0.5"
+   },
+   "bodies": {},
+   "built": {
+    "item": {
+     "tolerance": 0.5
+    },
+    "warnings": [
+     "tolerance=0.5 but no \\reference{...} - with nothing to compare, no number is judged right or wrong, and the tolerance does nothing"
+    ]
+   }
   }
  ]
 }

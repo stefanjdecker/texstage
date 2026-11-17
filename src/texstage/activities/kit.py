@@ -309,9 +309,16 @@ def _wrong(data: dict) -> str | None:
         if "refused" in b and not isinstance(b["refused"], str):
             return f"build {i} - refused: the refusal's words"
         if "built" in b and not (isinstance(b["built"], dict) and isinstance(b["built"].get("item"), dict)
-                                 and set(b["built"]) <= {"item", "keys", "files"} and _texts(b["built"].get("files", {}))):
-            return f"build {i} - built: the item, the keys, the bundle's files as texts"
+                                 and set(b["built"]) <= {"item", "keys", "files", "warnings"}
+                                 and _texts(b["built"].get("files", {})) and _lines(b["built"].get("warnings", []))):
+            return f"build {i} - built: the item, the keys, the bundle's files as texts, the warnings as lines"
     return None
+
+
+def _lines(warnings) -> bool:
+    """Whether a build's warnings are what Built says: a list of texts, each one line of its own."""
+    return isinstance(warnings, (list, tuple)) and all(isinstance(w, str) and w.strip() and "\n" not in w
+                                                         for w in warnings)
 
 
 def _pairs(pairs: list) -> dict:
@@ -437,11 +444,18 @@ def _build(kind: Kind, where: str, i: int, build: dict, report: Report) -> None:
     except Exception as e:  # noqa: BLE001 - what a build gives is an item, keys and files as bytes
         report.faults.append(f"{what}: what it built is no item, keys and files - {type(e).__name__}: {e}")
         return
+    said = getattr(built, "warnings", [])             # (Built's: what it says of the deck that builds)
+    if not _lines(said):
+        report.faults.append(f"{what}: its warnings are no list of texts, each a line: {json.dumps(said, default=str)[:200]}")
+        return
     want = {"item": build["built"]["item"], "keys": build["built"].get("keys", {}), "files": build["built"].get("files", {})}
     for part in ("item", "keys", "files"):
         if made[part] != want[part]:
             report.faults.append(f"{what}: {part}: {json.dumps(made[part])[:200]}, not {json.dumps(want[part])[:200]}")
             return
+    if list(said) != list(build["built"].get("warnings", [])):
+        report.faults.append(f"{what}: warnings: {json.dumps(list(said))[:200]}, not "
+                             f"{json.dumps(build['built'].get('warnings', []))[:200]}")
 
 
 def _fixtures(kind: Kind, files: list[dict], report: Report, now: dict) -> None:

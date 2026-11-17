@@ -304,7 +304,8 @@ class SqlQuery(Kind):
     LIMIT = 5                                    # a student's entries, unless the deck says
 
     # the build, on the author's machine
-    def build(self, options, bodies) -> Built: ...           # checks its keys; the item (public), keys (private), files
+    def build(self, options, bodies) -> Built: ...           # checks its keys; the item (public), keys (private), files,
+    #                                                           and its warnings: lines the build prints (since 2026-11-17)
 
     # the server, in a worker process - no kind code runs in the server's event loop
     def prepare(self, item, keys, files, limits=None, copy=None) -> Prepared: ...   # per worker and seed

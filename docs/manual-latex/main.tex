@@ -3,7 +3,7 @@
 \providecommand{\manualdocroot}{../}
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
-\newcommand{\manualversion}{0.2.1.dev4}
+\newcommand{\manualversion}{0.2.1.dev5}
 \newcommand{\manualdate}{November 2026}
 \hypersetup{pdftitle={texstage user manual},pdfauthor={texstage project}}
 \title{texstage user manual\\[0.5em]\large Presenter and participant guide}
@@ -16,7 +16,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.\par
 
-Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 -\allowbreak{} development candidate available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
+Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev5 -\allowbreak{} development candidate available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
 {\small\setlength{\parskip}{0pt}\tableofcontents}
@@ -193,7 +193,7 @@ python -c "from importlib.metadata import version; print(version('texstage'))"
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 for this edition.\allowbreak{} texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-\allowbreak{}query of texstage-\allowbreak{}kinds-\allowbreak{}sql, and triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph of texstage-\allowbreak{}kinds-\allowbreak{}rdf.\allowbreak{} The kinds' packages need texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 or later; pip check reports an older one.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
+Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev5 for this edition.\allowbreak{} texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-\allowbreak{}query of texstage-\allowbreak{}kinds-\allowbreak{}sql, and triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph of texstage-\allowbreak{}kinds-\allowbreak{}rdf.\allowbreak{} The kinds' packages need texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 or later; pip check reports an older one.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
 
 LaTeX source is text; a TeX distribution turns it into a PDF.\allowbreak{} Beamer is the LaTeX document class for slides.\allowbreak{} Install a current full \href{https://tug.org/texlive/}{TeX Live} distribution, \href{https://tug.org/mactex/}{MacTeX} on macOS, or \href{https://miktex.org/howto/install-miktex}{MiKTeX} on Windows.\allowbreak{} With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build.\allowbreak{} A LaTeX editor alone does not supply the compiler.\par
 
@@ -1144,7 +1144,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Handout, solutions and PowerPoint show the static activity prompt.\allowbreak{} Live interaction is implemented in the texstage browser presenter and phones.\allowbreak{} The current PowerPoint add-\allowbreak{}in implements quizzes, not live activities.\par
+Handout, solutions and PowerPoint show the static activity prompt -\allowbreak{} and a choice's options.\allowbreak{} Live interaction is implemented in the texstage browser presenter and phones.\allowbreak{} The current PowerPoint add-\allowbreak{}in implements quizzes, not live activities.\par
 
 \manualsection{Choice, number and text activities}
 Three kinds come with texstage itself and need no extra package: kind=\allowbreak{}choice, kind=\allowbreak{}number and kind=\allowbreak{}text.\allowbreak{} Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right.\allowbreak{} These kinds run only on the activity framework's core (in development): start the server with \texttt{texstage present deck.\allowbreak{}tex -\allowbreak{}-\allowbreak{}activities\allowbreak{} core} or \texttt{texstage serve -\allowbreak{}-\allowbreak{}activities\allowbreak{} core}.\allowbreak{} A server of the default activity type skips such a deck and says why.\par
@@ -1164,10 +1164,10 @@ Three kinds come with texstage itself and need no extra package: kind=\allowbrea
 \bottomrule
 \endlastfoot
 \texttt{kind=\allowbreak{}choice} & One option, or several with select=\allowbreak{}many, of those listed in options.\allowbreak{} The projector counts each option in the deck's order, an option nobody chose included -\allowbreak{} with select=\allowbreak{}many, the students who chose it, alone or with others.\allowbreak{} A student may change their mind: the latest choice counts. \\ \addlinespace[3pt]
-\texttt{options} & For choice, required: 2-\allowbreak{}26 comma-\allowbreak{}separated options, each 1-\allowbreak{}100 characters and given once.\allowbreak{} They become the phones' buttons, a formula typeset.\allowbreak{} Options and references are read as LaTeX sets them: an accent is its letter (\texttt{Espa\textbackslash{}\allowbreak{}\textasciitilde{}na} is España), a tie a space (\texttt{New\textasciitilde{}York}).\allowbreak{} As in every key, \texttt{\textbackslash{}\allowbreak{}\&} or \texttt{\textbackslash{}\allowbreak{}\textasciicircum{}} stands for the character itself -\allowbreak{} TeX reads \texttt{\textasciicircum{}\textasciicircum{}} as a character code -\allowbreak{}, so ô is written ô. \\ \addlinespace[3pt]
+\texttt{options} & For choice, required: 2-\allowbreak{}26 comma-\allowbreak{}separated options, each 1-\allowbreak{}100 characters and given once.\allowbreak{} They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape -\allowbreak{} on the phones, the projector's bars and the slide.\allowbreak{} Options and references are read as LaTeX sets them: an accent is its letter (\texttt{Espa\textbackslash{}\allowbreak{}\textasciitilde{}na} is España), a tie a space (\texttt{New\textasciitilde{}York}).\allowbreak{} As in every key, \texttt{\textbackslash{}\allowbreak{}\&} or \texttt{\textbackslash{}\allowbreak{}\textasciicircum{}} stands for the character itself -\allowbreak{} TeX reads \texttt{\textasciicircum{}\textasciicircum{}} as a character code -\allowbreak{}, so ô is written ô. \\ \addlinespace[3pt]
 \texttt{select} & For choice: one (default) or many.\allowbreak{} With many, a phone marks several options and sends them together. \\ \addlinespace[3pt]
 \texttt{kind=\allowbreak{}number} & A number, positive or negative.\allowbreak{} Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers -\allowbreak{} 3.\allowbreak{}141 on a German phone, 3141 on an English one.\allowbreak{} The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width -\allowbreak{} numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. \\ \addlinespace[3pt]
-\texttt{tolerance} & For number: how far an answer may lie from a reference and still be right.\allowbreak{} 0 (default) or more, in ASCII digits with at most one point, e.\allowbreak{}g.\allowbreak{} 0.\allowbreak{}5; \texttt{tolerance=\allowbreak{}0,5} is refused, as the comma ends the key. \\ \addlinespace[3pt]
+\texttt{tolerance} & For number: how far an answer may lie from a reference and still be right.\allowbreak{} 0 (default) or more, in ASCII digits with at most one point, e.\allowbreak{}g.\allowbreak{} 0.\allowbreak{}5; \texttt{tolerance=\allowbreak{}0,5} is refused, as the comma ends the key.\allowbreak{} Without a reference nothing is judged, and the build warns of a tolerance given without one. \\ \addlinespace[3pt]
 \texttt{kind=\allowbreak{}text} & A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-\allowbreak{}width space) is no part of it.\allowbreak{} The projector groups the answers by that form. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}reference\{\allowbreak{}answer\}} & In the body; a reference=\allowbreak{} key is refused.\allowbreak{} A choice's reference names one of its options, read as they are, and with select=\allowbreak{}many the references together are the right choice.\allowbreak{} A number's reference is a number, and each text reference is an accepted answer.\allowbreak{} Repeat it for alternatives; without one, nothing is judged. \\ \addlinespace[3pt]
 \end{longtable}}
@@ -1177,7 +1177,7 @@ Three kinds come with texstage itself and need no extra package: kind=\allowbrea
 \begin{frame}[fragile]{What has to stay cool?}
   \begin{activity}[id=cool-bag, kind=choice, select=many,
       options={Yoghurt, Bread, Butter, Apples}, height=.5\textheight]
-    \prompt{Yoghurt, bread, butter, apples: what goes into the cool bag?}
+    \prompt{What goes into the cool bag?}
     \reference{Yoghurt}
     \reference{Butter}
   \end{activity}
@@ -1198,7 +1198,7 @@ Three kinds come with texstage itself and need no extra package: kind=\allowbrea
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build.\allowbreak{} Handout and PowerPoint show only the prompt, so name a choice's options in the prompt or on the slide when the static copy should list them; the solutions add the references.\allowbreak{} The \href{\manualdocroot ../examples/showcase/README.md}{feature showcase} and the \href{\manualdocroot ../examples/demo/README.md}{live-\allowbreak{}activity demo deck} present one activity of each kind.\par
+The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build.\allowbreak{} Handout and PowerPoint show the prompt and a choice's options -\allowbreak{} each with its shape in its colour, as the phones show them, so that the prompt need not repeat them; the solutions add the references.\allowbreak{} The \href{\manualdocroot ../examples/showcase/README.md}{feature showcase} and the \href{\manualdocroot ../examples/demo/README.md}{live-\allowbreak{}activity demo deck} present one activity of each kind.\par
 
 \manualsection{Code activities: engines and data}
 {\small

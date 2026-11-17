@@ -4,7 +4,7 @@
   "python": ">=3.12",
   "universal": true,
   "files": {
-    "pyproject.toml": "c43c71ceea6ce7cbf7d422d1dda7d014af973a6ee419b90e6a59b6161c176de8",
+    "pyproject.toml": "eb2205589bfda29537e400cfce63b318faa8b6d617327a7907cd8fce8863fac3",
     "maintenance/lock_dependencies.py": "73f64fd9c1baecbde8b1c837ef149879273880e9a42ccf90a47b7e14fe1c8555",
     "kinds/texstage-kinds-rdf/pyproject.toml": "b93d8f491ea5eb018f6b17147708f211ebdeb23d57f6dceec0e6b59cf0a16e23",
     "kinds/texstage-kinds-sql/pyproject.toml": "8f2b1ad4c6ad3ef237be8cd5664ab93ba07a66101c8d172d4626e35609a01358",

@@ -378,6 +378,12 @@ def entries(tqz: Tqz, folder: Path, phone: dict, warnings: list[str],
             except Exception as e:  # noqa: BLE001 - the contract: a build refuses with Unbuildable, and raises nothing else
                 raise ActivityError(f"activity {a.id}: the kind {name}'s build failed - {type(e).__name__}: {e} "
                                     f"(its fault, not the deck's)") from None
+            said = getattr(built, "warnings", [])     # (Built's; a build result of before has none)
+            if not isinstance(said, (list, tuple)) or not all(isinstance(w, str) and w.strip() and "\n" not in w
+                                                              for w in said):
+                raise ActivityError(f"activity {a.id}: the kind {name}'s build gives warnings that are no list of "
+                                    f"texts, each a line (its fault, not the deck's)")
+            warnings.extend(f"activity {a.id}: {w}" for w in said)
             ours = sorted(ITEM & set(built.item))
             if ours:
                 raise ActivityError(f"activity {a.id}: the kind {name}'s build gives {', '.join(ours)} - the core's "

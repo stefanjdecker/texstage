@@ -65,6 +65,8 @@ button.main:disabled { opacity: .45; }
 .answer:active { transform: scale(.97); }
 .answer .shape { width: 44px; flex: none; display: grid; place-items: center; }
 .answer .shape svg { width: 26px; height: 26px; }
+.answer .shape.lettered svg { width: 36px; height: 36px; }   /* seven options or more: a letter inside (shapes.js) */
+.answer .letter { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .answer .face { flex: 1; margin: 6px 6px 6px 0; background: #fff; border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 6px; min-width: 0; }
 .answer.selected { outline: 5px solid var(--ink); outline-offset: -5px; }
 .answer:disabled { opacity: .55; cursor: default; }        /* a step's choices while it is not open */

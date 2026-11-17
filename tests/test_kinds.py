@@ -1184,6 +1184,30 @@ def test_the_build_closes_the_pool_it_starts(tmp_path, monkeypatch, installed_ki
     assert checker.pool is not None and checker.pool.closed
 
 
+def test_a_kinds_warnings_that_are_no_lines_are_its_fault_and_a_build_of_before_has_none(tmp_path, monkeypatch,
+                                                                                          installed_kinds):
+    """Built.warnings: the build prints each with the activity's id; a list that is none, or a text of several
+    lines, is the kind's fault - and a build result of a kind written before Built had them (its item, keys and
+    files alone) builds as it did (the review of 2026-11-17, D1)."""
+    import types
+    triples = registry.kind("triples")
+    real = type(triples).build
+    for said in ("one text", ["two" + chr(10) + "lines"], [""]):
+        def odd(self, options, bodies, said=said):
+            built = real(self, options, bodies)
+            built.warnings = said
+            return built
+        monkeypatch.setattr(type(triples), "build", odd)
+        with pytest.raises(build.ActivityError, match="warnings that are no list of texts, each a line"):
+            built_by_kind(tmp_path, {"input": "tuple", "fields": SPO})
+
+    def before(self, options, bodies):
+        b = real(self, options, bodies)
+        return types.SimpleNamespace(item=b.item, keys=b.keys, files=b.files)        # (no warnings at all)
+    monkeypatch.setattr(type(triples), "build", before)
+    assert built_by_kind(tmp_path, {"input": "tuple", "fields": SPO}) is not None
+
+
 def test_a_kinds_build_that_raises_is_its_fault(tmp_path, monkeypatch, installed_kinds):
     triples = registry.kind("triples")
 

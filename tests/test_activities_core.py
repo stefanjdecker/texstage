@@ -766,6 +766,29 @@ def test_a_server_of_the_cores_type_refuses_a_deck_of_a_kind_it_lacks(tmp_path, 
     ("1.2.0.dev3", "1.2.0", True),
     ("0.10.0", "0.9.0", False),
     ("1.3.0+local", "1.2.0", False),
+    ("0.1.0.dev4", "0.1.0.dev5", True),   # development numbers count (package 11's D3): an older dev release
+    ("0.1.0.dev5", "0.1.0.dev4", False),
+    ("1.2.0rc1", "1.2.0rc2", True),
+    ("1.2.0rc2", "1.2.0b9", False),
+    ("1.2.0.dev9", "1.2.0a1", True),      # a release's development releases come before its pre-releases
+    ("1.2.0a1", "1.2.0.dev9", False),
+    ("1.2.0rc1.dev2", "1.2.0rc1", True),
+    ("1.2.0rc1", "1.2.0rc1.dev2", False),
+    ("1.2.0", "1.2.0.post1", True),
+    ("1.2.0.post1", "1.2.0", False),
+    ("1.2.0-1", "1.2.0.post1", False),    # an implicit post-release
+    ("1.2.0.post1.dev1", "1.2.0.post1", True),
+    ("1.2.0.post1.dev1", "1.2.0", False),
+    ("1.2.0+local.7", "1.2.0", False),
+    ("1.2.0.weird", "1.2.0", False),      # a tail PEP 440 does not know: the release, as before
+    ("1.2.0.weird", "1.2.1", True),
+    ("1.0rc1.dev1700000000", "1.0rc1", True),          # a dev number of 10^9 or more: still before its release
+    ("1.0.post1.dev20261117093000", "1.0.post1", True),
+    ("1.0rc1", "1.0rc1.dev1700000000", False),
+    ("1!1.0", "1.0.post1", True),                      # another epoch: another line, as another major version
+    ("1.2.3.4.5", "1.2.3.4.6", True),                  # more than four numbers: every one counts
+    ("1.2.3.4.6", "1.2.3.4.5", False),
+    ("1.2.3.4.0.0", "1.2.3.4", False),                 # (trailing zeros: the same release)
 ])
 def test_the_versions_a_server_compares(server, built, refused, monkeypatch):
     have = {f.name: f for f in registry.found()}["sql-query"]

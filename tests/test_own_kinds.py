@@ -143,6 +143,35 @@ def test_a_reference_names_its_option_whatever_spaces_its_formula_has():
         built(["$" + B + "alpha b$", "x"], ["$" + B + "alpha$"])
 
 
+def test_a_tolerance_without_a_reference_is_warned_of(tmp_path):
+    """A number's tolerance= without a reference does nothing - no number is judged -: its build says so, and
+    the deck's build prints it with the activity's id (package 9's review, D11). With a reference, or with no
+    tolerance, it says nothing."""
+    from texstage.build.activity import entries
+    from texstage.build.tqz import Tqz
+    number = Number()
+
+    def said(given: dict, references: list) -> list:
+        return number.build(Options(number.OPTIONS, given), {"references": references}).warnings
+
+    assert said({"tolerance": "0.5"}, []) == [
+        "tolerance=0.5 but no " + chr(92) + "reference{...} - with nothing to compare, no number is judged right or "
+        "wrong, and the tolerance does nothing"]
+    assert said({"tolerance": "0.5"}, ["7.5"]) == [] and said({}, []) == [] and said({"tolerance": "0"}, []) == []
+    hexed = lambda s: s.encode("utf-8").hex()                                               # noqa: E731
+    core = {"id": "walk", "kind": hexed("number"), "input": "", "engine": "", "limit": "", "open": "auto",
+            "seed": "", "reference": "", "file": "", "line": "1"}
+    path = tmp_path / "activity.tqz"
+    path.write_text("activity|" + "|".join(f"{k}={v}" for k, v in core.items()) + NL
+                    + f"activityoption|id=walk|key={hexed('tolerance')}|value={hexed('0.5')}|items={hexed('0.5')}," + NL,
+                    encoding="utf-8")
+    warnings: list[str] = []
+    acts = entries(Tqz.read(path), tmp_path, {}, warnings, checker=lambda *a: [])
+    assert acts.items["walk"]["tolerance"] == 0.5
+    assert warnings == ["activity walk: tolerance=0.5 but no " + chr(92) + "reference{...} - with nothing to compare, "
+                        "no number is judged right or wrong, and the tolerance does nothing"]
+
+
 def test_the_archive_writes_a_choice_by_its_options_and_a_number_with_every_digit():
     from texstage.server.activities import written
     item = {"options": ["Paris", "Nice", "$" + chr(92) + "sigma$"]}

@@ -471,6 +471,35 @@ test("a choice of one sent too soon: again after the deck's gap - and after a lo
   assert.equal(nice.attrs["aria-pressed"], "false", "what counts is marked again, not the tap");
 });
 
+test("a choice's buttons: each option's shape in its colour - seven options or more each with its letter inside", (t) => {
+  // (package 9's review: past six, shapes and colours repeat - options 4, 10, 16 and 22 were green squares)
+  const screen = (n) => {
+    const root = element();
+    const step = { activity: "day", step: "main", kind: "choice", input: "choice", select: "one", phase: "open", limit: 1,
+      options: Array.from({ length: n }, (_, i) => `Option ${i + 1}`) };
+    const s = new phone.StepScreen({ root, client: { now: () => 0, send: () => Promise.resolve({}) }, state: {}, step,
+      language: "en", kinds: () => null });
+    s.update({ activity: { mine: { activity: "day", used: 0, entries: [] } } }, step);
+    t.after(() => s.destroy());
+    return root.innerHTML;
+  };
+  const six = screen(6);
+  assert.equal((six.match(/class="shape"/g) || []).length, 6, "up to six: as before, no letters");
+  assert.doesNotMatch(six, /<text|lettered/);
+  const seven = screen(7);                                                 // (the boundary: lettered from seven on)
+  assert.equal((seven.match(/class="shape lettered"/g) || []).length, 7);
+  assert.deepEqual([...seven.matchAll(/class="letter">([A-Z]): </g)].map((m) => m[1]), [..."ABCDEFG"], "a screen reader hears it");
+  const eight = screen(8);
+  assert.equal((eight.match(/class="shape lettered"/g) || []).length, 8, "seven or more: every option lettered");
+  assert.deepEqual([...eight.matchAll(/>([A-Z])<\/text>/g)].map((m) => m[1]), [..."ABCDEFGH"]);
+  const paths = [...eight.matchAll(/<path d="([^"]+)"/g)].map((m) => m[1]);
+  const colors = [...eight.matchAll(/--c:(#[0-9A-F]{6})/g)].map((m) => m[1]);
+  assert.equal(paths[6], paths[0], "the seventh: the first's shape again (it was a square)");
+  assert.equal(colors[6], colors[0]);
+  assert.match(eight, /fill="#E21B3C">G<\/text>/, "the letter in the shape's colour");
+  assert.equal([...screen(26).matchAll(/>([A-Z])<\/text>/g)].map((m) => m[1]).join(""), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+});
+
 test("a choice of several on the phone: marked until Send, nothing marked is refused, the same choice is not sent again", async (t) => {
   const sent = [];
   const client = { now: () => 0, send(msg) { sent.push(msg.choice); return Promise.resolve({}); } };
@@ -613,6 +642,24 @@ test("the box draws a choice: a bar per option - a choice of several counted per
     groups: Array.from({ length: 26 }, (_, i) => ({ id: `g${i}`, status: "ok", label: String.fromCharCode(65 + i), n: 0 })) };
   box.draw();
   assert.match(box.el.innerHTML, /tq-clusters tq-dense/);
+  assert.doesNotMatch(box.el.innerHTML, /tq-shape/, "a label that is none of the item's options: no shape");
+  assert.equal((html.match(/<span class="tq-shape" style="background:#/g) || []).length, 3, "three options: their shapes");
+  assert.doesNotMatch(html, /<text/, "... without letters");
+  box.item = { kind: "choice", options: Array.from({ length: 6 }, (_, i) => String.fromCharCode(65 + i)) };
+  box.draw();                                                             // six options: shapes, no letters
+  assert.equal((box.el.innerHTML.match(/class="tq-shape"/g) || []).length, 6);
+  assert.doesNotMatch(box.el.innerHTML, /<text/);
+  box.item = { kind: "choice", options: Array.from({ length: 7 }, (_, i) => String.fromCharCode(65 + i)) };
+  box.draw();                                                             // seven: each its letter
+  assert.equal((box.el.innerHTML.match(/class="tq-shape lettered"/g) || []).length, 7);
+  box.item = { kind: "choice", options: Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i)) };
+  box.draw();                                                             // 26 options: each its shape and letter
+  assert.equal((box.el.innerHTML.match(/class="tq-shape lettered"/g) || []).length, 26);
+  assert.equal([...box.el.innerHTML.matchAll(/>([A-Z])<\/text>/g)].map((m) => m[1]).join(""), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+  box.picture = { ...box.picture, groups: [{ id: "x", status: "error", n: 1 }, { id: "g1", status: "ok", label: "B", n: 2 }] };
+  box.draw();
+  assert.equal((box.el.innerHTML.match(/tq-shape/g) || []).length, 1, "a group that went wrong: none");
+  assert.match(box.el.innerHTML, /background:#1368CE/, "B: the second option's colour, wherever its bar is");
   box.item = { kind: "sql-query" };                                       // a code kind's references with their results
   box.picture = { kind: "groups", phase: "revealed", revealed: true, students: 0, groups: [],
     solution: [{ text: "SELECT 1", detail: { columns: ["n"], rows: [[1]], count: 1 } },

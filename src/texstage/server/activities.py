@@ -398,16 +398,39 @@ def _said(outcome, language: str | None) -> str:
 
 
 PRE = re.compile(r"[-_.]?(a|b|c|rc|alpha|beta|pre|preview|dev)", re.IGNORECASE)
+VERSION = re.compile(                   # a version as PEP 440 writes it (packaging's parser: not a need of texstage's)
+    r"v?(?:(?P<epoch>\d+)!)?(?P<release>\d+(?:\.\d+)*)"
+    r"(?:[-_.]?(?P<pre>alpha|beta|preview|pre|rc|a|b|c)[-_.]?(?P<pre_n>\d*))?"
+    r"(?:-(?P<post_n0>\d+)|[-_.]?(?P<post>post|rev|r)[-_.]?(?P<post_n>\d*))?"
+    r"(?:[-_.]?(?P<dev>dev)[-_.]?(?P<dev_n>\d*))?"
+    r"(?:\+[a-z0-9]+(?:[-_.][a-z0-9]+)*)?", re.IGNORECASE)
+PHASES = {"a": 0, "alpha": 0, "b": 1, "beta": 1, "c": 2, "rc": 2, "pre": 2, "preview": 2}
+RELEASE = 10                            # a release's numbers compared (1.2 is 1.2.0.0 ...)
 
 
 def _version(text) -> tuple[int, ...]:
-    """A package's version, to compare: its numbers, four of them - 1.2 is 1.2.0 -, then 0 for a release before
-    it (1.2.0rc1, 1.2.0.dev3) and 1 for the release; () where it begins with no number."""
-    m = re.match(r"(\d+(?:\.\d+)*)(.*)", str(text or "").strip())
+    """A package's version, to compare as PEP 440 orders them: its epoch (2!1.0) and its major number first
+    (refuses: another one is another line), then its numbers - 1.2 is 1.2.0 -, then where it stands among
+    that release's own: 1.2.0.dev3 < 1.2.0.dev4 < 1.2.0a1 < 1.2.0b2 < 1.2.0rc1.dev1 < 1.2.0rc1 < 1.2.0 <
+    1.2.0.post1 (package 11's D3: the development numbers count, a dev release in a slot of its own). A local
+    part (+local) does not count; () where it begins with no number. A tail PEP 440 does not know counts as
+    a pre-release where it begins like one, else as the release."""
+    text = str(text or "").strip()
+    m = VERSION.fullmatch(text)
     if not m:
-        return ()
-    numbers = tuple(int(n) for n in m.group(1).split("."))[:4]
-    return numbers + (0,) * (4 - len(numbers)) + (0 if PRE.match(m.group(2)) else 1,)
+        loose = re.match(r"v?(\d+(?:\.\d+)*)(.*)", text, re.IGNORECASE)
+        if not loose:
+            return ()
+        numbers = (tuple(int(n) for n in loose.group(1).split(".")) + (0,) * RELEASE)[:RELEASE]
+        return (0, *numbers, (-1 if PRE.match(loose.group(2)) else 3), 0, -1, 1, 0)
+    numbers = (tuple(int(n) for n in m["release"].split(".")) + (0,) * RELEASE)[:RELEASE]
+    post = m["post_n0"] if m["post_n0"] is not None else (m["post_n"] or "0") if m["post"] else None
+    if m["pre"]:
+        pre = (PHASES[m["pre"].lower()], int(m["pre_n"] or 0))
+    else:                                # 1.2.0.dev3 before every pre-release of 1.2.0 (1.2.0.post1.dev3: after 1.2.0)
+        pre = (-1, 0) if m["dev"] and post is None else (3, 0)
+    dev = (0, int(m["dev_n"] or 0)) if m["dev"] else (1, 0)
+    return (int(m["epoch"] or 0), *numbers, *pre, int(post) if post is not None else -1, *dev)
 
 
 def refuses(deck: dict) -> str | None:
@@ -437,7 +460,7 @@ def refuses(deck: dict) -> str | None:
                    f"{f.version} has API {f.api} - {install}"
         have, built = _version(f.version), _version(version)
         own = f.package == "texstage" == need.get("package")
-        if have and built and ((have[0] != built[0] and not own) or have < built):
+        if have and built and ((have[:2] != built[:2] and not own) or have < built):   # (epoch, major)
             return f"the deck's activities are of the kind {name} of {package} {version}, this server has " \
                    f"{f.version} - {install}"
     return None

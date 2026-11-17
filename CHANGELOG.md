@@ -1,6 +1,35 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev4 candidate
+## Unreleased — 0.2.1.dev5 candidate
+
+- A choice's options are in its box on the slide - handout, solutions,
+  PowerPoint -, each with its shape in its colour and as the phones show it
+  (a formula typeset, `first_name`, `x^2`, `R&D` or `x < 5` as written), so
+  that the prompt need not repeat them; the projector's bars of a choice show
+  the shapes too. A box too small for what it shows draws it smaller, inside
+  it, and the build's log says so. Past six options the shapes and colours
+  repeated (options 4, 10, 16 and 22 were green squares): from seven options
+  on every option carries its letter, A to Z, inside its shape - on the
+  phones (where a screen reader says it), the projector's bars and the
+  slide. A choice of up to six looks as before.
+- `tolerance=` without a reference: a number activity judges nothing, and the
+  build now warns of it. A kind's build may give warnings of its own
+  (`Built.warnings`, each a line), which the build prints with the activity's
+  id; the kit holds them against a fixture's.
+- A server compares a kind's version as PEP 440 orders them: development and
+  pre-release numbers count (0.1.0.dev4 < 0.1.0.dev5 < 0.1.0a1 < 0.1.0rc1 <
+  0.1.0 < 0.1.0.post1), and so do an epoch (another line, as another major
+  version) and every number of a release, so a deck built with a kind's later development
+  release is refused by a server with an earlier one, as with a later
+  release.
+- texstage is 0.2.1.dev5: a kind's package whose build gives warnings needs
+  it (`texstage>=0.2.1.dev5`), as 0.2.1.dev4's `Built` has none. The kinds'
+  packages beside texstage give none and still need 0.2.1.dev4 or later. A
+  deck with activities of texstage's own kinds gets a new bundle ID when it is
+  built again, as deck.json names the texstage of its kinds; a server of
+  0.2.1.dev4 still plays it, as it compares a kind's version by its numbers.
+
+## Earlier 0.2.1.dev4 candidate
 
 - A new presenter key - a server's own (`presenter-key` in its data folder)
   and a lecturer's (`texstage lecturer add | renew`) - never starts with `-`:

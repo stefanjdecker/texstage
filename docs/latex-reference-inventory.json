@@ -25,7 +25,7 @@
     {
       "file": "latex/texactivity.sty",
       "scope": "runtime",
-      "sha256": "55e851f42647409c6683e710b6a55e23fb5a39c3004241198ab9c7017593c499",
+      "sha256": "979194249e697d8921bd02a2600e2e7515a7ac14d1451df45a1c3bfb7e156b06",
       "commands": [
         "TexactivityPrompt",
         "TexactivityReference",
@@ -38,7 +38,14 @@
         "texactivitylabel",
         "texactivityreferencelabel"
       ],
-      "internal_commands": [],
+      "internal_commands": [
+        "texactivity@badge",
+        "texactivity@lift",
+        "texactivity@lshape",
+        "texactivity@option",
+        "texactivity@scale",
+        "texquiz@shape"
+      ],
       "environments": [
         "activity"
       ],

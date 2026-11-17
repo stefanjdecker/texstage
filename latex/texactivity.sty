@@ -22,7 +22,9 @@
 %%   \end{frame}
 %%
 %% The environment stands where its box goes.  Every PDF shows the box with "Live activity" and
-%% the prompt; the solutions add the reference queries.  \reference{...} and \seed{...} are read
+%% the prompt - and a choice's options (kind=choice, options={...}), each with its shape in its
+%% colour as the phones show it, from seven options on with its letter, A to Z, inside the shape;
+%% the solutions add the reference queries.  \reference{...} and \seed{...} are read
 %% verbatim, so their frame is fragile; reference=FILE and seed=FILE name files beside the deck
 %% instead.  \reveal<n>, once in the environment: the frame's slides from the n-th on reveal the
 %% activity, the slides before it open it (Beamer's overlays; without \reveal, the frame opens it
@@ -58,7 +60,8 @@
 %% that shows it says what it is of the activity: G|activity|<id>|open or revealed|page.
 %% One id, one activity: it may come again (\againframe) as it was; one activity per frame.
 \NeedsTeXFormat{LaTeX2e}[2023-06-01]
-\ProvidesExplPackage{texactivity}{2026-11-13}{0.2.0}{A live activity on a Beamer slide (texstage)}
+\ProvidesExplPackage{texactivity}{2026-11-17}{0.2.0}{A live activity on a Beamer slide (texstage)}
+\RequirePackage { tikz }                % a choice's options: their shapes (texactivity@badge)
 % the core, texstage.sty: from this folder, or by name if loaded through TEXINPUTS
 \tl_set:Ne \l_tmpa_tl { \CurrentFilePath }
 \tl_if_empty:NTF \l_tmpa_tl
@@ -309,9 +312,31 @@
   }
 
 % The box in every PDF: "Live activity" and the prompt - the solutions add the references. In
-% texstage the activity's picture covers it; PowerPoint and the handout show it as it is.
+% texstage the activity's picture covers it; PowerPoint and the handout show it as it is.  What it
+% shows is drawn smaller where it is taller than the box (many options, a long prompt): nothing runs
+% out of it - below the frame, or out from under the activity's picture on the projector.
+\box_new:N \l__ta_content_box
+\dim_new:N \l__ta_inner_wd_dim
+\dim_new:N \l__ta_inner_ht_dim
+\fp_new:N \l__ta_scale_fp
+\msg_new:nnn { texactivity } { shrunk }
+  { Activity~'#1':~what~its~box~shows~is~too~tall~for~it~-~drawn~at~#2~\%~of~its~size~(a~larger~height=~shows~it~larger). }
 \cs_new_protected:Npn \__ta_static_box:
   {
+    \dim_set:Nn \l__ta_inner_wd_dim { \l__ta_wd_dim - 10.8pt }      % (\fboxsep 5pt, \fboxrule 0.4pt: twice)
+    \dim_set:Nn \l__ta_inner_ht_dim { \l__ta_ht_dim - 10.8pt }
+    \hbox_set:Nn \l__ta_content_box
+      { \parbox [t] { \l__ta_inner_wd_dim } { \__ta_static_content: } }
+    \dim_compare:nNnT { \box_ht_plus_dp:N \l__ta_content_box } > { \l__ta_inner_ht_dim }
+      {
+        \fp_set:Nn \l__ta_scale_fp
+          { \dim_to_fp:n { \l__ta_inner_ht_dim } / \dim_to_fp:n { \box_ht_plus_dp:N \l__ta_content_box } }
+        \box_scale:Nnn \l__ta_content_box { \l__ta_scale_fp } { \l__ta_scale_fp }
+        \hbox_set_to_wd:Nnn \l__ta_content_box { \l__ta_inner_wd_dim }   % (the box its width: a box set
+          { \box_use_drop:N \l__ta_content_box \hfil }                    % alone in a \vbox is its width)
+        \msg_warning:nnee { texactivity } { shrunk } { \l__ta_id_tl }
+          { \fp_eval:n { trunc ( \l__ta_scale_fp * 100 ) } }
+      }
     \texstage_vbox_set:Nnn \l__ta_box { \l__ta_wd_dim }
       {
         \hbox:n
@@ -320,9 +345,8 @@
             \fboxrule = 0.4pt
             \fcolorbox { black!25 } { black!3 }
               {
-                \parbox [b] [ \dim_eval:n { \l__ta_ht_dim - 2 \fboxsep - 2 \fboxrule } ] [t]
-                  { \dim_eval:n { \l__ta_wd_dim - 2 \fboxsep - 2 \fboxrule } }
-                  { \__ta_static_content: }
+                \parbox [b] [ \l__ta_inner_ht_dim ] [t] { \l__ta_inner_wd_dim }
+                  { \box_use_drop:N \l__ta_content_box }
               }
           }
       }
@@ -333,7 +357,118 @@
     { \footnotesize \bfseries \texactivitylabel \par }
     \tl_if_empty:NF \g__ta_prompt_tl
       { \smallskip { \scriptsize \g__ta_prompt_tl \par } }
+    \__ta_static_options:
     \texstage_if_mode:nT { solutions } { \__ta_static_references: }
+  }
+% A choice's options, as the phones show them: each with its shape in its colour - from seven options
+% on with its letter, A to Z, inside the shape (web/shared/shapes.js: LETTERED) -, one to a line; from
+% seven options on in two columns, from thirteen in three, down each column.  The author need not
+% write them into the prompt.
+\clist_new:N \l__ta_opts_clist
+\int_new:N \l__ta_opts_int
+\int_new:N \l__ta_cols_int
+\int_new:N \l__ta_rows_int
+\dim_new:N \l__ta_col_dim
+\cs_new_protected:Npn \__ta_static_options:
+  {
+    \clist_clear:N \l__ta_opts_clist
+    \str_if_eq:VnT \l__ta_kind_tl { choice }
+      {
+        \prop_get:NnNT \l__ta_options_prop { options } \l__ta_value_tl
+          { \clist_set:NV \l__ta_opts_clist \l__ta_value_tl }
+      }
+    \int_set:Nn \l__ta_opts_int { \clist_count:N \l__ta_opts_clist }
+    \int_compare:nNnT \l__ta_opts_int > { 0 }
+      {
+        \int_set:Nn \l__ta_cols_int
+          {
+            \int_compare:nNnTF \l__ta_opts_int < { 7 } { 1 }
+              { \int_compare:nNnTF \l__ta_opts_int < { 13 } { 2 } { 3 } }
+          }
+        \int_set:Nn \l__ta_rows_int
+          { \int_div_truncate:nn { \l__ta_opts_int + \l__ta_cols_int - 1 } { \l__ta_cols_int } }
+        \dim_set:Nn \l__ta_col_dim
+          { ( \linewidth - 0.8em * ( \l__ta_cols_int - 1 ) ) / \l__ta_cols_int }
+        \smallskip
+        \group_begin:
+        \scriptsize
+        \int_step_inline:nn { \l__ta_cols_int }
+          {
+            \int_compare:nNnF {##1} = { 1 } { \hspace { 0.8em } }
+            \parbox [t] { \l__ta_col_dim }
+              {
+                \raggedright
+                \int_step_inline:nnn { ( ##1 - 1 ) * \l__ta_rows_int + 1 }
+                  { \int_min:nn { ##1 * \l__ta_rows_int } { \l__ta_opts_int } }
+                  { \__ta_static_option:n {####1} }
+              }
+          }
+        \par
+        \group_end:
+      }
+  }
+\cs_new_protected:Npn \__ta_static_option:n #1          % the #1-th option (from 1): shape, letter, text
+  {
+    \use:e
+      {
+        \exp_not:N \texactivity@option
+          { \int_eval:n { \int_mod:nn { #1 - 1 } { 6 } + 1 } }
+          { \int_compare:nNnT \l__ta_opts_int > { 6 } { \int_to_Alph:n {#1} } }
+          { \exp_not:N \__ta_option_text:n { \clist_item:Nn \l__ta_opts_clist {#1} } }
+      }
+  }
+% An option as the phones show it (the build reads it so: activities/options.py, option_text): $...$
+% a formula, the rest text - an escape (\& \_ \^ \# \$ \% \{ \}) its character, an accent and a tie as
+% TeX sets them, and every other character itself: _ ^ & < > | " ' ` and - as such, where a font's
+% encoding would draw another glyph (x < 5 is no x ¡ 5) or TeX would stop (first_name, x^2, R&D).
+\seq_new:N \l__ta_parts_seq
+\tl_new:N \l__ta_text_tl
+\cs_new_protected:Npn \__ta_option_text:n #1
+  {
+    \seq_set_split_keep_spaces:Nnn \l__ta_parts_seq { $ } {#1}
+    \seq_map_indexed_inline:Nn \l__ta_parts_seq
+      { \int_if_odd:nTF {##1} { \__ta_plain_text:n {##2} } { \ensuremath {##2} } }
+  }
+\cs_new_protected:Npn \__ta_hyphen: { \hbox:n { - } }       % (no -- or --- ligature)
+\cs_new_protected:Npn \__ta_t1:n #1                          % a character as T1 has it (OT1, the default,
+  { \group_begin: \fontencoding { T1 } \selectfont \char #1 \scan_stop: \group_end: }   % has no ^ < > | ")
+\cs_new_protected:Npn \__ta_caret: { \__ta_t1:n { 94 } }
+\cs_new_protected:Npn \__ta_underscore: { \__ta_t1:n { 95 } }   % (OT1's \textunderscore is a rule: no _ to copy)
+\cs_new_protected:Npn \__ta_less: { \__ta_t1:n { 60 } }
+\cs_new_protected:Npn \__ta_greater: { \__ta_t1:n { 62 } }
+\cs_new_protected:Npn \__ta_bar: { \__ta_t1:n { 124 } }
+\cs_new_protected:Npn \__ta_quotes: { \__ta_t1:n { 34 } }
+\cs_new_protected:Npn \__ta_plain_text:n #1
+  {
+    \group_begin:
+      \cs_set_eq:NN \^ \__ta_caret:                          % in a key \^ is the character itself
+      \char_set_active_eq:NN \_ \__ta_underscore:
+      \char_set_active_eq:NN \^ \__ta_caret:
+      \char_set_active_eq:NN \& \&
+      \char_set_active_eq:NN \< \__ta_less:
+      \char_set_active_eq:NN \> \__ta_greater:
+      \char_set_active_eq:NN \| \__ta_bar:
+      \char_set_active_eq:NN \" \__ta_quotes:
+      \char_set_active_eq:NN \' \textquotesingle
+      \char_set_active_eq:NN \` \textasciigrave
+      \char_set_active_eq:NN \- \__ta_hyphen:
+      \tl_set:Ne \l__ta_text_tl { \tl_to_str:n {#1} }
+      \exp_args:NNnV \tl_set_rescan:Nnn \l__ta_text_tl
+        {
+          \char_set_catcode_active:N \_
+          \char_set_catcode_active:N \^
+          \char_set_catcode_active:N \&
+          \char_set_catcode_active:N \<
+          \char_set_catcode_active:N \>
+          \char_set_catcode_active:N \|
+          \char_set_catcode_active:N \"
+          \char_set_catcode_active:N \'
+          \char_set_catcode_active:N \`
+          \char_set_catcode_active:N \-
+        }
+        \l__ta_text_tl
+      \l__ta_text_tl
+    \group_end:
   }
 \cs_new_protected:Npn \__ta_static_references:
   {
@@ -405,5 +540,60 @@
 % The box's words, for a theme to change (\renewcommand); by default the deck's language's.
 \providecommand\texactivitylabel{\texstage@text{texactivity}{label}}
 \providecommand\texactivityreferencelabel{\texstage@text{texactivity}{reference}}
+
+% A choice's options in the box: the answers' colours and shapes, as texquiz.sty draws them (a theme's
+% colours stay) and as the phones show them (web/shared/shapes.js) - 1 red triangle, 2 blue diamond,
+% 3 yellow circle, 4 green square, 5 purple star, 6 teal hexagon, then again from the first.
+\@ifundefinedcolor{texquiz-1}{\definecolor{texquiz-1}{HTML}{E21B3C}}{}
+\@ifundefinedcolor{texquiz-2}{\definecolor{texquiz-2}{HTML}{1368CE}}{}
+\@ifundefinedcolor{texquiz-3}{\definecolor{texquiz-3}{HTML}{D89E00}}{}
+\@ifundefinedcolor{texquiz-4}{\definecolor{texquiz-4}{HTML}{26890C}}{}
+\@ifundefinedcolor{texquiz-5}{\definecolor{texquiz-5}{HTML}{864CBF}}{}
+\@ifundefinedcolor{texquiz-6}{\definecolor{texquiz-6}{HTML}{0AA3A3}}{}
+\@ifundefined{texquiz@shape}{%      (texquiz.sty's: filled shape n of radius r, centred at the origin)
+\def\texquiz@shape#1#2{%
+  \ifcase#1\relax
+  \or \fill (90:#2) -- (210:#2) -- (330:#2) -- cycle;
+  \or \fill (90:#2) -- (180:#2) -- (270:#2) -- (0:#2) -- cycle;
+  \or \fill (0,0) circle ({0.8*#2});
+  \or \fill ({-0.72*#2},{-0.72*#2}) rectangle ({0.72*#2},{0.72*#2});
+  \or \fill (90:#2) -- (126:{0.42*#2}) -- (162:#2) -- (198:{0.42*#2}) -- (234:#2)
+        -- (270:{0.42*#2}) -- (306:#2) -- (342:{0.42*#2}) -- (18:#2) -- (54:{0.42*#2}) -- cycle;
+  \or \fill (0:#2) -- (60:#2) -- (120:#2) -- (180:#2) -- (240:#2) -- (300:#2) -- cycle;
+  \fi}}{}
+% \texactivity@lshape{n}: shape n with room for a letter - the phones' (web/shared/shapes.js), in a
+% square of side 2 (scaled by the picture)
+\def\texactivity@lshape#1{%
+  \ifcase#1\relax
+  \or \fill (0,0.84) -- (0.88,-0.76) -- (-0.88,-0.76) -- cycle;
+  \or \fill (0,0.92) -- (0.92,0) -- (0,-0.92) -- (-0.92,0) -- cycle;
+  \or \fill (0,0) circle (0.88);
+  \or \fill (-0.76,-0.76) rectangle (0.76,0.76);
+  \or \fill (0,0.92) -- (0.22,0.26) -- (0.92,0.26) -- (0.36,-0.16) -- (0.56,-0.84) -- (0,-0.44)
+        -- (-0.56,-0.84) -- (-0.36,-0.16) -- (-0.92,0.26) -- (-0.22,0.26) -- cycle;
+  \or \fill (-0.46,0.84) -- (0.46,0.84) -- (0.92,0) -- (0.46,-0.84) -- (-0.46,-0.84) -- (-0.92,0) -- cycle;
+  \fi}
+% \texactivity@badge{n}{letter}: shape n (1 to 6) in its colour, inline - with the letter inside the
+% shape where one is given (a choice of seven options or more), larger then, where the phones put it.
+\newcommand\texactivity@badge[2]{%
+  \ifx\relax#2\relax
+    \tikz[baseline=-0.6ex]{%
+      \fill[texquiz-#1, rounded corners=1pt] (-0.8ex,-0.8ex) rectangle (0.8ex,0.8ex);
+      \begin{scope}[fill=white]\texquiz@shape{#1}{0.58ex}\end{scope}}%
+  \else
+    \edef\texactivity@scale{\ifcase#1\or0.68\or0.74\or0.86\or0.88\or0.58\or0.86\fi}%
+    \edef\texactivity@lift{\ifcase#1\or-0.3\or-0.02\or-0.02\or-0.02\or-0.12\or-0.02\fi}%
+    \tikz[baseline=-0.6ex]{%
+      \fill[texquiz-#1, rounded corners=1.2pt] (-1.75ex,-1.75ex) rectangle (1.75ex,1.75ex);
+      \begin{scope}[fill=white, x=1.65ex, y=1.65ex]\texactivity@lshape{#1}\end{scope}
+      \node[inner sep=0pt, text=texquiz-#1, font=\sffamily\bfseries\scriptsize, scale=\texactivity@scale]
+        at (0,{\texactivity@lift*1.65ex}) {#2};}%
+  \fi}
+% \texactivity@option{shape}{letter}{text}: an option in the box - wrapped lines start under its text
+\newsavebox\texactivity@badgebox
+\newcommand\texactivity@option[3]{%
+  \sbox\texactivity@badgebox{\texactivity@badge{#1}{#2}}%
+  \hangindent=\dimexpr\wd\texactivity@badgebox+0.35em\relax \hangafter=1
+  \noindent\usebox\texactivity@badgebox\hspace{0.35em}#3\par}
 
 \endinput

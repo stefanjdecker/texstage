@@ -19,7 +19,7 @@
 // send({text} | {fields}), which gives a promise of whether the entry was taken.
 
 import { errorText, texts } from "../i18n/i18n.js";
-import { color, shapeSVG } from "../shared/shapes.js";
+import { color, LETTERED, letter, shapeSVG } from "../shared/shapes.js";
 import { textHTML } from "../shared/text.js";
 import { insertToken } from "./activity.js";
 
@@ -165,12 +165,14 @@ export class StepScreen {
     this.own = Boolean(own?.input);                    // (its kind's own input: play.js makes it anew if it comes later)
     let body;
     if (this.own) body = `<div class="act kindinput" data-role="input"></div>`;
-    else if (step.input === "choice") {                // the deck's options, as a quiz's answers look - $math$ typeset
-      const many = step.select === "many", options = step.options || [];
+    else if (step.input === "choice") {                // the deck's options, as a quiz's answers look - $math$ typeset;
+      const many = step.select === "many", options = step.options || [];      // seven or more: each with its letter
+      const lettered = options.length >= LETTERED;
       body = `<form class="act" autocomplete="off">${many ? `<p class="note">${esc(L.several)}</p>` : ""}
         <div class="answers${options.some((o) => o.length > 14) ? " one" : ""}" data-role="choices">${options.map((o, i) =>
           `<button type="button" class="answer" data-choice="${i}" style="--c:${color(i + 1)}" aria-pressed="false"><span
-            class="shape" aria-hidden="true">${shapeSVG(i + 1)}</span><span class="face text">${textHTML(o, () => this.typeset())}</span></button>`).join("")}</div>
+            class="shape${lettered ? " lettered" : ""}" aria-hidden="true">${shapeSVG(i + 1, "#fff", lettered ? letter(i) : "")}</span>${
+            lettered ? `<span class="letter">${letter(i)}: </span>` : ""}<span class="face text">${textHTML(o, () => this.typeset())}</span></button>`).join("")}</div>
         ${many ? `<button class="main" type="submit">${esc(L.send)} <span data-role="used"></span></button>`
           : `<p class="note" data-role="used"></p>`}</form>`;
     } else if (step.input === "number" || step.input === "text") {      // one line: a number, a short answer

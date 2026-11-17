@@ -46,7 +46,7 @@ def test_a_kind_of_today_passes_the_kit(name):
     assert report.faults == [] and report.ok
     assert report.fixtures == {"sql-query": 208, "sparql-query": 109, "turtle-graph": 72, "triples": 18, "choice": 12,
                                "number": 18, "text": 12}[name]
-    assert report.builds == {"triples": 6, "choice": 22, "number": 8, "text": 4}.get(name, 7)
+    assert report.builds == {"triples": 6, "choice": 22, "number": 9, "text": 4}.get(name, 7)
     assert report.budget_s == 1.0 and report.slowest_s < kit.BUDGET_S     # (how slow: the machine's)
     assert not [w for w in report.warnings if "is for a kind" in w]         # every file of its folder is some kind's
 
@@ -572,6 +572,8 @@ MALFORMED = [
     ({"kind": "echo", "builds": [{"refused": 7}]}, "build 0 - refused: the refusal's words"),
     ({"kind": "echo", "builds": [{"built": {"keys": {}}}]}, "build 0 - built: the item, the keys, the bundle's files as texts"),
     ({"kind": "echo", "builds": [{"built": {"item": {}, "files": {"a": 1}}}]}, "build 0 - built: the item"),
+    ({"kind": "echo", "builds": [{"built": {"item": {}, "warnings": "one"}}]}, "build 0 - built: the item"),
+    ({"kind": "echo", "builds": [{"built": {"item": {}, "warnings": ["a" + chr(10) + "b"]}}]}, "build 0 - built: the item"),
     ({"kind": 7, "settings": {"any": {}}, "cases": CASES}, 'a file says which kind it is for - {"kind": "echo", ...}'),
     ({"settings": {"any": {}}, "cases": CASES}, "a file says which kind it is for"),
     ([{"kind": "echo"}], "a file says which kind it is for"),
@@ -646,6 +648,31 @@ def test_a_kinds_builds_are_held_against_what_they_must_make_or_refuse(tmp_path)
     ]
     for given, why in wrong:
         assert builds(tmp_path, [BUILDS[1], given]).faults == [f"echo.json, build 1: {why}"]
+
+
+class Warns(Building):
+    """Building with a warning of its build's (Built.warnings) - or warnings that are none."""
+    said: object = ["the seed is short"]
+
+    def build(self, options, bodies):
+        built = super().build(options, bodies)
+        built.warnings = self.said
+        return built
+
+
+def test_a_builds_warnings_are_lines_and_a_fixture_pins_them(tmp_path):
+    """Built.warnings (package 9's review, D11): what a deck builds with but likely does not mean, each a line the
+    build prints with the activity's id. The kit holds them against a fixture's - and says so where they are no
+    list of lines, which would fail every deck's build (the review of 2026-11-17, D1)."""
+    good = {**BUILDS[0], "built": {**BUILDS[0]["built"], "warnings": ["the seed is short"]}}
+    (tmp_path / "echo.json").write_text(json.dumps({"kind": "echo", "builds": [good]}), encoding="utf-8")
+    assert kit.check(Warns(), folder=tmp_path).faults == []
+    assert kit.check(Building(), folder=tmp_path).faults == \
+        ['echo.json, build 0: warnings: [], not ["the seed is short"]']                 # (a warning it should give)
+    for said in ("the seed is short", ["two" + chr(10) + "lines"], [""], [7]):
+        odd = type("Odd", (Warns,), {"said": said})()
+        faults = kit.check(odd, folder=tmp_path).faults
+        assert len(faults) == 1 and faults[0].startswith("echo.json, build 0: its warnings are no list of texts"), faults
 
 
 def test_texstage_kinds_check_fails_when_there_is_nothing_to_check(capsys, monkeypatch):

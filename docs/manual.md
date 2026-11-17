@@ -58,7 +58,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev4 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev5 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -181,7 +181,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev4 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev5 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -864,7 +864,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 \end{frame}
 ```
 
-Handout, solutions and PowerPoint show the static activity prompt. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
+Handout, solutions and PowerPoint show the static activity prompt - and a choice's options. Live interaction is implemented in the texstage browser presenter and phones. The current PowerPoint add-in implements quizzes, not live activities.
 
 
 ## Choice, number and text activities
@@ -874,10 +874,10 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `kind=choice` | One option, or several with select=many, of those listed in options. The projector counts each option in the deck's order, an option nobody chose included - with select=many, the students who chose it, alone or with others. A student may change their mind: the latest choice counts. |
-| `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
+| `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
 | `select` | For choice: one (default) or many. With many, a phone marks several options and sends them together. |
 | `kind=number` | A number, positive or negative. Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers - 3.141 on a German phone, 3141 on an English one. The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width - numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. |
-| `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. |
+| `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. Without a reference nothing is judged, and the build warns of a tolerance given without one. |
 | `kind=text` | A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-width space) is no part of it. The projector groups the answers by that form. |
 | `\reference{answer}` | In the body; a reference= key is refused. A choice's reference names one of its options, read as they are, and with select=many the references together are the right choice. A number's reference is a number, and each text reference is an accepted answer. Repeat it for alternatives; without one, nothing is judged. |
 
@@ -885,7 +885,7 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 \begin{frame}[fragile]{What has to stay cool?}
   \begin{activity}[id=cool-bag, kind=choice, select=many,
       options={Yoghurt, Bread, Butter, Apples}, height=.5\textheight]
-    \prompt{Yoghurt, bread, butter, apples: what goes into the cool bag?}
+    \prompt{What goes into the cool bag?}
     \reference{Yoghurt}
     \reference{Butter}
   \end{activity}
@@ -905,7 +905,7 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 \end{frame}
 ```
 
-The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build. Handout and PowerPoint show only the prompt, so name a choice's options in the prompt or on the slide when the static copy should list them; the solutions add the references. The [feature showcase](../examples/showcase/README.md) and the [live-activity demo deck](../examples/demo/README.md) present one activity of each kind.
+The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build. Handout and PowerPoint show the prompt and a choice's options - each with its shape in its colour, as the phones show them, so that the prompt need not repeat them; the solutions add the references. The [feature showcase](../examples/showcase/README.md) and the [live-activity demo deck](../examples/demo/README.md) present one activity of each kind.
 
 
 ## Code activities: engines and data

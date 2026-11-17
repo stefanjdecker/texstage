@@ -9,7 +9,7 @@ requirements/runtime.txt, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-0.2.1.dev4-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-0.2.1.dev5-py3-none-any.whl
 python -m pip install --no-deps path/to/texstage_kinds_rdf-0.1.0-py3-none-any.whl path/to/texstage_kinds_sql-0.1.0-py3-none-any.whl
 python -m pip check
 ```

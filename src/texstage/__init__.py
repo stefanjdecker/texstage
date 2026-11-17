@@ -4,7 +4,7 @@
 PowerPoint (docs/content-types-design.md)."""
 from pathlib import Path
 
-__version__ = "0.2.1.dev4"   # the first that says it has the activity framework's contract: the kinds' packages need it
+__version__ = "0.2.1.dev5"   # with Built.warnings; 0.2.1.dev4 was the first with the activity framework's contract
 # The quiz server on the presenting laptop: its port and data folder (database, presenter key,
 # remembered keys, tunnel). The commands, the presenter keys and the build take them from here.
 DEFAULT_PORT = 8470

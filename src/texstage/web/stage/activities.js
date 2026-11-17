@@ -26,6 +26,7 @@
 import { ActivityBox, resultTable } from "./activity.js";
 import { texts } from "../i18n/i18n.js";
 import { clock, numberShown, timeLeft } from "../play/activities.js";
+import { color, LETTERED, letter, shapeSVG } from "../shared/shapes.js";
 import { textHTML } from "../shared/text.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -262,8 +263,15 @@ export class StepBox extends ActivityBox {
     const mark = (g) => (g.reference ? " ✓" : "") + (g.verdict && p.revealed ? ` · ${w.verdict[g.verdict] || g.verdict}` : "");
     const listed = p.options ? p.options.map((o) => ({ ...o, status: "ok" })) : p.groups;
     const most = Math.max(1, ...listed.map((g) => g.n));
+    // a choice's option: its shape in its colour, as on the phones - seven options or more with its letter
+    const options = tally && Array.isArray(this.item?.options) ? this.item.options : [];
+    const badge = (g) => {
+      const i = g.status === "ok" ? options.indexOf(g.label) : -1;
+      return i < 0 ? "" : `<span class="tq-shape${options.length >= LETTERED ? " lettered" : ""}" style="background:${color(i + 1)}">${
+        shapeSVG(i + 1, "#fff", options.length >= LETTERED ? letter(i) : "")}</span>`;
+    };
     const rows = listed.map((g) => `<div class="tq-cluster${g.reference ? " tq-ref" : ""}${g.status !== "ok" ? " tq-bad" : ""}">
-        <span class="tq-clabel">${label(g)}${esc(mark(g))}</span>
+        <span class="tq-clabel">${badge(g)}${label(g)}${esc(mark(g))}</span>
         <span class="tq-cbar"><i style="width:${((100 * g.n) / most).toFixed(1)}%"></i></span>
         <span class="tq-cn">${g.n}</span></div>`).join("");
     const s = p.shown;

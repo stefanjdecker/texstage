@@ -245,6 +245,11 @@ body.projector.idle .tq-onlink { cursor: none; }
 .tq-chead { color: #6e6a7d; font-size: 2cqh; }
 .tq-cluster { display: grid; grid-template-columns: 22% 1fr 8%; align-items: center; gap: 1.2cqh; }
 .tq-clabel { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a choice's option: its shape in its colour, as on the phones; seven or more options: a letter inside (shapes.js) */
+.tq-clabel .tq-shape { display: inline-grid; vertical-align: middle; width: 1.3em; height: 1.3em; margin-right: .4em; border-radius: .25em; }
+.tq-clabel .tq-shape svg { width: 72%; height: 72%; }
+.tq-clabel .tq-shape.lettered { width: 1.55em; height: 1.55em; }
+.tq-clabel .tq-shape.lettered svg { width: 90%; height: 90%; }
 .tq-cbar { height: 3.4cqh; background: #f0edf6; border-radius: .5cqh; overflow: hidden; }
 .tq-cbar i { display: block; height: 100%; background: #8a6fc2; transition: width .4s ease-out; }
 .tq-cluster.tq-bad .tq-cbar i { background: #c9c3d6; }
@@ -256,6 +261,9 @@ body.projector.idle .tq-onlink { cursor: none; }
 .tq-clusters.tq-dense { gap: .2em; font-size: 1.9cqh; line-height: 1.15; }
 .tq-clusters.tq-dense .tq-cbar { height: .85em; }
 .tq-clusters.tq-dense .tq-chead { font-size: 1em; }
+/* many rows: a lettered badge no taller than its row, which fit() would otherwise shrink the font for */
+.tq-clusters.tq-dense .tq-clabel .tq-shape, .tq-clusters.tq-dense .tq-clabel .tq-shape.lettered { width: 1.15em; height: 1.15em; }
+.tq-clusters.tq-dense .tq-clabel .tq-shape.lettered svg { width: 100%; height: 100%; }
 /* the references at the reveal, where they have no result of their own, and the group the lecturer shows: a line
    that leaves the bars to be seen */
 .tq-solline { color: #26890c; font-weight: 700; font-size: 2.2cqh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

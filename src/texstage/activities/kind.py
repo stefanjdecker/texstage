@@ -112,10 +112,13 @@ class Message:
 @dataclass
 class Built:
     """What a kind's build gives: its part of the public item (deck.json), of the keys (keys.json - the
-    references, which no phone gets), and the files for the bundle, by name."""
+    references, which no phone gets), and the files for the bundle, by name - and its warnings: what in the
+    deck builds but is likely not meant (a key that does nothing there, say), each a line of text, which the
+    build prints with the activity's id. A deck it refuses is Unbuildable."""
     item: dict
     keys: dict = field(default_factory=dict)
     files: dict[str, bytes] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
 @dataclass

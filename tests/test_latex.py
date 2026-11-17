@@ -891,3 +891,127 @@ def test_texactivity_reads_values_and_definitions_as_f1_did(tmp_path):
     assert (acts["m"].core["limit"], acts["m"].options["min"]) == ("4", ("2", ["2"]))
     assert acts["e"].core["engine"] == "sql"
     assert [i.phase for n, page in sorted(t.pages.items()) for i in page.items if i.id == "r"] == ["open", "revealed", "revealed"]
+
+
+def test_a_choices_options_are_in_its_box_lettered_from_seven_on(tmp_path):
+    """The static box - handout, solutions, PowerPoint - shows a choice's options, each with its shape in its
+    colour, so that the prompt need not repeat them; from seven options on each with its letter, A to Z, as
+    the phones and the projector show them (package 9's review: D9 and the look-alike options). texactivity
+    draws them alone, and before or after texquiz, whose colours and shapes they are."""
+    body = textwrap.dedent(r"""
+        \begin{frame}[t,fragile]{Four}
+          \begin{activity}[id=four,kind=choice,options={Yoghurt,Bread,Butter,{Apples, pears}},select=many]
+            \prompt{Into the cool bag?}
+            \reference{Butter}
+          \end{activity}
+        \end{frame}
+        \begin{frame}[t,fragile]{Seven}
+          \begin{activity}[id=seven,kind=choice,options={Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday}]
+            \prompt{Which day?}
+          \end{activity}
+        \end{frame}
+        \begin{frame}[t,fragile]{A number}
+          \begin{activity}[id=walk,kind=number,tolerance=0.5]
+            \prompt{How many minutes?}
+          \end{activity}
+        \end{frame}
+        """)
+    week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    for i, packages in enumerate((["texactivity"], ["texquiz", "texactivity"], ["texactivity", "texquiz"])):
+        tex = tmp_path / f"choices{i}.tex"
+        tex.write_text("\\documentclass[aspectratio=169]{beamer}\n" + "".join(f"\\usepackage{{{p}}}\n" for p in packages)
+                       + "\\begin{document}\n" + body + "\\end{document}\n", encoding="utf-8")
+        for mode in ("handout", "solutions"):
+            with Pdf(compile_deck(tex, mode, tmp_path / f"out{i}-{mode}").pdf) as doc:
+                four, seven, number = (page.text() for page in doc)
+            lines = [line.strip() for line in four.split("Reference")[0].splitlines()]     # (the solutions: then the references)
+            assert [x for x in lines if x in ("Yoghurt", "Bread", "Butter", "Apples, pears")] == \
+                ["Yoghurt", "Bread", "Butter", "Apples, pears"], (packages, mode, four)
+            assert re.findall(r"(?m)^([A-Z]) (\w+)\s*$", seven) == list(zip("ABCDEFG", week)), (packages, mode, seven)
+            assert "Yoghurt" not in number and "Monday" not in number
+            if mode == "solutions":
+                assert "Reference" in four and "Butter" in four.split("Reference", 1)[1]
+        page_colours = [_colours(result_pdf(tmp_path / f"out{i}-handout"), n) for n in (0, 1)]
+        assert page_colours[0] == set(SHAPE_COLOURS[:4]), packages             # four options: the first four colours
+        assert page_colours[1] == set(SHAPE_COLOURS), packages                 # seven: all six (the 7th the 1st's)
+
+
+SHAPE_COLOURS = [(226, 27, 60), (19, 104, 206), (216, 158, 0), (38, 137, 12), (134, 76, 191), (10, 163, 163)]
+
+
+def result_pdf(out: Path) -> Path:
+    (pdf,) = out.glob("*.pdf")
+    return pdf
+
+
+def _colours(pdf: Path, page: int) -> set:
+    """Which of the six answer colours a page shows (its badges, rendered: a planted option drawn in another
+    colour shows), as flat fills - anti-aliased edges are no colour of theirs."""
+    import pypdfium2 as pdfium
+    doc = pdfium.PdfDocument(str(pdf))
+    try:
+        img = doc[page].render(scale=3).to_pil().convert("RGB")
+    finally:
+        doc.close()
+    seen = {colour for _, colour in img.getcolors(maxcolors=img.width * img.height)}
+    return {c for c in SHAPE_COLOURS if c in seen}
+
+
+def test_a_choices_options_are_drawn_as_the_phones_show_them(tmp_path):
+    """An option is no LaTeX on the slide but what the phones show (the review of 2026-11-17, F1): a field's name
+    with its underscore, x^2, R&D, a comparison, a SPARQL path, an escaped caret, two hyphens, quotes - each as
+    written, where LaTeX stopped (Missing $) or drew another glyph (x < 5 as x ¡ 5); a formula is a formula."""
+    tex = tmp_path / "tricky.tex"
+    tex.write_text("\\documentclass[aspectratio=169]{beamer}\n\\usepackage{texactivity}\n\\begin{document}\n"
+                   "\\begin{frame}[t,fragile]{Tricky}\n"
+                   "\\begin{activity}[id=tricky,kind=choice,options={first_name,x^2,R&D,x < 5,a|b,2\\^3,a--b,"
+                   "New~York,\"q\",it's,$\\sigma$}]\n\\prompt{Which?}\n\\end{activity}\n\\end{frame}\n\\end{document}\n",
+                   encoding="utf-8")
+    for mode in ("handout", "present"):
+        result = compile_deck(tex, mode, tmp_path / mode)
+        with Pdf(result.pdf) as doc:
+            text = doc[0].text()
+        said = [m.group(2) for m in re.finditer(r"(?m)^([A-K]) (.+?)\s*$", text)]
+        assert said[:10] == ["first_name", "x^2", "R&D", "x < 5", "a|b", "2^3", "a--b", "New York", '"q"', "it's"], (mode, text)
+
+
+def test_options_that_do_not_fit_their_box_are_drawn_smaller_inside_it(tmp_path):
+    """26 options in a box of half the text's height ran out of it - below the frame, from under the live box on
+    the projector (the review of 2026-11-17, F2): what the box shows is drawn smaller to fit, and the build's
+    log says so."""
+    fruit = ("Apple Banana Cherry Date Elderberry Fig Grape Honeydew Imbe Jackfruit Kiwi Lemon Mango Nectarine Orange "
+             "Papaya Quince Raspberry Strawberry Tangerine Ugli Vanilla Watermelon Xigua Yuzu Zucchini").split()
+    tex = tmp_path / "many.tex"
+    tex.write_text("\\documentclass[aspectratio=169]{beamer}\n\\usepackage{texactivity}\n\\begin{document}\n"
+                   "\\begin{frame}[t,fragile]{Many}\n"
+                   f"\\begin{{activity}}[id=many,kind=choice,options={{{','.join(fruit)}}},height=.5\\textheight]\n"
+                   "\\prompt{Your favourite?}\n\\reference{Kiwi}\n\\end{activity}\n\\end{frame}\n\\end{document}\n",
+                   encoding="utf-8")
+    import pypdfium2 as pdfium
+    for mode in ("handout", "solutions"):
+        out = tmp_path / mode
+        result = compile_deck(tex, mode, out)
+        log = (out / "many.log").read_text(encoding="utf-8", errors="replace") if (out / "many.log").exists() else \
+            "".join(p.read_text(encoding="utf-8", errors="replace") for p in out.rglob("*.log"))
+        flat = " ".join(log.replace("(texactivity)", " ").split())             # (the log wraps a warning's lines)
+        assert re.search(r"Activity 'many': what its box shows is too tall for it - drawn at \d\d %", flat), mode
+        doc = pdfium.PdfDocument(str(result.pdf))
+        try:
+            page = doc[0]
+            img = page.render(scale=3).to_pil().convert("RGB")
+            w, h = img.size
+            column = [img.getpixel((w // 2, y)) for y in range(h)]
+            frame = [y for y, c in enumerate(column) if c[0] == c[1] == c[2] and 150 < c[0] < 230]
+            bottom = max(frame)                                                # the frame's lower edge, in pixels
+            text = page.get_textpage()
+            boxes = []
+            for name in fruit:                                                 # (the options' letters, not the
+                found = text.search(name, match_case=True, match_whole_word=True).get_next()   # footline's)
+                assert found, (mode, name)
+                boxes += [text.get_charbox(i) for i in range(found[0], found[0] + found[1])]
+            lowest = max(h - box[1] * 3 for box in boxes)
+            assert lowest < bottom, (mode, lowest, bottom)                    # every letter inside the frame
+            assert all(f in text.get_text_range() for f in fruit)
+        finally:
+            doc.close()
+
