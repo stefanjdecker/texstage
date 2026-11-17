@@ -20,6 +20,8 @@ import re
 import secrets
 from pathlib import Path
 
+from texstage.keys import new_key
+
 NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
 
 
@@ -92,7 +94,7 @@ class Lecturers:
         entries = dict(self._read())
         if name in entries or name in self.own:
             raise LecturerError(f"there is a lecturer {name} already (texstage lecturer renew {name}: a new key)")
-        key = secrets.token_urlsafe(18)
+        key = new_key()                               # never one that starts with "-"
         entries[name] = key_hash(key)
         self._write(entries)
         return key
@@ -103,7 +105,7 @@ class Lecturers:
         entries = dict(self._read())
         if name not in entries:
             raise LecturerError(f"no lecturer {name}")
-        key = secrets.token_urlsafe(18)
+        key = new_key()                               # never one that starts with "-"
         entries[name] = key_hash(key)
         self._write(entries)
         return key

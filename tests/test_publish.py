@@ -7,6 +7,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import re
 import socket
 import threading
 import time
@@ -399,6 +400,37 @@ def test_keys(tmp_path, monkeypatch):
     monkeypatch.setenv("TEXQUIZ_KEY", "env")
     assert find_key("https://q.test", None, servers) == "env"
     assert find_key("https://q.test", "given", servers) == "given"
+
+
+def test_a_new_key_never_starts_with_a_dash(tmp_path, monkeypatch):
+    """One token in 64 starts with "-", and on a command line `--key -Abc` reads as an option:
+    keys.new_key draws again (texstage lecturer add | renew too: test_lecturers). A key made
+    before stays as it is."""
+    from texstage import keys
+    assert re.fullmatch(r"[A-Za-z0-9_-]{24}", keys.new_key())
+    tokens = iter(["-" + "a" * 23, "--" + "b" * 22, "_" + "c" * 23])
+    monkeypatch.setattr(keys.secrets, "token_urlsafe", lambda n: next(tokens))
+    assert keys.load_presenter_key(tmp_path / "data") == "_" + "c" * 23
+    assert (tmp_path / "data" / "presenter-key").read_text(encoding="ascii") == "_" + "c" * 23 + "\n"
+    (tmp_path / "old").mkdir()
+    (tmp_path / "old" / "presenter-key").write_text("-made-before\n", encoding="ascii")
+    assert keys.load_presenter_key(tmp_path / "old") == "-made-before"
+
+
+@pytest.mark.parametrize("command, run", [(["build", "deck.tex"], "cmd_build"), (["serve"], "cmd_serve"),
+                                          (["publish", "--url", "https://q.test"], "cmd_publish"),
+                                          (["retarget", "deck.pptx", "--server", "https://q.test"], "cmd_retarget")])
+def test_a_key_that_starts_with_a_dash_goes_as_key_equals(command, run, capsys, monkeypatch):
+    """A key made before may start with "-": `--key -Abc` stops at the command line, whose error
+    says how to give it - and --key=-Abc is taken."""
+    from texstage import cli
+    with pytest.raises(SystemExit) as stop:
+        main([*command, "--key", "-Abc"])
+    assert stop.value.code == 2
+    assert 'argument --key: expected one argument - a key that starts with "-" goes as --key=<key>' \
+        in capsys.readouterr().err
+    monkeypatch.setattr(cli, run, lambda args: 0 if args.key == "-Abc" else 1)
+    assert main([*command, "--key=-Abc"]) == 0
 
 
 @contextlib.contextmanager

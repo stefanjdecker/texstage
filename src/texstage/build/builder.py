@@ -271,7 +271,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     key = opts.key or find_key(server)
     if addin_slides and not key:
         warnings.append(f"no presenter key for {server}: the live slides will ask for it once - "
-                        f"give it with --key (texstage publish --url {server} --key K --remember keeps it)")
+                        f"give it with --key (texstage publish --url {server} --key=K --remember keeps it)")
     shift = 0 if first is None else 1                   # the deck's slides come after the first one
     for i, (s, sid) in enumerate(zip(slides, ids)):
         for b in s.boxes(uses_addin=True)[:1]:          # one add-in object over the whole slide

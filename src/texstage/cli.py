@@ -520,8 +520,8 @@ def cmd_lecturer(args: argparse.Namespace) -> int:
         return 1
     print(f"presenter key of {args.name.strip().lower()} (shown only now - the server keeps a hash):\n\n    {key}\n")
     print("Give it to the lecturer. They build their decks with it once:\n"
-          "    texstage build <deck>.tex --server <this server's address> --key <key>\n"
-          "(or remember it: texstage publish --url <address> --key <key> --remember). A running server "
+          "    texstage build <deck>.tex --server <this server's address> --key=<key>\n"
+          "(or remember it: texstage publish --url <address> --key=<key> --remember). A running server "
           "takes the change at once.")
     return 0
 
@@ -647,12 +647,22 @@ def cmd_kinds(args: argparse.Namespace) -> int:
     return 1 if failed else 0
 
 
+class Parser(argparse.ArgumentParser):
+    """texstage's command line. A presenter key made before 2026-11-17 may start with "-"
+    (keys.new_key), and `--key -Abc` reads as an option: the error says how to give it."""
+
+    def error(self, message):
+        if message.startswith("argument --key: expected one argument"):
+            message += ' - a key that starts with "-" goes as --key=<key>'
+        super().error(message)
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] not in COMMANDS and argv[0] not in ("-h", "--help"):
         argv = ["present", *argv]                     # texstage deck.tex: texstage present deck.tex
-    parser = argparse.ArgumentParser(prog="texstage", description="Beamer decks presented live, with their "
-                                     "quizzes: texstage present <deck> starts a lecture")
+    parser = Parser(prog="texstage", description="Beamer decks presented live, with their "
+                    "quizzes: texstage present <deck> starts a lecture")
     sub = parser.add_subparsers(dest="command", required=True)
     pr = sub.add_parser("present", help="present a deck: built first if needed, then in texstage's presenter window "
                                         "(or --powerpoint) on the quiz server running here, or on one started now")

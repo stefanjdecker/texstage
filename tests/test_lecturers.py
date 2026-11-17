@@ -39,6 +39,17 @@ def test_the_list_of_lecturers(tmp_path):
     assert lecturers.who(new) is None
 
 
+def test_a_lecturers_new_key_never_starts_with_a_dash(tmp_path, monkeypatch):
+    """texstage lecturer add | renew: a token that starts with "-" is drawn again (keys.new_key) -
+    the lecturer gives the key on a command line, where `--key -Abc` reads as an option."""
+    import secrets
+    tokens = iter(["-" + "a" * 23, "A" * 24, "-" + "b" * 23, "--" + "c" * 22, "B" * 24])
+    monkeypatch.setattr(secrets, "token_urlsafe", lambda n: next(tokens))
+    lecturers = Lecturers(tmp_path / "lecturers.json")
+    assert lecturers.add("ada") == "A" * 24
+    assert lecturers.renew("ada") == "B" * 24 and lecturers.who("B" * 24) == "ada"
+
+
 @pytest.mark.parametrize("change", ["renew", "remove"])
 def test_lecturer_changes_with_the_same_timestamp(tmp_path, change):
     """A replacement file invalidates cached keys even within one clock tick."""
@@ -135,7 +146,9 @@ def test_an_older_database_gets_the_owner_column(tmp_path):
 def test_lecturer_command(tmp_path, capsys):
     data = str(tmp_path / "data")
     assert main(["lecturer", "add", "Ada", "--data", data]) == 0
-    key = capsys.readouterr().out.split("\n\n")[1].strip()
+    out = capsys.readouterr().out
+    key = out.split("\n\n")[1].strip()
+    assert "--key=<key>" in out and "--key <key>" not in out              # an older key may start with "-"
     assert Lecturers(tmp_path / "data" / "lecturers.json").who(key) == "ada"
     assert main(["lecturer", "add", "ada", "--data", data]) == 1          # there already
     assert main(["lecturer", "list", "--data", data]) == 0 and "ada" in capsys.readouterr().out

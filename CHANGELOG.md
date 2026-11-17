@@ -2,6 +2,13 @@
 
 ## Unreleased — 0.2.1.dev4 candidate
 
+- A new presenter key - a server's own (`presenter-key` in its data folder)
+  and a lecturer's (`texstage lecturer add | renew`) - never starts with `-`:
+  one in 64 did, and on a command line `--key -Abc` reads as an option, so
+  `texstage build`, `serve`, `publish` and `retarget` stopped (*argument
+  --key: expected one argument*). A key made before stays as it is: the
+  authoring guide and texstage's hints write `--key=<key>`, which takes it,
+  and that error now says so.
 - texstage is 0.2.1.dev4, the first candidate whose version says that it has
   the activity framework's contract: the kinds' packages
   (`kinds/texstage-kinds-rdf`, `kinds/texstage-kinds-sql`) need it

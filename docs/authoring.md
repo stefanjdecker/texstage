@@ -474,18 +474,20 @@ once per PC, and build the decks for it - or point a built deck at it:
 
 ```bash
 texstage addin install --url https://quiz.example.org                     # then restart PowerPoint
-python tools/scripts/texstage-build.py 06-SPARQL-Semantics --server https://quiz.example.org --key <key>
-texstage retarget 06-SPARQL-Semantics/build/texquiz/06-SPARQL-Semantics.pptx --server https://quiz.example.org --key <key>
+python tools/scripts/texstage-build.py 06-SPARQL-Semantics --server https://quiz.example.org --key=<key>
+texstage retarget 06-SPARQL-Semantics/build/texquiz/06-SPARQL-Semantics.pptx --server https://quiz.example.org --key=<key>
 ```
 
 The key is your own presenter key on that server: whoever runs the server makes it for you
 (`texstage lecturer add <name>`) and gives it to you once. With it you see only your own
-decks, games and results - other lecturers on the same server have keys of their own.
-`texstage publish --url https://quiz.example.org --key <key> --remember` remembers it, after
-that `--key` can be left out. A deck built for the server (`--server`) is uploaded to it at the
-end of the build, complete - for PowerPoint, the host page and texstage. Decks built for the
-laptop and then retargeted, or built while the server could not be reached, go up with
-`python tools/scripts/texstage-publish.py --url https://quiz.example.org --key <key> --remember`;
+decks, games and results - other lecturers on the same server have keys of their own. Give it
+as `--key=<key>`, with the `=`: an older key may start with `-`, and after a space it would read
+as an option. `texstage publish --url https://quiz.example.org --key=<key> --remember`
+remembers it, after that `--key` can be left out. A deck built for the server (`--server`) is
+uploaded to it at the end of the build, complete - for PowerPoint, the host page and texstage.
+Decks built for the laptop and then retargeted, or built while the server could not be
+reached, go up with
+`python tools/scripts/texstage-publish.py --url https://quiz.example.org --key=<key> --remember`;
 publishing again sends only decks that changed. Or by hand: **Upload a deck** in the server's
 deck list takes the `.bundle.zip` (above).
 

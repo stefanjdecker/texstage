@@ -464,7 +464,9 @@ lecturers, each with their own game. The server keeps the keys' SHA-256 hashes i
 texquiz texstage lecturer add NAME --data /data`); a running server rereads the file when it
 changes. The server's own key (`<data>/presenter-key`, made at its first start) is one more
 lecturer, named after the user running it (`texstage serve --owner`) - on a laptop the only one,
-so a single lecturer notices nothing of all this.
+so a single lecturer notices nothing of all this. A new key is 24 URL-safe characters that never
+start with `-` (`keys.new_key`, since 2026-11-17): one in 64 did, and on a command line
+`--key -Abc` reads as an option - an older key goes as `--key=<key>`, as texstage's error says.
 
 The add-in needs host rights. **The live deck carries its server's presenter key** (property
 `key` of every live slide, next to `server`; since 2026-10-03, the lecturer's decision: a

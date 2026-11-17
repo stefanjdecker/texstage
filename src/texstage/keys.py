@@ -24,12 +24,24 @@ def env_key() -> str | None:
     return os.environ.get("TEXSTAGE_KEY") or os.environ.get("TEXQUIZ_KEY") or None
 
 
+def new_key() -> str:
+    """A new presenter key: 24 URL-safe characters (secrets.token_urlsafe), never one that starts
+    with "-". One token in 64 does, and on a command line `--key -Abc` reads as an option
+    (argparse: "expected one argument"): it is drawn again. A key made before 2026-11-17 may
+    start with "-" - --key=<key> takes it."""
+    while True:
+        key = secrets.token_urlsafe(18)
+        if not key.startswith("-"):
+            return key
+
+
 def load_presenter_key(data_dir: Path) -> str:
-    """The key of the server with this data folder, made on first use."""
+    """The key of the server with this data folder, made on first use (new_key; a key made
+    before stays as it is)."""
     path = data_dir / "presenter-key"
     if not path.exists():
         data_dir.mkdir(parents=True, exist_ok=True)
-        path.write_text(secrets.token_urlsafe(18) + "\n", encoding="ascii")
+        path.write_text(new_key() + "\n", encoding="ascii")
     return path.read_text(encoding="ascii").strip()
 
 
