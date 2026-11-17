@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import tomllib
@@ -16,10 +17,35 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def kinds():
+    """The kinds of live activities beside texstage (kinds/*/pyproject.toml): packages of their own, installed
+    after texstage with --no-deps, so their dependencies are locked with texstage's."""
+    return sorted((ROOT / "kinds").glob("*/pyproject.toml")) if (ROOT / "kinds").is_dir() else []
+
+
+def normalized(name):
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def kinds_dependencies():
+    """What the kinds need besides texstage, which is the project itself, and besides one another: the
+    packages of kinds/ are installed from it, and are on no index - a lock would look for them there."""
+    projects = [tomllib.loads(path.read_text(encoding="utf-8"))["project"] for path in kinds()]
+    local = {"texstage"} | {normalized(project["name"]) for project in projects}
+    needed = []
+    for path, project in zip(kinds(), projects):
+        for requirement in project.get("dependencies", []):
+            name = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", requirement)
+            assert name, f"{path.relative_to(ROOT)}: a requirement without a name: {requirement!r}"
+            if normalized(name[1]) not in local:
+                needed.append(requirement)
+    return needed
+
+
 def inputs():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     meta = project["project"]
-    runtime = list(meta["dependencies"])
+    runtime = list(meta["dependencies"]) + kinds_dependencies()
     if meta["name"] == "lecture-tools":
         pair = json.loads((ROOT / "requirements/texstage.json").read_text())
         assets = json.loads((ROOT / "texstage-assets.lock.json").read_text())
@@ -47,6 +73,7 @@ def inputs():
 
 def snapshot():
     paths = ["pyproject.toml", "maintenance/lock_dependencies.py"]
+    paths += [path.relative_to(ROOT).as_posix() for path in kinds()]
     paths += ["requirements/" + profile + suffix for profile in inputs() for suffix in (".in", ".txt")]
     if (ROOT / "requirements/texstage.json").exists():
         paths += ["requirements/texstage.json", "texstage-assets.lock.json"]

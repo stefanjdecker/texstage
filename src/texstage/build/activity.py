@@ -178,7 +178,8 @@ def kind_of(a: Activity, name: str):
         return registry.kind(name)
     except registry.Missing as e:
         package = PACKAGES.get(name)
-        more = f" - install {package} (in texstage's source: pip install -e kinds/{package})" if package else ""
+        more = (f" - install {package} (in texstage's source: python -m pip install --no-deps --no-build-isolation "
+                f"./kinds/{package})") if package else ""
         raise ActivityError(f"activity {a.id}: kind={name} - {e}{more}") from None
 
 

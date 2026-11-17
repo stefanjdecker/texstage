@@ -4,16 +4,16 @@
 
     sql-query   a query over the seed's tables, run by Python's sqlite3 - today's input=code, engine=sql
 
-A kind of the activity framework's contract, API 0 (texstage.activities.kind). The check itself is still
-F1's (texstage.checks.sql) and moves here once F1 is in main. Its fixtures, which `texstage kinds check`
-runs, are beside this module (tests/)."""
+A kind of the activity framework's contract, API 0 (texstage.activities.kind). The check itself is
+texstage's (texstage.checks.sql), which F1's activity type uses too, and stays there while it does. Its
+fixtures, which `texstage kinds check` runs, are beside this module (tests/)."""
 from __future__ import annotations
 
 try:
     from texstage.activities.code import CodeKind, said
-except ImportError as e:                                  # an older texstage: say what is missing
-    raise ImportError("texstage-kinds-sql needs a texstage with the activity framework's contract "
-                      "(texstage.activities); this one has none") from e
+except ImportError as e:                                  # no texstage, or an older one: say what is missing
+    raise ImportError("texstage-kinds-sql needs texstage 0.2.1.dev4 or later - with the activity framework's "
+                      "contract, texstage.activities -, which is not installed here") from e
 from texstage.activities.kind import Prepared, fixed
 from texstage.activities.options import File, Words
 

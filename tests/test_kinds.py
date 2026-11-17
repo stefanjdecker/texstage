@@ -490,10 +490,14 @@ def test_the_contracts_own_facts():
 
 
 def test_each_package_names_its_kinds_as_entry_points():
+    from packaging.version import Version
+    # the kinds need the first texstage with the contract (the plan of F2, package 11) - which this one is, or later
+    ours = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
+    assert Version(ours) >= Version("0.2.1.dev4") and texstage.__version__ == ours
     found = {}
     for path in sorted(KINDS.glob("*/pyproject.toml")):
         project = tomllib.loads(path.read_text(encoding="utf-8"))["project"]
-        assert project["version"] == "0.1.0" and "texstage" in project["dependencies"]
+        assert project["version"] == "0.1.0" and "texstage>=0.2.1.dev4" in project["dependencies"]
         for name, target in project["entry-points"]["texstage.kinds"].items():
             module, cls = target.split(":")
             assert (path.parent / "src" / module / "__init__.py").is_file()
@@ -850,7 +854,8 @@ def built_by_kind(tmp_path, a: dict, checker=every_reference_runs):
 @pytest.fixture
 def installed_kinds():
     if not {"triples", "sql-query", "sparql-query", "turtle-graph"} <= set(registry.kinds()):
-        pytest.skip("the kinds are not installed: pip install -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf")
+        pytest.skip("the kinds are not installed: python -m pip install --no-deps --no-build-isolation "
+                    "-e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf")
 
 
 SPO = ["Subject", "Predicate", "Object"]
@@ -1032,7 +1037,8 @@ def test_what_a_kind_not_installed_says_to_install(tmp_path, monkeypatch, instal
     monkeypatch.setattr(registry, "found", lambda: tuple(found))
     with pytest.raises(build.ActivityError) as e:
         built_by_kind(tmp_path, CORE_KEYS)
-    assert str(e.value).endswith("- install texstage-kinds-sql (in texstage's source: pip install -e kinds/texstage-kinds-sql)")
+    assert str(e.value).endswith("- install texstage-kinds-sql (in texstage's source: python -m pip install --no-deps "
+                                 "--no-build-isolation ./kinds/texstage-kinds-sql)")
 
 
 def test_the_references_run_as_the_server_runs_them(tmp_path, installed_kinds):

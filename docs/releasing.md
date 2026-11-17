@@ -5,8 +5,8 @@
 The source is public at [stefanjdecker/texstage](https://github.com/stefanjdecker/texstage),
 with project information at [www.texstage.org](https://www.texstage.org).
 The `main` branch includes the PowerPoint conversion, shared compilation and
-German-language compatibility changes. The current version remains the
-0.2.1.dev3 development candidate; source publication is distinct from declaring
+German-language compatibility changes. The current version is the
+0.2.1.dev4 development candidate; source publication is distinct from declaring
 a supported package release. Follow [installation.md](installation.md) to install
 the checkout with its matching dependency locks.
 
@@ -81,9 +81,10 @@ python maintenance/lock_dependencies.py --check
 python maintenance/check_distributions.py --out dist/candidate
 ```
 
-Use a new empty output directory. This produces a wheel, source archive,
-SHA256SUMS and validation.json. It also builds a wheel from the source archive
-and compares every uncompressed wheel member with the direct build. ZIP/tar
+Use a new empty output directory. This produces a wheel and a source archive of
+texstage and of each kind of live activities in `kinds/`, SHA256SUMS and
+validation.json. It also builds each wheel again from its source archive and
+compares every uncompressed wheel member with the direct build. ZIP/tar
 timestamps may differ; artifact SHA-256 hashes identify the actual archives.
 Run the installed-wheel smoke check from the development guide and keep the
 test reports with the candidate. Review the archive contents, including notices,

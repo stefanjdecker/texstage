@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev3 candidate
+## Unreleased — 0.2.1.dev4 candidate
+
+- texstage is 0.2.1.dev4, the first candidate whose version says that it has
+  the activity framework's contract: the kinds' packages
+  (`kinds/texstage-kinds-rdf`, `kinds/texstage-kinds-sql`) need it
+  (`texstage>=0.2.1.dev4`), which `pip check` holds - wheels named 0.2.1.dev3
+  were built with the contract and without it. A deck with activities of
+  texstage's own kinds (choice, number, text) gets a new bundle ID when it is
+  built again, as deck.json names the texstage of its kinds; a server compares
+  a kind's version by its numbers, so none refuses such a deck.
+- The kinds' dependencies are locked with texstage's
+  (`maintenance/lock_dependencies.py` reads `kinds/*/pyproject.toml`). CI builds
+  and checks the kinds' wheels beside texstage's, builds a deck with an
+  activity of each of texstage's kinds from the installed wheels, and has a
+  server of the core's activity type - from the wheels, and in the server's
+  image - check a phone's entry of each (`maintenance/check_kinds_served.py`).
+  The installation guides, the README's and the showcase's install the kinds;
+  a build that misses one says how to install it from texstage's source.
+
+## Earlier 0.2.1.dev3 candidate
 
 - Every page sends a Content-Security-Policy (`server/policy.py`): scripts come
   from the server alone and a page connects to it alone - the phone's page

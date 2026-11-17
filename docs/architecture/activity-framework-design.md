@@ -366,7 +366,11 @@ names kept, and its lines where the kind's errors name one, so that the line is 
   main is empty; perhaps renamed texstage-kinds), and a subject's repository keeps the kinds only
   it uses.
 - **How they are installed:** as texstage is - from source, with locked requirements
-  ([installation.md](../installation.md)); on PyPI later, together with texstage.
+  ([installation.md](../installation.md)); on PyPI later, together with texstage. A kind's
+  package names the texstage it needs - the first kinds `texstage>=0.2.1.dev4`, the first
+  version that says it has the contract -, its dependencies are locked with texstage's
+  (`requirements/`), and CI builds and checks its wheel beside texstage's (F2's plan,
+  package 11).
 - The build writes into `deck.json` which kinds the deck uses, with package, version and API:
   `"kinds": {"sql-query": {"package": "texstage-kinds-sql", "version": "1.2.0", "api": 0}}`. A
   server that lacks a kind, has it with another API or another major version, or with an older

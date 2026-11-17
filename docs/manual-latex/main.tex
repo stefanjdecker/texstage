@@ -3,7 +3,7 @@
 \providecommand{\manualdocroot}{../}
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
-\newcommand{\manualversion}{0.2.1.dev3}
+\newcommand{\manualversion}{0.2.1.dev4}
 \newcommand{\manualdate}{November 2026}
 \hypersetup{pdftitle={texstage user manual},pdfauthor={texstage project}}
 \title{texstage user manual\\[0.5em]\large Presenter and participant guide}
@@ -16,7 +16,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.\par
 
-Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 -\allowbreak{} development candidate available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
+Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 -\allowbreak{} development candidate available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
 {\small\setlength{\parskip}{0pt}\tableofcontents}
@@ -176,6 +176,15 @@ python -m pip install --no-deps --no-build-isolation .
 
 The first two commands install the tested dependency versions and packaging tools.\allowbreak{} The third installs this source copy.\allowbreak{} Keep the requirements files from the same candidate.\allowbreak{} If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.\par
 
+Decks with crowd graphs, SQL, SPARQL or Turtle activities also need the kinds of activities they are of -\allowbreak{} packages of their own in kinds/\allowbreak{} -\allowbreak{} where they are built and where they are served: the build asks an activity's kind, and runs its references as the server does.\allowbreak{} Their dependencies are among the locked ones just installed.\allowbreak{} texstage's own kinds -\allowbreak{} choice, number and text -\allowbreak{} come with texstage.\par
+
+\par\noindent\begin{minipage}{\linewidth}
+\begin{Verbatim}
+python -m pip install --no-deps --no-build-isolation ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf
+texstage kinds
+\end{Verbatim}
+\end{minipage}\par\smallskip
+
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
 texstage --help
@@ -184,7 +193,7 @@ python -c "from importlib.metadata import version; print(version('texstage'))"
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 for this edition.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
+Success means the command list appears, pip reports no broken requirements, and the version is 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 for this edition.\allowbreak{} texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-\allowbreak{}query of texstage-\allowbreak{}kinds-\allowbreak{}sql, and triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph of texstage-\allowbreak{}kinds-\allowbreak{}rdf.\allowbreak{} The kinds' packages need texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 or later; pip check reports an older one.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
 
 LaTeX source is text; a TeX distribution turns it into a PDF.\allowbreak{} Beamer is the LaTeX document class for slides.\allowbreak{} Install a current full \href{https://tug.org/texlive/}{TeX Live} distribution, \href{https://tug.org/mactex/}{MacTeX} on macOS, or \href{https://miktex.org/howto/install-miktex}{MiKTeX} on Windows.\allowbreak{} With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build.\allowbreak{} A LaTeX editor alone does not supply the compiler.\par
 
@@ -675,7 +684,7 @@ Screenshot sources and hashes are listed in \href{\manualdocroot images/manual/c
 \manualsection{LaTeX reference: packages and loading}
 Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{\manualdocroot manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
 
-This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 candidate.\par
+This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 candidate.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}

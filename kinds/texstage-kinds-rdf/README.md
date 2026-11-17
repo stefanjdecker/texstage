@@ -16,15 +16,20 @@ These are today's `input=tuple`, `input=code, engine=sparql` and `input=code, en
 kinds of the activity framework's contract, API 0 (`texstage.activities.kind`; the framework's
 [design](../../docs/architecture/activity-framework-design.md), sections 7 and 17, and its
 [plan for F2](../../docs/architecture/activity-framework-plan-f2.md), packages 1 and 2). The contract
-may still change until it is called API 1, and nothing of the server uses the kinds yet: F1's
-activity type runs the lectures.
+may still change until it is called API 1. A server uses the kinds when it runs the core's activity
+type (`texstage serve --activities core`); F1's type, a server's default, needs none of them.
 
-Install it after texstage, from the repository's root, and check it:
+Install it after texstage 0.2.1.dev4 or later, wherever decks are built - the build checks an
+activity's keys and runs its references with its kind - and wherever they are served; from the
+repository's root, and check it:
 
 ```sh
-python -m pip install --no-deps --no-build-isolation -e kinds/texstage-kinds-rdf
+python -m pip install --no-deps --no-build-isolation ./kinds/texstage-kinds-rdf
 texstage kinds check triples sparql-query turtle-graph
 ```
+
+Its dependency, pyoxigraph, is among texstage's locked ones (`requirements/runtime.txt`); for
+development install it with `-e` ([development.md](../../docs/development.md)).
 
 `texstage kinds check` runs the kit on the fixtures beside the module (`tests/*.json`): the golden
 fixtures of today's SPARQL and Turtle engines, made by `tests/fixtures/checks/to_kinds.py`, safety
@@ -33,5 +38,5 @@ cases of `triples`. `sparql-query` and `turtle-graph` take a text's comments out
 checked, since a group of answers is shown by such a text; every line stays, so that an error's
 line is the student's own.
 
-The two checks are F1's `texstage.checks.sparql` and `texstage.checks.turtle` and move into this
-package once F1 is in `main`.
+The two checks are texstage's, `texstage.checks.sparql` and `texstage.checks.turtle`, which F1's
+activity type uses too; they stay there while that type does.

@@ -14,10 +14,9 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "Stefan Decker" }]
 classifiers = ["Private :: Do Not Upload"]
-# texstage: the contract (texstage.activities) and, until F1 is in main, the check. No lower bound yet - texstage
-# has had no version since the contract came, so none would tell; the package says so when it is imported, and
-# the bound comes with the version F2 gets (the plan of F2, package 11)
-dependencies = ["texstage"]
+# texstage: the contract (texstage.activities) and the check (texstage.checks) - from 0.2.1.dev4, the first version
+# that says it has them (wheels of 0.2.1.dev3 were built with the contract and without it)
+dependencies = ["texstage>=0.2.1.dev4"]
 
 [project.entry-points."texstage.kinds"]
 sql-query = "texstage_kinds_sql:SqlQuery"

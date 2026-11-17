@@ -7,17 +7,17 @@
     turtle-graph   a graph written in Turtle, parsed by pyoxigraph; of the seed only its @base and
                    @prefix lines count - today's input=code, engine=turtle
 
-Kinds of the activity framework's contract, API 0 (texstage.activities.kind). The two checks are still
-F1's (texstage.checks.sparql, .turtle) and move here once F1 is in main; a tuple's cleaning is the
-activity type's until the core replaces it (texstage.checks.cleaning). Their fixtures, which `texstage
+Kinds of the activity framework's contract, API 0 (texstage.activities.kind). The two checks are
+texstage's (texstage.checks.sparql, .turtle), which F1's activity type uses too, and stay there while it
+does; so does a tuple's cleaning (texstage.checks.cleaning). Their fixtures, which `texstage
 kinds check` runs, are beside this module (tests/)."""
 from __future__ import annotations
 
 try:
     from texstage.activities.code import CodeKind, said
-except ImportError as e:                                  # an older texstage: say what is missing
-    raise ImportError("texstage-kinds-rdf needs a texstage with the activity framework's contract "
-                      "(texstage.activities); this one has none") from e
+except ImportError as e:                                  # no texstage, or an older one: say what is missing
+    raise ImportError("texstage-kinds-rdf needs texstage 0.2.1.dev4 or later - with the activity framework's "
+                      "contract, texstage.activities -, which is not installed here") from e
 from texstage.activities.kind import Built, Check, Entry, Kind, Prepared, Step, Unbuildable, Unfit, fixed
 from texstage.activities.options import PRESETS, Choice, File, Flag, Int, Options, Words
 from texstage.checks import cleaning

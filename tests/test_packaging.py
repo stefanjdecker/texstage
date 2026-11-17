@@ -10,6 +10,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "texstage"
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -90,6 +92,86 @@ def test_the_docker_image_packs_the_latex_files():
     docker = (ROOT / "deploy" / "Dockerfile").read_text(encoding="utf-8")
     copied = re.search(r"^COPY (.*) \./latex/$", docker, re.MULTILINE)[1].split()
     assert sorted(Path(c).name for c in copied) == sorted(STYLES)
+
+
+def test_the_kinds_dependencies_are_locked_with_texstages(tmp_path, monkeypatch):
+    """The kinds are installed with --no-deps - a local package has no hash to lock -: what they need but
+    texstage and one another is among texstage's locked inputs, and their metadata among the files of the
+    lock's manifest, so that an edit of a kind's pyproject.toml fails lock_dependencies.py --check (the plan of
+    F2, package 11). The packages of kinds/ are on no index: a lock would look for them there."""
+    import importlib.util
+    import json
+    spec = importlib.util.spec_from_file_location("lock_dependencies", ROOT / "maintenance" / "lock_dependencies.py")
+    lock = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lock)
+    kinds = sorted((ROOT / "kinds").glob("*/pyproject.toml"))
+    assert [p.parent.name for p in kinds] == ["texstage-kinds-rdf", "texstage-kinds-sql"] == [p.parent.name for p in lock.kinds()]
+    runtime = (ROOT / "requirements" / "runtime.in").read_text(encoding="utf-8").splitlines()
+    assert lock.kinds_dependencies() == ["pyoxigraph>=0.5.13,<0.6"] and set(lock.kinds_dependencies()) <= set(runtime)
+    assert lock.inputs()["runtime"].splitlines() == runtime
+    ours = {"kinds/texstage-kinds-rdf/pyproject.toml", "kinds/texstage-kinds-sql/pyproject.toml"}
+    manifest = json.loads((ROOT / "requirements" / "lock-manifest.json").read_text(encoding="utf-8"))
+    assert ours <= set(manifest["files"]) and ours <= set(lock.snapshot())
+    # texstage itself and the kinds' own packages - however a kind writes their names - are not locked; any other
+    # package is, as written (its markers too); a kind's optional dependencies are not, nor a folder deeper down
+    (tmp_path / "kinds" / "a" / "deeper").mkdir(parents=True)
+    (tmp_path / "kinds" / "a" / "pyproject.toml").write_text(
+        '[project]\nname = "texstage-kinds-a"\ndependencies = ["texstage>=0.2.1.dev4", "TexStage", "texstage[docs]", '
+        '"texstage ; python_version >= \'3.12\'", "texstage-kinds-b>=1", "rdflib>=7 ; python_version >= \'3.12\'", '
+        '"texstage_extra"]\n[project.optional-dependencies]\ndev = ["pytest>=8"]\n', encoding="utf-8")
+    (tmp_path / "kinds" / "a" / "deeper" / "pyproject.toml").write_text(
+        '[project]\nname = "deeper"\ndependencies = ["deep-package"]\n', encoding="utf-8")
+    (tmp_path / "kinds" / "b").mkdir()
+    (tmp_path / "kinds" / "b" / "pyproject.toml").write_text('[project]\nname = "Texstage_Kinds.B"\n'
+                                                            'dependencies = ["TEXSTAGE-KINDS-A", "sqlparse>=0.5"]\n',
+                                                            encoding="utf-8")
+    monkeypatch.setattr(lock, "ROOT", tmp_path)
+    assert lock.kinds_dependencies() == ["rdflib>=7 ; python_version >= '3.12'", "texstage_extra", "sqlparse>=0.5"]
+    assert [p.relative_to(tmp_path).as_posix() for p in lock.kinds()] == ["kinds/a/pyproject.toml", "kinds/b/pyproject.toml"]
+    # what a kind needs and texstage does not is locked too
+    (tmp_path / "pyproject.toml").write_text('[build-system]\nrequires = ["setuptools>=77"]\n[project]\nname = "texstage"\n'
+                                             'dependencies = ["lxml>=5"]\n[project.optional-dependencies]\ndev = ["pytest>=8"]\n',
+                                             encoding="utf-8")
+    assert lock.inputs()["runtime"] == "lxml>=5\nrdflib>=7 ; python_version >= '3.12'\nsqlparse>=0.5\ntexstage_extra\n"
+
+
+def test_a_distributions_build_takes_away_what_it_left_and_nothing_else(tmp_path):
+    """maintenance/check_distributions.py builds in the source folders: what the build leaves there - build/, an
+    *.egg-info, which hides an installed package's entry points where its folder comes first on sys.path - goes
+    again, also when the build fails; what was there before stays (a developer's build/, an editable install's
+    metadata)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("check_distributions", ROOT / "maintenance" / "check_distributions.py")
+    dist = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dist)
+    assert dist.packages() == [ROOT, ROOT / "kinds" / "texstage-kinds-rdf", ROOT / "kinds" / "texstage-kinds-sql"]
+    old, new = tmp_path / "old", tmp_path / "new"
+    for source in (old, new):
+        (source / "src").mkdir(parents=True)
+    (old / "build").mkdir()
+    (old / "build" / "mine.txt").write_text("a developer's", encoding="utf-8")
+    (old / "src" / "old.egg-info").mkdir()
+    for source in (old, new):
+        with dist.cleaned(source):
+            for made in ("build/lib", "src/made.egg-info", "made.egg-info"):
+                (source / made).mkdir(parents=True, exist_ok=True)
+    assert (old / "build" / "mine.txt").is_file() and (old / "src" / "old.egg-info").is_dir()
+    assert not any((source / made).exists() for source in (old, new) for made in ("src/made.egg-info", "made.egg-info"))
+    assert not (new / "build").exists()
+    with pytest.raises(RuntimeError), dist.cleaned(new):                   # a build that fails midway
+        (new / "build").mkdir()
+        raise RuntimeError("the build failed")
+    assert not (new / "build").exists()
+
+
+def test_the_installed_metadata_is_this_texstages():
+    """An editable install keeps the version it was installed with: after a pull that changes texstage's
+    version, `texstage kinds` and deck.json's kinds say the old one until it is installed anew, and pip check
+    fails for the kinds, which need 0.2.1.dev4 or later (docs/development.md)."""
+    from importlib.metadata import version
+    import texstage
+    assert version("texstage") == texstage.__version__ == PROJECT["project"]["version"], \
+        "the installed texstage's metadata is another version's: python -m pip install --no-deps --no-build-isolation -e ."
 
 
 def test_one_place_for_port_and_data_folder(tmp_path, monkeypatch):

@@ -50,9 +50,13 @@ Chrome (Safari on iPhones), interactive Office behavior and real-course renderin
 require separate validation. No CI job opens a real course or uses a production server.
 
 A separate Linux job builds the Docker image with locked Python dependencies and
-checks its health endpoint. It uses a disposable container/volume and publishes
-no image or network port. The local Windows validation did not run this job
-because no Docker daemon was available.
+checks its health endpoint. It runs the kinds' kit in the container and
+`maintenance/check_kinds_served.py`: a server of the core's activity type there
+takes a deck with an activity of each of texstage's kinds and checks a phone's
+entry of each in its pool. It uses a disposable container/volume and publishes
+no image or network port. The phase-3 validation on Windows had no Docker
+daemon for it; the job's steps were run locally with Docker Desktop for F2's
+package 11 (2026-11-16).
 
 ## Run the source suite
 
@@ -69,6 +73,12 @@ The second line installs the kinds of live activities: packages of their own in
 and `texstage kinds check` runs the kit - the test every kind passes - on each.
 Without them the tests of the registry and of the kit fail and say what to install;
 the kinds' own tests find their sources in `kinds/`.
+
+An editable install keeps the version it was installed with. After a pull that
+changes texstage's version, run the first two lines again: until then
+`texstage kinds` and a build's deck.json name the old version, and `pip check`
+fails, as the kinds need texstage 0.2.1.dev4 or later
+(`tests/test_packaging.py` says so too).
 
 The tests exercise Python, server/WebSocket behavior, Node-based browser logic,
 LaTeX and PowerPoint file generation. Windows registration tests use the
@@ -91,19 +101,33 @@ the browser they are skipped, unless `TEXSTAGE_BROWSER_TESTS=required` (CI).
 python maintenance/check_distributions.py --out dist/candidate
 python -m venv .wheel-venv
 .wheel-venv/bin/python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev3-py3-none-any.whl
+.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev4-py3-none-any.whl dist/candidate/texstage_kinds_rdf-0.1.0-py3-none-any.whl dist/candidate/texstage_kinds_sql-0.1.0-py3-none-any.whl
+.wheel-venv/bin/python -m pip check
 .wheel-venv/bin/python maintenance/check_installed.py
+.wheel-venv/bin/python maintenance/check_kinds_served.py
 ```
 
 On Windows replace `.wheel-venv/bin/python` with
 `.wheel-venv\Scripts\python.exe`. Use a new output/environment folder for later
 candidates. The smoke check runs from a temporary directory, asserts resources
 come from site-packages, and builds a synthetic live deck without touching the
-presenter's home data directory.
+presenter's home data directory. With the kinds' wheels it runs their kit, builds
+a deck with an activity of each of texstage's kinds - the build runs their
+references with the kinds - and serves it: `check_kinds_served.py` starts a
+server of the core's activity type on a free local port, with a key and a data
+folder of its own, has a phone send each activity's first reference as its kind
+takes one (a crowd graph a term per field), reveals the step and wants the
+phone's own entry checked with status ok and judged correct - and a crowd
+graph's terms in the step's picture. Without arguments it serves a deck of its
+own, an activity of each kind made by texstage's build without LaTeX; given
+`--bundles <folder>` the built decks there, passing over a deck without
+activities unless `--every`.
 
-The distribution check compares direct and sdist-rebuilt wheel contents and
-writes checksums. A successful source test alone does not prove wheel resources
-are complete. See [releasing.md](releasing.md) for the remaining gates.
+The distribution check builds texstage's wheel and source archive and each
+kind's, compares direct and sdist-rebuilt wheel contents and writes checksums.
+`pip check` holds the kinds' bound on texstage - 0.2.1.dev4 or later - against the
+wheel. A successful source test alone does not prove wheel resources are
+complete. See [releasing.md](releasing.md) for the remaining gates.
 
 ## Local candidate evidence
 

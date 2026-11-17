@@ -184,7 +184,7 @@ archive's files.
   9. *The packages' wheels had no licence text* - each has `LICENSE` and `NOTICE` now. Their
      dependency on texstage has no lower bound still: texstage has had no version since the
      contract came, so none would tell; a kind's package says what is missing when it is imported,
-     and the bound comes with F2's version (package 11).
+     and the bound comes with F2's version (package 11: `texstage>=0.2.1.dev4`, 4.7).
   10. *Two comments* in `web/engines/turtle.js` pointed at the cleaning's old place.
 
   The author's and the reviewer's small faults, and those for what the fixes added - 109 in all,
@@ -1060,6 +1060,116 @@ run away - the runs now say them apart -, 95 % and the slowest, in ms:
   guide (`docs/installation.md`), and lecture-tools (2.3).
 - The server refuses a bundle whose kinds are missing (AF 7.2).
 
+**As built (package 11, 2026-11-16, on `main`), and as it is after its review:**
+
+- *A version for the contract:* texstage is 0.2.1.dev4, the first candidate whose version says
+  that it has the contract - wheels named 0.2.1.dev3 were built with it and without it -, and the
+  kinds' packages need it: `texstage>=0.2.1.dev4` (4.2, item 9). `pip check` holds the bound
+  where they are installed. The kinds stay 0.1.0. A deck of the kinds' packages does not change
+  with texstage's version; one with activities of texstage's own kinds gets a new bundle ID when
+  it is built again, since deck.json names the texstage of its kinds - a server compares a kind's
+  version by its numbers (`server/activities.py`: `_version`, 0.2.1.dev3 and dev4 alike), so none
+  refuses it. An editable install keeps the version it was installed with until it is installed
+  anew (`docs/development.md`; `tests/test_packaging.py` says so).
+- *The locks:* `maintenance/lock_dependencies.py` reads the kinds' `pyproject.toml` beside
+  texstage's - their dependencies but texstage and the kinds' own packages, which are on no index,
+  join `requirements/runtime.in` as written, markers too; today pyoxigraph, which texstage needs
+  itself, so no pin changed - and the manifest has their hashes: any edit of a kind's
+  `pyproject.toml` fails `--check` until the locks are made anew.
+- *CI:* `maintenance/check_distributions.py` builds the kinds' wheels and source archives beside
+  texstage's, each wheel again from its archive, and lists them in SHA256SUMS; what a build leaves
+  in a source folder (`build/`, an `*.egg-info`) goes again, what was there before stays. The
+  installed-wheel step installs the three wheels into a fresh environment, runs `pip check`, and
+  `maintenance/check_installed.py` runs the kinds' kit from their wheels, builds a deck with an
+  activity of each of texstage's seven kinds - the build runs their references with the kinds, in
+  a pool's process - and has every activity of it checked. `maintenance/check_kinds_served.py`
+  (new) serves decks with a server of the core's type (`texstage serve --activities core`, on a
+  free port, with a key and a data folder of its own): the deck must be taken, and each kind it
+  names served with its texts under the kinds' policy; each activity is opened by its first
+  opening slide, a phone sends the activity's first reference as its kind takes a reference as an
+  entry (`Kind.reference`) - without references a choice's first option, a number, a text, a crowd
+  graph a term per field -, the step is revealed, and the phone's own entry must be checked with
+  status ok and, where the deck has references, judged correct; a crowd graph's picture, the
+  lecturer's after the reveal, must list the terms the phone sent in their roles and, where it
+  draws a triple of one student, draw the phone's (`drawn`). Without `--bundles` it serves a
+  deck of its own, an activity of each kind, which texstage's build makes from the records LaTeX
+  would write (`build/activity.py`: `entries`) - without LaTeX, so in the image too, whose job
+  runs it after the kit. Given `--bundles`, it passes over a deck without activities, an activity
+  no slide opens and one it cannot send to (a code activity without a reference) and says so -
+  unless `--every`. `tests/test_packaging.py` holds the locks to the kinds' dependencies and the
+  build's cleanup to what it may take; `tests/test_check_kinds_served.py` holds what the check
+  sends and lets pass against made-up phones and pictures - a status not ok, an entry not
+  checked, a verdict not correct, a kind without its texts, a slide that reveals, a crowd graph's
+  picture without the terms -, holds its run to those rules in the test's own process, a real
+  server's answers spoiled on their way to the check - an entry its kind does not take, a kind's
+  file without its policy, a kind listed without files, a picture that drops the terms -, with a
+  key that starts with "-", and runs it: its own deck passes, a folder with a deck of quizzes alone beside it passes that one over and
+  fails with `--every`, and a deck the server refuses - a kind newer than its own - fails with
+  the server's reason.
+- *The guides:* `docs/installation.md`, the manual, the README's quick start and the showcase's
+  install the kinds after texstage and say what `texstage kinds` lists - texstage's own kinds need
+  no package; `installation-advanced.md` the kinds' wheels, and that the image serves with the
+  default type unless its command adds `--activities core`; `development.md`, `dependencies.md`,
+  `releasing.md` and `integration.md` (the pair: texstage 0.2.1.dev4 and lecture-tools
+  0.1.0.dev5) what changed; the kinds' READMEs where to install them, and that the checks stay
+  texstage's while F1's type uses them (4.2: they were to move into the packages once F1 was in
+  `main`; F1's type still runs them). A build that misses a kind says how to install it from
+  texstage's source with `--no-deps --no-build-isolation`, as the guides do: with its dependencies
+  pip would look for texstage on an index.
+- *The image and the lectures, tried (2026-11-16; nothing of it pushed):* lecture-tools-next -
+  the lectures' tools since 2026-11-15, which pin a texstage wheel instead of carrying a copy
+  (2.3) - paired with a trial commit of this package as its `docs/dependencies.md` says (the
+  wheel from a git archive, `sync_texstage_latex.py`, `requirements/texstage.json`, the locks,
+  the workflow manual), its version references 0.2.1.dev4, its installation guide and workflow
+  manual installing the kinds with texstage: its checks and 74 tests pass. The KG lecture, in a
+  worktree of its own and set up by its own `scripts/setup-tools.py` with that pair - whose check
+  holds the versions, the kinds, `check_pair.py` and `pip check` -, built its 17 live decks the
+  same, bundle for bundle and file for file, as with today's pair (lecture-tools-next 061842e,
+  texstage 1b40ea0), each build with a key and a data folder of the trial's. The image, built
+  from that commit, served the lecture's three decks with activities with a server of the core's
+  type, which checked an entry of each of their four activities in its pool - two crowd graphs, a
+  Turtle text and a SPARQL query on the lecture's data -; after the review the check served the
+  17 decks again, the four activities judged as above, the 14 without activities passed over.
+  lecture-tools takes F2's version as 0.1.0.dev5 - its pin changes, so its version does, as its
+  0.1.0.dev4 did with its pin before -, its other recipes (the full authoring environment, the
+  candidate pair, the paired CI workflow) installing the kinds too: the pairing again with this
+  package's commit, and the lecture's `toolchain.json`, on the lecturer's word once the package
+  is in `main`.
+- *Its review (2026-11-16):* an independent reviewer and the author's probes. Six faults, all
+  fixed: a crowd graph passed the served check whatever its check said - a kind that refused every
+  entry, or whose worker died, passed; CI's served runs sent entries to SQL and SPARQL alone,
+  though the changelog said each kind; the plan said the build writes no texstage version, which
+  it does for texstage's own kinds; `integration.md` named a pair - lecture-tools 0.1.0.dev4 with
+  texstage 0.2.1.dev4 - that lecture-tools refuses; the README's and the showcase's installation,
+  and lecture-tools-next's recipes but its main guide, installed no kinds, so that the showcase
+  did not build. Of ten doubts eight are fixed: the kinds' files were taken as listed, a check of
+  nothing; `--bundles` failed on any deck without activities - 14 of the KG lecture's 17 -; a kind
+  that needs a sibling kind would have been locked from an index; the build's hint installed a
+  kind with its dependencies; the hosting text said the image runs the core's type; the
+  changelog's dev3 section had been named dev4; a check run without a console could not stop its
+  server; an editable install keeps its old version. Left as they are: the server's comparison of
+  a kind's version takes no development number (`_version`, since package 7) - a change of the
+  server's -, and lecture-tools' pair holds texstage's wheel by hash but the kinds by their source
+  alone, where `pip check` holds their dependencies (`docs/dependencies.md` says so). The fourteen
+  nits are fixed - among them a log read after the stop, which made a stop look like a crash, and a
+  log written in the console's code page. Planted faults after the fixes: in the served check 17
+  of 23 caught - the six left need a server that misbehaves (a refused window or entry, a file
+  without its policy), a run without a console, or change nothing (its own deck with --every or
+  without, the wait for the pool's answer before the reveal) -; in the locks 12 of 12; the
+  distributions' cleanup has a test of its own.
+- *Its fixes, checked (2026-11-17):* a second look, at the fixes, found a fault the review had not:
+  the served check's key - random, `secrets.token_urlsafe` - starts with "-" once in 64, and
+  `texstage serve` took it for an option and did not start: one run in ten of the check's tests,
+  a third of CI's runs, would have failed. The check passes it as `--key=<key>`. It found too that
+  no test held three of the rules where a run applies them - the phone's entry judged, a kind's
+  file taken with its policy, the kinds' files asked for: of its sixteen planted faults eleven
+  were caught -, and that the review's suggestion for a crowd graph, its terms in the picture,
+  had not been taken. Tests now hold a run to the rules in their own process, a real server's
+  answers spoiled on their way to the check and its key starting with "-", and a crowd graph's
+  picture after the reveal must show the terms the phone sent (`drawn`). Planted faults then:
+  23 of 25 caught - the sixteen and nine for the key and the crowd graph's picture -; the two left
+  need a server that misbehaves (its activity type, a refused presenter window).
+
 **A text without its comments (2026-11-12, after package 5's review; AF 5.1).** `sql-query`,
 `sparql-query` and `turtle-graph` normalize a text to what it is without its comments
 (`activities/code.py`: `CodeKind.normalize`; `checks/cleaning.py`: `uncommented`), since a group is
@@ -1415,7 +1525,16 @@ whether the core's replaces it, and F1's browser code goes, is open. Package 10 
 (2026-11-16, on `main`): every page has its Content-Security-Policy, the phone's the strictest, the
 windows' with the video platforms' players, the add-in's with Office.js, and what a policy refuses
 reaches the server's log (4.5); the phone, the windows and the host console work in the app's
-Chromium, the add-in in PowerPoint.
+Chromium, the add-in in PowerPoint. Package 11 is built on it (2026-11-16, on `main`): texstage is
+0.2.1.dev4, and the kinds' packages need that version or later; their dependencies are locked
+with texstage's; CI builds and checks their wheels, builds a deck with an activity of each of
+texstage's kinds from them, and has a server of the core's type - from the wheels and in the
+image - check a phone's entry of each in its pool; the guides and the manual install them (4.7).
+Tried with lecture-tools-next and the KG lecture: paired with it, they build the lecture's 17
+live decks as before, bundle for bundle, and the image serves those with activities (4.7). Its
+review found six faults, ten doubts and fourteen nits, all fixed but two doubts left as they are;
+a check of the fixes found one fault more - the served check's own key - and rules no test held
+during a run, fixed as well (4.7). lecture-tools takes it as 0.1.0.dev5.
 
 ### 4.13 Risks
 

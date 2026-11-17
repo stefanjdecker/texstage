@@ -4,7 +4,7 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **0.2.1.dev3 development candidate**, available as public
+This checkout is the **0.2.1.dev4 development candidate**, available as public
 source on [GitHub](https://github.com/stefanjdecker/texstage). Installation uses
 this source or its verified wheel; a PyPI release is not assumed. The project
 homepage is [www.texstage.org](https://www.texstage.org). See
@@ -54,12 +54,15 @@ Create and activate a fresh virtual environment as described in
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt
-python -m pip install --no-deps --no-build-isolation .
+python -m pip install --no-deps --no-build-isolation . ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf
 texstage pdf --present examples/demo/demo.tex
 texstage present examples/demo/demo.tex
 ```
 
-The `present` command opens the presenter; **Projector** opens the audience window.
+The second line installs texstage and the kinds of live activities of its
+`kinds/` folder: crowd graphs, SQL, SPARQL and Turtle activities need them where
+their decks are built and served. The `present` command opens the presenter;
+**Projector** opens the audience window.
 Use a source copy for experimentation. Student-facing exports should be the
 handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 

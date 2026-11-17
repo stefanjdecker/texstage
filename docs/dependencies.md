@@ -11,8 +11,8 @@ No local paths, private indexes or credentials are embedded in the locks.
 | `build.txt` | Build frontend, setuptools backend and the lock generator |
 | `dev.txt` | Runtime, build and test dependencies; constrained by both other locks |
 | `docs.txt` | Legacy documentation extras retained for compatibility; the LaTeX PDF build does not need them |
-| `*.in` | Generated direct inputs; edit pyproject.toml rather than these files |
-| `lock-manifest.json` | Hashes of dependency metadata, generator, inputs and lock outputs |
+| `*.in` | Generated direct inputs; edit pyproject.toml (texstage's, or a kind's in `kinds/`) rather than these files |
+| `lock-manifest.json` | Hashes of dependency metadata (the kinds' too), generator, inputs and lock outputs |
 
 For lecture-tools, `runtime.txt` includes **all optional authoring dependencies**
 (slides, live and notebooks); its base wheel still has no third-party dependencies.
@@ -23,6 +23,16 @@ wheel separately with `--no-deps`; do not resolve the development version on PyP
 
 For texstage, `runtime.txt` is its full runtime dependency set. Vendored JavaScript
 and LaTeX are committed resources, not packages downloaded by these lockfiles.
+It also holds what the kinds of live activities beside texstage need
+(`kinds/*/pyproject.toml`, their dependencies but texstage and the kinds' own
+packages, which are on no index): they are packages of their own, installed after
+texstage with `--no-deps` as a local package has no hash to lock, so their
+dependencies are locked with texstage's. The manifest has their metadata's
+hashes: any edit of a kind's `pyproject.toml` - a new dependency, a new version -
+fails `--check` until the locks are regenerated, which needs uv and the network.
+Where lecture-tools pairs with texstage, the kinds come from the same texstage
+source as its wheel, unpinned by hash: their dependencies must be among
+texstage's own, which `pip check` holds in the course's environment.
 
 ## Install and verify
 
@@ -32,6 +42,7 @@ Create and activate a new Python environment, then run from the repository root:
 python -m pip install --require-hashes --only-binary=:all: -r requirements/dev.txt
 python maintenance/lock_dependencies.py --check
 python -m pip install --no-deps --no-build-isolation -e .
+python -m pip install --no-deps --no-build-isolation -e kinds/texstage-kinds-sql -e kinds/texstage-kinds-rdf
 ```
 
 `--only-binary` fails on a platform without a compatible wheel instead of compiling

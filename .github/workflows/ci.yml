@@ -77,13 +77,15 @@ jobs:
       - name: Build and verify distributions
         if: runner.os == 'Linux' && matrix.python == '3.14'
         run: python maintenance/check_distributions.py
-      - name: Check installed wheel
+      - name: Check installed wheels
         if: runner.os == 'Linux' && matrix.python == '3.14'
         run: |
           python -m venv .wheel-venv
           .wheel-venv/bin/python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-          .wheel-venv/bin/python -m pip install --no-deps dist/*.whl
+          .wheel-venv/bin/python -m pip install --no-deps dist/*.whl   # texstage's and the kinds' wheels
+          .wheel-venv/bin/python -m pip check                          # the kinds' bound on texstage among them
           .wheel-venv/bin/python maintenance/check_installed.py
+          .wheel-venv/bin/python maintenance/check_kinds_served.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -112,6 +114,9 @@ jobs:
           for attempt in {1..30}; do
             if docker exec "$container" python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8470/api/status', timeout=2)"; then
               docker exec "$container" texstage kinds check
+              # a server of the core's type in the image: a deck of both kinds' packages, an entry of each checked
+              docker cp maintenance/check_kinds_served.py "$container":/tmp/check_kinds_served.py
+              docker exec "$container" python /tmp/check_kinds_served.py
               exit $?
             fi
             sleep 1

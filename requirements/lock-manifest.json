@@ -4,8 +4,10 @@
   "python": ">=3.12",
   "universal": true,
   "files": {
-    "pyproject.toml": "50c2bbfffdea2b4d41f98b3c0ea054868232778bba1c3d7a7d308642ddcc8d2b",
-    "maintenance/lock_dependencies.py": "0228f2365bba6004583b789ac61fa6aa597d1f30611f7aa2a348ee2e31ace6ac",
+    "pyproject.toml": "c43c71ceea6ce7cbf7d422d1dda7d014af973a6ee419b90e6a59b6161c176de8",
+    "maintenance/lock_dependencies.py": "73f64fd9c1baecbde8b1c837ef149879273880e9a42ccf90a47b7e14fe1c8555",
+    "kinds/texstage-kinds-rdf/pyproject.toml": "b93d8f491ea5eb018f6b17147708f211ebdeb23d57f6dceec0e6b59cf0a16e23",
+    "kinds/texstage-kinds-sql/pyproject.toml": "8f2b1ad4c6ad3ef237be8cd5664ab93ba07a66101c8d172d4626e35609a01358",
     "requirements/runtime.in": "599e7990d51dae42dcd16946c0e45ab908c72953b1c2181c151c9e8efa1e0be9",
     "requirements/runtime.txt": "8dce4e51f4da0a8c43c6a0530d2250e96cd40d1410cbb4f2549b927fae74e7ba",
     "requirements/build.in": "2e1a2958752f47a443cf2524f0057db560ca9bc06062bdc64730014211fe30d7",

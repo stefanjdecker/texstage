@@ -29,9 +29,14 @@ booktabs. This candidate is not assumed to be available on PyPI.
 In the activated environment, at the repository root:
 
     python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt
-    python -m pip install --no-deps --no-build-isolation .
-    texstage --help
+    python -m pip install --no-deps --no-build-isolation . ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf
+    texstage kinds
     pdflatex --version
+
+The second line installs texstage and the kinds of live activities beside it:
+the showcase's crowd graphs and its SQL, SPARQL and Turtle activities are of
+the kinds' packages, and its build asks each activity's kind. `texstage kinds`
+lists seven kinds - those four and texstage's own choice, number and text.
 
 The CLI supplies all four texstage style files to TeX. You do not need to install
 lecture-tools or copy course-specific styles. The supplied MP4 is ready to use;

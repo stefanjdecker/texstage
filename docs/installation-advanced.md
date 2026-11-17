@@ -9,10 +9,15 @@ requirements/runtime.txt, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-0.2.1.dev3-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-0.2.1.dev4-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage_kinds_rdf-0.1.0-py3-none-any.whl path/to/texstage_kinds_sql-0.1.0-py3-none-any.whl
+python -m pip check
 ```
 
-Replace the example path with the actual artifact. For development use the
+Replace the example paths with the actual artifacts. The candidate's SHA256SUMS
+lists the kinds' wheels too: decks with crowd graphs, SQL, SPARQL or Turtle
+activities need them where they are built and where they are served; quizzes
+and texstage's own kinds (choice, number, text) need none. For development use the
 [development guide](development.md) instead of mixing installations into an
 existing course environment.
 
@@ -39,9 +44,13 @@ user setup action; package installation and CI do not configure Office itself.
 [deploy/docker-compose.yml](../deploy/docker-compose.yml) runs texstage behind
 Caddy. Configure a domain, DNS and deployment secrets as described in the
 [authoring guide](authoring.md), then build from the repository root. The Docker
-build uses the committed Python runtime/build locks. Container base tags and
-operating-system packages are not digest locked in this candidate; pin and test
-deployment images as part of the final hosting decision.
+build uses the committed Python runtime/build locks and installs the kinds of
+live activities after texstage. The image's command - and the `command` of
+docker-compose.yml - serves with the default activity type, which needs no
+kinds; add `--activities core` to it for the activity framework's core, which
+uses them. Container base tags and operating-system packages are not digest
+locked in this candidate; pin and test deployment images as part of the final
+hosting decision.
 
 The deployment example preserves data in named volumes. Keep presenter keys
 private, use HTTPS, restrict trusted forwarded headers to your proxy, and back
