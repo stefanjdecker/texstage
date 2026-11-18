@@ -29,10 +29,8 @@ presentation. Lecture-tools owns course assembly, notebooks, checks, themes and
 subject notation. Integrations must not import implementation modules or insert
 another checkout's source path.
 
-The tested candidate pair is Texstage 0.2.1.dev4 and lecture-tools 0.1.0.dev5,
-whose `texstage==0.2.1.dev4` pin changed with it (0.1.0.dev4 pins 0.2.1.dev3).
-This checkout, Texstage 0.2.1.dev5, is not yet paired with a lecture-tools
-candidate.
+The tested candidate pair is Texstage 0.2.1.dev5 and lecture-tools 0.1.0.dev6,
+whose `texstage==0.2.1.dev5` pin changed with it (0.1.0.dev5 pins 0.2.1.dev4).
 A course whose decks have crowd graphs, SQL, SPARQL or Turtle activities
 installs the kinds' packages from the same Texstage source -
 `kinds/texstage-kinds-rdf`, `kinds/texstage-kinds-sql` - where it builds and
