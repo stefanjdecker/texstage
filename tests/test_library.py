@@ -258,10 +258,15 @@ def test_a_scan_during_cleanup_does_not_restore_a_dropped_copy(tmp_path):
 
 
 # ------------------------------------------------------------------ the decks the server does not play
-def own_kind_deck(folder: Path) -> str:
-    """A deck of texstage's own kind choice, which F1's activity type (the default) does not run; its ID."""
+LACKS = ("the deck's activities are of the kind lacking, which this server does not have - install "
+         "texstage-kinds-lacking 1.0 or later where the server runs, then start the server again")
+
+
+def lacking_kind_deck(folder: Path) -> str:
+    """A deck of a kind no server here has, which the core's activity type (the default) does not run; its ID."""
     deck = {"format": 2, "deck": "own", "name": "Own kinds", "types": ["quiz", "activity"],
-            "items": {"quiz": {}, "activity": {"a1": {"kind": "choice", "input": "choice"}}},
+            "items": {"quiz": {}, "activity": {"a1": {"kind": "lacking", "limit": 5}}},
+            "kinds": {"lacking": {"package": "texstage-kinds-lacking", "version": "1.0", "api": 0}},
             "slides": [{"id": 256, "image": "slides/0000000000000000.png"}]}
     keys = {"format": 2, "deck": "own", "items": {}}
     deck["bundle"] = keys["bundle"] = bid = bundle_id(deck, keys)
@@ -279,9 +284,9 @@ def test_the_deck_page_says_which_decks_the_server_does_not_play(tmp_path, caplo
     serve's first look printed them, and nothing told the lecturer)."""
     bob = {"X-Texquiz-Key": Lecturers(tmp_path / "data" / "lecturers.json").add("bob")}
     make_bundle(tmp_path / "bundles" / "alpha", deck="alpha", title="Alpha")
-    own = own_kind_deck(tmp_path / "bundles" / "own" / "Own-kinds.bundle")
+    own = lacking_kind_deck(tmp_path / "bundles" / "own" / "Own-kinds.bundle")
     copy = tmp_path / "data" / "served" / "own" / own
-    own_kind_deck(copy)
+    lacking_kind_deck(copy)
     broken = tmp_path / "bundles" / "broken" / "Broken.bundle"
     broken.mkdir(parents=True)
     (broken / "deck.json").write_text("{", encoding="utf-8")
@@ -295,8 +300,7 @@ def test_the_deck_page_says_which_decks_the_server_does_not_play(tmp_path, caplo
         by = {s["folder"]: s for s in skipped}
         assert set(by) == {str(tmp_path / "bundles" / "own" / "Own-kinds.bundle"), f"served/own/{own}", str(broken)}
         assert by[f"served/own/{own}"] == {"deck": "own", "name": "Own kinds", "bundle": own, "folder": f"served/own/{own}",
-                                           "error": "the activity a1 is of the kind choice, which this server's activity "
-                                                    "type does not run - start it with texstage serve --activities core"}
+                                           "error": LACKS}
         assert by[str(broken)]["deck"] is None and by[str(broken)]["error"].startswith("Expecting property name")
         assert all(str(tmp_path) not in s["error"] for s in skipped)              # (the folder: not in front)
         theirs = client.get("/api/skipped", headers=bob).json()

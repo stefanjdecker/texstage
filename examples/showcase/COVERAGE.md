@@ -1,6 +1,6 @@
 # Showcase feature coverage
 
-Target: the current texstage 0.2.1.dev5 candidate. This is a tour of every major
+Target: the current texstage 0.2.1.dev6 candidate. This is a tour of every major
 user-facing feature family, not a test of every low-level core macro or every
 combination of configuration keys. The command reference remains authoritative
 for exhaustive option syntax.
@@ -85,8 +85,9 @@ HTTPS/tunnels, server publication, lecturer/key management and retargeting requi
 their own setup. Example 33 explains these paths; see the
 [user manual](../../docs/manual.md) and [installation guide](../../docs/installation.md).
 Activities are browser-only. The static PowerPoint export remains a static deck.
-Examples 21-23 use texstage's own kinds, which the activity framework's core runs:
-start the server with --activities core (see the [README](README.md)).
+Examples 21-23 use texstage's own kinds, which the activity framework's core runs,
+a server's default activity type - not one started with --activities f1 (see the
+[README](README.md)).
 
 The example does not exercise every display-string override, color/theme
 implementation hook, legacy alias or developer-only asset/geometry macro. These

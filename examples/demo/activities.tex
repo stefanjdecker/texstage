@@ -1,7 +1,7 @@
 % SPDX-FileCopyrightText: 2026 Stefan Decker
 % SPDX-License-Identifier: Apache-2.0
 % texstage's own kinds of live activities: a choice, a number and a short answer.
-% They run on the activity framework's core: texstage present examples/demo/activities.tex --activities core
+% They run on the activity framework's core, a server's default: texstage present examples/demo/activities.tex
 \documentclass[aspectratio=169]{beamer}
 \usetheme{default}
 \setbeamertemplate{navigation symbols}{}
@@ -14,7 +14,7 @@
 
 \begin{frame}{Knowledge Graphs, live}
   A choice, a number and a short answer: three live activities on your phones.
-  \note{Welcome everyone. This deck needs a server started with --activities core.}
+  \note{Welcome everyone. This deck needs the core's activity type: not a server started with --activities f1.}
 \end{frame}
 
 \quizjoinframe[note={Phones out: scan the code, enter the PIN and a nickname.}]

@@ -145,12 +145,14 @@ def test_present_starts_the_server(tmp_path, monkeypatch, opened):
     assert cli.main(["present", str(tex), str(tmp_path / "more"), "--port", "8475", "--no-tunnel"]) == 0
     (args,) = started
     assert args.bundles == [str(out), str(tmp_path / "more")] and args.port == 8475 and args.no_tunnel
-    assert args.activities is None                          # (serve: F1's type)
+    assert args.activities is None                          # (serve: the default, the core's)
     assert opened == []                                     # not before the server answers
     args.opener()
     assert opened == [("browser", f"http://localhost:8475/stage?bundle={fb.id}")]
     assert cli.main(["present", str(tex), "--no-tunnel", "--activities", "core"]) == 0
     assert started[-1].activities == "core"                 # handed on to serve
+    assert cli.main(["present", str(tex), "--no-tunnel", "--activities", "f1"]) == 0
+    assert started[-1].activities == "f1"
 
 
 def test_present_builds_first(tmp_path, monkeypatch, opened):
@@ -268,7 +270,7 @@ def test_present_on_a_running_server_says_what_it_cannot_apply_and_why_the_deck_
     tex, out, fb = built(tmp_path)
     monkeypatch.setattr(cli, "server_up", lambda port: True)
     monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("the build is up to date"))
-    why = "the activity a1 is of the kind choice, which this server's activity type does not run"
+    why = "the activity a1 is of the kind choice, which F1's activity type does not run"
     running = Running({"/api/status": (200, {"server": "texstage", "activities": "f1", "checks": "browser"}),
                        "/api/presenter-key": (200, {"key": "local-key"}), "/api/decks": (200, []),
                        "/api/skipped": (200, [{"bundle": fb.id, "deck": "talk", "error": why}])})
@@ -286,8 +288,14 @@ def test_present_on_a_running_server_says_what_it_cannot_apply_and_why_the_deck_
     said = capsys.readouterr().out
     assert "activity type" not in said and "it has this build but does not list it" in said
     running.answers[f"/api/deck/{fb.id}"] = (404, None)
-    assert cli.main(["present", str(tex)]) == 0
-    assert "it does not have this build" in capsys.readouterr().out
+    assert cli.main(["present", str(tex)]) == 0                # no type asked for: F1's is not the default
+    said = capsys.readouterr().out
+    assert "it does not have this build" in said
+    assert ("it runs the activity type f1, not the default, core - for the default, stop the running server "
+            "(Ctrl+C in its window), then present again") in said
+    running.answers["/api/status"] = (200, {"server": "texstage", "activities": "core", "checks": "server"})
+    assert cli.main(["present", str(tex)]) == 0                # the default's: unsaid
+    assert "activity type" not in capsys.readouterr().out
     running.answers["/api/decks"] = (200, [                                          # listed - and the deck's game
         {"bundle": fb.id, "deck": "talk", "built": 0, "game": None},                  # on the build before
         {"bundle": "0123456789abcdef", "deck": "talk", "built": 1_800_000_000_000,

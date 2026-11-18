@@ -569,7 +569,7 @@ export default {
   sketch: { label: (number) => (number ? `Skizze ${number}` : "Skizze") },
 
   host: {
-    // die Live-Aktivitäten des Decks, mit --activities core: die Phase jeder, die Zahlen der offenen
+    // die Live-Aktivitäten des Decks, mit dem Typ des Kerns: die Phase jeder, die Zahlen der offenen
     activities: "Aktivitäten", counts: (students, entries, waiting) => `${students} ${students === 1 ? "Person" : "Personen"}`
       + ` · ${entries} ${entries === 1 ? "Beitrag" : "Beiträge"}${waiting ? ` · ${waiting} in Prüfung` : ""}`,
     title: "texstage-Host",

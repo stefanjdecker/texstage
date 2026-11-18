@@ -9,7 +9,7 @@ requirements/runtime.txt, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-0.2.1.dev5-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-0.2.1.dev6-py3-none-any.whl
 python -m pip install --no-deps path/to/texstage_kinds_rdf-0.1.0-py3-none-any.whl path/to/texstage_kinds_sql-0.1.0-py3-none-any.whl
 python -m pip check
 ```
@@ -46,9 +46,14 @@ Caddy. Configure a domain, DNS and deployment secrets as described in the
 [authoring guide](authoring.md), then build from the repository root. The Docker
 build uses the committed Python runtime/build locks and installs the kinds of
 live activities after texstage. The image's command - and the `command` of
-docker-compose.yml - serves with the default activity type, which needs no
-kinds; add `--activities core` to it for the activity framework's core, which
-uses them. Container base tags and operating-system packages are not digest
+docker-compose.yml - serves with the default activity type, the activity
+framework's core, which uses them; with `--activities f1` added it serves with
+F1's type, kept until a class has used the core. The core's type starts its
+worker processes with the server: the physical cores less two, two spares and
+one that normalizes - in a container the host's cores, so give the command
+`--workers` to fit the container's CPUs and memory (a worker takes some 20 MB
+at rest, up to 70 MB while it checks). Container base tags and
+operating-system packages are not digest
 locked in this candidate; pin and test deployment images as part of the final
 hosting decision.
 

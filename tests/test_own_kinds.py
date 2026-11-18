@@ -29,18 +29,11 @@ from texstage.activities.options import InBody, Number as NumberOption, Options,
 from texstage.activities.phases import Refused
 from texstage.build.bundle import bundle_id
 from texstage.server import activity as f1_activity
-from texstage.server import types as stage_types
 from texstage.server.app import ServerConfig, create_app
 from texstage.server.game import Settings
 
 BOX = {"x": 0.1, "y": 0.2, "w": 0.8, "h": 0.6}
 NL = chr(10)
-
-
-@pytest.fixture(autouse=True)
-def f1_again():
-    yield
-    stage_types.use("f1")                               # (the type a server runs is the process's: F1's after)
 
 
 def own_kinds() -> dict:
@@ -238,8 +231,8 @@ def test_f1s_type_refuses_a_deck_of_a_kind_it_never_had():
     deck = {"items": {"activity": {"crowd": {"input": "tuple"}, "q": {"input": "code", "engine": "sql"}}}}
     assert f1_activity.refuses(deck) is None
     deck["items"]["activity"]["capital"] = {"kind": "choice", "options": ["A", "B"]}
-    assert f1_activity.refuses(deck) == ("the activity capital is of the kind choice, which this server's activity type "
-                                         "does not run - start it with texstage serve --activities core")
+    assert f1_activity.refuses(deck) == ("the activity capital is of the kind choice, which F1's activity type does not "
+                                         "run - start the server without --activities f1")
     assert f1_activity.refuses({}) is None
 
 

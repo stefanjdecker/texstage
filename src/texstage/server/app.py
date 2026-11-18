@@ -353,8 +353,9 @@ class ServerConfig:
     checks: str = "browser"              # who checks the activities' texts (checking.py, MODES): server, browser, both
     workers: int | None = None           # the server's pool: its worker processes (default: the cores less two)
     pool: dict = field(default_factory=dict)     # (the tests': the pool's engines and budgets)
-    activities: str = "f1"               # the activity type (types.py: use): F1's, or "core" - the activity
-    #                                      framework's, which the server always checks for (the plan of F2, package 6)
+    activities: str = stage_types.DEFAULT    # the activity type (types.py: use): "core", the activity framework's,
+    #                                      which the server always checks for (the plan of F2, package 6) - or "f1",
+    #                                      F1's, until a class has used the core (package 14)
 
 
 class Conn:
@@ -455,7 +456,7 @@ def _int(msg: dict, key: str, default=None) -> int | None:
 class Server:
     def __init__(self, config: ServerConfig):
         self.config = config
-        stage_types.use(config.activities)           # F1's activity type, or the core's: before the bundles are
+        stage_types.use(config.activities)           # the core's activity type, or F1's: before the bundles are
         #                                              read (the core's refuses a deck of a kind it lacks) and
         #                                              before the engine is made
         self.published = config.data_dir / "bundles"         # texstage publish puts bundles here

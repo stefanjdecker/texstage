@@ -1,11 +1,12 @@
 # texstage - the activity framework (design)
 
-Status: 2026-11-09, a design to refine; brought up to date with what is built on 2026-11-17. Of
+Status: 2026-11-09, a design to refine; brought up to date with what is built on 2026-11-18. Of
 its stages (section 18), F0's spike is built on its branch, F1 - the server checks today's four
-kinds - is in `main` since 2026-11-11, and so are F2's packages 1 to 12: the core, the contract
+kinds - is in `main` since 2026-11-11, and so are F2's packages 1 to 13: the core, the contract
 (7.1), the four kinds as packages and texstage's own, the kit, the pages' policy, the installing,
-the texts and these documents. The core's type runs beside F1's: a server runs F1's unless it is
-started with `--activities core`, and whether the core's replaces it is still open (section 19).
+the texts and these documents, the groups and the load (its run on the presentation laptop to
+come). The core's type is a server's default since 2026-11-18 (F2's package 14, the lecturer's
+decision, section 19); F1's runs with `--activities f1` until a class has used the core.
 Where F2 built something otherwise than designed, its section says so (*as built*); steps beyond
 the one, `from=`, the vote, points and the ledger are F3's. The design comes from the
 brainstorm of 2026-11-09, whose last open questions were decided the same day (section 2), was
@@ -75,10 +76,11 @@ lease for evaluating; "phones never run code" becomes "phones check nothing": a 
 kind's hint module, which sees public data only (section 7.3). With the evaluator goes the
 barrier that kept students' queries off the network - the worker's Content-Security-Policy and a
 WebAssembly build without HTTP: on the server, each kind has to keep its engine from the outside
-itself (section 11). As built: the core's type checks on the server alone; F1's type keeps the
-evaluator as its default (`--checks browser`, the server's worker processes with `--checks
-server`) until the core's type replaces it (section 19), and the evaluator's worker keeps its
-policy, now `server/policy.py`'s, as every page and script has one (7.3).
+itself (section 11). As built: the core's type checks on the server alone; F1's type - a server's
+with `--activities f1` since the core's is the default (section 19) - keeps the evaluator as its
+default (`--checks browser`, the server's worker processes with `--checks server`) until it goes,
+and the evaluator's worker keeps its policy, now `server/policy.py`'s, as every page and script
+has one (7.3).
 
 ## 3. Why a redesign
 
@@ -1000,9 +1002,9 @@ The same program, as today (CT section 9):
 As built (F2's packages 1, 2, 7 and 11): the four kinds are classes in `kinds/texstage-kinds-rdf` and
 `kinds/texstage-kinds-sql`, their checks F1's Python ones, held against F1's golden fixtures; the
 aliases build the KG lecture's decks unchanged, bundle for bundle. Nothing has gone yet: the core's
-type runs beside F1's, which a server runs unless it is started with `--activities core`, and F1's
-type keeps the evaluator, its messages, its box, panel and phone screen until the core's replaces it
-(section 19). Whether the core gives the KG decks the same groups as F1 is F2's package 13.
+type runs beside F1's - a server's default since F2's package 14, F1's with `--activities f1` -, and
+F1's type keeps the evaluator, its messages, its box, panel and phone screen until a class has used
+the core (section 19). The core gives the KG decks F1's groups (F2's package 13).
 
 ## 18. Plan
 
@@ -1025,14 +1027,15 @@ and F1 are planned in detail in [activity-framework-plan.md](activity-framework-
 | F4 | a kind of another subject, installed separately - functional dependencies, relational algebra or normal forms from the DBIS lectures; then the shared kinds move to texstage-plugins (7.2) | it needs no change of the core - or the contract changes; then the contract is called API 1 |
 | F5 | a dry run in a lecture, steps and all | the class used it; the archive has it |
 
-Where it stands (2026-11-17): F0's spike is built and measured on one machine, its runs from a
+Where it stands (2026-11-18): F0's spike is built and measured on one machine, its runs from a
 second machine still to come. F1 came to `main` on 2026-11-11 with F2's first packages; its last
-packages - a lecture with `--checks both` among them - are its plan's (section 5 there), and the
-lectures run lecture-tools' copy of texstage. F2 is built on `main` itself since 2026-11-16, its
-type beside F1's, so that `main` keeps the lectures' type: packages 1 to 12 are done -
-lecture-tools-next takes the kinds with texstage 0.2.1.dev4, and the KG lecture builds with it -,
-package 13 measures the core's type with 1,000 phones and compares its groups with F1's, and
-package 14 is the dry run in a lecture (F2's plan, 4.12).
+packages - a lecture with `--checks both` among them, its plan's (section 5 there) - are overtaken
+by F2's package 14, and the lectures run the texstage of their lecture-tools. F2 is built on `main` itself since 2026-11-16, its
+type beside F1's: packages 1 to 12 are done - lecture-tools-next takes the kinds with texstage
+0.2.1.dev4 and later, and the KG lecture builds with it -, package 13 found the core's groups F1's
+and its load within the budgets on the development machine, its run on the presentation laptop to
+come, and package 14 makes the core's type the server's default, F1's kept with `--activities f1`,
+before the dry run in a lecture (F2's plan, 4.12).
 
 ## 19. Open questions
 
@@ -1042,14 +1045,13 @@ the six that close the gaps a critical review found the same day - the order of 
 until F4, failed checks, reopening, the automatic vote, the word *kind* - and, the same day, the
 last proposals: Python first, the name *step*, a step's defaults with `solution=`, the sizes on
 the phones, and short checks first. Every row of section 2 is decided. Whether pyoxigraph 0.5 can
-switch `SERVICE` off or stop a query from inside, F0 found out: it cannot (section 11). Still
-open:
+switch `SERVICE` off or stop a query from inside, F0 found out: it cannot (section 11). Whether the
+core's type replaces F1's as the server's default, the lecturer decided on 2026-11-18: it does (F2's
+package 14); F1's type - the evaluator and its lease, F1's box, panel and phone screen, `--checks` -
+stays selectable with `--activities f1` until a class has used the core, and goes after that, on
+the lecturer's word (F2's plan, 4.12). Still open:
 
 - **To find out on the way:** how far a Mac's memory overshoots, and whether a budget holds on
   efficient cores (section 11; F0, Q5); whether texstage-plugins is renamed when the kinds move
   there (after F4).
-- **The lecturer's to decide:** whether the core's type replaces F1's as the server's default, and
-  F1's type - the evaluator and its lease, F1's box, panel and phone screen, `--checks` - goes with
-  it; until then a server runs F1's unless it is started with `--activities core`, and the decks of
-  texstage's own kinds need that (F2's plan, 4.3 and 4.12).
 - **Not settled:** how long a server keeps games - their answers, entries and ledger (10.2).

@@ -98,7 +98,7 @@ let qaPanel = null;     // the audience's questions while their panel is open (M
 let gallery = null;     // a sketch question's drawings while their gallery is open (M6)
 let agent = null;       // the deck's live activities: the lease, the layout, the evaluation (activity.js)
 let actPanel = null;    // their panel while it is open (F1's here; the activity framework's: activities.js)
-let kinds = null;       // the deck's kinds, with --activities core: their texts and their box (kinds.js)
+let kinds = null;       // the deck's kinds, with the core's type: their texts and their box (kinds.js)
 const core = () => deck?.activities === "core";        // the server runs the activity framework's type
 let lang = "en";        // the window's language (speak): the open deck's, else the browser's
 let T = null;           // ... and all its texts (i18n.js texts): T.presenter, T.record, T.lecturer, T.errors

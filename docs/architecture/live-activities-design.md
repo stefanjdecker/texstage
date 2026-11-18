@@ -4,16 +4,17 @@ Status: 2026-10-18 - built through L5, the dry run in the KG lecture, with a sec
 since, and a third (Turtle, 2026-10-21, branch `texstage-turtle-engine`); what is done and what is
 left: section 14. Branch `texstage-live-activities`.
 
-**Since then (2026-11-17):** this design is the activity type the lectures run - `server/activity.py`,
-F1's type in [activity-framework-design.md](activity-framework-design.md) (here **AF**) - with one
-change: the server can check the queries in worker processes instead of the presenter's browser
-(F1: `texstage serve --checks server`, or `both`, which compares; the browser stays the default).
-Beside it, `main` has the activity framework's core (AF; its stage F2), a type of its own that a
-server runs when it is started with `--activities core`: a kind of activity is a package
-(`kind=sql-query`, `triples`, `choice`, ...; `input=` and `engine=` stay as aliases), every entry is
-checked on the server, and the windows and the phones have one panel and one screen for every kind.
-A section here that F2 changed says so at its end (*F2:*). Whether the core's type replaces this
-one is still open (AF section 19).
+**Since then (2026-11-18):** this design is the activity type the lectures have run so far -
+`server/activity.py`, F1's type in [activity-framework-design.md](activity-framework-design.md)
+(here **AF**) - with one change: the server can check the queries in worker processes instead of
+the presenter's browser (F1: `texstage serve --checks server`, or `both`, which compares; the
+browser stays the default - each with `--activities f1` since F2's package 14). Beside it, `main` has the activity framework's core (AF; its stage F2),
+a type of its own and, since 2026-11-18 (F2's package 14), the one a server runs unless it is
+started with `--activities f1`: a kind of activity is a package (`kind=sql-query`, `triples`,
+`choice`, ...; `input=` and `engine=` stay as aliases), every entry is checked on the server, and the
+windows and the phones have one panel and one screen for every kind. A section here that F2 changed
+says so at its end (*F2:*). This type is kept, with `--activities f1`, until a class has used the
+core, and goes after that (AF section 19).
 
 Decided on 2026-10-17: student input is evaluated in the presenter's browser, and the first
 milestone builds the shared framework together with two pilots - a crowd graph from triples, and

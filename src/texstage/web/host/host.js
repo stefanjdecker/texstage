@@ -303,7 +303,7 @@ function fill(el, html) {
   el.innerHTML = html;
 }
 
-// The deck's live activities, with --activities core (the deck's view says so): each one's phase - and of
+// The deck's live activities, with the core's type (the deck's view says so): each one's phase - and of
 // the current one its time left, counting down, and its counts, from its picture as the presenter window has
 // it (acts.js: whatever the projector holds back; the design's 13).
 let actsLine = null;

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
 // A step of a live activity on the phone, as the activity framework has it (docs/architecture/
-// activity-framework-design.md, 12; the plan of F2, 4.5) - for a server run with --activities core.
+// activity-framework-design.md, 12; the plan of F2, 4.5) - for a server of the core's type, the default.
 // play.js mounts it while the deck's current step is there and is not ready (activity.step: one text,
 // the same for every phone) and no quiz round is open. One screen for every kind: the prompt, the
 // input - the core's, code or fields, or the kind's own (web/input.js) -, Send, the student's entries

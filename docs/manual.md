@@ -59,7 +59,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev5 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev6 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -183,7 +183,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev5 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev6 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -435,13 +435,13 @@ The presenter chooses which question to show and when to mark it done.
 
 ## Run a live activity
 
-A live activity lets every student send something - a query, triples, a choice, a number or a short answer -; texstage checks each entry on the server and gathers what the class sent into one picture in the activity's box on the slide. This page describes the activity framework's core (in development), which a server runs when it is started with `--activities core`:
+A live activity lets every student send something - a query, triples, a choice, a number or a short answer -; texstage checks each entry on the server and gathers what the class sent into one picture in the activity's box on the slide. A server runs live activities on the activity framework's core, its default activity type:
 
 ```
-texstage present deck.tex --activities core
+texstage present deck.tex
 ```
 
-`texstage serve` takes the same option. A server started without it runs the default activity type, which the lectures use: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--checks server`, which checks them on the server. Either way the kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools); the deck page names a deck the server does not play, and why.
+`texstage serve` runs the same type. The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools), before the server starts - it reads them as it starts; the deck page names a deck the server does not play, and why. Until a class has used the core, a server started with `--activities f1` runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--activities f1 --checks server`, which checks them on the server. Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other.
 
 ### Open, close and reveal
 
@@ -545,8 +545,8 @@ See [plain PowerPoint conversion](powerpoint.md) for resolution, output and note
 | The projector seems stuck | Check Freeze, Black and White. Return to normal display. Also check the presenter connection indicator. |
 | A question will not restart | Going backwards preserves its state. Choose Ask again for practice or New game for a new session; review the rewind effects first. |
 | A deck or stage PDF is missing | Reload the library after building, upload the .bundle.zip to the intended server, or rebuild without --no-stage. Check the first LaTeX error if the build failed. |
-| A deck is not on the list | The top of the deck page says why this server does not play it: a kind of activity it lacks - install the kind's package where the server runs, as where the deck is built -, or choice, number or text activities on a server started without --activities core. |
-| Phones wait for the lecturer's computer | The default activity type checks queries in the presenter window: keep it open, or start the server with --checks server or --activities core, which check on the server. |
+| A deck is not on the list | The top of the deck page says why this server does not play it: a kind of activity it lacks - install the kind's package where the server runs, as where the deck is built, and start the server again -, or choice, number or text activities on a server started with --activities f1. |
+| Phones wait for the lecturer's computer | With --activities f1, the presenter window checks the queries: keep it open, or start the server with --activities f1 --checks server - or without --activities f1: the default activity type, the activity framework's core, checks on the server. |
 | A phone says it could not be checked | The server could not check that entry - not the student's fault; sent again, it is checked again. When nothing of an activity is checked, its panel says why: a seed that does not load, a kind the server lacks. |
 | A deck says a reference fails | This server's check gives a reference of the deck no result, or another one than the build did - another engine, or a seed whose data change. The tag's tooltip names the activity and the reason; check the seed and the reference, and build again. |
 | Recording has no sound | Check browser permission, the selected microphone and its level meter. Make a short rehearsal recording and play it back. |
@@ -597,7 +597,7 @@ Before class: verify the build, join from a real phone, rehearse one question an
 | Activity: pause or resume | S | Activity: reveal / reset | R / X |
 | Activity: +30 s / no time | + / - |  |  |
 
-This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown. The activity keys are for the activity on the current slide, with --activities core; Reveal and Reset ask first.
+This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown. The activity keys are for the activity on the current slide - not with --activities f1; Reveal and Reset ask first.
 
 
 ## About the screenshots and further help
@@ -628,7 +628,7 @@ Screenshot sources and hashes are listed in [images/manual/captures.json](images
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev4 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev6 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -891,7 +891,7 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
 | `limit` | Contributions per student: 1-50. Default 10 for tuple and choice, 5 for code, number and text. |
-| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2 (in development): counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; texstage serve and present use them with `--activities core`, and the default activity type leaves them aside. |
+| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2: counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; texstage serve and present use them - a server started with `--activities f1` leaves them aside. |
 
 The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.
 
@@ -921,7 +921,7 @@ A tuple activity is of the kind triples (texstage-kinds-rdf): kind=triples and i
 
 ## Choice, number and text activities
 
-Three kinds come with texstage itself and need no extra package: kind=choice, kind=number and kind=text. Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right. These kinds run only on the activity framework's core (in development): start the server with `texstage present deck.tex --activities core` or `texstage serve --activities core`. A server of the default activity type skips such a deck and says why.
+Three kinds come with texstage itself and need no extra package: kind=choice, kind=number and kind=text. Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right. These kinds run only on the activity framework's core, a server's default activity type; a server started with `--activities f1` skips such a deck and says why.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -965,21 +965,21 @@ The build checks the references as the server checks them: a choice's reference 
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. |
-| `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - sql.js in the presenter's browser, or Python's on the server. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
+| `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - Python's on the server, or with --activities f1 sql.js in the presenter's browser. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
 | `kind=turtle-graph` (`engine=turtle`) | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. In texstage-kinds-rdf. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
 | `tokens` | Extra keyboard buttons: up to 40 entries of 1-60 characters. Engine punctuation is added automatically. Escape TeX punctuation in key values, e.g. backslash followed by # or %. |
 | `Unused tuple keys` | fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied. |
 
-The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result. Students' code runs only in the checks texstage brings - in the presenter's browser or in the server's worker processes, in memory and within a time budget -, never against a course database.
+The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result. Students' code runs only in the checks texstage brings - in the server's worker processes or, with `--activities f1`, in the presenter's browser, in memory and within a time budget -, never against a course database.
 
 The builder validates data sizes and engine-specific seed extensions. A plain PDF compile cannot establish that SQL/SPARQL/Turtle semantics or results match the teaching objective.
 
 
 ## SQL activities: permitted statements
 
-An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, texstage switches the in-memory SQLite database to read-only mode. Where a submission runs depends on how the server is started: by default in a worker of the presenter's browser (sql.js), which sends the server its result; with --checks server, or with the activity framework's core (--activities core), in one of the server's worker processes, by Python's SQLite, against an in-memory copy of the seed and within a budget of CPU time. Either way no student's SQL runs against the server's own database or a course database.
+An SQL activity is a read-only query exercise. The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data. After loading that seed, texstage switches the in-memory SQLite database to read-only mode. Where a submission runs depends on how the server is started: by default - the activity framework's core - in one of the server's worker processes, by Python's SQLite, against an in-memory copy of the seed and within a budget of CPU time; with --activities f1 in a worker of the presenter's browser (sql.js), which sends the server its result, or, with --checks server as well, in the server's worker processes. Either way no student's SQL runs against the server's own database or a course database.
 
 Students can type any SQL text, but the check accepts only one query statement: SELECT, VALUES or WITH ... SELECT. It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE. PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission. The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.
 
@@ -1087,7 +1087,7 @@ Names containing @, names beginning __, parser temporaries and global state vari
 | `No correct slider value` | Choose bounds and a positive step that actually contain a value in answer +/- tolerance. |
 | `Answers appear in a handout` | Check the selected build mode and whether authored answer frames carry the answer option. |
 | `Static activity in PowerPoint` | Expected for this candidate. Use the browser presenter for live activities. |
-| `Deck skipped: start it with --activities core` | The deck has a choice, number or text activity, which only the activity framework's core runs. Start the server with `texstage present deck.tex --activities core` or `texstage serve --activities core`. |
+| `Deck skipped: start the server without --activities f1` | The deck has a choice, number or text activity, which only the activity framework's core runs, a server's default activity type. Start the server without `--activities f1`: `texstage present deck.tex` or `texstage serve`. |
 | `Overfull or excessive shrink` | Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
 | `Theme overlay is misaligned` | Keep answer-box width/height and lower-left reference point consistent with the hook contract. |
 

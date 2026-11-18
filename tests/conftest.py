@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Shared fixtures: the demo deck built once per test run (texstage build, needs pdflatex)."""
+"""Shared fixtures: the demo deck built once per test run (texstage build, needs pdflatex); the default
+activity type after every test."""
 from __future__ import annotations
 
 import json
@@ -12,6 +13,15 @@ import pytest
 from texstage.build.builder import BuildOptions, build
 
 DEMO = Path(__file__).resolve().parents[1] / "examples" / "demo" / "demo.tex"
+
+
+@pytest.fixture(autouse=True)
+def default_activity_type():
+    """The activity type a server runs is the process's (server/types.py: use), and every server a test makes
+    sets it: after each test it is the default again, the core's (the plan of F2, package 14)."""
+    yield
+    from texstage.server import types
+    types.use()
 
 
 @pytest.fixture(scope="session")

@@ -47,11 +47,10 @@ except LookupError:
 
 
 @pytest.fixture(autouse=True)
-def f1_again():
-    """The type a server runs is the process's (types.py: use): the tests after these have F1's again."""
-    SEEN.clear(), ASIDE.clear()                         # (a socket's id may be an earlier test's socket's)
-    yield
-    stage_types.use("f1")
+def nothing_seen():
+    """A socket's id may be an earlier test's socket's. (The type a server runs is the process's: conftest.py
+    puts the default back after each test.)"""
+    SEEN.clear(), ASIDE.clear()
 
 
 def config_of(tmp_path) -> ServerConfig:
@@ -259,6 +258,7 @@ def test_a_server_that_starts_again_has_the_game_as_it_was(tmp_path):
 
 # ------------------------------------------------------------------ the engine's part, without a server
 def test_a_game_of_f1s_is_moved_when_a_server_with_the_cores_type_starts(tmp_path):
+    stage_types.use("f1")
     w = World(tmp_path)                                     # F1's type: a phone's triple, as F1 stores it
     (ada,) = w.join("Ada")
     w.show(257)
@@ -332,13 +332,18 @@ def test_what_the_pool_says_in_its_own_words_is_a_message_of_the_kinds_or_none()
 
 
 def test_a_server_runs_one_activity_type():
-    assert stage_types.using == "f1" and stage_types.TYPES["activity"] is stage_types.activity
-    stage_types.use("core")
+    """The core's by default (package 14: the lecturer's decision of 2026-11-18), F1's when told."""
+    assert stage_types.DEFAULT == "core" and stage_types.using == "core"
     assert stage_types.TYPES["activity"] is activities and "activity.enter" in stage_types.PLAYER_MESSAGES
     assert "activity.send" not in stage_types.PLAYER_MESSAGES and stage_types.READS == {"activity.view"}
-    with pytest.raises(ValueError, match="activities: one of f1, core"):
+    stage_types.use("f1")
+    assert stage_types.TYPES["activity"] is stage_types.activity and "activity.send" in stage_types.PLAYER_MESSAGES
+    assert "activity.enter" not in stage_types.PLAYER_MESSAGES
+    with pytest.raises(ValueError, match="activities: one of core, f1"):
         stage_types.use("f2")
-    assert stage_types.using == "core"
+    assert stage_types.using == "f1"
+    stage_types.use()
+    assert stage_types.using == "core" and stage_types.TYPES["activity"] is activities
 
 
 # ------------------------------------------------------------------ after the review: a pool that answers when told
@@ -509,6 +514,7 @@ def test_a_game_moved_from_f1_judges_by_the_references_f1_kept(tmp_path):
     """F1 kept a query's reference results in its state, which stays in the game's stage when the game moves:
     a moved game that is stale - its deck not prepared again - judges by them (package 13: the revealed query
     of a lecture moved from F1 lost its reference's mark)."""
+    stage_types.use("f1")
     w = World(tmp_path)                                      # F1's type, the presenter window checking
     ada, bea = w.join("Ada", "Bea")
     w.show(259)
@@ -711,6 +717,7 @@ def test_the_pools_words_for_too_much_memory_are_known_in_every_language():
 
 
 def test_a_game_of_f1s_that_does_not_move_keeps_no_other_from_moving(tmp_path, monkeypatch):
+    stage_types.use("f1")
     w = World(tmp_path)                                     # F1's type: two games of the deck, a triple in each
     other = w.engine.open_session("act", w.bid, w.now, owner="other")
     w.show(257)
@@ -809,7 +816,9 @@ def kinds_of(*names, **more) -> dict:
 def test_a_server_of_the_cores_type_refuses_a_deck_of_a_kind_it_lacks(tmp_path, monkeypatch):
     """The deck's kinds (deck.json, the build's): a server of the core's type refuses the deck - and says
     which package to install - when it lacks one, cannot use it, has it with another API or another major
-    version, or older than the build's (the design's 7.2). F1's type needs no kinds: it takes the deck."""
+    version, or older than the build's (the design's 7.2). F1's type needs no kinds: it takes the deck. A deck
+    built before kinds were named: the kinds of its items' input and engine (package 14: such a deck was listed,
+    and each of its activities failed when the lecture came to it, on a server without the kinds)."""
     from texstage.server.bundles import BundleError, load_bundle
     folder = tmp_path / "bundles" / "act.bundle"
     have = {f.name: f for f in registry.found()}["sparql-query"]
@@ -836,7 +845,8 @@ def test_a_server_of_the_cores_type_refuses_a_deck_of_a_kind_it_lacks(tmp_path, 
     with pytest.raises(BundleError) as e:
         load_bundle(folder)
     assert str(e.value).endswith(f"the deck's activities are of the kind sparql-query, which this server does not have - "
-                                 f"install texstage-kinds-rdf {have.version} or later where the server runs")
+                                 f"install texstage-kinds-rdf {have.version} or later where the server runs, then "
+                                 f"start the server again")
     monkeypatch.setattr(registry, "found", lambda: rest + (registry.Found("sparql-query", "texstage-kinds-rdf", have.version, 0,
                                                                           None, "it cannot be made - ImportError: pyoxigraph"),))
     with pytest.raises(BundleError, match="cannot be used for: it cannot be made - ImportError: pyoxigraph"):
@@ -844,8 +854,17 @@ def test_a_server_of_the_cores_type_refuses_a_deck_of_a_kind_it_lacks(tmp_path, 
     stage_types.use("f1")
     assert load_bundle(folder).items["activity"]                    # F1's type: as before
     stage_types.use("core")
-    make_activity_bundle(folder)                                       # a deck built before kinds were named: as before
-    assert load_bundle(folder).items["activity"]
+    make_activity_bundle(folder)                                       # a deck built before kinds were named:
+    with pytest.raises(BundleError, match="the kind sparql-query, which this server's texstage-kinds-rdf .* cannot be "
+                                          "used for: it cannot be made - ImportError: pyoxigraph"):
+        load_bundle(folder)                                            # its query's kind, as its input and engine say
+    monkeypatch.setattr(registry, "found", lambda: tuple(f for f in rest if f.name != "triples"))
+    with pytest.raises(BundleError) as e:
+        load_bundle(folder)
+    assert str(e.value).endswith("the deck's activities are of the kind sparql-query, which this server does not have - "
+                                 "install texstage-kinds-rdf where the server runs, then start the server again")
+    monkeypatch.undo()
+    assert load_bundle(folder).items["activity"]                    # the kinds there: played as before
 
 
 @pytest.mark.parametrize("server, built, refused", [
@@ -1032,8 +1051,8 @@ def test_a_server_of_f1s_type_tells_the_pages_so_and_names_no_kinds(tmp_path):
 
 
 def test_texstage_serve_runs_the_type_it_is_told(tmp_path, monkeypatch):
-    """--activities core: the core's type - its pool, its kinds, the new panel and phone screen; without it,
-    F1's, as the lectures have it."""
+    """The core's type - its pool, its kinds, the new panel and phone screen - unless it is told otherwise
+    (package 14); --activities f1: F1's, until a class has used the core."""
     from texstage import cli
     from texstage.server import app as server_app
 
@@ -1046,9 +1065,61 @@ def test_texstage_serve_runs_the_type_it_is_told(tmp_path, monkeypatch):
         raise Made
     monkeypatch.setattr(server_app, "create_app", create)
     base = ["serve", str(tmp_path), "--no-tunnel", "--data", str(tmp_path / "data"), "--key", "k" * 24]
-    for more, which in (([], "f1"), (["--activities", "core"], "core"), (["--activities", "f1"], "f1")):
+    for more, which in (([], "core"), (["--activities", "core"], "core"), (["--activities", "f1"], "f1")):
         with pytest.raises(Made):
             cli.main(base + more)
         assert made[-1].activities == which
     with pytest.raises(SystemExit):
         cli.main(base + ["--activities", "f2"])
+
+
+def test_a_server_runs_the_cores_type_unless_its_config_says_f1(tmp_path):
+    """ServerConfig's default (package 14): the core's type - the status, the welcome and the deck's view say
+    so, and the server checks (its pool), whatever --checks says; F1's when the config says f1."""
+    bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle")
+    config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
+                          presenter_key=KEY, settings=Settings(get_ready_ms=0), workers=1, pool={"spare": False})
+    assert config.activities == stage_types.DEFAULT == "core"
+    with TestClient(create_app(config)) as client, client.websocket_connect("/ws") as st:
+        status = client.get("/api/status").json()
+        assert (status["activities"], status["checks"]) == ("core", "server") and stage_types.using == "core"
+        st.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": bid, "id": 1})
+        assert recv(st, "welcome")["activities"] == "core"
+        assert client.get(f"/api/deck/{bid}", headers={"X-Texquiz-Key": KEY}).json()["activities"] == "core"
+    with TestClient(create_app(dataclasses.replace(config, activities="f1"))) as client:
+        assert (client.get("/api/status").json()["activities"], stage_types.using) == ("f1", "f1")
+
+
+def test_texstage_serve_says_f1s_type_and_that_checks_is_its_option(tmp_path, monkeypatch, capsys):
+    """F1's type is said as the server starts, with its --checks; --checks browser or both with the core's type
+    is said to be F1's option (package 14: such a server said that the presenter window's results counted and
+    checks-compare.csv got the differences - the core's type does neither, it checks on the server)."""
+    from types import SimpleNamespace
+
+    from texstage import cli
+    from texstage.server import app as server_app
+
+    class Listened(Exception):
+        pass
+
+    def listen(host, port):
+        raise Listened
+    server = SimpleNamespace(bundles=SimpleNamespace(bundles={}, problems=[]), lecturers=SimpleNamespace(names=list))
+    monkeypatch.setattr(server_app, "create_app", lambda config: SimpleNamespace(state=SimpleNamespace(server=server)))
+    monkeypatch.setattr(server_app, "listen", listen)
+    base = ["serve", str(tmp_path), "--no-tunnel", "--data", str(tmp_path / "data"), "--key", "k" * 24]
+    said = {}
+    for more in ((), ("--checks", "server"), ("--checks", "browser"), ("--checks", "both"), ("--activities", "f1"),
+                 ("--activities", "f1", "--checks", "both")):
+        with pytest.raises(Listened):
+            cli.main(base + list(more))
+        said[more] = [line.strip() for line in capsys.readouterr().out.splitlines()
+                      if line.startswith(("  live activities:", "  --checks"))]
+    assert said[()] == said[("--checks", "server")] == []
+    for checks in ("browser", "both"):
+        assert said[("--checks", checks)] == [f"--checks {checks}: for F1's type (--activities f1) - the core's type "
+                                              "checks the activities' texts on the server"]
+    assert said[("--activities", "f1")] == ["live activities: F1's type (--activities f1)"]
+    assert said[("--activities", "f1", "--checks", "both")] == [
+        "live activities: F1's type (--activities f1) - the server checks their texts (--checks both: the presenter "
+        "window's results count, the differences go to checks-compare.csv)"]

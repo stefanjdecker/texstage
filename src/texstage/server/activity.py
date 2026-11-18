@@ -290,12 +290,12 @@ def _item(call, aid) -> dict:
 def refuses(deck: dict) -> str | None:
     """Why this type cannot play a deck's activities: one of a kind it never had - texstage's own choice,
     number, text, and any kind after the four -, whose item has no input of this type's (types.py: refuses).
-    The core's type runs them: texstage serve --activities core."""
+    The core's type runs them, a server's default: one started without --activities f1."""
     for aid, item in sorted(((deck.get("items") or {}).get(NAME) or {}).items()):
         if not isinstance(item, dict) or item.get("input") not in ("tuple", "code"):
             kind = item.get("kind") if isinstance(item, dict) else None
-            return (f"the activity {aid} is of the kind {kind or '(none)'}, which this server's activity type does not "
-                    f"run - start it with texstage serve --activities core")
+            return (f"the activity {aid} is of the kind {kind or '(none)'}, which F1's activity type does not run - "
+                    f"start the server without --activities f1")
     return None
 
 

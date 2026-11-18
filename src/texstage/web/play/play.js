@@ -50,11 +50,11 @@ const redraw = () => { screenKey = ""; listed = ""; if (state) render(); };   //
 // the pushes:  new PHONE_TYPES[name]({root, client, T, state})  .update(state)  .destroy()
 const PHONE_TYPES = { activity: ActivityScreen };
 let typeScreen = null;
-// A server of the activity framework's type (--activities core; its welcome says so) sends a step's part as
+// A server of the activity framework's type (the core's, the default; its welcome says so) sends a step's part as
 // a message of its own, the same text for every phone (activity.step), and the phone's own entries with
 // its state: the step's screen (play/activities.js) shows while the step is there and not ready. The
 // deck's kinds - their texts, their modules - load in the background when the phone joins (kinds.js).
-let activities = "f1";
+let activities = "core";      // the server's type, as its welcome says: the core's, or F1's (--activities f1)
 let step = null;         // the current step's part, as activity.step last said it
 let kinds = null;
 let kindsOf = "";        // ... of these files (the welcome's kindFiles)
@@ -110,7 +110,7 @@ const client = new Client({
   },
   onWelcome: (m) => {
     welcomed = m;
-    activities = m.activities || "f1";
+    activities = m.activities || "core";
     // the deck's kinds, in its language: with the first state - the ones there are, after a reconnect to the
     // same deck (a screen made before the state comes has them; the cast comes first)
     if (JSON.stringify(m.kindFiles || {}) !== kindsOf) kinds = null;

@@ -46,11 +46,11 @@ Pillow and ffmpeg are needed only to regenerate it with make_media.py.
 
 From the repository root, with a free port and a dedicated demo data folder:
 
-    texstage present examples/showcase/showcase.tex --port 8766 --data .showcase-data --no-tunnel --activities core
+    texstage present examples/showcase/showcase.tex --port 8766 --data .showcase-data --no-tunnel
 
-The option --activities core runs the live activities on the activity framework's
-core: the server checks every answer, and the choice, number and text activities
-need it. A server of the default type skips this deck and says why.
+The server runs the live activities on the activity framework's core, its default
+activity type: it checks every answer, and the choice, number and text activities
+need it. A server started with --activities f1 skips this deck and says why.
 
 Keep the terminal and presenter open. The first build takes longer than later
 starts. Projector opens the audience window. Notes are private to the presenter.

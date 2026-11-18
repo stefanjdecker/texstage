@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
 // A live activity in the windows, as the activity framework has it (docs/architecture/activity-framework-
-// design.md, 13; the plan of F2, 4.5) - for a server run with --activities core (the deck's view says so:
+// design.md, 13; the plan of F2, 4.5) - for a server of the core's type, the default (the deck's view says so:
 // activities "core"). Three parts:
 //
 //   StepBox     the box on the slide, the same in the presenter and the projector window: the projector's

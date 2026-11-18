@@ -89,7 +89,7 @@ export default {
   },
 
   // a step of a live activity on the phone, as the activity framework has it (play/activities.js;
-  // a server run with --activities core): the step's state, a student's entries and what their checks say
+  // a server of the core's type): the step's state, a student's entries and what their checks say
   steps: {
     send: "Send", add: "Add", mine: "Yours", withdraw: "Take back", of: (n, m) => `${n} of ${m}`,
     yourText: "Your text", yourNumber: "Your number", yourAnswer: "Your answer", sign: "Change the sign",
@@ -468,7 +468,7 @@ export default {
     },
     // the deck's live activities (Activities; stage/activity.js): many and one are what the box
     // calls the contributions (box.code: queries, or Turtle texts)
-    // the panel of the activity framework (stage/activities.js; a server run with --activities core)
+    // the panel of the activity framework (stage/activities.js; a server of the core's type)
     steps: {
       title: "Activities", closeTitle: "close the panel",
       phase: { ready: "not opened yet", open: "open - the phones send", paused: "paused", closed: "closed",
@@ -629,7 +629,7 @@ export default {
     players: "Players", playersOf: (n, online) => `Players (${n}, ${online} online)`, quizzes: "Quizzes",
     nobody: "Nobody has joined yet.", rename: "rename", remove: "remove",
     renameAsk: "New nickname", removeAsk: (name) => `Remove ${name} from the game?`, slideOf: (n, m) => `slide ${n} / ${m}`,
-    // the deck's live activities, with --activities core: each one's phase, the open one's counts
+    // the deck's live activities, with the core's type: each one's phase, the open one's counts
     activities: "Activities", counts: (students, entries, waiting) => `${students} ${students === 1 ? "student" : "students"}`
       + ` · ${entries} ${entries === 1 ? "entry" : "entries"}${waiting ? ` · ${waiting} being checked` : ""}`,
   },

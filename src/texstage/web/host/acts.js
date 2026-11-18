@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The host console's line of the deck's live activities, with --activities core (host.js; docs/
+// The host console's line of the deck's live activities, with the core's type (host.js; docs/
 // architecture/activity-framework-design.md, 13): each one's phase - and of the current one its time
 // left, which counts down between the server's pushes (the server tells a running time once, with when
 // it read it), and its counts, from the lecturer's picture (activity.view: whatever the projector holds

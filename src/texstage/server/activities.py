@@ -55,7 +55,7 @@ from texstage.activities.code import words
 from texstage.activities.kind import FROM_F1, Message
 from texstage.activities.phases import MARKS
 from texstage.activities.phases import Refused as CoreRefused
-from texstage.activities.play import MOVES, Part, Play
+from texstage.activities.play import MOVES, Part, Play, kind_of
 from texstage.activities.store import ONE, EntryRow, Writer
 from texstage.checks.texts import ENGINES as TEXTS
 from texstage.server.types import WRITTEN, Refused  # (first: types imports this module, and F1's, which needs it)
@@ -497,18 +497,24 @@ def refuses(deck: dict) -> str | None:
     """Why this server cannot play the deck's activities: a kind the deck names (deck.json's kinds, as the
     build had them) that it lacks, cannot use, or has with another API, another major version or an older
     version than the build's - whose keys it may not know (the design's 7.2) -, and which package to
-    install. texstage's own kinds go with texstage itself: another major version of it plays their decks
-    while their API is the same. A deck built before kinds were named has none, and is played as before."""
+    install - and to start the server again: it reads the installed kinds once. texstage's own kinds go with
+    texstage itself: another major version of it plays their decks while their API is the same. A deck built
+    before kinds were named has none: its items' kinds are those of their input and engine (_unnamed), and
+    one this server lacks refuses the deck too (package 14: before, such a deck was listed, and each of its
+    activities failed when the lecture came to it - a server's default type had needed no kinds)."""
     wanted = deck.get("kinds")
     if not wanted:
-        return None
+        wanted = _unnamed(deck)
+        if not wanted:
+            return None
     if not isinstance(wanted, dict):
         return "deck.json's kinds are no table of kinds"
     found = {f.name: f for f in registry.found()}
     for name, need in sorted(wanted.items()):
         need = need if isinstance(need, dict) else {}
         package, version, api = need.get("package") or "its package", str(need.get("version") or ""), need.get("api")
-        install = f"install {package}{f' {version} or later' if version else ''} where the server runs"
+        install = (f"install {package}{f' {version} or later' if version else ''} where the server runs, then start "
+                   "the server again")
         f = found.get(name)
         if f is None:
             return f"the deck's activities are of the kind {name}, which this server does not have - {install}"
@@ -524,6 +530,24 @@ def refuses(deck: dict) -> str | None:
             return f"the deck's activities are of the kind {name} of {package} {version}, this server has " \
                    f"{f.version} - {install}"
     return None
+
+
+def _unnamed(deck: dict) -> dict[str, dict]:
+    """A deck built before kinds were named: the kinds of its items that play.kind_of does not find here -
+    an item's kind, or that of its input and engine (the build's aliases, the design's 17) -, with their
+    packages, as deck.json's kinds would name them."""
+    from texstage.build.activity import ALIASES, PACKAGES     # (the build's: a server needs them for old decks only)
+    out = {}
+    for item in ((deck.get("items") or {}).get(NAME) or {}).values():
+        if not isinstance(item, dict):
+            continue
+        try:
+            kind_of(item)
+        except LookupError:
+            name = item.get("kind") or ALIASES.get((item.get("input"), item.get("engine") or ""))
+            if isinstance(name, str):
+                out[name] = {"package": PACKAGES.get(name)}
+    return out
 
 
 def failing(book, s) -> list[dict]:

@@ -4,7 +4,12 @@ Status: 2026-11-10, the plan for the first two stages of
 [activity-framework-design.md](activity-framework-design.md) (here **AF**, section 18). F0's spike
 is built and measured on one machine, its runs on the presentation laptop are still to come; F1's
 packages 1 to 5 are built on `f1-server-checks` (4.9 and 5 say where it stands). F2 to F5 are
-planned once F0 has measured what they build on. File references are
+planned once F0 has measured what they build on. **Since F2's package 14** (2026-11-18, the
+lecturer's decision) a server runs the activity framework's core unless it is started with
+`--activities f1`; F1's type, the browser's checks with it, stays until a class has used the core and
+goes after that. So F1's packages 6 to 8 are overtaken: the laptop's run is F2's package 13's, on the
+core's type, the lecture is F2's dry run, and the browser's checks go with F1's type
+([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.12). File references are
 to `src/texstage/` unless they name another folder; **LA** is
 [live-activities-design.md](live-activities-design.md).
 

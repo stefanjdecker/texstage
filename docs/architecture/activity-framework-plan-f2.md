@@ -8,8 +8,10 @@ laptop: it takes for granted what the plan of F0 and F1
 F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
 to 12 are built (2026-11-10 to 2026-11-17 - on `f2-core` until package 9, on `main` since -, ahead
 of F1's last packages; 4.12 says where it stands), and package 13 but for its run on the presentation
-laptop (2026-11-18): the core's type runs beside F1's, which a server runs unless it is told otherwise
-(4.3). File references are to `src/texstage/` unless they name another folder.
+laptop (2026-11-18). Since package 14 (2026-11-18, the lecturer's decision) the core's type is the
+one a server runs unless it is told otherwise: F1's runs with `--activities f1` until a class has
+used the core, and goes after that (4.3, 4.12). File references are to `src/texstage/` unless they
+name another folder.
 
 ## 1. In short
 
@@ -637,6 +639,9 @@ its review - five faults and five doubts, fixed:
   the windows and the build learn the core's (packages 7 and 8); F1's tests pass as before. Taking
   F1's type out, and the switch with it, is a step of its own, for when the browser speaks AF
   10.4. No command line option chooses the core yet: without its windows nobody could use it.
+  As built (package 14, 2026-11-18): the core's is the type a server runs unless it is told
+  otherwise - `--activities f1` (`types.py`: `DEFAULT`) -, and F1's tests ask for F1's; F1's type
+  goes once a class has used the core, on the lecturer's word (4.12).
 - **The pool's processes prepare and check through the kinds** (`worker.py`: `_OfKind`): an
   activity whose module is named `kind:<name>` has the kind's `prepare`, its `copy` for every
   process, the first too, its references, each compared with none, and its checks - a check's
@@ -771,7 +776,7 @@ is after its review - four faults, four doubts and seven small findings, fixed:
   The kind's build gives the item, the keys and the files; the core's keys come before it - `limit`
   always (F1's type needs it), the others only where the deck gives them, `open` where it is
   `manual` -, then F1's `input` (`tuple`, `code`) beside the kind: the item is F1's item and its
-  kind, and F1's type, which a server runs unless it is told otherwise, plays the deck as before.
+  kind, and F1's type (`--activities f1` since package 14) plays the deck as before.
   Held against a frozen copy of F1's build (`tests/f1_build.py`), 49 records of every shape, written
   as LaTeX writes them, give the same items, keys, files and warnings - which name the keys in the
   deck's order, not F1's -, or the same refusal, word for word. A key the kind does not take is read
@@ -909,7 +914,8 @@ lecture-tools once it has taken F2 (package 11).
 As built (package 8, 2026-11-13): the core's type has browser code of its own beside F1's, which
 F1's type keeps as it is. A page learns the type from its welcome and from the deck's view
 (`activities`: `f1` or `core`) and takes that type's modules; `texstage serve --activities core`
-runs the core's type, `texstage present` hands the option on - F1's stays the default (4.3).
+runs the core's type, `texstage present` hands the option on - F1's stayed the default until
+package 14 (4.3, 4.12).
 
 - **The phone** (`web/play/activities.js`): one screen for the current step - its picture, the
   time left, the phase; the input `code` with the deck's tokens, `fields` with what the graph
@@ -1089,8 +1095,9 @@ run away - the runs now say them apart -, 95 % and the slowest, in ms:
   `maintenance/check_installed.py` runs the kinds' kit from their wheels, builds a deck with an
   activity of each of texstage's seven kinds - the build runs their references with the kinds, in
   a pool's process - and has every activity of it checked. `maintenance/check_kinds_served.py`
-  (new) serves decks with a server of the core's type (`texstage serve --activities core`, on a
-  free port, with a key and a data folder of its own): the deck must be taken, and each kind it
+  (new) serves decks with a server of the core's type (`texstage serve`, with `--activities core`
+  until package 14 made the core's the default; on a free port, with a key and a data folder of its
+  own): the deck must be taken, and each kind it
   names served with its texts under the kinds' policy; each activity is opened by its first
   opening slide, a phone sends the activity's first reference as its kind takes a reference as an
   entry (`Kind.reference`) - without references a choice's first option, a number, a text, a crowd
@@ -1115,7 +1122,8 @@ run away - the runs now say them apart -, 95 % and the slowest, in ms:
 - *The guides:* `docs/installation.md`, the manual, the README's quick start and the showcase's
   install the kinds after texstage and say what `texstage kinds` lists - texstage's own kinds need
   no package; `installation-advanced.md` the kinds' wheels, and that the image serves with the
-  default type unless its command adds `--activities core`; `development.md`, `dependencies.md`,
+  default type unless its command adds `--activities core` (since package 14 the default is the
+  core's, and `--activities f1` F1's); `development.md`, `dependencies.md`,
   `releasing.md` and `integration.md` (the pair: texstage 0.2.1.dev4 and lecture-tools
   0.1.0.dev5) what changed; the kinds' READMEs where to install them, and that the checks stay
   texstage's while F1's type uses them (4.2: they were to move into the packages once F1 was in
@@ -1373,7 +1381,8 @@ texstage's own entry points (`pyproject.toml`), with their texts (`texts/en.js`,
   is at most 5 s - a longer one is no change of mind: "too fast" is said at once -; a short answer in
   one line, at most 100 characters.
 - **F1's type** refuses a deck of a kind it never had (`server/activity.py`: `refuses`): run it with
-  `texstage serve --activities core`. A server of another major version of texstage plays a deck of its
+  the core's type - since package 14 a server's default, so the refusal says to start the server
+  without `--activities f1`. A server of another major version of texstage plays a deck of its
   own kinds while their API is the same (`server/activities.py`: `refuses`).
 - **The archive** writes a choice by its options' texts and a number with every digit; a cell a
   spreadsheet would run as a formula (`=`, `+`, `-`, `@`, a line's end, their full-width forms) gets an
@@ -1454,8 +1463,9 @@ does not see what F2 stored (3).
   ones sent to a server of each type: the groups are F1's; what differs is as designed, and one
   fault - a stale game's references after a restart - is fixed (4.12).
 - **The load:** F0's runs on F2, on the presentation laptop with the phones from a second machine
-  (package 13). The runs play the core's type since (`--activities core`); rehearsed on the
-  development machine with its phones on it, within the budgets (4.12); the laptop's run is to come.
+  (package 13). The runs play the core's type since (`--activities core`, their default since
+  package 14); rehearsed on the development machine with its phones on it, within the budgets
+  (4.12); the laptop's run is to come.
 
 ### 4.12 The work, in order
 
@@ -1530,7 +1540,8 @@ Persian phone's digits, a formula broken by a line in a reference), fixed with t
 next; left as they are, by decision: " + " between the options of a choice of several where it is
 written out, a right option's bar counting all who chose it, a bar of one whole number labelled as a
 stretch. F1's type stays the server's default;
-whether the core's replaces it, and F1's browser code goes, is open. Package 10 is built on it
+whether the core's replaces it, and F1's browser code goes, is open (decided on 2026-11-18: it does,
+package 14 below). Package 10 is built on it
 (2026-11-16, on `main`): every page has its Content-Security-Policy, the phone's the strictest, the
 windows' with the video platforms' players, the add-in's with Office.js, and what a policy refuses
 reaches the server's log (4.5); the phone, the windows and the host console work in the app's
@@ -1605,6 +1616,43 @@ core` on both sides: the laptop's `run.py server`, the presenter window as `/sta
 change under 100 ms throughout is its console's to say - and PowerPoint or the projector window; the
 phones' `run.py phones` from a second machine over the room's Wi-Fi, and once through the tunnel.
 
+**Package 14** is begun (2026-11-18). The lecturer decided that day: the core's type becomes the
+server's default now, F1's stays selectable until a class has used the core - the dry run -, and
+F1's type and its browser code go only after that, on the lecturer's word. **Its first part** makes
+the core's type the default wherever a server starts - `texstage serve`, and `texstage present`,
+which hands its options on; `ServerConfig`; `types.py`'s `DEFAULT`, which a process starts with; a
+phone before its welcome; the load runs - and keeps F1's with `--activities f1`. lecture-tools
+names no type, so a lecture's server runs the core's once lecture-tools pins a texstage with it.
+What the default changes for a server: it checks every entry in its pool's processes, which it
+starts with itself - the physical cores less two, two spares and one that normalizes -, for a deck
+of quizzes alone too (on the development machine 11 processes and 267 MB at rest, F1's 2 and 56 MB;
+it answers 0.1 to 0.9 s later after its start; a quiz plays the same) - in a container the host's
+cores count, so a hosted server wants `--workers` (`installation-advanced.md`). It needs the kinds
+a deck names where it runs, as the build does, and skips a deck of a kind it lacks, naming the
+package to install - a deck built before kinds were named too, by the kinds of its items' input and
+engine (the review: such a deck was listed, and each of its activities failed when the lecture came
+to it, since F1's type had needed no kinds); a running server reads the kinds once, so the advice
+says to start it again. It plays the decks of texstage's own kinds, and `texstage build --server`
+and `texstage publish` send them to another server (the review: with F1's type the default, the
+build left them out without a word). At the reveal the projector shows the reference and its result
+(`solution=show`, the core's default, AF 5.3) where F1's type marked the reference's group only:
+the KG decks set no `solution=`, so `solution=mark` keeps F1's look. A game of F1's type goes on in
+the core's tables (4.10), with the references' results F1 kept (package 13) - tried with a server
+of F1's type and the same data folder started again without `--activities`: the same game, each
+activity's entry and its check, the crowd graph's triple; it moves once, so entries sent to F1's
+type after that stay in F1's tables, and the manual says to switch between lectures, not during
+one. `--checks` is F1's alone: `texstage serve` says so when `browser` or `both` is given with the
+core's type - such a server said that the presenter window's results counted and that
+`checks-compare.csv` got the differences -, and it names F1's type, with its `--checks`, when it
+runs it. `texstage present` says when the server that runs already runs F1's type though no type
+was asked for - one started before the default changed, which it uses as it is. F1's refusal of a
+deck of texstage's own kinds says to start the server without `--activities f1`; F1's tests ask for
+F1's type. Its review found two faults - the decks built before kinds were named, the homepage's
+words on where queries run - and five doubts and seven nits, all fixed or written down. texstage is
+0.2.1.dev6 with it (the lecturer's "Bump version."): lecture-tools pins texstage by its wheel's
+hash, and 0.2.1.dev5's default is F1's. **Left:** lecture-tools taking it, the KG lecture on that
+pair, the dry run - and then F1's type and its browser code taken out.
+
 ### 4.13 Risks
 
 | risk | what then |
@@ -1617,7 +1665,8 @@ phones' `run.py phones` from a second machine over the room's Wi-Fi, and once th
 | a name in a comment reaches the class | the kinds' normalize takes comments out since 2026-11-12 (4.7); a comment that only may be one stays - SPARQL's `<`, an IRI's start or the comparison -, and so does a name in a string |
 | the pages' policy breaks the add-in or KaTeX | a policy per page, tried in PowerPoint and Chromium (package 10) |
 | separate packages make installing harder (decided, AF 2) | locks for their dependencies, one command for development, the image and CI install both |
-| a fallback after a lecture on F2 | F1's release, without that lecture's entries; its archive stays (3, 4.10) |
+| a fallback after a lecture on F2 | `--activities f1` while F1's type is there (package 14), else F1's release - either without that lecture's entries; its archive stays (3, 4.10). And back: a game moves from F1's tables to the core's once, so what F1's type took meanwhile stays in F1's - switch between lectures, not during one (the manual says so) |
+| the default type changes for every server at once (package 14) | a lecture takes it only with a new pair, as lecture-tools pins texstage by its hash; `--activities f1` keeps F1's until a class has used the core; a deck of a kind the server lacks is skipped, with the package to install (4.12) |
 | the semester ends first | F2's dry run in the summer semester's first lectures |
 
 ### 4.14 Not in F2

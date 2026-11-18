@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The demo deck of texstage's own kinds (examples/demo/activities.tex, its README): a choice of several
 options, a number and a short answer build with their references in keys.json alone, checked as the server
-checks them - and only a server of the core's type plays the deck (texstage present ... --activities core)."""
+checks them - and only a server of the core's type plays the deck, a server's default (not --activities f1)."""
 from __future__ import annotations
 
 import json
@@ -47,11 +47,8 @@ def test_the_demo_of_texstages_own_kinds_builds(built):
 
 def test_only_a_server_of_the_cores_type_plays_it(built):
     result, _, _ = built
-    try:
-        stage_types.use("f1")
-        f1 = BundleStore([result.bundle.parent])
-        assert not f1.bundles and "start it with texstage serve --activities core" in " ".join(f1.problems)
-        stage_types.use("core")
-        assert result.bundle_id in BundleStore([result.bundle.parent]).bundles
-    finally:
-        stage_types.use("f1")                       # (the type a server runs is the process's: F1's after)
+    assert stage_types.using == "core"                    # the default (conftest.py puts it back after each test)
+    assert result.bundle_id in BundleStore([result.bundle.parent]).bundles
+    stage_types.use("f1")
+    f1 = BundleStore([result.bundle.parent])
+    assert not f1.bundles and "start the server without --activities f1" in " ".join(f1.problems)

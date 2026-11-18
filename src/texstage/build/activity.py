@@ -16,7 +16,7 @@ checks them - one that does not run stops the build, rather than showing in the 
               the activity, open or revealed (\\reveal<n>)
     entries   deck.json's items.activity - {id: {kind, input?, limit, <the kind's item>, counts?, gap?, time?,
               budget?, feedback?, projector?, solution?, open?, prompt?}}: input is F1's name of the kind's
-              input (tuple, code), for F1's type, which a server runs unless it is told otherwise; the core's
+              input (tuple, code), for F1's type (texstage serve --activities f1); the core's
               keys but limit only where the deck gives them; the prompt as the phones' picture (an extra page,
               quiz.files). keys.json's - {id: {<the kind's keys: reference>, referenceKeys}}: the references'
               keys as the build's checks gave them, which the server compares with its own. The kind's files

@@ -202,7 +202,9 @@ texstage's presenter window, or with `--powerpoint` the live PowerPoint file. `t
 the same command by the browser presenter's name (`texstage deck.tex`). A server that runs
 already is used as it is: `present` says which of its options that server does not take
 (`--activities` when it runs the other type, `--tunnel`, `--public-url`, `--host`, further
-folders - stop it and present again to have them), whether it has the deck's build or why not
+folders - stop it and present again to have them), the activity type it runs if that is not the
+default and none was asked for (`--activities f1`, or a server started before the core's became the
+default), whether it has the deck's build or why not
 (a kind it lacks, a server started with another `--data`), and when the build would end a game
 of the deck's build before that has players. **Built again in the lecture** (in the break, say):
 the presenter window then asks before the new build ends the running game - the phones would
@@ -417,7 +419,7 @@ deleted instead (⋯ › *Delete*), not while a game of it is under way. A folde
 deletes it (what it holds moves up; no deck is deleted). On a phone, a card's buttons go below its
 text. Folders and names are each lecturer's own, kept by the server (`library.json` in its
 data folder). A deck the server finds and does not play - a kind of activity it lacks (a deck of
-texstage's own kinds wants `--activities core`), a format it is too old for, a broken
+texstage's own kinds is skipped with `--activities f1`), a format it is too old for, a broken
 `deck.json` - is on no list; the page says at the top which and why, and so does the server's
 window when it finds a new one (`skipped: ...`). If `texstage present` names a deck the page
 cannot present, the page says why. A deck's ⋯ › *Lectures …* lists its games, the running one

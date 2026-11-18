@@ -15,7 +15,7 @@ This is today's `input=code, engine=sql`, as a kind of the activity framework's 
 [design](../../docs/architecture/activity-framework-design.md), sections 7 and 17, and its
 [plan for F2](../../docs/architecture/activity-framework-plan-f2.md), packages 1 and 2). The contract
 may still change until it is called API 1. A server uses the kind when it runs the core's activity
-type (`texstage serve --activities core`); F1's type, a server's default, does not need it.
+type, a server's default (`texstage serve`); F1's type (`texstage serve --activities f1`) does not need it.
 
 Install it after texstage 0.2.1.dev4 or later, wherever decks are built - the build checks an
 activity's keys and runs its references with its kind - and wherever they are served; from the

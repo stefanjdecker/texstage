@@ -1,31 +1,55 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev5 candidate
+## Unreleased — 0.2.1.dev6 candidate
 
-- With `--activities core`, an earlier lecture's game keeps its references'
-  results through a restart of the server: the reference's group stays marked,
-  the phones keep their verdicts, and the lecture archive - written when the
-  next lecture opens the deck - has them. Before, a game idle for six hours or
-  more lost them when the server started again, since a starting server does
-  not prepare such a game's deck; a game moved from F1's tables takes the
-  results F1 kept.
+- The activity framework's core is the default activity type: `texstage serve`
+  and `texstage present` run it unless they are started with `--activities f1`,
+  which keeps F1's type until a class has used the core. A server checks every
+  entry in worker processes it starts with itself, for a deck of quizzes alone
+  too - by default the physical cores less two, two spares and one that
+  normalizes; `--workers` sets how many. It needs the kinds' packages a deck
+  names where it runs, as the build does, and skips a deck of a kind it lacks,
+  naming the package - a deck built before kinds were named too, by its items'
+  inputs. It plays decks of choice, number and text activities, and `texstage
+  build --server` and `texstage publish` send them to another server: with F1's
+  type the default they were left out, by the build without a word. At the
+  reveal the projector shows the reference and its result unless the activity
+  says `solution=mark` (F1's type marked the reference's group only). An
+  earlier lecture's game of F1's type goes on in the core's. `--checks` is for
+  F1's type alone: `texstage serve` says so when `--checks browser` or `both`
+  is given without `--activities f1`. `texstage present` says when the server
+  that runs already - one started before - runs F1's type. The load runs
+  default to the core's type.
+- With the core's activity type, an earlier lecture's game keeps its
+  references' results through a restart of the server: the reference's group
+  stays marked, the phones keep their verdicts, and the lecture archive -
+  written when the next lecture opens the deck - has them. Before, a game idle
+  for six hours or more lost them when the server started again, since a
+  starting server does not prepare such a game's deck; a game moved from F1's
+  tables takes the results F1 kept.
 - The load runs (`tools/load/run.py`) and `tools/simulate.py` play a server of
   the activity framework's type too (`--activities core`): the phones send its
   entries and load the kinds' files their welcome names, and a projector's and
   a presenter's window count the picture's updates a second against the
   design's budget of four.
-- With `--activities core`, the presenter window says in words of its own what
-  the activity framework refused a control or an act for, in the deck's
+- texstage is 0.2.1.dev6: its default activity type is the core's (above), where
+  0.2.1.dev5's - the one lecture-tools 0.1.0.dev6 pins - is F1's. The kinds'
+  packages still need 0.2.1.dev4 or later.
+
+## Earlier 0.2.1.dev5 candidate
+
+- With the core's activity type, the presenter window says in words of its own
+  what the activity framework refused a control or an act for, in the deck's
   language - an activity that is revealed and has to be reset first, a merge
   that would merge two terms into each other, more acts than a game takes and
   the like. A German window said these in the server's English after *Das hat
   nicht geklappt*, and a few in a quiz's words (*This question is closed.*).
-- The manual has a page on running a live activity with `--activities core` -
+- The manual has a page on running a live activity with the core's type -
   the panel, its keys, what the phones show -, the activity keys on the
   shortcut card, live activities in the participant quick reference and in
-  troubleshooting, and on the SQL page where a submission runs: in the
-  presenter's browser by default, on the server with `--checks server` or
-  `--activities core`. The design documents of the live activities and of the
+  troubleshooting, and on the SQL page where a submission runs: on the server
+  with the core's type, in the presenter's browser with F1's unless `--checks
+  server`. The design documents of the live activities and of the
   activity framework say what its stage F2 built, and what it left to F3.
 - The deck list no longer stops the server: it looks at the build folders in a
   worker thread and reads only those whose files changed (a lecture's phones

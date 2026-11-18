@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Serve live activities as texstage and its kinds are installed here, and have a phone's entries checked
 (docs/architecture/activity-framework-plan-f2.md, package 11): a server of the core's activity type
-(`texstage serve --activities core`, on a free port of 127.0.0.1, with a key and a data folder of its own)
-takes the decks, serves their kinds' files for the browser, and checks a phone's entry of each activity in
-its pool's processes - each kind found by its entry point, there as where the server runs.
+(`texstage serve` - the core's is its default since package 14 -, on a free port of 127.0.0.1, with a key and
+a data folder of its own) takes the decks, serves their kinds' files for the browser, and checks a phone's
+entry of each activity in its pool's processes - each kind found by its entry point, there as where the
+server runs.
 
     python maintenance/check_kinds_served.py                             # a deck of its own (below)
     python maintenance/check_kinds_served.py --bundles <folder> [--every]   # the built decks there (*.bundle)
@@ -220,7 +221,7 @@ def command() -> list[str]:
 
 
 class Server:
-    """texstage serve --activities core, its output in a file (UTF-8); stopped as a lecturer stops it
+    """texstage serve with its default type, the core's, its output in a file (UTF-8); stopped as a lecturer stops it
     (Ctrl+Break, SIGTERM - or, where there is no console to send Ctrl+Break in, ended), and whatever of its
     processes is left after that ended."""
 
@@ -234,7 +235,7 @@ class Server:
         with open(self.log, "wb") as out:                # (--key=: one key in 64 starts with "-", an option's look)
             self.proc = subprocess.Popen(
                 [*command(), "serve", str(bundles), "--data", str(scratch / "data"), "--host", "127.0.0.1",
-                 "--port", str(self.port), f"--key={self.key}", "--no-tunnel", "--activities", "core"],
+                 "--port", str(self.port), f"--key={self.key}", "--no-tunnel"],
                 stdout=out, stderr=subprocess.STDOUT, env=env, creationflags=flags)
 
     def get(self, path: str, key: bool = False):
@@ -445,7 +446,8 @@ def main() -> int:
         try:
             status = server.started()
             if status.get("activities") != "core":
-                server.fail(f"the server runs the activity type {status.get('activities')!r}, not the core's")
+                server.fail(f"the server runs the activity type {status.get('activities')!r}, not the core's - "
+                            "a server's default")
             for folder in decks:
                 say(f"{folder.name}:")
                 lines, total, done, passed = served(server, folder, every)

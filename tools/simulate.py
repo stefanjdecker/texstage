@@ -14,9 +14,9 @@ accepted. For checking the server under load (docs/design.md: 300 players per se
 and for watching the views in M3. wss:// URLs work too (a hosted server).
 
 A live activity (docs/live-activities-design.md) that opens while the phones are in the game gets
-their contributions too, spread over a minute as a class sends them - to a server of F1's type, or of
-the core's (texstage serve --activities core: the phones say which they meet, as a phone does from its
-welcome; docs/architecture/activity-framework-design.md, 10.4) -: triples about a lecture -
+their contributions too, spread over a minute as a class sends them - to a server of the core's type, a
+server's default, or of F1's (texstage serve --activities f1: the phones say which they meet, as a phone does
+from its welcome; docs/architecture/activity-framework-design.md, 10.4) -: triples about a lecture -
 the same ones spelled otherwise, typos, each phone's own name - to a crowd graph; queries to a
 query activity, SPARQL or SQL by the engine the phones are told (the KG lecture's exercise 2 and
 the like: professors and their lectures), right ones in several spellings and the usual mistakes,

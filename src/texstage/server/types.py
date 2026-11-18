@@ -83,9 +83,11 @@ WRITTEN = "__written__"                  # in a hook's reply: a function that ta
 # The types (after Refused and Call, which they use)
 from texstage.server import activities, activity, video  # noqa: E402
 
-# Live activities: F1's type, or the activity framework's core (activities.py; the plan of F2, package 6) -
-# one of the two in a server, never both: they take the same messages and the same decks.
-ACTIVITIES = {"f1": activity, "core": activities}
+# Live activities: the activity framework's core (activities.py; the plan of F2, package 6), the default since
+# package 14, or F1's type (activity.py; texstage serve --activities f1), kept until a class has used the core
+# (4.12) - one of the two in a server, never both: they take the same messages and the same decks.
+ACTIVITIES = {"core": activities, "f1": activity}
+DEFAULT = "core"
 TYPES: dict = {}
 KNOWN = {"quiz", video.NAME, activity.NAME}
 MESSAGES: dict = {}
@@ -99,10 +101,10 @@ ARCHIVE = [t.ARCHIVE for t in (video, activity) if hasattr(t, "ARCHIVE")]
 using = ""
 
 
-def use(which: str = "f1") -> None:
-    """The activity type this server runs: "f1" or "core". What the engine and the app read of the types
-    - by name, as they need it - is the chosen one's from here on; the tables, the files a type serves
-    and the archive's names are both types' alike."""
+def use(which: str = DEFAULT) -> None:
+    """The activity type this server runs: "core" (the default) or "f1". What the engine and the app read of
+    the types - by name, as they need it - is the chosen one's from here on; the tables, the files a type
+    serves and the archive's names are both types' alike."""
     global using
     if which not in ACTIVITIES:
         raise ValueError(f"activities: one of {', '.join(ACTIVITIES)}, not {which!r}")
@@ -121,7 +123,7 @@ def use(which: str = "f1") -> None:
     using = which
 
 
-use("f1")
+use()
 
 
 def bundle_file(rel: str) -> bool:

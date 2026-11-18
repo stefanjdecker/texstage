@@ -19,12 +19,12 @@ live PowerPoint file with its presenter key as student material.
 
 `activities.tex` shows texstage's own kinds of live activities: a choice of
 several options, a number and a short answer, each with a reference. They run on
-the activity framework's core, so start the server with `--activities core`; a
-server of the default type skips the deck and says why:
+the activity framework's core, a server's default activity type; a server
+started with `--activities f1` skips the deck and says why:
 
 ```sh
 texstage pdf --solutions examples/demo/activities.tex
-texstage present examples/demo/activities.tex --activities core --port 8471
+texstage present examples/demo/activities.tex --port 8471
 ```
 
 Use a port where no server runs yet: `present` reuses a running server as it is.

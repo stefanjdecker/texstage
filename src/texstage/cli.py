@@ -159,6 +159,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     import uvicorn
 
     from texstage.server import tunnel as cf
+    from texstage.server import types as stage_types
     from texstage.server.app import ServerConfig, create_app, lan_addresses, listen, load_presenter_key
     data = Path(args.data) if args.data else DEFAULT_DATA
     if args.no_tunnel:
@@ -182,7 +183,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
                           public_url=public, presenter_key=args.key or load_presenter_key(data),
                           owner=own_name(args.owner), settings=Settings(max_players=most) if most else Settings(),
                           checks=getattr(args, "checks", None) or "browser", workers=getattr(args, "workers", None),
-                          activities=getattr(args, "activities", None) or "f1")
+                          activities=getattr(args, "activities", None) or stage_types.DEFAULT)
     app = create_app(config)
     server = app.state.server
     for b in sorted(server.bundles.bundles.values(), key=lambda b: (b.deck, str(b.path))):
@@ -197,10 +198,14 @@ def cmd_serve(args: argparse.Namespace) -> int:
     others = [n for n in server.lecturers.names() if n != config.owner]
     if others:
         print(f"  lecturers with keys of their own: {', '.join(others)} (texstage lecturer list)")
-    if config.checks != "browser":
-        print(f"  the server checks the activities' texts (--checks {config.checks}"
-              + (": the presenter window's results count, the differences go to checks-compare.csv)"
-                 if config.checks == "both" else ")"))
+    if config.activities != stage_types.DEFAULT:            # F1's type: its --checks, as before the core
+        print(f"  live activities: F1's type (--activities {config.activities})"
+              + ("" if config.checks == "browser" else f" - the server checks their texts (--checks {config.checks}"
+                 + (": the presenter window's results count, the differences go to checks-compare.csv)"
+                    if config.checks == "both" else ")")))
+    elif getattr(args, "checks", None) in ("browser", "both"):     # the core's: the server checks, whatever it says
+        print(f"  --checks {args.checks}: for F1's type (--activities f1) - the core's type checks the activities' "
+              "texts on the server")
     if plan:
         kept = "remembered - --no-tunnel serves without it" if not args.tunnel else "remembered for the next start"
         print(f"  through the Cloudflare tunnel {name} ({kept}); PowerPoint and the host page use "
@@ -387,17 +392,23 @@ STARTING = (("tunnel", "--tunnel"), ("no_tunnel", "--no-tunnel"), ("public_url",
 def running_notes(args: argparse.Namespace, more: list[str], bid: str | None, deck: str | None) -> list[str]:
     """What texstage present says of the quiz server that runs already on its port, which it uses as it
     is: the options given for a server it starts (the review of 2026-11-14: --activities, the tunnel's
-    and the addresses' went unsaid), and - this deck's build - whether that server has it, or why not,
-    and the game of the deck that the build would end (deck_notes)."""
+    and the addresses' went unsaid), an activity type that is not the default when none was given, and -
+    this deck's build - whether that server has it, or why not, and the game of the deck that the build
+    would end (deck_notes)."""
     notes = []
     mode = server_checks(args.port) if args.checks or args.workers or args.max_players else None
     if mode is not None and ((args.checks and args.checks != mode) or args.workers or args.max_players):
         notes.append(f"it checks with --checks {mode}: --checks, --workers and --max-players are for a server "
                      "that present starts")                 # (the package 4 review: they went unsaid)
-    running = (server_status(args.port) or {}).get("activities") if args.activities else None
-    if running and running != args.activities:
+    running = (server_status(args.port) or {}).get("activities")
+    if running and args.activities and running != args.activities:
         notes.append(f"it runs the activity type {running}: --activities {args.activities} is for a server that present "
                      "starts - stop the running server (Ctrl+C in its window), then present again")
+    elif running and not args.activities:                 # (package 14: one started before the core's became the
+        from texstage.server.types import DEFAULT          # default runs F1's - a lecturer would not see why)
+        if running != DEFAULT:
+            notes.append(f"it runs the activity type {running}, not the default, {DEFAULT} - for the default, stop the "
+                         "running server (Ctrl+C in its window), then present again")
     given = [flag for attr, flag in STARTING if getattr(args, attr, None)]
     if given:
         notes.append(f"{', '.join(given)}: for a server that present starts - the running one keeps its own")
@@ -950,16 +961,18 @@ def checks_options(parser: argparse.ArgumentParser, starting: str = "") -> None:
     """Who checks the live activities' texts, on serve - and on present, for the server it starts
     (docs/architecture/activity-framework-plan.md, 4.6 and 4.7)."""
     parser.add_argument("--checks", choices=["server", "browser", "both"], default=None,
-                        help=f"{starting}who checks the live activities' queries: the server's worker processes, the "
-                             "presenter window (default, as before), or both - the window's results count, and every "
-                             "difference goes to checks-compare.csv in the game's archive folder")
+                        help=f"{starting}with --activities f1, who checks the live activities' queries: the server's "
+                             "worker processes, the presenter window (its default), or both - the window's "
+                             "results count, and every difference goes to checks-compare.csv in the game's archive "
+                             "folder; the core's type always checks on the server")
     parser.add_argument("--workers", type=_positive,
                         help=f"{starting}the worker processes that check on the server (default: the cores less two)")
     parser.add_argument("--max-players", type=_positive, help=f"{starting}phones a game takes at most (default 1000)")
-    parser.add_argument("--activities", choices=["f1", "core"], default=None,
-                        help=f"{starting}the live activities' type: f1 (default, as the lectures have it) or core - the "
-                             "activity framework's, with its kinds, the server's checks, the new panel and phone screen "
-                             "(docs/architecture/activity-framework-plan-f2.md)")
+    parser.add_argument("--activities", choices=["core", "f1"], default=None,
+                        help=f"{starting}the live activities' type: core (default) - the activity framework's, with "
+                             "its kinds, the server's checks, the panel and the phone's step screen -, or f1, the type "
+                             "the lectures had before, kept until a class has used the core "
+                             "(docs/architecture/activity-framework-plan-f2.md, 4.12)")
 
 
 if __name__ == "__main__":

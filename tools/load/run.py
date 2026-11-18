@@ -8,13 +8,13 @@ running into their budget, while a presenter window's panel and the projector's 
 picture at every new version - and what matters from both: the phones' timings and the projector's updates
 against the budgets, the server's and its workers' CPU time and memory, the workers the pool ended.
 
-With --activities core the servers run the activity framework's core (F2's package 13,
+The servers run the activity framework's core, as texstage serve does by default (F2's packages 13 and 14,
 activity-framework-plan-f2.md, 4.12): the phones speak its messages, and load the kinds' files their welcome
-names besides the file of 273 KB.
+names besides the file of 273 KB. With --activities f1 they run F1's type, and the phones speak its messages.
 
 On one machine, the dry run:
 
-    python tools/load/run.py local <scratch> [part of a run's name] [--activities core]
+    python tools/load/run.py local <scratch> [part of a run's name] [--activities f1]
     python tools/load/run.py local <scratch> --tunnel NAME --port <the tunnel's port> --key <a key of your own>
 
 (the second: the phones go out through the Cloudflare tunnel and come back - its way, though still this
@@ -240,7 +240,7 @@ def table(results: list[dict]) -> str:
 
 
 # ------------------------------------------------------------------ the three ways to run
-def write(scratch: Path, side: str, results: list[dict], activities: str = "f1") -> Path:
+def write(scratch: Path, side: str, results: list[dict], activities: str = "core") -> Path:
     out = scratch / f"results-{side}.json"
     out.write_text(json.dumps({"cores": psutil.cpu_count(logical=False), "threads": psutil.cpu_count(),
                                "activities": activities, "runs": results}, indent=1) + "\n", encoding="utf-8")
@@ -335,8 +335,8 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--key", default=KEY, help="the presenter key of the runs' servers")
     ap.add_argument("--checks", default="server", choices=["server", "browser", "both"])
-    ap.add_argument("--activities", default="f1", choices=["f1", "core"],
-                    help="the servers' activity type: F1's (default, as texstage serve's), or the core's (F2)")
+    ap.add_argument("--activities", default="core", choices=["core", "f1"],
+                    help="the servers' activity type: the core's (default, as texstage serve's), or F1's")
     ap.add_argument("--workers", type=int)
     ap.add_argument("--url", help="phones: the laptop's server, ws://<laptop>:<port>/ws")
     ap.add_argument("--players", type=int, default=1100)

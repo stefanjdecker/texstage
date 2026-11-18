@@ -6,7 +6,9 @@ evaluation scripted -, a restarted server, the archive; and the whole over WebSo
 server's checks (checking.py; docs/architecture/activity-framework-plan.md, F1, 4.5 and 4.6) with a
 pool of one worker: the references as the game starts, the texts as they come, internal, a restart
 with texts waiting, the mode both writing down the differences, and over WebSockets the phones'
-verdicts without a presenter window that evaluates."""
+verdicts without a presenter window that evaluates. All of it F1's type, which a server runs with
+--activities f1 until a class has used the core (docs/architecture/activity-framework-plan-f2.md,
+package 14): these tests ask for it (f1s_type, and every server's config)."""
 from __future__ import annotations
 
 import concurrent.futures as cf
@@ -35,6 +37,7 @@ from texstage.server.game import Engine, GameError, Settings
 from texstage.server.store import Store
 
 sys.path.insert(0, str(Path(__file__).parent))           # the pool's workers import pool_engines (spawn: this path)
+from texstage.server import types as stage_types  # noqa: E402
 
 T0 = 1_800_000_000_000
 KEY = "presenter-secret"
@@ -44,6 +47,13 @@ SEED_NAME = f"data/{hashlib.sha256(SEED).hexdigest()[:16]}.ttl"
 REFERENCE = "SELECT ?n WHERE { ?p :name ?n }"
 RIGHT, WRONG = "SELECT ?n WHERE { ?p :name ?n }", "SELECT ?n WHER { ?p :name ?n }"
 K1 = "0123456789abcdef"
+
+
+@pytest.fixture(autouse=True)
+def f1s_type():
+    """F1's activity type for an engine a test makes itself (World), as a server started with --activities f1
+    has it (conftest.py puts the default back after each test)."""
+    stage_types.use("f1")
 
 
 def make_activity_bundle(folder: Path, crowd: dict | None = None, query: dict | None = None,
@@ -450,7 +460,7 @@ def test_activities_over_websockets(tmp_path):
     (tmp_path / "bundles" / "act.bundle" / sql_name).write_bytes(sql)
     (tmp_path / "bundles" / "act.bundle" / sql_name).with_suffix(".py").write_bytes(sql)    # ... and no engine's file
     config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
-                          presenter_key=KEY, settings=Settings(get_ready_ms=0))
+                          presenter_key=KEY, settings=Settings(get_ready_ms=0), activities="f1")
 
     def recv(ws, t=None, until=None):
         for _ in range(60):
@@ -616,7 +626,7 @@ def test_a_reference_that_fails_shows_as_the_game_starts_and_in_the_deck_list(tm
     with pytest.raises(GameError, match="no reference result yet"):
         w.stage("activity.reveal", activity="query")
     config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
-                          presenter_key=KEY, checks="server", workers=1, pool={"spare": False})
+                          presenter_key=KEY, checks="server", workers=1, pool={"spare": False}, activities="f1")
     with TestClient(create_app(config)) as client, client.websocket_connect("/ws") as st:
         st.send_json({"t": "hello", "role": "stage", "key": KEY, "deck": "act", "bundle": w.bid, "id": 1})
         assert receive(st)["t"] == "welcome"
@@ -685,7 +695,7 @@ def test_over_websockets_the_phones_get_their_verdicts_without_an_evaluating_win
     bid = make_activity_bundle(tmp_path / "bundles" / "act.bundle")
     config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
                           presenter_key=KEY, settings=Settings(get_ready_ms=0), checks="server", workers=1,
-                          pool={"spare": False})
+                          pool={"spare": False}, activities="f1")
 
     def recv(ws, t=None, until=None):
         for _ in range(200):
@@ -1064,7 +1074,7 @@ def test_the_server_wakes_itself_once_for_the_answers_to_apply_again(tmp_path):
     wake-up for when it is due, however many rounds come before (app.py: _checked, _again)."""
     make_activity_bundle(tmp_path / "bundles" / "act.bundle")
     config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
-                          presenter_key=KEY, checks="server", workers=1, pool={"spare": False})
+                          presenter_key=KEY, checks="server", workers=1, pool={"spare": False}, activities="f1")
     server = create_app(config).state.server
     calls = []
 
@@ -1268,7 +1278,7 @@ def test_the_server_resumes_the_checks_as_it_starts_whoever_checks(tmp_path, mon
     real = Engine.resume_checks
     monkeypatch.setattr(Engine, "resume_checks", lambda self, now: (seen.append(self.checks), real(self, now))[1])
     config = ServerConfig(bundles=[tmp_path / "bundles"], data_dir=tmp_path / "data", public_url="http://quiz.test",
-                          presenter_key=KEY)
+                          presenter_key=KEY, activities="f1")
     with TestClient(create_app(config)) as client:
         assert client.get("/api/status").json()["checks"] == "browser"
     assert seen == [None]
