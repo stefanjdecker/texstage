@@ -121,6 +121,17 @@ def status(base: str, timeout: float = 1.0) -> dict | None:
         return None
 
 
+ENDED = re.compile(r"checks: worker \S+ ended: (.*)")      # pool.py's line as it ends a worker (_died)
+
+
+def ended(log: str) -> list[str]:
+    """Why the pool ended each worker it ended, from the server's log. "cpu" and "clock" are its watchdog's: a
+    check over its first slice of CPU time runs again with its whole budget, one over the clock's backstop once
+    more, one over its whole budget is the text's timeout. Anything else is a fault: a process that died, did
+    not start or was not ready in time, took too much memory, or could not prepare."""
+    return ENDED.findall(log)
+
+
 # ------------------------------------------------------------------ the server's side
 class Server:
     """texstage serve --checks ..., with a fresh data folder; its tree's memory is sampled while it runs."""
@@ -185,8 +196,8 @@ class Server:
             time.sleep(1.0)
 
     def stop(self) -> dict:
-        """The server's and its workers' CPU time, their largest memory, the workers the pool ended - then
-        the end of them all."""
+        """The server's and its workers' CPU time, their largest memory, the workers the pool ended and why
+        (ended) - then the end of them all."""
         self.watching = False
         server, workers = self.tree()
         usage = dict(self.peak)
@@ -205,7 +216,8 @@ class Server:
             pass
         self.proc.wait(10)
         text = self.log.read_text(encoding="utf-8", errors="replace")
-        usage["workers_ended"] = len(re.findall(r"checks: worker \S+ ended", text))
+        usage["workers_ended_for"] = ended(text)
+        usage["workers_ended"] = len(usage["workers_ended_for"])
         usage["pool_broken"] = "no more are started" in text
         return usage
 

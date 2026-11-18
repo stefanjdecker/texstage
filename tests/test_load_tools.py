@@ -83,6 +83,21 @@ def test_the_runner_reads_the_simulators_lines_and_holds_them_against_the_budget
         "SPARQL, 3 % runaway", "SPARQL, 5 % runaway", "SPARQL, heavier seed, 1 %"]
 
 
+def test_the_runner_reads_why_the_pool_ended_its_workers():
+    """The server's log as pool.py writes it: why each worker ended - the watchdog's "cpu" and "clock" told apart
+    from a fault -, and no other line that names a worker."""
+    pytest.importorskip("psutil")
+    run = tool("run")
+    log = ("12:00:01 checks: worker 4242 ended: cpu\n"
+           "12:00:02 checks: worker 4243 is not in the job object\n"
+           "12:00:03 checks: worker 4244 ended: died (exit code 3)\n"
+           "12:00:04 checks: 3 processes in a row died before they were ready; no more are started\n")
+    assert run.ended(log) == ["cpu", "died (exit code 3)"]
+    assert run.ended("") == []
+    pool = (ROOT / "src" / "texstage" / "server" / "pool.py").read_text(encoding="utf-8")
+    assert 'logs.append(f"checks: worker {w.pid} ended: {why}")' in pool      # the line the runner reads
+
+
 def test_a_phone_of_the_simulator_loads_the_kinds_files_as_a_phone_does():
     """web/kinds.js: a kind's texts in the deck's language - else English - and its input module, then the rest of
     its phone's files but its texts; a file the kinds of one package share, once."""
@@ -188,4 +203,7 @@ def test_the_load_runs_play_on_a_server_of_the_cores_type(tmp_path):
     assert got["ack"][3] == 6 and got["checked"][3] == 6, out.stdout
     assert set(got["statuses"]) <= {"ok", "invalid"} and sum(got["statuses"].values()) == 6, out.stdout
     assert got["projector"][1] >= 1 and got["panel"][1] >= 1, out.stdout
-    assert not usage["pool_broken"] and usage["workers_ended"] == 0
+    # The watchdog ends a worker whose check runs over its first slice of CPU time, or over the clock's backstop,
+    # and the check runs again (pool.py) - a slow machine's way, no fault (CI's Linux job, 2026-11-18). Any other
+    # end is one.
+    assert not usage["pool_broken"] and set(usage["workers_ended_for"]) <= {"cpu", "clock"}, usage
