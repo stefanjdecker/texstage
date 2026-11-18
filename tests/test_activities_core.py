@@ -242,8 +242,15 @@ def test_a_server_that_starts_again_has_the_game_as_it_was(tmp_path):
         assert after["groups"] == before["groups"] and after["phase"] == "open"         # (it had no time: it stays open)
         p1.send_json({"t": "resume", "token": tokens[0], "id": "r"})
         recv(p1, "welcome")
-        assert recv(p1, "activity.step")["step"]["activity"] == "query"                 # what every phone has
-        mine = recv(p1, "state", until=lambda m: m.get("activity"))["activity"]["mine"]
+        # what every phone has (the step's cast) and the phone's own (its state), in either order: a server
+        # casts a step with its first pulse after the game's core is made, and a phone may come back before
+        # it (package 13's CI run: the state came first, and waiting for the cast had dropped it)
+        got = {}
+        while len(got) < 2:
+            m = recv(p1, until=lambda m: m["t"] == "activity.step" or (m["t"] == "state" and m.get("activity")))
+            got.setdefault(m["t"], m)
+        assert got["activity.step"]["step"]["activity"] == "query"
+        mine = got["state"]["activity"]["mine"]
         assert [(e["id"], e["status"]) for e in mine["entries"]] == [("ada-entry-0001", "ok")]
         # an entry of before the restart, sent again: the one that is there - no second one
         assert ask(p1, 3, "activity.enter", activity="query", entry="ada-entry-0001", text=RIGHT)["t"] == "ok"
