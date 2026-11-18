@@ -31,7 +31,8 @@ back, hidden, shown, checked - and looks for itself at what each is now; told tw
 twice. A reset gives the step a new epoch: nothing of the earlier one counts.
 
 The references' results come from the pool (refer; package 6 hands them over) and are kept in memory - a
-restarted server checks its references again. Unless a kind judges for itself, the core does (verdict;
+restarted server checks its references again, but for a stale game's, which judges by those its game kept
+(server/activities.py: REFERENCES; package 13). Unless a kind judges for itself, the core does (verdict;
 the design's 6.3): correct when a check's key is one of the references', else incorrect. What a kind's
 detail says of the reference - its comparison, under COMPARED - no projector has before the reveal.
 

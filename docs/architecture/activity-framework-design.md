@@ -906,9 +906,11 @@ over Wi-Fi measures the server and one link, not a hall's Wi-Fi with 1,000 radio
 lecture shows (F5).
 
 Measured so far: F0 on one machine, and F1 on a laptop with its phones simulated on it, alone and
-through its tunnel ([activity-framework-plan.md](activity-framework-plan.md), 4.9) - the phones from
-a second machine, over Wi-Fi, are still to come; the core's type with 1,000 phones is F2's package
-13 ([activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.12).
+through its tunnel ([activity-framework-plan.md](activity-framework-plan.md), 4.9); the core's type
+on that laptop, alone, beside F1's on the same day - every budget held, the projector's four updates a
+second by the core's only (F2's package 13,
+[activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.12). The phones from a second
+machine, over Wi-Fi, are still to come.
 
 ### 15.2 How the design keeps them
 

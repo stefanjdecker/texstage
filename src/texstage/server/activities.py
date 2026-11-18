@@ -29,6 +29,13 @@ entries then (the presenter's Activities button); a window that has another fetc
 {mine}), and the step's own part - the same for every phone - as a message of its own, serialized once:
 {"t": "activity.step", "step": {...} | null} (Book.casts; app.py sends it).
 
+The references' outcomes, which the pool gives when it prepares a deck, a game keeps in its stage too
+(REFERENCES: {activity: [{status, key} | null]}, in no window's view), as F1 kept its refs: a server that
+starts again prepares no stale game's deck - an earlier lecture's (game.py: resume_checks) -, and such a game
+judges by what it kept - its groups' marks, its phones' verdicts, its archive when it ends; a game moved from
+F1's tables by F1's refs, which stay in F1's part of the stage (package 13: the revealed query of a moved
+lecture lost its reference's mark, and its archive the verdicts).
+
 One activity has one step in F2 (`main`); steps are F3's.
 """
 from __future__ import annotations
@@ -45,7 +52,7 @@ from texstage.activities import registry
 from texstage.activities import store as core
 from texstage.activities.checks import Leave, Normalize, Run
 from texstage.activities.code import words
-from texstage.activities.kind import Message
+from texstage.activities.kind import FROM_F1, Message
 from texstage.activities.phases import MARKS
 from texstage.activities.phases import Refused as CoreRefused
 from texstage.activities.play import MOVES, Part, Play
@@ -59,6 +66,7 @@ log = logging.getLogger("texstage.activities")
 
 NAME = "activity"
 STATE = "activities"                # the type's part of a game's stage - not F1's "activity", which stays as F1 left it
+REFERENCES = "activities.references"    # ... and the references' outcomes it keeps, which no view has (above)
 MESSAGES = ("activity.open", "activity.close", "activity.pause", "activity.resume", "activity.reveal",
             "activity.reset", "activity.time", "activity.moderate", "activity.undo", "activity.view", "activity.layout")
 READS = ("activity.view",)
@@ -177,11 +185,32 @@ class Book:
     def _known(self, sid: str) -> None:
         """A game's core is made: the references of its deck that are known are its own at once - the pool
         prepared the deck when the game came, long before anybody touched an activity (the review: they
-        were given only to a game that had its core by then, and a deck's first game had no verdicts)."""
+        were given only to a game that had its core by then, and a deck's first game had no verdicts) -, and
+        those the pool has not given since the server started are the ones the game kept (kept)."""
         s = self.engine.sessions.get(sid) if self.engine is not None else None
+        if s is None:
+            return
+        given = set()
         for p in self.prepared.values():
-            if s is not None and p["bundle"] == s.bundle and p["outcomes"] is not None:
+            if p["bundle"] == s.bundle and p["outcomes"] is not None:
                 self.plays[sid].refer(p["aid"], p["outcomes"])
+                self._keep(s, p["aid"], p["outcomes"])
+                given.add(p["aid"])
+        for aid, outcomes in kept(s.stage).items():
+            if aid not in given:
+                self.plays[sid].refer(aid, outcomes)
+
+    def _keep(self, s, aid: str, outcomes) -> None:
+        """The pool's outcomes of an activity's references, kept with the game (REFERENCES) - saved at once
+        when they are new to it."""
+        mine = [{k: o[k] for k in ("status", "key") if o.get(k) is not None} if isinstance(o, dict) else None
+                for o in outcomes or ()]
+        had = s.stage.get(REFERENCES) if isinstance(s.stage.get(REFERENCES), dict) else {}
+        if had.get(aid) == mine:
+            return
+        s.stage = {**s.stage, REFERENCES: {**had, aid: mine}}
+        if self.engine is not None:
+            self.engine._save(s)
 
     def problems(self, bundle_id: str) -> dict[str, str]:
         """Why the pool cannot check an activity of the build: {activity: why} - it is broken, or the
@@ -349,10 +378,12 @@ class Book:
             except Exception as e:  # noqa: BLE001 - the seed does not load, no such kind: the windows say so
                 p["failed"] = str(e).split("\n")[0][:300] or type(e).__name__                    # (problems)
                 log.warning("activities: %s is not prepared: %s", item[1], p["failed"])
-            for s in self.engine.sessions.values():
+            for s in list(self.engine.sessions.values()):
                 if s.bundle != p["bundle"]:
                     continue
                 changed.add(s.id)                        # (its host view says what failed)
+                if p["outcomes"] is not None:            # kept with the game: for a restart that finds it stale
+                    self._keep(s, p["aid"], p["outcomes"])
                 if s.id in self.plays:                   # a game without a core yet gets them with it (_known)
                     self.plays[s.id].refer(p["aid"], p["outcomes"] or [])
                     self.engine._due(s.id, True)         # a verdict a phone may have now: after a reveal, or
@@ -379,6 +410,35 @@ class Book:
         s = self.engine.sessions.get(sid)
         part = self.parts.get((s.bundle, aid)) if s is not None else None
         return part.kind if part is not None else None
+
+
+def kept(stage: dict) -> dict[str, list]:
+    """The references' outcomes a game kept, by activity (REFERENCES) - and, for an activity of a game moved
+    from F1's tables that has not kept its own, F1's: the refs F1 kept in its part of the stage, each a key,
+    "!status: error" or None (not run), as outcomes."""
+    out = {}
+    state = stage.get(f1.NAME)
+    items = state.get("items") if isinstance(state, dict) else None
+    for aid, st in (items.items() if isinstance(items, dict) else ()):
+        refs = st.get("refs") if isinstance(st, dict) else None
+        if isinstance(aid, str) and isinstance(refs, list) and any(isinstance(r, str) and r for r in refs):
+            out[aid] = [_f1_ref(r) for r in refs]
+    own = stage.get(REFERENCES)
+    if isinstance(own, dict):
+        out |= {aid: [o if isinstance(o, dict) and isinstance(o.get("status"), str) else None for o in refs]
+                for aid, refs in own.items() if isinstance(aid, str) and isinstance(refs, list)}
+    return out
+
+
+def _f1_ref(ref) -> dict | None:
+    """One of F1's refs as a reference's outcome: its key - or its status, F1's word for a syntax error the
+    core's (kind.py: FROM_F1)."""
+    if not isinstance(ref, str) or not ref:
+        return None
+    if ref.startswith("!"):
+        status = ref[1:].split(":", 1)[0].strip()
+        return {"status": FROM_F1.get(status, status) or "internal"}
+    return {"status": "ok", "key": ref}
 
 
 MEMORY = {catalog["tooMuchMemory"] for catalog in TEXTS.values()}      # the pool's words for it, in every language

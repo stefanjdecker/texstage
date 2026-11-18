@@ -2,6 +2,18 @@
 
 ## Unreleased — 0.2.1.dev5 candidate
 
+- With `--activities core`, an earlier lecture's game keeps its references'
+  results through a restart of the server: the reference's group stays marked,
+  the phones keep their verdicts, and the lecture archive - written when the
+  next lecture opens the deck - has them. Before, a game idle for six hours or
+  more lost them when the server started again, since a starting server does
+  not prepare such a game's deck; a game moved from F1's tables takes the
+  results F1 kept.
+- The load runs (`tools/load/run.py`) and `tools/simulate.py` play a server of
+  the activity framework's type too (`--activities core`): the phones send its
+  entries and load the kinds' files their welcome names, and a projector's and
+  a presenter's window count the picture's updates a second against the
+  design's budget of four.
 - With `--activities core`, the presenter window says in words of its own what
   the activity framework refused a control or an act for, in the deck's
   language - an activity that is revealed and has to be reset first, a merge

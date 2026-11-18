@@ -7,9 +7,9 @@ laptop: it takes for granted what the plan of F0 and F1
 ([activity-framework-plan.md](activity-framework-plan.md), here **P1**) delivers, and changes where
 F1 or F0's report ([activity-framework-f0.md](activity-framework-f0.md)) say otherwise. Packages 1
 to 12 are built (2026-11-10 to 2026-11-17 - on `f2-core` until package 9, on `main` since -, ahead
-of F1's last packages; 4.12 says where it stands): the core's type runs beside F1's, which a server
-runs unless it is told otherwise (4.3). File references are to `src/texstage/` unless they name
-another folder.
+of F1's last packages; 4.12 says where it stands), and package 13 but for its run on the presentation
+laptop (2026-11-18): the core's type runs beside F1's, which a server runs unless it is told otherwise
+(4.3). File references are to `src/texstage/` unless they name another folder.
 
 ## 1. In short
 
@@ -553,7 +553,9 @@ The third part, as built (package 5: `activities/reduce.py`, `views.py`, `modera
 - **A step's setup** (`Setup.of`) reads the item's `min` and `review` for a crowd graph and its
   `options` for a tally only: with another reduction these names are the kind's own.
 - **The references:** the pool's results of them are handed to the core (`refer`; package 6) and kept
-  in memory - a restarted server checks its references again. A check's verdict is the kind's own;
+  in memory - a restarted server checks its references again -, and with the game, in its stage
+  (`activities.references`, package 13): a server that starts prepares no stale game's deck, and such a
+  game judges by those it kept - one moved from F1's tables by F1's. A check's verdict is the kind's own;
   else the core's, by the references' keys; none while no reference has a result, and never for an
   `internal` check. The panel has the references' groups at once, the projector at the reveal; with
   `solution=show` both pictures then have the references' texts and details, with `mark` neither.
@@ -1448,9 +1450,12 @@ does not see what F2 stored (3).
   policy.
 - **The kinds:** both packages' tests and kits in CI.
 - **The lectures:** the KG lecture's decks built with lecture-tools after it has taken F2, their
-  groups compared with F1's (package 13).
+  groups compared with F1's (package 13). Compared on 2026-11-18, the lecture's entries and made-up
+  ones sent to a server of each type: the groups are F1's; what differs is as designed, and one
+  fault - a stale game's references after a restart - is fixed (4.12).
 - **The load:** F0's runs on F2, on the presentation laptop with the phones from a second machine
-  (package 13).
+  (package 13). The runs play the core's type since (`--activities core`); rehearsed on the
+  development machine with its phones on it, within the budgets (4.12); the laptop's run is to come.
 
 ### 4.12 The work, in order
 
@@ -1554,6 +1559,52 @@ and the manual has a page on running an activity with the core - its panel, its 
 the keys on the shortcut card, activities in the participant's reference and in troubleshooting,
 and where an SQL submission runs, in the browser or on the server.
 
+**Package 13** is half done (2026-11-18, on `main`): the groups are compared, the load is rehearsed on
+the development machine, and its run on the presentation laptop is the lecturer's to arrange. **The
+groups,** in the lecture's environment: the KG decks of chapters 2, 3 and 5 built with lecture-tools
+0.1.0.dev6 and texstage 0.2.1.dev5 as KG pins them, and their servers from KG's own environment. The
+lecture's entries - from a copy of the lecturer's data folder: the crowd graph of chapter 2 in two games
+of 2026-10-20, 85 and 43 entries of 29 and 14 students, with the lecturer's merges; the queries of
+chapters 3 and 5 only tried, 2 and 1 entries - and made-up ones that probe what normalizing could change
+(55 SPARQL and 47 Turtle texts: comments, a `#` in an IRI or a string, prefixes declared again, a
+phone's quotes, case and spaces, the usual mistakes; 82 and 112 triples, some in other spellings), sent
+as phones send them to a server of each type, the lecturer's acts after them. **The groups are F1's:**
+the same nodes, edges, terms and counts in every crowd graph, its archived picture the same file; the
+same groups, statuses, counts, order and reference marks in every query and Turtle activity; F1's
+pictures of the stored games, the core's once it has moved them, and those the lectures archived alike.
+What differs is as designed: a group is shown by the form most of its entries normalize to, without
+comments (F1: its earliest text as typed); after the reveal a text that is no result is incorrect (F1:
+no verdict); the same triple in another spelling is a student's entry again (F1: sent already - the
+graph counts students, and is the same); a phone's list and the archive have an entry as it was sent
+(F1: as cleaned). **One fault:** a game that is stale when a server starts - an earlier lecture's, left
+open - had none of its references' results: the core kept them in memory only, and a starting server
+prepares no stale game's deck (P1 4.5: `Engine.resume_checks`) - its reference's group was unmarked, its
+phones had no verdicts, and its archive, written when the next lecture opens the deck, none either. F1
+kept them in the game's stage, and so does the core now (`activities.references`, in no window's view);
+a game moved from F1's tables takes F1's. **The load:** `tools/simulate.py` and `tools/load/run.py` play
+the core's type (`--activities core`) - its messages; the kinds' files the welcome names, beside the
+file of 273 KB; a projector's and a presenter's window that fetch the picture at every version they are
+told, counted against the four updates a second -, and a file a phone cannot load counts as failed, not
+as loaded. F0's ten runs on the development machine (8 cores; the server, its workers and the 1,100
+phones on it, joining within 30 s; the lecture's SPARQL and Turtle activities), on the core's type and,
+the same day, on F1's, in ms:
+
+| runs | acknowledged, 95 % | verdicts, 95 %: 0 and 1 % runaway / 3 % / 5 % (the others' at 3 and 5 %) | open, closed on every phone | the projector's updates a second |
+|---|---|---|---|---|
+| the core's | 63 to 64 | 11 to 20, once 183 / 1,288 / 1,937 (1,190, 1,598) | 220 to 255, 208 to 286 | at most 4 |
+| F1's | 12 to 18 | 14 to 22, once 226 / 1,000 / 1,905 (887, 1,292) | 172 to 205, 149 to 194 | 5, once 6 |
+
+Every budget held in every run of the core's - the files on 95 % of the phones within 19 ms, the server
+at 422 to 434 MB and 11 to 13 s of CPU time, a worker at most 67 MB, no pool broken -, and F1's but for
+the projector's four updates a second, which F1 was not built to. The core acknowledges an entry once it
+is stored (every 50 ms, AF 10.2), F1 at once; its phases reach the phones 50 to 90 ms later, its other
+texts' verdicts at 3 and 5 % a quarter to a third later, and its server takes some 45 MB more. One
+machine says what the session has to look at, not what it will find (P1 4.9's dry run): the **run on the
+presentation laptop** is still to come - P1's session of package 6 (its steps 1 to 6) with `--activities
+core` on both sides: the laptop's `run.py server`, the presenter window as `/stage?timing` - a slide
+change under 100 ms throughout is its console's to say - and PowerPoint or the projector window; the
+phones' `run.py phones` from a second machine over the room's Wi-Fi, and once through the tunnel.
+
 ### 4.13 Risks
 
 | risk | what then |
@@ -1562,7 +1613,7 @@ and where an SQL submission runs, in the browser or on the server.
 | the contract changes as it is cut | it is API 0 (AF 2); the four kinds come first, and their fixtures show what each change breaks |
 | a decision of 2.4 changes later | 2.4's table says what follows; short checks first is measured before it stays (4.6) |
 | lecture-tools has drifted from texstage-public (47 files on 2026-11-09) | taking F2 is a package of its own (11), and F1's lecture brings it nearer first |
-| the groups differ from F1's | normalizing merges only checks, not groups; package 13 compares them in the lecture's environment |
+| the groups differ from F1's | normalizing merges only checks, not groups; package 13 compares them in the lecture's environment - done 2026-11-18: the same groups, a stale game's references after a restart fixed (4.12) |
 | a name in a comment reaches the class | the kinds' normalize takes comments out since 2026-11-12 (4.7); a comment that only may be one stays - SPARQL's `<`, an IRI's start or the comparison -, and so does a name in a string |
 | the pages' policy breaks the add-in or KaTeX | a policy per page, tried in PowerPoint and Chromium (package 10) |
 | separate packages make installing harder (decided, AF 2) | locks for their dependencies, one command for development, the image and CI install both |

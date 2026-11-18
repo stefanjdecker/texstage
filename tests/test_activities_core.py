@@ -28,7 +28,7 @@ for src in sorted(KINDS.glob("*/src")):
     if str(src) not in sys.path:
         sys.path.insert(0, str(src))
 
-from test_activity import KEY, RIGHT, WRONG, World, make_activity_bundle, receive  # noqa: E402
+from test_activity import K1, KEY, RIGHT, WRONG, World, make_activity_bundle, receive  # noqa: E402
 
 from texstage.activities import registry  # noqa: E402
 from texstage.activities.store import gid  # noqa: E402
@@ -434,6 +434,90 @@ def test_a_decks_references_are_a_games_whenever_they_come(tmp_path):
     pool.answer("prepare", [], "crowd")
     assert w.engine.apply_checks(w.now) == {w.s.id, other.id} and w.engine.take_due() == {w.s.id: True, other.id: True}
     w.engine.store.close()
+
+
+def restarted_stale(tmp_path, w) -> tuple[Engine, FakeChecks, int]:
+    """The server starts again with the core's type, hours after the game was last touched: it is stale, and
+    a starting server prepares no stale game's deck (game.py: resume_checks)."""
+    writer = getattr(w.engine.books["activity"], "writer", None)      # (F1's type has none)
+    if writer is not None:                                  # (the core's rows, as a server that stops writes them)
+        writer.flush()
+    w.engine.store.close()
+    stage_types.use("core")
+    checks = FakeChecks()
+    engine = Engine(BundleStore([tmp_path / "bundles"]), Store(tmp_path / "store.sqlite3"), Settings(), checks=checks)
+    later = w.now + engine.settings.stale_ms + 60_000
+    engine.resume_checks(later)
+    assert checks.pool.count("prepare") == 0
+    return engine, checks, later
+
+
+def judged(engine: Engine, sid: str, now: int) -> tuple[list, list, list]:
+    """A query's groups in the panel (status, reference, verdict), the panel's references, the archive's verdicts."""
+    pic = engine.type_message(sid, "activity.view", {"activity": "query"}, now, role="stage")["picture"]
+    s = engine.sessions[sid]
+    csv = activities.archive(engine._call(s, activities, now))["activity-query.csv"]
+    return ([(g["status"], g["reference"], g.get("verdict")) for g in pic["groups"]], pic["references"],
+            [row.rsplit(",", 1)[-1] for row in csv.lstrip(chr(0xFEFF)).splitlines()[1:]])
+
+
+def test_a_stale_game_judges_by_the_references_it_kept(tmp_path):
+    """The references' outcomes are the pool's, in memory - and the game's, in its stage (REFERENCES, in no
+    window's view): a stale game - an earlier lecture's, whose archive is written when the next lecture opens
+    the deck - judges by what it kept after a restart: its groups marked, its phones' verdicts, its archive's
+    (package 13: they were gone)."""
+    w, pool, book = core_world(tmp_path)
+    ada, bea = w.join("Ada", "Bea")
+    pool.answer("prepare", [OK1], "query")
+    pool.answer("prepare", [], "crowd")
+    w.engine.apply_checks(w.now)
+    assert w.engine.sessions[w.s.id].stage[activities.REFERENCES] == {"query": [{"status": "ok", "key": "k1"}],
+                                                                      "crowd": []}
+    w.show(259)
+    for pid, n, text, outcome in ((ada, 1, RIGHT, {"status": "ok", "key": "k1"}), (bea, 2, WRONG, {"status": "invalid"})):
+        enter(w, pid, n, text=text)
+        pool.answer("normalize", {"input": {"text": text}})
+        w.engine.apply_checks(w.now)
+        pool.answer("submit", outcome)
+        w.engine.apply_checks(w.now)
+    w.stage("activity.reveal", activity="query")
+    before = judged(w.engine, w.s.id, w.now)
+    assert before == ([("ok", True, "correct"), ("invalid", False, "incorrect")], [{"group": gid("ok", "k1")}],
+                      ["correct", "incorrect"])
+    seen = json.dumps(w.engine._stage_view(w.engine.sessions[w.s.id]))           # what every window has of the stage
+    assert activities.REFERENCES not in seen and "k1" not in seen
+    engine, checks, later = restarted_stale(tmp_path, w)
+    assert judged(engine, w.s.id, later) == before
+    assert engine.player_view(ada, later)["activity"]["mine"]["entries"][0]["verdict"] == "correct"
+    # the deck prepared again - the game opened, say -: the pool's outcomes come first, and are kept
+    engine.books["activity"].prepare(engine.bundles.get(w.bid))
+    checks.pool.answer("prepare", [{"status": "ok", "key": "k2"}], "query")
+    engine.apply_checks(later)
+    assert judged(engine, w.s.id, later)[0] == [("ok", False, "incorrect"), ("invalid", False, "incorrect")]
+    assert engine.sessions[w.s.id].stage[activities.REFERENCES]["query"] == [{"status": "ok", "key": "k2"}]
+    engine.store.close()
+
+
+def test_a_game_moved_from_f1_judges_by_the_references_f1_kept(tmp_path):
+    """F1 kept a query's reference results in its state, which stays in the game's stage when the game moves:
+    a moved game that is stale - its deck not prepared again - judges by them (package 13: the revealed query
+    of a lecture moved from F1 lost its reference's mark)."""
+    w = World(tmp_path)                                      # F1's type, the presenter window checking
+    ada, bea = w.join("Ada", "Bea")
+    w.show(259)
+    w.send(ada, "query", text=RIGHT)
+    w.send(bea, "query", text=WRONG)
+    job = {j["text"]: j["input"] for j in w.stage("activity.work")["jobs"]}
+    w.stage("activity.result", activity="query", input=job[RIGHT], status="ok", key=K1)
+    w.stage("activity.result", activity="query", input=job[WRONG], status="syntax", error="1:10: expected WHERE")
+    w.stage("activity.result", activity="query", reference=0, status="ok", key=K1)
+    w.stage("activity.reveal", activity="query")
+    engine, checks, later = restarted_stale(tmp_path, w)
+    assert judged(engine, w.s.id, later) == ([("ok", True, "correct"), ("invalid", False, "incorrect")],
+                                             [{"group": gid("ok", K1)}], ["correct", "incorrect"])
+    assert activities.kept({"activity": {"items": {"query": {"refs": [K1, "!syntax: at 1", None]}}}}) == {
+        "query": [{"status": "ok", "key": K1}, {"status": "invalid"}, None]}
+    engine.store.close()
 
 
 def test_a_refused_message_that_found_a_step_changed_tells_the_windows_and_the_phones(tmp_path):

@@ -4,12 +4,17 @@
 activity-framework-design.md, 15.1): for each run a fresh server that checks the texts itself (--checks
 server) with a fresh data folder, then tools/simulate.py - 1,100 phones joining, each loading a file of
 273 KB, then a burst of 1,000 entries within 10 s, most in the last seconds, 30 % of them distinct, some
-running into their budget - and what matters from both: the phones' timings against the budgets, the
-server's and its workers' CPU time and memory, the workers the pool ended.
+running into their budget, while a presenter window's panel and the projector's box fetch the activity's
+picture at every new version - and what matters from both: the phones' timings and the projector's updates
+against the budgets, the server's and its workers' CPU time and memory, the workers the pool ended.
+
+With --activities core the servers run the activity framework's core (F2's package 13,
+activity-framework-plan-f2.md, 4.12): the phones speak its messages, and load the kinds' files their welcome
+names besides the file of 273 KB.
 
 On one machine, the dry run:
 
-    python tools/load/run.py local <scratch> [part of a run's name]
+    python tools/load/run.py local <scratch> [part of a run's name] [--activities core]
     python tools/load/run.py local <scratch> --tunnel NAME --port <the tunnel's port> --key <a key of your own>
 
 (the second: the phones go out through the Cloudflare tunnel and come back - its way, though still this
@@ -17,14 +22,18 @@ machine's phones; the servers are on the internet meanwhile, hence a key that is
 
 For the session - the server on the presentation laptop, with the presenter window and PowerPoint or the
 projector window open, the phones from a second machine, once over the room's Wi-Fi, once through the
-tunnel - the same runs in the same order on both, with the same part of a name, if any:
+tunnel - the same runs in the same order on both, with the same part of a name, if any, and the same
+--activities:
 
     python tools/load/run.py server <scratch> [part] [-- more of texstage serve's options, e.g. --tunnel NAME]
     python tools/load/run.py phones <scratch> --url ws://<laptop>:8471/ws [part]      (or wss://<tunnel>/ws)
 
 The laptop's side starts a server per run and waits for Enter, pressed when the phones' side says the run
 is done; the phones' side waits for each new server by itself. Each side writes results-<side>.json to
-its scratch folder, and the phones' side prints the table with the budgets.
+its scratch folder, and the phones' side prints the table with the budgets. One budget is the laptop's own
+to measure: a slide change in the presenter window, under 100 ms throughout - open it as /stage?timing,
+and its console says each change's time. The projector's updates are counted on the phones' side, by a
+projector's connection of its own.
 
 The scratch folder gets the bundle (bundle.py), a data folder per run and the logs. From F0's
 tools/spike/run_q7.py (branch f0-spike), which ran the spike's pool.
@@ -71,15 +80,18 @@ LINES = {
                 r"\((\d+)\)", int),
     "others": (r"^\.\.\. of the texts that do not run into their budget: median (\d+) ms, 95 % (\d+) ms, "
                r"max (\d+) ms \((\d+)\)", int),
+    "projector": (r"^projector: the picture changed at most (\d+) times in a second \((\d+) versions", int),
+    "panel": (r"^panel: the picture changed at most (\d+) times in a second \((\d+) versions", int),
 }
-# the design's budgets (AF 15.1), in ms: what of a run is held against which
-BUDGETS = {"an entry acknowledged (95 %)": (lambda r: r.get("ack", [0, None])[1], 500),
-           "its verdict (95 %)": (lambda r: r.get("checked", [0, None])[1], 3000),
+# the design's budgets (AF 15.1): what of a run is held against which, at most how much of what
+BUDGETS = {"an entry acknowledged (95 %)": (lambda r: r.get("ack", [0, None])[1], 500, "ms"),
+           "its verdict (95 %)": (lambda r: r.get("checked", [0, None])[1], 3000, "ms"),
            "... of the texts that do not run into their budget (95 %)":
-               (lambda r: r.get("others", r.get("checked", [0, None]))[1], 3000),
-           "the activity open on every phone": (lambda r: r.get("open", [0, None])[1], 500),
-           "... and closed": (lambda r: r.get("close", [0, None])[1], 500),
-           "the file on a phone (95 %)": (lambda r: r.get("fetch", [0] * 5)[4] if r.get("fetch") else None, 30_000)}
+               (lambda r: r.get("others", r.get("checked", [0, None]))[1], 3000, "ms"),
+           "the activity open on every phone": (lambda r: r.get("open", [0, None])[1], 500, "ms"),
+           "... and closed": (lambda r: r.get("close", [0, None])[1], 500, "ms"),
+           "the files on a phone (95 %)": (lambda r: r.get("fetch", [0] * 5)[4] if r.get("fetch") else None, 30_000, "ms"),
+           "the projector's picture": (lambda r: r.get("projector", [None])[0], 4, "updates in a second")}
 
 
 def parse(out: str) -> dict:
@@ -116,7 +128,7 @@ class Server:
     def __init__(self, bundles: Path, data: Path, log: Path, args, local: bool):
         cmd = [PY, "-c", "import sys; from texstage.cli import main; sys.exit(main(sys.argv[1:]))",
                "serve", str(bundles), "--port", str(args.port), "--data", str(data), "--key", args.key,
-               "--max-players", "1200", "--checks", args.checks, *args.more]
+               "--max-players", "1200", "--checks", args.checks, "--activities", args.activities, *args.more]
         if args.tunnel:
             cmd += ["--tunnel", args.tunnel]
         elif local:
@@ -212,31 +224,32 @@ def phones(bundle: Path, args, activity: str, runaway: float, n: int, log: Path,
 
 def table(results: list[dict]) -> str:
     out = [f"{'run':30} {'ack 95 %':>9} {'verdict 95 %':>13} {'max':>7} {'others 95 %':>12} {'max':>7} {'open':>6} "
-           f"{'close':>6} {'file 95 %':>10}  statuses"]
+           f"{'close':>6} {'files 95 %':>10} {'proj/s':>6}  statuses"]
     for r in results:
         f = r.get("fetch") or [0] * 6
         out.append(f"{r['run'] + ' #' + str(r['repetition']):30} {r.get('ack', [0, 0])[1]:>9} "
                    f"{r.get('checked', [0, 0])[1]:>13} {r.get('checked', [0, 0, 0])[2]:>7} "
                    f"{r.get('others', ['', ''])[1]:>12} {r.get('others', ['', '', ''])[2]:>7} {r.get('open', [0, 0])[1]:>6} "
-                   f"{r.get('close', [0, 0])[1]:>6} {f[4]:>10}  {r.get('statuses')}")
+                   f"{r.get('close', [0, 0])[1]:>6} {f[4]:>10} {r.get('projector', [''])[0]:>6}  {r.get('statuses')}")
     out.append("")
-    for what, (value, budget) in BUDGETS.items():
-        over = [f"{r['run']} #{r['repetition']}: {value(r)} ms" for r in results
+    for what, (value, budget, unit) in BUDGETS.items():
+        over = [f"{r['run']} #{r['repetition']}: {value(r)} {unit}" for r in results
                 if value(r) is None or value(r) > budget]
-        out.append(f"{what}, at most {budget} ms: " + ("held in every run" if not over else "NOT in " + "; ".join(over)))
+        out.append(f"{what}, at most {budget} {unit}: " + ("held in every run" if not over else "NOT in " + "; ".join(over)))
     return "\n".join(out)
 
 
 # ------------------------------------------------------------------ the three ways to run
-def write(scratch: Path, side: str, results: list[dict]) -> Path:
+def write(scratch: Path, side: str, results: list[dict], activities: str = "f1") -> Path:
     out = scratch / f"results-{side}.json"
     out.write_text(json.dumps({"cores": psutil.cpu_count(logical=False), "threads": psutil.cpu_count(),
-                               "runs": results}, indent=1) + "\n", encoding="utf-8")
+                               "activities": activities, "runs": results}, indent=1) + "\n", encoding="utf-8")
     return out
 
 
-def bundle(scratch: Path, stand_ins: bool) -> Path:
-    cmd = [PY, "-I", str(HERE / "bundle.py"), str(scratch / "bundles")] + (["--stand-ins"] if stand_ins else [])
+def bundle(scratch: Path, stand_ins: bool, lecture: Path | None = None) -> Path:
+    cmd = [PY, "-I", str(HERE / "bundle.py"), str(scratch / "bundles")] + (["--stand-ins"] if stand_ins else []) \
+        + (["--lecture", str(lecture)] if lecture and not stand_ins else [])
     subprocess.run(cmd, check=True)
     return scratch / "bundles" / "load.bundle"
 
@@ -256,7 +269,7 @@ def through_tunnel(server: Server, timeout: float = 90.0) -> str:
 
 
 def local(args) -> int:
-    path, results = bundle(args.scratch, args.stand_ins), []
+    path, results = bundle(args.scratch, args.stand_ins, args.lecture), []
     args.url = f"ws://127.0.0.1:{args.port}/ws"
     for n, (name, activity, runaway, i) in enumerate(runs(args.part), 1):
         server = Server(args.scratch / "bundles", args.scratch / f"data-{n}", args.scratch / f"server-{n}.log", args, True)
@@ -267,12 +280,12 @@ def local(args) -> int:
             usage = server.stop()
         results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **run, **usage})
         print(json.dumps(results[-1]), flush=True)
-    print("\n" + table(results) + f"\n\n{write(args.scratch, 'local', results)}")
+    print("\n" + table(results) + f"\n\n{write(args.scratch, 'local', results, args.activities)}")
     return 0
 
 
 def serve(args) -> int:
-    bundle(args.scratch, args.stand_ins)
+    bundle(args.scratch, args.stand_ins, args.lecture)
     todo, results = runs(args.part), []
     for n, (name, activity, runaway, i) in enumerate(todo, 1):
         server = Server(args.scratch / "bundles", args.scratch / f"data-{n}", args.scratch / f"server-{n}.log", args, False)
@@ -283,12 +296,12 @@ def serve(args) -> int:
             usage = server.stop()
         results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **usage})
         print(json.dumps(results[-1]), flush=True)
-    print(f"\n{write(args.scratch, 'server', results)}")
+    print(f"\n{write(args.scratch, 'server', results, args.activities)}")
     return 0
 
 
 def call(args) -> int:
-    path, results, seen = bundle(args.scratch, args.stand_ins), [], set()
+    path, results, seen = bundle(args.scratch, args.stand_ins, args.lecture), [], set()
     u = urllib.parse.urlsplit(args.url)
     base = f"{'https' if u.scheme == 'wss' else 'http'}://{u.netloc}"
     todo = runs(args.part)
@@ -302,10 +315,12 @@ def call(args) -> int:
             time.sleep(1.0)
         if s.get("checks") != "server":
             print(f"  (that server checks with --checks {s.get('checks')})")
+        if s.get("activities", "f1") != args.activities:
+            print(f"  (that server runs the activity type {s.get('activities', 'f1')}, not --activities {args.activities})")
         run = phones(path, args, activity, runaway, n, args.scratch / f"simulate-{n}.log", args.more)
         results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **run})
         print(json.dumps(results[-1]) + "\n  this run is done: Enter on the laptop", flush=True)
-    print("\n" + table(results) + f"\n\n{write(args.scratch, 'phones', results)}")
+    print("\n" + table(results) + f"\n\n{write(args.scratch, 'phones', results, args.activities)}")
     return 0
 
 
@@ -320,6 +335,8 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--key", default=KEY, help="the presenter key of the runs' servers")
     ap.add_argument("--checks", default="server", choices=["server", "browser", "both"])
+    ap.add_argument("--activities", default="f1", choices=["f1", "core"],
+                    help="the servers' activity type: F1's (default, as texstage serve's), or the core's (F2)")
     ap.add_argument("--workers", type=int)
     ap.add_argument("--url", help="phones: the laptop's server, ws://<laptop>:<port>/ws")
     ap.add_argument("--players", type=int, default=1100)
@@ -327,6 +344,8 @@ def main() -> int:
     ap.add_argument("--join-within", type=float, default=30.0, help="seconds in which the phones join (the plan: 120)")
     ap.add_argument("--no-fetch", action="store_true", help="the phones load no file as they join")
     ap.add_argument("--stand-ins", action="store_true", help="the bundle's stand-ins, not the lecture's activities")
+    ap.add_argument("--lecture", type=Path, help="the KG lecture's folder, for its SPARQL and Turtle activities "
+                                                 "(default: KnowlegeGraph-VL beside this repository, where it is)")
     ap.add_argument("--tunnel", metavar="NAME", help="local, server: the servers run this Cloudflare tunnel (on the "
                                                      "port its rules name); local: the phones come through it")
     args = ap.parse_args(argv)
