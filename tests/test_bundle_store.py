@@ -128,6 +128,52 @@ def test_the_build_writes_its_time_beside_deck_json_and_into_its_zip(tmp_path):
     assert not (tmp_path / "e.bundle" / BUILT).exists()
 
 
+def test_the_build_records_what_it_warned_of_beside_its_time(tmp_path):
+    """built.json holds what the build warned of besides its time (since 2026-11-19), which texstage present says
+    again (cli.warned); a build without warnings writes its time alone, as before, and a record that cannot be
+    read says nothing."""
+    deck, keys = {"format": 2, "deck": "d"}, {"format": 2}
+    said = ["the slides (d-present.pdf): 1 reference undefined, ?? on the pages: sec:gone", "video v: 120 MB"]
+    build_bundle.write_bundle(tmp_path / "d.bundle", deck, keys, {}, built=1234, warnings=said)
+    assert json.loads((tmp_path / "d.bundle" / BUILT).read_text(encoding="utf-8")) == {"built": 1234, "warnings": said}
+    build_bundle.write_zip(tmp_path / "d.bundle.zip", deck, keys, {}, built=1234, warnings=said)
+    assert json.loads(zipfile.ZipFile(tmp_path / "d.bundle.zip").read(BUILT)) == {"built": 1234, "warnings": said}
+    assert build_bundle.build_warnings(tmp_path / "d.bundle") == said
+    build_bundle.write_bundle(tmp_path / "e.bundle", deck, keys, {}, built=1234, warnings=[])
+    assert (tmp_path / "e.bundle" / BUILT).read_text(encoding="utf-8") == '{"built": 1234}\n'      # the same file
+    build_bundle.write_zip(tmp_path / "e.bundle.zip", deck, keys, {}, built=1234)
+    assert zipfile.ZipFile(tmp_path / "e.bundle.zip").read(BUILT) == b'{"built": 1234}\n'
+    assert build_bundle.build_warnings(tmp_path / "e.bundle") == []
+    assert build_bundle.build_warnings(tmp_path / "nowhere") == []
+    for text, read in (("not JSON", []), ("[1, 2]", []), ('{"warnings": "one"}', []),
+                       ('{"built": 1, "warnings": [1, "two", null]}', ["two"]),
+                       ('{"warnings": ["\\u001b[2Jcleared\\nnext\\u0007 \\u00fcber"]}', [" [2Jcleared next  \u00fcber"])):
+        (tmp_path / "e.bundle" / BUILT).write_text(text, encoding="utf-8")
+        assert build_bundle.build_warnings(tmp_path / "e.bundle") == read, text
+
+
+def test_a_server_takes_a_build_with_its_warnings_and_its_copies_keep_them(tmp_path):
+    """A server reads built.json's time alone: a build whose record holds its warnings too is taken as before -
+    dated by its time, uploaded (built.json is a bundle file, whatever it holds) -, and its copies keep the
+    record whole, as a download does. So the servers of 0.2.1.dev7 take such builds as they are."""
+    b0 = make_bundle(tmp_path / "bundles" / "w", deck="week", title="Warned")
+    record = {"built": 1_700_000_600_000, "warnings": ["the slides (w-present.pdf): 1 reference undefined, ?? on "
+                                                       "the pages: sl:intro:goals"]}
+    (b0.path / BUILT).write_text(json.dumps(record), encoding="utf-8")
+    assert load_bundle(b0.path).built == 1_700_000_600_000
+    (b,), _ = find_bundles([b0.path])
+    assert json.loads(zipfile.ZipFile(BytesIO(pack(b))).read(BUILT)) == record          # texstage publish sends it
+    with TestClient(create_app(config(tmp_path / "other"))) as client:
+        assert client.put(f"/api/bundles/{b.id}", content=pack(b), headers=HOST).status_code == 201
+        (deck,) = client.get("/api/decks", headers=HOST).json()
+        assert (deck["bundle"], deck["built"]) == (b.id, 1_700_000_600_000)
+        packed = client.get(f"/api/bundles/{b.id}.zip", headers=HOST).content
+    assert json.loads(zipfile.ZipFile(BytesIO(packed)).read(BUILT)) == record
+    (copy,) = (tmp_path / "other").rglob(f"{b.id}/{BUILT}")                              # the upload, kept whole
+    assert json.loads(copy.read_text(encoding="utf-8")) == record
+    assert build_bundle.build_warnings(copy.parent) == record["warnings"]
+
+
 def test_a_folder_that_could_not_be_read_is_read_again_at_the_next_look(tmp_path, monkeypatch):
     """A deck.json held open a moment (a sync tool, a virus scanner) made its folder skipped - and the record kept it
     so until its files changed (the review of 2026-11-17, F1): a failed read is read again at every look."""

@@ -89,13 +89,38 @@ def bundle_id(deck: dict, keys: dict) -> str:
     return hashlib.sha256(blob).hexdigest()[:16]
 
 
-BUILT = "built.json"            # when the build was made, {"built": ms} - beside deck.json, no part of its ID
+BUILT = "built.json"            # the build's own record beside deck.json, no part of its ID: built_record
 
 
-def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None):
+def built_record(built: int, warnings: list[str] | None = None) -> str:
+    """built.json: when the build was made, {"built": ms} (a server takes it for the build's time:
+    server/bundles.py, built_time), and what the build warned of, "warnings" - references pdflatex left
+    undefined (?? on the pages), a pass it left unsettled, a video PowerPoint does not play... -, which
+    texstage present says again when it presents the build (build_warnings): a lecturer who had not read
+    the build's output presented them unwarned until 2026-11-19. A build without warnings writes the time
+    alone, as before; servers read "built" only."""
+    return json.dumps({"built": built, **({"warnings": list(warnings)} if warnings else {})}) + "\n"
+
+
+def build_warnings(folder: Path) -> list[str]:
+    """What the build in this folder warned of when it was made (its built.json's "warnings"): [] for one
+    that warned of nothing, one made before the record, or one whose record cannot be read. Each a line for
+    a terminal - control characters as spaces: the folder may be a server's copy of another lecturer's
+    upload, whose record that lecturer wrote (an escape sequence would reach the terminal)."""
+    try:
+        said = json.loads((folder / BUILT).read_text(encoding="utf-8")).get("warnings", [])
+    except (OSError, ValueError, AttributeError):          # (none, not JSON, not an object)
+        return []
+    if not isinstance(said, list):
+        return []
+    return ["".join(c if c.isprintable() else " " for c in w) for w in said if isinstance(w, str)]
+
+
+def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None,
+                 warnings: list[str] | None = None):
     """Write the bundle afresh. The folder is generated output; anything else there is
-    refused rather than deleted. built: when the build was made (ms) - built.json, which its copies
-    keep (a server takes it for the build's time: server/bundles.py, built_time)."""
+    refused rather than deleted. built: when the build was made (ms), and warnings: what it warned of -
+    built.json (built_record), which its copies keep."""
     if folder.exists():
         if any(folder.iterdir()) and not (folder / "deck.json").exists():
             raise FileExistsError(f"{folder} exists and is not a texstage bundle - not overwriting it")
@@ -106,12 +131,13 @@ def write_bundle(folder: Path, deck: dict, keys: dict, files: dict[str, bytes], 
         (folder / name).parent.mkdir(exist_ok=True)              # stage/: the stage PDF
         (folder / name).write_bytes(data)
     if built is not None:
-        (folder / BUILT).write_text(json.dumps({"built": built}) + "\n", encoding="utf-8")
+        (folder / BUILT).write_text(built_record(built, warnings), encoding="utf-8")
     for name, data in (("deck.json", deck), ("keys.json", keys)):
         (folder / name).write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None):
+def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes], built: int | None = None,
+              warnings: list[str] | None = None):
     """The whole bundle as one file, <name>.bundle.zip next to the PowerPoint file: what a
     server takes as it is - the deck lists of texstage and of the host page upload it by hand
     (POST /api/bundles), `texstage publish` sends the same."""
@@ -121,7 +147,7 @@ def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes], built
         for name, data in (("deck.json", deck), ("keys.json", keys)):
             z.writestr(name, json.dumps(data, indent=1, ensure_ascii=False) + "\n", compress_type=zipfile.ZIP_DEFLATED)
         if built is not None:
-            z.writestr(BUILT, json.dumps({"built": built}) + "\n", compress_type=zipfile.ZIP_DEFLATED)
+            z.writestr(BUILT, built_record(built, warnings), compress_type=zipfile.ZIP_DEFLATED)
         for name in sorted(files):                                 # PNGs are packed already
             z.writestr(name, files[name], compress_type=zipfile.ZIP_STORED if name.endswith(".png") else zipfile.ZIP_DEFLATED)
     tmp.replace(path)

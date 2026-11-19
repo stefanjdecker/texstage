@@ -258,15 +258,6 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     files = {s.image: pngs[s.page] for s in slides} | phone_files | video_files | acts.files
     if stage is not None:
         files[stage.file] = stage_pdf
-    bundle_dir = out_dir / f"{name}.bundle"
-    made = int(time.time() * 1000)                                       # the build's time, which its copies keep
-    bnd.write_bundle(bundle_dir, deck, keys, files, built=made)
-    bnd.write_zip(out_dir / f"{name}.bundle.zip", deck, keys, files, built=made)      # to upload by hand
-
-    # The PowerPoint file carries no bundle: every deck reaches its server through its build
-    # (texstage build: recorded for this machine's quiz server, uploaded to any other one -
-    # cli.deliver). Until 2026-10-09 the join slide's add-in carried it, but PowerPoint keeps
-    # at most 2 MB for an add-in - too little for a lecture's chapter (bundle.carried).
     # Every live slide carries the server's presenter key: the slides pair by themselves,
     # nothing to type in the lecture hall. (The PPTX is the lecturer's file - its reveal
     # slides hold the answers anyway.)
@@ -274,6 +265,15 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     if addin_slides and not key:
         warnings.append(f"no presenter key for {server}: the live slides will ask for it once - "
                         f"give it with --key (texstage publish --url {server} --key=K --remember keeps it)")
+    bundle_dir = out_dir / f"{name}.bundle"
+    made = int(time.time() * 1000)                                       # the build's time, which its copies keep,
+    bnd.write_bundle(bundle_dir, deck, keys, files, built=made, warnings=warnings)    # and its warnings (present)
+    bnd.write_zip(out_dir / f"{name}.bundle.zip", deck, keys, files, built=made, warnings=warnings)  # by hand
+
+    # The PowerPoint file carries no bundle: every deck reaches its server through its build
+    # (texstage build: recorded for this machine's quiz server, uploaded to any other one -
+    # cli.deliver). Until 2026-10-09 the join slide's add-in carried it, but PowerPoint keeps
+    # at most 2 MB for an add-in - too little for a lecture's chapter (bundle.carried).
     shift = 0 if first is None else 1                   # the deck's slides come after the first one
     for i, (s, sid) in enumerate(zip(slides, ids)):
         for b in s.boxes(uses_addin=True)[:1]:          # one add-in object over the whole slide

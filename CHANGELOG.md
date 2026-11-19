@@ -33,6 +33,14 @@ the core's type (2026-11-19), which found F2 not ready for a class.
   extended-length form, from which pdflatex read nothing back, and shipped
   every reference as ?? without a word (KG's 01-Intro: 137 on 46 pages);
   pdflatex now gets plain paths.
+- A build records what it warned of in its `built.json` (`"warnings"`, beside
+  its time; a build without warnings writes the file as before), and
+  `texstage present` says them again before it opens the build it presents -
+  the deck's newest, a build folder itself, one it built just now. Before,
+  only the build's own output said them: a lecturer who had not read it, or
+  presented a build made days before, presented ?? unwarned. The record is
+  no part of the bundle ID, its copies keep it, and servers read the time
+  alone, so the servers of 0.2.1.dev7 take such builds as they are.
 - `texstage publish` and `texstage build --server` send a deck whatever kinds
   the publishing machine has: the server judges it, and a deck it refuses is
   said with its reason while the others still go.

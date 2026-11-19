@@ -1323,7 +1323,11 @@ Reported after that, the same day:
 - **A build's own time:** `built.json` (`{"built": ms}`, no part of the bundle ID) beside `deck.json`, written
   by the build and its `.bundle.zip`, carried by `texstage publish`, a download and an upload, read before
   `deck.json`'s file time - an old build copied or checked out again is no longer the newest, and an
-  upload from another time zone keeps its time.
+  upload from another time zone keeps its time. Since 2026-11-19 it also holds what the build warned of,
+  `"warnings"` (only when there were some: references pdflatex left undefined, a pass unsettled, a video
+  PowerPoint does not play...), which `texstage present` says again before it opens the build it presents
+  (`cli.warned`) - a lecturer who had not read the build's output presented ?? unwarned. Servers read
+  `"built"` alone, so those of 0.2.1.dev7 take such builds as they are (`test_bundle_store.py`).
 - **Rollback from the command line:** `texstage present <folder>` with a `deck.json` in it presents that
   build (`?bundle=`, chosen: the window asks before ending a game of another build); a running server finds
   a folder outside its data folder through `builds.json` (a server's own copies and uploads are never

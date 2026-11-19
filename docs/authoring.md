@@ -195,7 +195,12 @@ texstage present deck.tex                                                   # an
 
 It builds the deck first if its build is missing or older than its frames, pictures and styles
 in the chapter's folder (`--build` builds anyway, `--no-build` never - after a change to the
-lecture's shared `dbis-style.sty`, build with `--build`), then uses the quiz server already
+lecture's shared `dbis-style.sty`, build with `--build`); `texstage-present.py` also once a
+chapter whose slides it refers to has had its deck built anew - the slide numbers it takes from
+that chapter's `slides.aux` - or the chapters were renumbered. Whatever build it presents, it
+first says again what that build warned of when it was made - references pdflatex left undefined
+(?? on the slides), a pass unsettled, a video PowerPoint does not play -, as the build recorded it
+in its `built.json`. Then it uses the quiz server already
 running on this machine or starts one - over every chapter's build, with the remembered tunnel,
 as `texstage-serve.py` does; its window stays open for the lecture - and opens the deck: in
 texstage's presenter window, or with `--powerpoint` the live PowerPoint file. `texstage` is

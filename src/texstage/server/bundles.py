@@ -35,7 +35,8 @@ from texstage.server import types as stage_types
 log = logging.getLogger("texstage.server")
 FILE = re.compile(r"^((slides|phone)/[0-9a-f]{16}\.png|media/[0-9a-f]{16}\.(jpg|png))$")   # pictures, posters
 STAGE_PDF = re.compile(r"^stage/[0-9a-f]{16}\.pdf$")
-BUILT = "built.json"                 # a build's time (ms), beside deck.json - no part of the bundle's ID
+BUILT = "built.json"                 # a build's time (ms), beside deck.json - no part of the bundle's ID; it may
+                                     # hold the build's warnings too, which the server keeps and does not read
 KNOWN_TYPES = stage_types.KNOWN      # the content types this server knows: a deck that needs another is refused
 
 

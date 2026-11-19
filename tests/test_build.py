@@ -371,6 +371,8 @@ def test_bundle_id_is_reproducible(demo, tmp_path):
 def test_check_passes_on_the_demo(demo):
     result, _, _ = demo
     assert result.problems == [] and result.warnings == []
+    built = json.loads((result.bundle / "built.json").read_text(encoding="utf-8"))
+    assert list(built) == ["built"]                        # no warnings: its time alone, the file as before
 
 
 # ------------------------------------------------------------------ the stage PDF (texstage)
@@ -632,6 +634,26 @@ def test_a_build_says_what_pdflatex_left_undefined(tmp_path):
         \begin{frame}{One}See section \ref{sec:one}, not \ref{sec:gone}.\end{frame}""")
     r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key", stage=True))
     assert r.warnings == ["the slides (refs-present.pdf): 1 reference undefined, ?? on the pages: sec:gone"]
+    import zipfile
+
+    from texstage import cli
+    from texstage.build.bundle import build_warnings
+    assert build_warnings(r.bundle) == r.warnings          # recorded with the build, its zip too: texstage present
+    assert json.loads(zipfile.ZipFile(r.zip).read("built.json"))["warnings"] == r.warnings      # says it again
+    assert cli.warned(r.bundle)[1:] == [f"  warning: {w}" for w in r.warnings]
+
+
+def test_a_build_records_every_warning_the_presenter_keys_too(tmp_path, monkeypatch):
+    """The build records all it warned of, the presenter key it had none for too - the warning made last, once
+    the slides are planned, and before 2026-11-19 after the bundle was written."""
+    import texstage.build.builder as builder
+    from texstage.build.bundle import build_warnings
+    monkeypatch.setattr(builder, "find_key", lambda server: None)        # (not the keys of this machine)
+    tex = deck(tmp_path, "keyless", r"""
+        \begin{frame}[t,quiz]{Which?}\begin{quiz}[id=which]{Which?}\choice*{A}\choice{B}\end{quiz}\end{frame}""")
+    r = build(tex, tmp_path / "out", BuildOptions(server="https://quiz.example.org", check=False, stage=False))
+    assert [w.split(":")[0] for w in r.warnings] == ["no \\quizjoinframe", "no presenter key for https"]
+    assert build_warnings(r.bundle) == r.warnings
 
 
 # ------------------------------------------------------------------ a video (texvideo)

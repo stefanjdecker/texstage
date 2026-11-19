@@ -322,19 +322,45 @@ def built_deck(out: Path, name: str | None = None) -> tuple[str | None, Path | N
     return bid, pptx
 
 
+def newest_build(out: Path, name: str | None = None) -> Path | None:
+    """The build of a build folder's deck that built_deck reads - the one named (its <name>.bundle), else the
+    newest: its folder, or None."""
+    decks = sorted(deck_files(out, name), key=lambda p: p.stat().st_mtime)
+    return decks[-1].parent if decks else None
+
+
 def built(out: Path, name: str | None = None) -> tuple[str | None, str | None, Path | None]:
     """As built_deck, with the deck's ID between: (bundle ID, deck ID, live PowerPoint file)."""
     import json
-    decks = sorted(deck_files(out, name), key=lambda p: p.stat().st_mtime)
-    if not decks:
+    folder = newest_build(out, name)
+    if folder is None:
         return None, None, None
     try:
-        deck = json.loads(decks[-1].read_text(encoding="utf-8"))
+        deck = json.loads((folder / "deck.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         deck = {}
     deck = deck if isinstance(deck, dict) else {}
-    pptx = out / (decks[-1].parent.name.removesuffix(".bundle") + ".pptx")
+    pptx = out / (folder.name.removesuffix(".bundle") + ".pptx")
     return deck.get("bundle"), deck.get("deck"), pptx if pptx.is_file() else None
+
+
+def warned(folder: Path | None) -> list[str]:
+    """What texstage present says of the build it presents (the folder of its deck.json): what that build
+    warned of when it was made, as it recorded it (build/bundle.py, build_warnings) - references pdflatex
+    left undefined, ?? on the slides, among them. Until 2026-11-19 only the build's own output said them, and
+    a lecturer who had not read it - or presented a build made days before - presented them unwarned."""
+    if folder is None:
+        return []
+    from texstage.build.bundle import build_warnings
+    said = build_warnings(folder)
+    if not said:
+        return []
+    import time
+
+    from texstage.server.bundles import built_time             # (its time within bounds, or None)
+    made = built_time(folder)
+    when = f" ({time.strftime('%Y-%m-%d %H:%M', time.localtime(made / 1000))})" if made else ""
+    return [f"texstage present: this build{when} warned when it was made:", *(f"  warning: {w}" for w in said)]
 
 
 def bundle_here(folder: Path) -> tuple[str | None, str | None, Path | None]:
@@ -500,7 +526,8 @@ def cmd_present(args: argparse.Namespace) -> int:
     else:
         out, name = path, None
     if name is None and (out / "deck.json").is_file():       # a build folder itself: that build - an older one
-        bid, deck, pptx = bundle_here(out)                     # too, a rollback (the deck page's Builds offers it)
+        folder = out                                           # too, a rollback (the deck page's Builds offers it)
+        bid, deck, pptx = bundle_here(out)
         data = Path(args.data) if args.data else DEFAULT_DATA
         if not out.resolve().is_relative_to(data.resolve()):  # (a server's own copies and uploads it has: never
             from texstage.builds import remember_build         # one of them as a build folder - open to all)
@@ -509,10 +536,13 @@ def cmd_present(args: argparse.Namespace) -> int:
             except OSError as err:
                 print(f"texstage present: the quiz server on this machine may not find {out} ({err})", file=sys.stderr)
     else:
+        folder = newest_build(out, name)
         bid, deck, pptx = built(out, name)
     if args.powerpoint and pptx is None:
         print(f"texstage: no live PowerPoint file in {out}" + ("" if bid else " - build the deck first"), file=sys.stderr)
         return 2
+    for line in warned(folder):                              # (also after a build just now: said again below the
+        print(line)                                           # build's own lines, the last word before the lecture)
     url = f"http://localhost:{args.port}/stage" + (f"?bundle={bid}" if bid else "")
     opener = (lambda: open_file(pptx)) if args.powerpoint else (lambda: webbrowser.open(url))
     if server_up(args.port):                                 # it finds the build by itself (builds.json)

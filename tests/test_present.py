@@ -184,6 +184,62 @@ def test_present_builds_first(tmp_path, monkeypatch, opened):
     assert cli.main(["present", str(tex), "--no-build"]) == 0 and len(opened) == 3   # the build as it is
 
 
+def test_present_says_what_its_build_warned_of(tmp_path, monkeypatch, opened, capsys):
+    """A build records what it warned of (built.json), and texstage present says it again, whichever build it
+    presents - the deck's newest, a build folder's, a build folder itself, one built just now - before it opens
+    the deck or starts a server. Until 2026-11-19 only the build's own output said it: a lecturer who had not
+    read that, or presented a build made days before, presented ?? on the slides unwarned."""
+    import json
+    import time
+    tex, out, fb = built(tmp_path)
+    data = str(tmp_path / "data")                            # (a build folder itself is recorded there)
+    said = ["the slides (talk-present.pdf): 1 reference undefined, ?? on the pages: sl:intro:goals",
+            "video clip: clip.webm plays in the browser, but PowerPoint wants MP4 (H.264, AAC)"]
+    made = 1_700_000_000_000
+    (fb.path / "built.json").write_text(json.dumps({"built": made, "warnings": said}), encoding="utf-8")
+    when = time.strftime("%Y-%m-%d %H:%M", time.localtime(made / 1000))
+    warned = f"texstage present: this build ({when}) warned when it was made:\n" + "".join(f"  warning: {w}\n"
+                                                                                          for w in said)
+    monkeypatch.setattr(cli, "server_up", lambda port: True)
+    monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("the build is up to date"))
+    assert cli.main(["present", str(tex)]) == 0
+    assert capsys.readouterr().out.startswith(warned + "texstage present: the quiz server on this machine runs")
+    assert cli.main(["present", str(out), "--powerpoint"]) == 0                  # a build folder: its newest
+    assert capsys.readouterr().out.startswith(warned)
+    assert cli.main(["present", str(fb.path), "--data", data]) == 0              # a build folder itself
+    assert capsys.readouterr().out.startswith(warned)
+    assert len(opened) == 3
+
+    t = (fb.path / "deck.json").stat().st_mtime
+    touch(tex, t + 60)                                                           # built again: its own warnings
+
+    def build(args):
+        print("  warning: (the build's own output)")
+        (fb.path / "built.json").write_text(json.dumps({"built": "soon", "warnings": said[:1]}), encoding="utf-8")
+        os.utime(fb.path / "deck.json", (t + 120, t + 120))
+        return 0
+    monkeypatch.setattr(cli, "cmd_build", build)
+    assert cli.main(["present", str(tex)]) == 0
+    out_now = capsys.readouterr().out                        # (said again below the build's: its last word)
+    assert ("(the build's own output)\ntexstage present: this build warned when it was made:\n"   # (no time: none
+            f"  warning: {said[0]}\ntexstage present: the quiz server") in out_now                # that reads)
+
+    (fb.path / "built.json").write_text(json.dumps({"built": made}), encoding="utf-8")   # one that warned of nothing
+    monkeypatch.setattr(cli, "cmd_build", lambda args: pytest.fail("the build is up to date"))
+    assert cli.main(["present", str(tex)]) == 0
+    assert "warn" not in capsys.readouterr().out
+    (fb.path / "built.json").unlink()                                            # one made before the record
+    assert cli.main(["present", str(tex)]) == 0
+    assert "warn" not in capsys.readouterr().out
+
+    (fb.path / "built.json").write_text(json.dumps({"built": made, "warnings": said}), encoding="utf-8")
+    monkeypatch.setattr(cli, "server_up", lambda port: False)                    # a server present starts: said
+    started = []                                                                 # before it starts
+    monkeypatch.setattr(cli, "cmd_serve", lambda args: started.append(capsys.readouterr().out) or 0)
+    assert cli.main(["present", str(tex), "--no-tunnel"]) == 0
+    assert started == [warned]
+
+
 def test_present_without_a_powerpoint_file(tmp_path, monkeypatch, opened, capsys):
     tex, out, fb = built(tmp_path)
     (out / "talk.pptx").unlink()
