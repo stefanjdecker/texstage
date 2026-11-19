@@ -220,6 +220,36 @@ def test_the_runner_reads_why_the_pool_ended_its_workers():
     assert all(why in normalizer for why in ('f"ended (exit code', 'f"did not start (', 'f"ended before it was ready'))
 
 
+def test_the_runs_ends_are_the_ones_before_its_teardown(tmp_path, monkeypatch):
+    """Server.stop kills the server's processes, its workers first; a pool that still runs logs their deaths -
+    "died (exit code -9)", the teardown's. They are not the run's: CI on 2026-11-19 failed on a worker and the
+    normalizing process killed so, after 0.2 s of CPU (likely the "1 == 0" before 077ec93, too)."""
+    pytest.importorskip("psutil")
+    run = tool("run")
+    log = tmp_path / "server.log"
+    log.write_text("12:00:01 checks: worker 41 ended: cpu (after 1.5 s of CPU)\n", encoding="utf-8")
+
+    class Gone:                                         # a process of the tree: killed, the pool logs it
+        def __init__(self, pid):
+            self.pid = pid
+
+        def children(self, recursive=False):
+            return [Gone(42)]
+
+        def kill(self):
+            with log.open("a", encoding="utf-8") as f:
+                f.write(f"12:00:09 checks: worker {self.pid} ended: died (exit code -9) (after 0.2 s of CPU)\n"
+                        "12:00:09 checks: the normalizing process ended (exit code -9)\n")
+    monkeypatch.setattr(run.psutil, "Process", Gone)
+    server = object.__new__(run.Server)
+    server.log, server.watching, server.peak, server.served = log, True, {"server_mb": 1, "worker_mb": 1, "workers": 1}, "core"
+    server.proc = type("Proc", (), {"pid": 40, "wait": lambda self, timeout=None: 0})()
+    server.tree = lambda: (None, [])
+    usage = server.stop()
+    assert usage["workers_ended_for"] == ["cpu"] and usage["normalizer_ended_for"] == [], usage
+    assert "died (exit code -9)" in log.read_text(encoding="utf-8")       # (written - by the teardown)
+
+
 def test_a_phone_of_the_simulator_loads_the_kinds_files_as_a_phone_does():
     """web/kinds.js: a kind's texts in the deck's language - else English - and its input module, then the rest of
     its phone's files but its texts; a file the kinds of one package share, once."""

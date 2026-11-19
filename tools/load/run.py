@@ -323,6 +323,10 @@ class Server:
             alive = sum(sum(w.cpu_times()[:2]) for w in workers)
         except psutil.Error:
             pass
+        # the log as the run left it, read before the end: the processes are killed below, the workers first, and
+        # a pool that still runs logs their deaths - "died (exit code -9)", the teardown's, not the run's (CI,
+        # 2026-11-19: a worker and the normalizing process, after 0.2 s of CPU - likely 077ec93's "1 == 0" too)
+        text = self.log.read_text(encoding="utf-8", errors="replace")
         try:
             for q in reversed([psutil.Process(self.proc.pid), *psutil.Process(self.proc.pid).children(recursive=True)]):
                 try:
@@ -332,7 +336,6 @@ class Server:
         except psutil.Error:
             pass
         self.proc.wait(10)
-        text = self.log.read_text(encoding="utf-8", errors="replace")
         if alive is not None:
             usage["workers_cpu_s"] = round(alive + ended_cpu(text), 1)
         usage["workers_ended_for"] = ended(text)
