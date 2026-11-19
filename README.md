@@ -4,7 +4,7 @@ Present LaTeX Beamer decks in a browser or PowerPoint, with live quizzes written
 in the same source. Students answer on their phones; the presenter controls the
 session and shows the results on the slide.
 
-This checkout is the **0.2.1.dev7 development candidate**, available as public
+This checkout is the **0.2.1.dev8 development candidate**, available as public
 source on [GitHub](https://github.com/stefanjdecker/texstage). Installation uses
 this source or its verified wheel; a PyPI release is not assumed. The project
 homepage is [www.texstage.org](https://www.texstage.org). See

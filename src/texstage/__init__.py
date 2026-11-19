@@ -4,7 +4,7 @@
 PowerPoint (docs/content-types-design.md)."""
 from pathlib import Path
 
-__version__ = "0.2.1.dev7"   # the review of 2026-11-19's fixes; dev6: the core's type the default; dev5: Built.warnings; dev4: the contract
+__version__ = "0.2.1.dev8"   # a build's warnings said again at present; dev7: the review of 2026-11-19's fixes; dev6: the core's type the default; dev5: Built.warnings; dev4: the contract
 # The quiz server on the presenting laptop: its port and data folder (database, presenter key,
 # remembered keys, tunnel). The commands, the presenter keys and the build take them from here.
 DEFAULT_PORT = 8470

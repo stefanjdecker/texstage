@@ -1,7 +1,7 @@
 # Shared LaTeX compilation
 
 `compile_latex` was added in 0.2.1.dev2 and remains part of API version 1 in
-the current 0.2.1.dev7 candidate. It is a Python API, not a separate CLI command.
+the current 0.2.1.dev8 candidate. It is a Python API, not a separate CLI command.
 It runs a LaTeX engine
 and returns output locations and diagnostics. Texstage's live-deck and plain
 PowerPoint builders use it, and lecture-tools uses it for chapter compilation.

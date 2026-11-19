@@ -101,7 +101,7 @@ the browser they are skipped, unless `TEXSTAGE_BROWSER_TESTS=required` (CI).
 python maintenance/check_distributions.py --out dist/candidate
 python -m venv .wheel-venv
 .wheel-venv/bin/python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev7-py3-none-any.whl dist/candidate/texstage_kinds_rdf-0.1.0-py3-none-any.whl dist/candidate/texstage_kinds_sql-0.1.0-py3-none-any.whl
+.wheel-venv/bin/python -m pip install --no-deps dist/candidate/texstage-0.2.1.dev8-py3-none-any.whl dist/candidate/texstage_kinds_rdf-0.1.0-py3-none-any.whl dist/candidate/texstage_kinds_sql-0.1.0-py3-none-any.whl
 .wheel-venv/bin/python -m pip check
 .wheel-venv/bin/python maintenance/check_installed.py
 .wheel-venv/bin/python maintenance/check_kinds_served.py

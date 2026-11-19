@@ -59,7 +59,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev7 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev8 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -183,7 +183,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev7 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev8 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -628,7 +628,7 @@ Screenshot sources and hashes are listed in [images/manual/captures.json](images
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev7 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev8 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
