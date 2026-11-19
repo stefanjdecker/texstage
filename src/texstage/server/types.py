@@ -8,7 +8,7 @@ sketches). Every other type lives on the stage and gives the server a module wit
 
     NAME                                  its name, as deck.json's "types" says it
     MESSAGES                              the messages it takes, "<name>.<what>", from a presenter window
-    handle(call, t, msg)                  one of them (call: Call below); returns the reply's fields or
+    handle(call, t, msg)                  one of them (call: hook.py's Call); returns the reply's fields or
                                           None; ValueError: refused
     view(stage)                           its part of the state every window gets (None: nothing)
     slide(stage, items, before, after, now)   the stage's state after a slide change
@@ -45,43 +45,11 @@ A deck that names a type not here is refused (bundles.py), and so is one a type 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
-from typing import Any, Callable
 
+from texstage.server.hook import WRITTEN, Call, Refused  # noqa: F401 - the engine's and the types' names (hook.py)
 
-class Refused(ValueError):
-    """A hook refuses a message; `code` is for the client (game.py's GameError codes), the message
-    for people. A plain ValueError is refused as "invalid"."""
-
-    def __init__(self, message: str, code: str = "invalid"):
-        super().__init__(message)
-        self.code = code
-
-
-@dataclass
-class Call:
-    """What a type's hook gets: the game, the type's items in the deck (deck.json's and keys.json's),
-    the time, its Book, and who calls - a window's role and connection, or a phone's player. The
-    hook changes `session.stage[NAME]`, hands rows to `save`, and says which phones should get
-    their state again: `phones` True (all) or a set of player ids."""
-    session: Any
-    items: dict
-    keys: dict
-    now: int
-    book: Any = None
-    role: str | None = None              # stage, display or host; "player" for a phone
-    conn: str | None = None              # the calling connection's key (app.py Conn.key)
-    player: Any = None                   # the calling phone's Player
-    save: Callable = lambda *rows: None
-    phones: Any = field(default_factory=set)
-    changed: bool = True                 # False: nothing to store (the session is not saved)
-
-
-WRITTEN = "__written__"                  # in a hook's reply: a function that takes what is to be called once the
-#                                          hook's rows are written - the reply is sent then, not before (app.py)
-
-# The types (after Refused and Call, which they use)
-from texstage.server import activities, activity, video  # noqa: E402
+# The types
+from texstage.server import activities, activity, video
 
 # Live activities: the activity framework's core (activities.py; the plan of F2, package 6), the default since
 # package 14, or F1's type (activity.py; texstage serve --activities f1), kept until a class has used the core

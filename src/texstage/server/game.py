@@ -50,6 +50,7 @@ from dataclasses import dataclass, field, replace
 from texstage.server import qa
 from texstage.server import types as stage_types
 from texstage.server.bundles import Bundle, QuizDef, SlideInfo
+from texstage.server.hook import moment
 from texstage.server.ink import InkBook, Stroke, check_frame
 from texstage.server.polls import POLLS_MAX, PollError, make_poll, poll_quiz
 from texstage.server.qa import Asked
@@ -66,6 +67,7 @@ BOARDS = ("blank", "grid")                         # whiteboard pages
 BOARDS_MAX = 200
 SKETCHES_SHOWN = 12                                # on the projector at once
 OVERLAYS = ("poll", "sketches")                    # shown instead of the slide, until the lecturer goes on
+QUIZ_AT = "quiz_at"                                # (the stage) the moment (hook.py) the phones began to show the quiz
 
 
 class GameError(Exception):
@@ -635,6 +637,7 @@ class Engine:
         b = self.bundle(s)
         info = b.slides.get(slide)
         before = self._shows(s, b)
+        moved = slide != s.slide                         # (a slide sent again moves no moment: _quiz_shown)
         for key in ("board", *OVERLAYS):                 # a slide of the deck again: no whiteboard page,
             s.stage.pop(key, None)                       # no poll or sketches instead of it
         if slide != s.slide:
@@ -662,15 +665,24 @@ class Engine:
             # lecturer stepped back) stays the current one.
             r = s.latest(info.quiz)
             s.current = r.id if r is not None else None
+            if moved:
+                self._quiz_shown(s, now)
         elif info is not None and info.phase == "question":
-            r = s.latest(info.quiz) or self._start_round(s, info.quiz, False, now)
+            r = s.latest(info.quiz)
+            started = r is None
+            r = r or self._start_round(s, info.quiz, False, now)
             s.current = r.id
             s.finished = None
+            if moved or started:
+                self._quiz_shown(s, now)
         elif info is not None and info.phase in ("reveal", "answer", "leaderboard"):
             r = s.latest(info.quiz)
             if r is not None:
+                was = r.phase
                 self._reveal(s, r, now)
                 s.current = r.id
+                if moved or was != "revealed":
+                    self._quiz_shown(s, now)
         elif info is not None and info.phase == "podium":
             s.finished = s.finished or now
         self._save(s)
@@ -730,6 +742,7 @@ class Engine:
                 changed = True
             if r.phase == "closed" and self._auto(s, r) and now >= r.closed + self.settings.grace_ms:
                 self._reveal(s, r, now)
+                self._quiz_shown(s, now)                 # (a poll's results, revealed by themselves)
                 changed = True
         return changed
 
@@ -747,6 +760,7 @@ class Engine:
         self._close(r, now, by)
         if self._auto(s, r):
             self._reveal(s, r, now)
+            self._quiz_shown(s, now)
 
     def skip(self, sid: str, quiz: str | None, now: int):
         s = self.session(sid)
@@ -801,6 +815,7 @@ class Engine:
         r = self._round(s, quiz)
         self._reveal(s, r, now)
         s.current = r.id
+        self._quiz_shown(s, now)
         self._save(s)
         self._commit()
 
@@ -818,6 +833,7 @@ class Engine:
         r = self._start_round(s, last.quiz, True, now)
         s.current = r.id
         s.finished = None
+        self._quiz_shown(s, now)
         self._save(s)
         self._commit()
         return r
@@ -1130,6 +1146,14 @@ class Engine:
         """The slide the projector shows; None: a whiteboard page, a poll or sketches instead."""
         return None if any(s.stage.get(k) for k in ("board", *OVERLAYS)) else b.slides.get(s.slide)
 
+    def _quiz_shown(self, s: Session, now: int) -> None:
+        """The phones show the quiz from now - a reading, a round, its result: a step of an activity that was
+        closed or revealed before gives way to it (play.js; activities.py: the step's "at"), one that runs
+        does not. A moment of the game's count (hook.py), kept with it: a restart keeps what the phones show."""
+        n = moment(s)
+        s.stage = {**s.stage, QUIZ_AT: n}
+        self._save(s)                                    # (a poll's own reveal saves no game else)
+
     def _types_shown(self, s: Session, b: Bundle, before: SlideInfo | None, after: SlideInfo | None, now: int):
         """The content types' part when the projector shows something else (types.py): a video
         the new slide does not show stops where it is, one it brings that plays by itself starts;
@@ -1281,6 +1305,7 @@ class Engine:
         s.stage["poll"] = quiz
         s.stage.pop("sketches", None)
         self._types_shown(s, self.bundle(s), before, None, now)
+        self._quiz_shown(s, now)                         # (after the activity it closes: the poll is the later)
         s.last_active = now
         self._save(s)
         self._commit()
@@ -1754,6 +1779,7 @@ class Engine:
                    "players": len(s.active_players()), "streak": p.streak},
             "round": None,
             "qa": {"open": bool(s.stage.get("qa")) and not p.muted},
+            "quiz_at": s.stage.get(QUIZ_AT),           # when the quiz became what the phones show (_quiz_shown)
         }
         if questions and view["qa"]["open"]:
             view["qa"]["questions"] = self._qa_view(s, pid)

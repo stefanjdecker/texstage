@@ -30,7 +30,7 @@ entries then (the presenter's Activities button); a window that has another fetc
 {"t": "activity.step", "step": {...} | null} (Book.casts; app.py sends it).
 
 The references' outcomes, which the pool gives when it prepares a deck, a game keeps in its stage too
-(REFERENCES: {activity: [{status, key} | null]}, in no window's view), as F1 kept its refs: a server that
+(REFERENCES: {activity: [{status, key, detail} | null]}, in no window's view), as F1 kept its refs: a server that
 starts again prepares no stale game's deck - an earlier lecture's (game.py: resume_checks) -, and such a game
 judges by what it kept - its groups' marks, its phones' verdicts, its archive when it ends; a game moved from
 F1's tables by F1's refs, which stay in F1's part of the stage (package 13: the revealed query of a moved
@@ -58,7 +58,7 @@ from texstage.activities.phases import Refused as CoreRefused
 from texstage.activities.play import MOVES, Part, Play, kind_of
 from texstage.activities.store import ONE, EntryRow, Writer
 from texstage.checks.texts import ENGINES as TEXTS
-from texstage.server.types import WRITTEN, Refused  # (first: types imports this module, and F1's, which needs it)
+from texstage.server.hook import WRITTEN, Refused, moment  # (not types.py, which imports this module)
 from texstage.server import activity as f1  # noqa: I001
 from texstage.server import sheets
 
@@ -103,6 +103,7 @@ class Book:
         self.rounds: dict[str, bool] = {}                # game -> whether a quiz round runs, as its steps know it
         self.late: set[str] = set()                      # games whose windows a refused message left untold
         self.faulty: set[str] = set()                    # games whose tick failed, and was said so
+        self.tops: dict[str, int] = {}                   # per game the highest act number its table had at the start
 
     # -------------------------------------------------------------- the engine's
     def load(self, rows: list) -> None:
@@ -121,23 +122,34 @@ class Book:
         if not sessions:
             return
         now = int(time.time() * 1000)
-        have = {st.session for st in core.load(db, sessions).steps}
-        stages = {s.id: s.stage for s in engine.sessions.values() if s.id not in have and s.stage.get(f1.NAME)}
-        for sid, stage in stages.items():                # a game at a time: one that does not move takes none
-            b = engine.bundles.get(engine.sessions[sid].bundle)      # of the others' rows back with it
-            try:
-                moved = core.move(db, {sid: stage}, {sid: (b.items.get(NAME) or {}) if b is not None else {}})
-                if any(moved.values()):
-                    log.info("activities: the game %s moved from F1's tables: %s", sid, moved)
-            except Exception:  # noqa: BLE001 - it starts empty; the server starts
-                log.exception("activities: F1's rows of the game %s did not move", sid)
-        loaded = core.load(db, sessions)
-        for sid in {r.session for rows in (loaded.steps, loaded.entries) for r in rows}:
-            mine = [[r for r in rows if r.session == sid] for rows in
-                    (loaded.steps, loaded.entries, loaded.checks, loaded.details, loaded.moderation)]
+        for sid in sessions:                             # a game at a time: one whose rows do not read, or do
+            try:                                         # not move, starts empty - the others, and the server
+                self.tops[sid] = core.top(db, sid)       # with its quizzes, start (the review's B1: a row that
+            except Exception:  # noqa: BLE001             # did not read stopped the server). First its highest
+                log.exception("activities: the game %s's acts are not counted", sid)    # act number: a core made
+            try:                                         # afresh numbers its acts after it, whatever fails next
+                rows = core.load(db, [sid])
+            except Exception:  # noqa: BLE001
+                log.exception("activities: the game %s's rows do not read; it starts without them", sid)
+                continue
+            stage = engine.sessions[sid].stage
+            if not rows.steps and stage.get(f1.NAME):    # moved first, before any act is in memory
+                b = engine.bundles.get(engine.sessions[sid].bundle)
+                try:
+                    moved = core.move(db, {sid: stage}, {sid: (b.items.get(NAME) or {}) if b is not None else {}})
+                    if any(moved.values()):
+                        log.info("activities: the game %s moved from F1's tables: %s", sid, moved)
+                    rows = core.load(db, [sid])
+                except Exception:  # noqa: BLE001 - it starts empty; the server starts
+                    log.exception("activities: F1's rows of the game %s did not move", sid)
+                    continue
+            self.tops[sid] = max(self.tops.get(sid, 0), rows.top.get(sid, 0))    # (with what a move brought)
+            if not (rows.steps or rows.entries or rows.moderation):     # (acts alone: a minimum set on a step
+                continue                                                # that was never opened, say)
             self.rounds[sid] = engine.round_on(sid)
             try:
-                self.play(sid).load(*mine, now=now, round_on=self.rounds[sid])
+                self.play(sid).load(rows.steps, rows.entries, rows.checks, rows.details, rows.moderation, now=now,
+                                    round_on=self.rounds[sid], top=self.tops.get(sid, 0))
             except Exception:  # noqa: BLE001 - one game's rows: the others load
                 log.exception("activities: the game %s did not load", sid)
                 self.plays.pop(sid, None)
@@ -147,6 +159,7 @@ class Book:
         self.steps.pop(sid, None)
         self.casts.pop(sid, None)
         self.rounds.pop(sid, None)
+        self.tops.pop(sid, None)
         for key in [k for k in self.leads if k[0] == sid]:
             del self.leads[key]
         for key in [k for k in self.asked if k[0] == sid]:
@@ -179,6 +192,7 @@ class Book:
         if sid not in self.plays:
             save = self.writer.put if self.writer is not None else None
             self.plays[sid] = Play(sid, save=save, ask=lambda jobs, sid=sid: self._ask(sid, jobs))
+            self.plays[sid].moderation.top = self.tops.get(sid, 0)    # (its acts after the table's: none written over)
             self._known(sid)
         return self.plays[sid]
 
@@ -193,8 +207,9 @@ class Book:
         given = set()
         for p in self.prepared.values():
             if p["bundle"] == s.bundle and p["outcomes"] is not None:
-                self.plays[sid].refer(p["aid"], p["outcomes"])
-                self._keep(s, p["aid"], p["outcomes"])
+                outcomes = _kept_ok(kept(s.stage).get(p["aid"]), p["outcomes"])    # (an ok kept over an internal)
+                self.plays[sid].refer(p["aid"], outcomes)
+                self._keep(s, p["aid"], outcomes)
                 given.add(p["aid"])
         for aid, outcomes in kept(s.stage).items():
             if aid not in given:
@@ -202,9 +217,11 @@ class Book:
 
     def _keep(self, s, aid: str, outcomes) -> None:
         """The pool's outcomes of an activity's references, kept with the game (REFERENCES) - saved at once
-        when they are new to it."""
-        mine = [{k: o[k] for k in ("status", "key") if o.get(k) is not None} if isinstance(o, dict) else None
-                for o in outcomes or ()]
+        when they are new to it: each one's status, key and result (its detail, at most the kinds'
+        DETAIL_MAX: the reveal's solution and the archive show it after a restart - the review of
+        2026-11-19, D5: a stale game's had none)."""
+        mine = [{k: o[k] for k in ("status", "key", "detail") if o.get(k) is not None} if isinstance(o, dict)
+                else None for o in outcomes or ()]
         had = s.stage.get(REFERENCES) if isinstance(s.stage.get(REFERENCES), dict) else {}
         if had.get(aid) == mine:
             return
@@ -382,12 +399,13 @@ class Book:
                 if s.bundle != p["bundle"]:
                     continue
                 changed.add(s.id)                        # (its host view says what failed)
-                if p["outcomes"] is not None:            # kept with the game: for a restart that finds it stale
-                    self._keep(s, p["aid"], p["outcomes"])
-                if s.id in self.plays:                   # a game without a core yet gets them with it (_known)
-                    self.plays[s.id].refer(p["aid"], p["outcomes"] or [])
-                    self.engine._due(s.id, True)         # a verdict a phone may have now: after a reveal, or
-            return                                       # with feedback=verdict (the review: no phone was told)
+                outcomes = _kept_ok(kept(s.stage).get(p["aid"]), p["outcomes"])
+                if outcomes is not None:                 # kept with the game: for a restart that finds it stale
+                    self._keep(s, p["aid"], outcomes)
+                if s.id in self.plays and outcomes is not None:   # a game without a core yet gets them with
+                    self.plays[s.id].refer(p["aid"], outcomes)    # it (_known); one that failed leaves
+                    self.engine._due(s.id, True)         # the game those it kept (the review's B2). A verdict a phone
+            return                                       # may have now: after a reveal, or with feedback=verdict
         _, sid, aid, step, name = item[:5]
         play = self.plays.get(sid)
         if play is None:
@@ -410,6 +428,17 @@ class Book:
         s = self.engine.sessions.get(sid)
         part = self.parts.get((s.bundle, aid)) if s is not None else None
         return part.kind if part is not None else None
+
+
+def _kept_ok(had: list | None, new: list | None) -> list | None:
+    """A deck prepared again: the pool's outcomes of its references - but one that could not be run this time
+    (internal: a worker that died while it ran, not set aside), where the game had it ok, is the game's (the
+    second review of 2026-11-19: such a prepare wiped a kept reference, as a failed one did - B2)."""
+    if new is None or not had:
+        return new
+    had = list(had) + [None] * max(0, len(new) - len(had))
+    return [old if isinstance(o, dict) and o.get("status") == "internal" and not o.get("set_aside")
+            and isinstance(old, dict) and old.get("status") == "ok" else o for o, old in zip(new, had)]
 
 
 def kept(stage: dict) -> dict[str, list]:
@@ -620,9 +649,13 @@ def _told(call, play: Play, moved: bool = False) -> bool:
                       "layout": told["layout"] if told else was.get("layout", 0),      # (the entries with the
                       "entries": play.entries.counts(st)["entries"] if told else was.get("entries", 0)}   # version)
     current = play.phases.current()
-    new = {"current": current.activity if current is not None and current.activity in call.items else None,
-           "items": items}
-    _cast(call, play, items, moved)
+    if current is not None and current.activity not in call.items:
+        current = None
+    shows = [current.activity, current.step, current.epoch, current.phase] if current is not None else None
+    at = old.get("at", 0) if old.get("shows") == shows else moment(call.session)   # the game's moment the
+    #                                                   phones' step became this one (hook.py; game.py: quiz_at)
+    new = {"current": current.activity if current is not None else None, "items": items, "shows": shows, "at": at}
+    _cast(call, play, items, moved, at)
     if moved:
         call.phones = True
     if new == old:
@@ -631,16 +664,17 @@ def _told(call, play: Play, moved: bool = False) -> bool:
     return True
 
 
-def _cast(call, play: Play, items: dict, now: bool) -> None:
+def _cast(call, play: Play, items: dict, now: bool, at: int = 0) -> None:
     """The step's own part for the phones, when it is another than they have - at once (now) when a step
     moved, else at most every STEP_EVERY_MS: what a field offers grows with the graph. Its time is the
-    one the windows are told, with when it was read (_told)."""
+    one the windows are told, with when it was read (_told); at: when it became the phones' step - one
+    that does not run gives way to a quiz the phones were shown after it (game.py: quiz_at; play.js)."""
     current = play.phases.current()
     part = None
     if current is not None and current.activity in call.items:
         try:
             part = play.step_part(_part(call, current.activity), current.step)
-            part |= {"time": items[current.activity]["time"], "since": items[current.activity]["since"]}
+            part |= {"time": items[current.activity]["time"], "since": items[current.activity]["since"], "at": at}
         except Refused:
             part = None
     text = json.dumps({"t": "activity.step", "step": part}, ensure_ascii=False, separators=(",", ":"))

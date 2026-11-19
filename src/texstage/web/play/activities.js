@@ -117,6 +117,7 @@ export function said(entry, step, L, say, status = () => null) {
   if (entry.check === "sending") states.push(L.sending);
   else if (entry.check === "waiting") states.push(L.waiting);
   else if (entry.check === "unchecked") states.push(L.unchecked);
+  else if (entry.check === "aside") states.push(L.aside);         // (set aside: final, no "send it again")
   else if (entry.check === "checked" && entry.status) {
     const ok = entry.status === "ok";
     cls = ok ? "good" : entry.status === "internal" ? "" : "bad";
@@ -130,6 +131,15 @@ export function said(entry, step, L, say, status = () => null) {
     cls = entry.verdict === "correct" ? "good" : entry.verdict === "partial" ? "" : "bad";
   }
   return { words: states.join(" · "), cls };
+}
+
+// The step the phone shows instead of the quiz: one that runs (open, or paused) - and one closed or revealed
+// until the quiz shows something after it: a reading, a round, its result (the review's A1: a closed
+// activity hid every later quiz's reading, result and leaderboard). Both times are the server's.
+export function stepShown(step, state) {
+  if (!step || step.phase === "ready") return false;
+  if (step.phase === "open" || step.phase === "paused") return true;
+  return state?.quiz_at == null || (step.at ?? 0) > state.quiz_at;
 }
 
 export class StepScreen {

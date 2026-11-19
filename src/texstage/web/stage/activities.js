@@ -35,6 +35,8 @@ const LAYOUT_MS = 500;
 const SEVERAL = String.fromCharCode(10);      // a tally's choice of several: the options' texts, a line each (kind.py)
 const DENSE = 8;                              // more rows than this: the box draws them smaller (26 options fit)
 const SHORT = 80;                             // a reference without a result of its own this long, one line: a line
+const TALL = 1;                               // a box taller than wide (width / height under 1): its cards below
+//                                              the bars - one as wide as KG's (1.35) had its last bars under them
 
 export function tallyText(text) {
   // a tally's label or reference as a line: a choice of several with " + " between its options
@@ -203,6 +205,7 @@ export class StepBox extends ActivityBox {
   draw() {
     const p = this.picture;
     if (!p || this.gone) return;
+    this.split(0);
     if (p.held) this.drawHeld(p);
     else if (p.kind === "graph") this.drawGraph(p);
     else if (p.numbers && (p.numbers.length || !p.groups?.length)) this.drawHistogram(p);   // (keys that are numbers)
@@ -257,10 +260,22 @@ export class StepBox extends ActivityBox {
     this.shape = null;
   }
 
+  split(cards) {
+    // the box's cards (drawGroups) beside its bars - below them in a box taller than wide -, two side by side.
+    // Whether they are below
+    const tall = cards > 0 && this.aspect < TALL;
+    this.el.classList.toggle("tq-split", cards > 0);
+    this.el.classList.toggle("tq-two", cards > 1);
+    this.el.classList.toggle("tq-tall", tall);
+    return tall;
+  }
+
   drawGroups(p) {
     // groups and a tally: a bar each - a choice of several by its options (the picture's options: how many
     // chose each); the deck's options with their $math$ typeset. After the reveal, references without a
-    // result of their own in a line that leaves the bars to be seen, those with one in one box
+    // result of their own in a line that leaves the bars to be seen, those with one in one card; the group
+    // the lecturer shows in a card of its own. The cards stand beside the bars, the references' first: neither
+    // covers the bars nor the other (split), until a reset or Off the projector
     const w = { ...this.boxWords, __language: this.language };
     const kind = this.item?.kind;
     const tally = p.kind === "tally";
@@ -292,16 +307,23 @@ export class StepBox extends ActivityBox {
     const results = refs.filter((r) => !short(r));                        // (a query: its text and its result in a box)
     const solution = results.length ? `<div class="tq-shown">${results.map((r) => `<div class="tq-shownhead">${esc(w.solution)}</div>
         <pre>${esc(r.text)}</pre>${r.detail ? detailHTML(r.detail, this.kinds, kind, w) : ""}`).join("")}</div>` : "";
-    this.el.innerHTML = `<div class="tq-clusters${listed.length > DENSE ? " tq-dense" : ""}"><div class="tq-chead">${esc(this.headLine(p))}</div>
+    const cards = [solution, shown].filter(Boolean);
+    const tall = this.split(cards.length);
+    // drawn dense - sized by the font, which fit() makes smaller till they fit - with many rows, or above a card
+    const dense = listed.length > DENSE || tall;
+    this.el.innerHTML = `<div class="tq-clusters${dense ? " tq-dense" : ""}"><div class="tq-chead">${esc(this.headLine(p))}</div>
       ${line}${rows || `<div class="tq-empty">${esc(p.phase === "open" || p.phase === "paused" ? w.held.waiting : w.held.none)}</div>`}
-      ${p.others && !p.options ? `<div class="tq-more">${esc(w.others)} · ${p.others}</div>` : ""}</div>${shown}${solution}`;
+      ${p.others && !p.options ? `<div class="tq-more">${esc(w.others)} · ${p.others}</div>` : ""}</div>${cards.length
+      ? `<div class="tq-cards">${cards.join("")}</div>` : ""}`;
     this.nodes = new Map();
     this.shape = null;
     this.fit();
   }
 
   fit() {
-    // many rows (tq-dense): the font made smaller till they fit in the box, whose height is the deck's
+    // rows drawn dense - many of them, or above a card (drawGroups) -, sized by the font: made smaller till they
+    // fit in their part of the box, whose height is the deck's. (Other rows are sized by the box: a smaller font
+    // would shrink their words alone - the third review of 2026-11-19)
     const rows = this.el.querySelector?.(".tq-clusters.tq-dense");
     if (!rows?.clientHeight || typeof getComputedStyle !== "function") return;
     for (let i = 0; i < 4 && rows.scrollHeight > rows.clientHeight + 1; i += 1) {

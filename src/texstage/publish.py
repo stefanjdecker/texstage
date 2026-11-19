@@ -25,7 +25,14 @@ from texstage.server.bundles import BUILT, Bundle, BundleStore, bundle_files
 
 
 class PublishError(RuntimeError):
-    pass
+    """status: the server's answer (HTTP), where it gave one."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
+REFUSED = (400, 413)             # the server refuses this deck (its kinds, its size): the others still go
 
 
 def find_key(url: str, key: str | None, path: Path = keys.SERVERS) -> str:
@@ -37,8 +44,10 @@ def find_key(url: str, key: str | None, path: Path = keys.SERVERS) -> str:
 
 
 def find_bundles(paths: list[Path]) -> tuple[list[Bundle], list[str]]:
-    """The bundles in these folders (each checked), and what could not be read."""
-    store = BundleStore(paths)
+    """The bundles in these folders (each checked), and what could not be read. Not whether this machine's
+    server could play a deck's activities - the kinds installed here (load_bundle): the server a deck goes
+    to judges that on PUT, and its refusal says why."""
+    store = BundleStore(paths, plays=False)
     return sorted(store.current(), key=lambda b: (b.deck, str(b.path))), store.problems
 
 
@@ -78,28 +87,39 @@ def call(url: str, key: str, method: str = "GET", data: bytes | None = None):
     except urllib.error.HTTPError as err:
         try:
             message = json.loads(err.read()).get("error", err.reason)
-        except ValueError:
-            message = err.reason
+        except (ValueError, OSError):                    # (a body too large: the server answers 413 and closes -
+            message = err.reason                         # reading its answer resets: the second review)
         if err.code == 403:
             message = "the server does not accept this presenter key"
-        raise PublishError(f"{method} {url}: {err.code} {message}") from None
+        raise PublishError(f"{method} {url}: {err.code} {message}", err.code) from None
     except (urllib.error.URLError, OSError) as err:
         raise PublishError(f"{url}: {getattr(err, 'reason', err)}") from None
 
 
 def publish(bundles: list[Bundle], url: str, key: str, say=print) -> int:
-    """Sends the bundles the server does not have; returns how many were sent."""
+    """Sends the bundles the server does not have; returns how many were sent. A deck the server refuses
+    - it judges the decks, find_bundles does not - is said with why, and the others still go; a
+    PublishError at the end names it. A wrong key, or no server, stops at once."""
     url = url.rstrip("/")
     _, decks = call(f"{url}/api/decks", key)
     there = {d["bundle"] for d in decks if d.get("complete", True)}    # a PPTX's upload lacks pictures
-    sent = 0
+    sent, refused = 0, []
     for b in bundles:
         if b.id in there:
             say(f"{b.deck}: bundle {b.id} is there already")
             continue
         data = pack(b)
-        _, info = call(f"{url}/api/bundles/{b.id}", key, "PUT", data)
+        try:
+            _, info = call(f"{url}/api/bundles/{b.id}", key, "PUT", data)
+        except PublishError as err:
+            if err.status not in REFUSED:
+                raise
+            say(f"{b.deck}: bundle {b.id} refused - {err}")
+            refused.append(b.deck)
+            continue
         say(f"{b.deck}: bundle {b.id} published ({len(data) / 1e6:.1f} MB, {info['quizzes']} quizzes, "
             f"{info['slides']} slides)")
         sent += 1
+    if refused:
+        raise PublishError(f"the server refused {', '.join(refused)}" + (f" ({sent} sent)" if sent else ""))
     return sent

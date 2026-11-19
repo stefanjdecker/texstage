@@ -282,8 +282,21 @@ body.projector.idle .tq-onlink { cursor: none; }
 .tq-hlabels { display: flex; gap: .8cqh; }
 .tq-hlabels span { flex: 1; min-width: 0; text-align: center; font-size: 1.8cqh; color: #6e6a7d; white-space: nowrap;
   overflow: hidden; text-overflow: ellipsis; }
-.tq-shown { position: absolute; inset: 6% 5%; background: #fff; border-radius: .8cqh; padding: 1.6cqh 2cqh;
+/* a group the lecturer shows, and after the reveal with solution=show the references with their results (a query's,
+   a graph's): a card - F1's box (activity.js) lays its shown cluster over the bars; the core's (activities.js:
+   StepBox.drawGroups) puts its cards beside the bars, below them in a box taller than wide (tq-tall), two side by
+   side (tq-two), so that the bars and every card stay to be seen. (A video's tq-shown is another: video.js) */
+.tq-activity .tq-shown { position: absolute; inset: 6% 5%; background: #fff; border-radius: .8cqh; padding: 1.6cqh 2cqh;
   box-shadow: 0 .4cqh 3cqh rgba(30, 10, 60, .28); overflow: hidden; display: flex; flex-direction: column; gap: 1cqh; }
+.tq-split .tq-clusters { right: 62%; }
+.tq-split.tq-two .tq-clusters { right: 64%; }
+.tq-split .tq-cluster { grid-template-columns: minmax(0, 64%) 1fr auto; gap: .8cqh; }
+.tq-cards { position: absolute; inset: 0 0 0 38%; display: flex; gap: 1.2cqh; padding: 1.2cqh 1.4cqh 1.2cqh 0; }
+.tq-split.tq-two .tq-cards { left: 36%; }
+.tq-activity .tq-cards .tq-shown { position: relative; inset: auto; flex: 1 1 0; min-width: 0; padding: 1.2cqh 1.6cqh;
+  box-shadow: 0 0 0 .15cqh #d9d3e8, 0 .3cqh 1.4cqh rgba(30, 10, 60, .14); }
+.tq-split.tq-tall .tq-clusters { right: 0; bottom: 42%; }      /* (the bars the more: a choice may list 26) */
+.tq-split.tq-tall .tq-cards { inset: 58% 0 0 0; padding: 0 1.4cqh 1.2cqh; }
 .tq-shownhead { font-weight: 700; color: #46178f; }
 .tq-shown pre { margin: 0; font: 2.2cqh/1.35 ui-monospace, Consolas, monospace; white-space: pre-wrap; background: #f6f4fa;
   padding: 1cqh 1.4cqh; border-radius: .5cqh; }

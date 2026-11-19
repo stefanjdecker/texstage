@@ -36,6 +36,7 @@ student: a block names an entry, and is for whoever sent it.
 """
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable, Sequence
 from typing import NamedTuple
 
@@ -44,6 +45,8 @@ from texstage.activities.entries import Entries
 from texstage.activities.phases import Refused
 from texstage.activities.reduce import ROLES, Mods, Reduced, Setup
 from texstage.activities.store import MIN_MAX, EntryRow, ModerationRow, StepRow
+
+log = logging.getLogger("texstage.activities")
 
 __all__ = ["ACTS", "Done", "Moderation"]
 
@@ -85,21 +88,24 @@ class Moderation:
         self.reduced = reduced
         self.save = save or (lambda *rows: None)
         self.rows: list[ModerationRow] = []               # in their order
+        self.top = 0                                      # the highest act number the table has (load)
         self.mods: dict[tuple[str, str], Mods] = {}
         self.blocked: set[str] = set()                    # the students who send no more
         self.skipped: set[int] = set()                    # merges that hold but lead back to their own term
 
     # -------------------------------------------------------------- what holds
-    def load(self, rows: Iterable[ModerationRow]) -> None:
-        """The acts as the table has them. The game's entries are loaded before: a block is for its
-        entry's student, and one whose entry is not there is a ValueError - nobody would be blocked, and
-        nothing would say so. The entries' states are the table's own."""
+    def load(self, rows: Iterable[ModerationRow], top: int = 0) -> None:
+        """The acts as the table has them; top: the highest number it has, of a row that reads or not - the
+        game's new acts come after it, and write over none (store.py: Loaded.top). The game's entries are
+        loaded before: a block is for its entry's student - one whose entry is not there (its row did not
+        read) blocks nobody, and the log says so: the game loads (the third review of 2026-11-19: it did
+        not, and its fresh core wrote over the stored acts). The entries' states are the table's own."""
         self.rows = sorted((r for r in rows if r.session == self.session), key=lambda r: r.n)
+        self.top = max([top, *(r.n for r in self.rows)])
         for r in self.rows:
             if r.act == "block" and not r.undone and self.entries.get(r.activity, r.step, r.entry) is None:
-                self.rows = []
-                raise ValueError(f"the act {r.n} blocks the student of the entry {r.entry}, which is not loaded: "
-                                 "load a game's entries before its acts")
+                log.error("activities: the act %s blocks the student of the entry %s, which is not loaded - it "
+                          "blocks nobody", r.n, r.entry)
         self._read()
 
     def of(self, activity: str, step: str) -> Mods:
@@ -107,13 +113,15 @@ class Moderation:
         return self.mods.setdefault((activity, step), Mods())
 
     def acts(self, activity: str, step: str, epoch: int | None = None, last: int = ACTS_LISTED) -> list[dict]:
-        """A step's last acts that hold, the latest first - for the panel, which offers to undo them.
-        epoch: the step's - the acts on entries of another are not listed."""
+        """A step's last acts that hold, the latest first - for the panel, which offers to undo them - and
+        after them every block that still holds, however many acts came since: its Undo is the only way back
+        for its student, in every activity (the second review of 2026-11-19: it fell off the list). epoch: the
+        step's - the acts on entries of another are not listed."""
         out = []
         for r in reversed(self.rows):
-            if len(out) >= last:
-                break
             if (r.activity, r.step) != (activity, step) or r.undone or self._past(r, epoch):
+                continue
+            if len(out) >= last and not (r.act == "block" and not r.off and self._holds(r)):
                 continue
             one = {"n": r.n, "act": r.act, "created": r.created}
             for name in ("target", "entry", "onto"):
@@ -127,6 +135,11 @@ class Moderation:
                 one["value"] = r.value
             out.append(one)
         return out
+
+    def _holds(self, r: ModerationRow) -> bool:
+        """Whether a block's student is blocked still - no unblock came after it."""
+        e = self.entries.get(r.activity, r.step, r.entry) if r.entry is not None else None
+        return e is not None and e.player in self.blocked
 
     @staticmethod
     def _past(r: ModerationRow, epoch: int | None) -> bool:
@@ -205,10 +218,11 @@ class Moderation:
     # -------------------------------------------------------------- an act
     def act(self, st: StepRow, setup: Setup, act: str, *, target: str | None = None, role: str = "node",
             onto: str | None = None, entry: str | None = None, off: bool = False, value=None, now: int = 0) -> Done:
-        """An act of the lecturer's on a step. Refused, with a code: an act, a group, a term or an entry
-        that is none (invalid), a merge that would merge a term into itself (cycle), an act that is not
-        for the step's reduction (reduction), showing an entry of a student who is blocked (blocked), more
-        acts than a game takes (too-many)."""
+        """An act of the lecturer's on a step. Refused, with a code: a group or a term that is not there
+        (no-group, no-term: the window's picture is older than the step's - its entries went meanwhile), an
+        act, an entry or a value that is none (invalid), a merge that would merge a term into itself
+        (cycle), an act that is not for the step's reduction (reduction), showing an entry of a student
+        who is blocked (blocked), more acts than a game takes (too-many)."""
         if not isinstance(act, str) or act not in ACTS:
             raise Refused(f"act: one of {', '.join(ACTS)}")
         if not isinstance(off, bool):
@@ -217,8 +231,8 @@ class Moderation:
             raise Refused(f"this game has had {ACTS_MAX} acts", "too-many")
         crowd = setup.reduction == "crowd"
         mods = self.of(st.activity, st.step)
-        row = ModerationRow(self.session, self.rows[-1].n + 1 if self.rows else 1, st.activity, st.step, act,
-                            st.epoch, created=now)
+        n = max(self.top, self.rows[-1].n if self.rows else 0) + 1             # (after every act the table has)
+        row = ModerationRow(self.session, n, st.activity, st.step, act, st.epoch, created=now)
         changed: list[EntryRow] = []
         player = None
         if act == "hide" and entry is not None:
@@ -237,8 +251,12 @@ class Moderation:
             known = self.reduced.term(st, target) or self._merged(mods, target) if crowd \
                 else self.reduced.group(st, target, setup)
             kept = mods.hidden if act == "hide" else mods.approved
-            if not isinstance(target, str) or not (known or target in kept):
-                raise Refused("no such term" if crowd else "no such group")
+            if not isinstance(target, str):
+                raise Refused("group: a term's or a group's key")
+            if not (known or target in kept):
+                if crowd:
+                    raise Refused("no such term", "no-term")
+                raise Refused("no such group", "no-group")
             if (target in kept) != off:
                 return Done()
             row.target, row.off = target, off
@@ -247,8 +265,10 @@ class Moderation:
                 raise Refused(f"{act} is for a crowd graph", "reduction")
             if not isinstance(role, str) or role not in ROLES:
                 raise Refused(f"role: one of {', '.join(ROLES)}")
+            if not isinstance(target, str):
+                raise Refused("group: a term's key")
             if not self._term(st, mods, role, target):
-                raise Refused("no such term")
+                raise Refused("no such term", "no-term")
             row.target, row.role = target, role
             if act == "unmerge":
                 if (role, target) not in mods.merges:
@@ -264,8 +284,10 @@ class Moderation:
         elif act == "show":
             if crowd:
                 raise Refused("a crowd graph shows itself", "reduction")
+            if target is not None and not isinstance(target, str):
+                raise Refused("group: a group's key, or none")
             if target is not None and not self.reduced.group(st, target, counted=True):
-                raise Refused("no such group")
+                raise Refused("no such group", "no-group")
             if (mods.shown if mods.shown_epoch == st.epoch else None) == target:
                 return Done()
             row.target = target
@@ -319,16 +341,18 @@ class Moderation:
     def undo(self, st: StepRow, setup: Setup, n: int | None = None, *, now: int = 0) -> Done:
         """An act of the step undone - n: its number; None: the last that holds. What holds is read again
         without it, and the entries of the step's epoch are as the acts that are left say. An act that is
-        undone already, or none to undo: nothing changes. Refused: no such act - an act on an entry of an
-        earlier epoch is none any more - (invalid); without it two terms would be merged into each other
-        (cycle)."""
+        undone already, or none to undo: nothing changes. Refused: n no number (invalid); no such act of the
+        step - an act on an entry of an earlier epoch is none any more: the window's list is older than a
+        reset - (no-act); without it two terms would be merged into each other (cycle)."""
         mine = [r for r in self.rows if (r.activity, r.step) == (st.activity, st.step)]
         if n is None:
             row = next((r for r in reversed(mine) if not r.undone and not self._past(r, st.epoch)), None)
         else:
-            row = next((r for r in mine if r.n == n), None) if isinstance(n, int) and not isinstance(n, bool) else None
+            if not isinstance(n, int) or isinstance(n, bool):
+                raise Refused("act: an act's number")
+            row = next((r for r in mine if r.n == n), None)
             if row is None or self._past(row, st.epoch):
-                raise Refused("no such act")
+                raise Refused("no such act", "no-act")
         if row is None or row.undone:
             return Done()
         if row.act == "block" and row.off:                # an unblock is undone by blocking again: a new act,

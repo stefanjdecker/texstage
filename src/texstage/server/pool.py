@@ -142,6 +142,7 @@ class _Worker:
         self.job: dict | None = None        # the check it is making
         self.unit: dict | None = None       # what it does: a check, a seed's loading, a reference - for the watchdog
         self.done = 0                       # checks it has made: none, it is fresh
+        self.cpu: float | None = None       # its CPU time as the watchdog read it last: its end's log line says it
         self.ended_for: str | None = None
         self.prepared: set[str] = set()     # acts prepared, at their generation
         self.preparing: dict[str, int] = {}  # act -> the generation last sent, until it is answered
@@ -685,8 +686,9 @@ class Pool:
             else:
                 why = f"died (exit code {w.proc.exitcode})"
             stopped = not w.ended_for and w.pid is not None and w.proc.exitcode in STOPPED
-            self.events.append({"worker": w.pid, "why": why, "at": time.time()})
-            logs.append(f"checks: worker {w.pid} ended: {why}")
+            self.events.append({"worker": w.pid, "why": why, "at": time.time(), "cpu_s": w.cpu})
+            logs.append(f"checks: worker {w.pid} ended: {why}"     # (its CPU time: the load runs count it, tools/load)
+                        + (f" (after {w.cpu:.1f} s of CPU)" if w.cpu is not None else ""))
             if not w.ready:
                 self.early_deaths += 1
             if role == "worker":
@@ -1000,6 +1002,7 @@ class Pool:
                     w.ended_for = "not ready in time"
                     kills.append(w)
             for w, unit, cpu, memory in readings:
+                w.cpu = cpu
                 if w.ended_for or w.unit is not unit:    # what it was doing changed meanwhile
                     continue
                 why = None

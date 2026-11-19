@@ -351,7 +351,8 @@ class ServerConfig:
     settings: Settings = field(default_factory=Settings)
     owner: str = "local"                 # that lecturer's name; more in <data>/lecturers.json
     checks: str = "browser"              # who checks the activities' texts (checking.py, MODES): server, browser, both
-    workers: int | None = None           # the server's pool: its worker processes (default: the cores less two)
+    workers: int | None = None           # the server's pool: its worker processes (default: the physical
+    #                                      cores less two, at least one)
     pool: dict = field(default_factory=dict)     # (the tests': the pool's engines and budgets)
     activities: str = stage_types.DEFAULT    # the activity type (types.py: use): "core", the activity framework's,
     #                                      which the server always checks for (the plan of F2, package 6) - or "f1",
@@ -645,8 +646,12 @@ class Server:
                 self.tasks.append(asyncio.create_task(book.writer.run()))
         if self.checks is not None:                  # the pool starts; the open games' decks are prepared, and
             self.loop = asyncio.get_running_loop()   # what still waits is checked (Engine.resume_checks)
-            self.checks.start(wake=self._wake_checks)
-            log.info("checks: the server checks the activities' texts (%s)", self.checks.mode)
+            self.checks.start(wake=self._wake_checks)        # (a pool that does not start is a broken one:
+            if getattr(self.checks.pool, "broken", None):    # the server and its quizzes run - checking.py)
+                log.warning("checks: %s - the activities' texts are not checked; the windows say so",
+                            self.checks.pool.broken)
+            else:
+                log.info("checks: the server checks the activities' texts (%s)", self.checks.mode)
         self.engine.resume_checks(now_ms())          # (in every mode: what could not be checked waits again)
 
     def _wake_checks(self):

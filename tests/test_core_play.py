@@ -222,7 +222,104 @@ def test_what_cannot_be_normalized_is_not_the_students():
     assert [m["check"] for m in d.mine("p1")] == ["checked"] and d.groups() == [("SELECT 1", 2)]
 
 
+def test_a_triple_that_could_not_be_checked_is_checked_when_it_is_sent_again():
+    """The review of 2026-11-19, A2: where all count, a triple the server could not check - its worker died - was
+    refused as sent already, though the phone and the manual tell the student to send it again. Sent again, its
+    check is asked for again - for the entry that is there: it takes no second place -, at the limit too; one
+    that is checked, or on its way, is refused as before."""
+    triple = [":Kant", ":wrote", ":Kritik"]
+    d = Desk(g=GRAPH | {"limit": 2})
+    d.move("open", "g")
+    d.hold = True
+    e = d.send("p1", triple, "g")
+    refused("duplicate", d.send, "p1", triple, "g")         # on its way: sent already
+    d.run(only=Normalize)
+    refused("duplicate", d.send, "p1", triple, "g")
+    job = d.jobs.pop()                                      # its worker dies
+    assert isinstance(job, Run) and not d.jobs
+    d.play.checked("g", "main", job.norm, {"status": "internal", "error": "the worker ended"}, now=d.now)
+    assert [m["check"] for m in d.mine("p1", "g")] == ["unchecked"]
+    assert d.play.picture(d.parts["g"], "stage")["unchecked"] == 1
+    other = d.send("p1", [":Kant", ":knows", ":Hume"], "g")             # (the second place: the limit is reached)
+    d.run()
+    assert d.send("p1", triple, "g") is e                   # sent again: asked again
+    assert [(type(j), j.norm) for j in d.jobs] == [(Run, e.norm)] and d.mine("p1", "g")[1]["check"] == "waiting"
+    assert d.play.picture(d.parts["g"], "stage")["unchecked"] == 0
+    d.run()
+    assert [(m["id"], m["check"]) for m in d.mine("p1", "g")] == [(other.id, "checked"), (e.id, "checked")]
+    assert len(d.stored(EntryRow)) == 2 and d.play.mine(d.parts["g"], "p1")["used"] == 2
+    d.play.withdraw(d.parts["g"], "p1", other.id, now=d.now)
+    refused("duplicate", d.send, "p1", triple, "g")         # checked: sent already
+    assert d.jobs == []
+
+
+def test_a_triple_that_could_not_be_normalized_is_normalized_when_it_is_sent_again():
+    d = Desk()
+    d.move("open", "g")
+    d.hold = True
+    e = d.send("p1", [":Kant", ":wrote", ":Kritik"], "g")
+    job = d.jobs.pop()
+    d.play.normalized("g", "main", job.raw, {"error": "the process ended"}, now=d.now)
+    d.play.act(d.parts["g"], "hide", entry=e.id, now=d.now)    # (hidden too: its phone is not told)
+    assert d.mine("p1", "g")[0]["check"] == "unchecked"
+    assert d.send("p1", [":Kant", ":wrote", ":Kritik"], "g") is e and [type(j) for j in d.jobs] == [Normalize]
+    d.run()
+    assert [m["check"] for m in d.mine("p1", "g")] == ["checked"] and len(d.stored(EntryRow)) == 1
+    assert e.state == "hidden"
+
+
+def test_an_entry_that_could_not_be_checked_is_asked_for_again_when_its_phone_sends_it_again():
+    d = Desk()
+    d.move("open")
+    d.hold = True
+    e = d.send("p1", "SELECT 1", eid="entry-of-p1-0001")
+    d.run(only=Normalize)
+    job = d.jobs.pop()
+    d.play.checked("q", "main", job.norm, {"status": "internal", "error": "the pool broke"}, now=d.now)
+    assert d.send("p1", "SELECT 1", eid="entry-of-p1-0001") is e         # its id again: a lost connection
+    assert [(type(j), j.norm) for j in d.jobs] == [(Run, e.norm)]
+    assert d.send("p1", "SELECT 1", eid="entry-of-p1-0001") is e and len(d.jobs) == 1     # on its way: no more
+    d.run()
+    assert d.mine("p1")[0]["check"] == "checked" and len(d.stored(EntryRow)) == 1
+
+
+def test_a_triple_with_spaces_around_its_terms_is_the_same_triple():
+    """The review of 2026-11-19, D5: " :Ada " and ":Ada" were two of a student's entries - the kind's normalize
+    drops the spaces, the test for one sent already did not. What is kept and shown is as it was sent."""
+    d = Desk()
+    d.move("open", "g")
+    e = d.send("p1", [" :Ada ", ":knows", ":Bob\u00a0"], "g")
+    refused("duplicate", d.send, "p1", [":Ada", " :knows", "\t:Bob"], "g")
+    d.send("p1", [":Ada", ":knows", ":Bobby"], "g")                       # another triple: taken
+    assert [m["input"]["fields"] for m in d.mine("p1", "g")] == [[":Ada", ":knows", ":Bobby"], e.input["fields"]]
+    assert e.input == {"fields": [" :Ada ", ":knows", ":Bob\u00a0"]}
+
+
+def test_what_a_phone_is_told_of_the_limit_is_what_entering_counts():
+    """The review of 2026-11-19, D5: after a take-back a phone said less than entering counted - "2 of 3", and the
+    next one refused. Where the latest counts, every one sent counts; where all count, all of it once three times
+    the limit were sent."""
+    d = Desk(q=SQL, g=GRAPH | {"limit": 1})
+    d.move("open")
+    d.send("p1", "SELECT 1")
+    e = d.send("p1", "SELECT 2")
+    d.play.withdraw(d.parts["q"], "p1", e.id, now=d.now)
+    assert d.play.mine(d.parts["q"], "p1")["used"] == 2
+    d.send("p1", "SELECT 3")
+    assert d.play.mine(d.parts["q"], "p1")["used"] == 3
+    refused("too-many", d.send, "p1", "SELECT 4")
+    d.move("open", "g")
+    for i in range(3):
+        e = d.send("p1", [":a", ":p", f":b{i}"], "g")
+        assert d.play.mine(d.parts["g"], "p1")["used"] == 1
+        d.play.withdraw(d.parts["g"], "p1", e.id, now=d.now)
+    assert d.play.mine(d.parts["g"], "p1")["used"] == 1
+    refused("too-many", d.send, "p1", [":a", ":p", ":c"], "g")
+
+
 def test_a_check_that_is_internal_tells_the_phone_nothing_of_it():
+    """... but that the text was set aside (it ended workers): final - its phone says it cannot be checked here,
+    not "send it again", which would be refused (the second review of 2026-11-19)."""
     d = Desk()
     d.move("open")
     d.hold = True
@@ -230,7 +327,7 @@ def test_a_check_that_is_internal_tells_the_phone_nothing_of_it():
     d.run(only=Normalize)
     d.play.checked("q", "main", e.norm, {"status": "internal", "error": "set aside: it failed twice", "set_aside": True},
                    now=d.now)
-    assert d.mine("p1") == [{"id": e.id, "input": {"text": "SELECT 1"}, "state": "in", "check": "unchecked"}]
+    assert d.mine("p1") == [{"id": e.id, "input": {"text": "SELECT 1"}, "state": "in", "check": "aside"}]
 
 
 # ------------------------------------------------------------------ feedback, and the reveal
@@ -254,6 +351,33 @@ def test_a_phone_learns_what_feedback_allows_and_its_verdict_at_the_reveal(feedb
         assert told("p2")["verdict"] == "incorrect"
     d.move("reveal")
     assert told("p1") == (after or before) and told("p2")["verdict"] == "incorrect"
+
+
+def test_an_entry_that_counts_no_more_has_no_verdict():
+    """The review of 2026-11-19, D5: after the reveal a replaced query said "Correct" beside the latest, which was
+    not. What counts no more has no verdict - replaced, and, where the latest counts, one the lecturer hid that its
+    student sent another after: no phone is told it is hidden, so it is replaced, as it would be in."""
+    d = Desk()
+    d.move("open")
+    d.send("p1", "SELECT x FROM t")
+    d.send("p1", "SELECT 1")
+    hidden = d.send("p2", "SELECT x FROM t")
+    d.play.act(d.parts["q"], "hide", entry=hidden.id, now=d.now)
+    d.send("p2", "SELECT 2")
+    d.move("reveal")
+
+    def told(player: str) -> list[tuple]:
+        return [(m["input"]["text"], m["state"], m.get("verdict")) for m in d.mine(player)]
+    assert told("p1") == [("SELECT 1", "in", "incorrect"), ("SELECT x FROM t", "replaced", None)]
+    assert told("p2") == [("SELECT 2", "in", "incorrect"), ("SELECT x FROM t", "replaced", None)]
+    assert hidden.state == "hidden" and d.mine("p2")[1]["status"] == "ok"
+    d = Desk(q=SQL | {"feedback": "full"})                  # ... nor before it, where feedback= gives verdicts
+    d.move("open")
+    d.send("p1", "SELECT x FROM t")
+    d.send("p1", "SELECT 1")
+    latest, earlier = d.mine("p1")
+    assert latest["verdict"] == "incorrect" and earlier["state"] == "replaced"
+    assert "verdict" not in earlier and "compared" not in earlier
 
 
 def test_feedback_is_one_of_the_four():
@@ -322,7 +446,9 @@ def test_the_steps_own_part_is_the_same_for_every_phone():
     for player, triple in [("p1", [":Kant", ":knows", ":Hume"]), ("p2", [":Hume", ":knows", ":Smith"])]:
         d.send(player, triple, "g")
     graph = d.play.step_part(d.parts["g"])
-    assert graph["suggest"] == [":Kant", ":Hume", ":Smith"] and graph["fields"] == GRAPH["fields"]
+    # a field offers the deck's words, then what is drawn, the most students first - the predicates too (the review
+    # of 2026-11-19: only the nodes were)
+    assert graph["suggest"] == [":Kant", ":Hume", ":knows", ":Smith"] and graph["fields"] == GRAPH["fields"]
     assert (graph["kind"], graph["input"], graph["counts"]) == ("triples", "fields", "all")
 
 

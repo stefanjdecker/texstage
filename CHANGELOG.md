@@ -1,6 +1,89 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev6 candidate
+## Unreleased — 0.2.1.dev7 candidate
+
+The fixes of a review of F2's packages 12 to 14 and of KG's four activities on
+the core's type (2026-11-19), which found F2 not ready for a class.
+
+- With the core's activity type, a phone shows an activity's step until the
+  quiz shows something after it - a reading, a question, its result. Before, a
+  closed or revealed activity stayed on every phone through every later quiz's
+  reading, "Answer sent", result and leaderboard; only the open question got
+  through (KG's chapters 02, 03 and 05 had it after each of their activities).
+  A step that runs (open or paused) shows as before, and one closed or
+  revealed after the quiz shows over it. Which came last is a count of the
+  game's, not a time - kept with it, so a restart changes nothing a phone
+  shows -, and the same slide sent again moves it not. A phone that joins a
+  new game - New game, the join slide after the podium - keeps no step of the
+  one before.
+- A server of the core's type starts whatever its tables hold: a row of the
+  core's tables that does not read is left out, logged, and its game loads all
+  else - and so writes nothing over what it has. A worker pool that cannot
+  start - psutil missing, no job object - is a broken one: the server and its
+  quizzes run, the activities' entries are not checked, and the windows say
+  why. Before, either stopped `texstage serve` and `texstage present` with a
+  traceback.
+- A deck prepared again whose preparing fails, or whose reference could not be
+  run this time (a worker that died), leaves a game the references' results it
+  has; before, the panel's marks, the phones' verdicts and the archive's lost
+  them.
+- A build warns when pdflatex left the slides or the stage PDF unsettled - its
+  last pass still asking for another, or references undefined (?? on the
+  pages). On Windows the stage compile could get its output folder in the
+  extended-length form, from which pdflatex read nothing back, and shipped
+  every reference as ?? without a word (KG's 01-Intro: 137 on 46 pages);
+  pdflatex now gets plain paths.
+- `texstage publish` and `texstage build --server` send a deck whatever kinds
+  the publishing machine has: the server judges it, and a deck it refuses is
+  said with its reason while the others still go.
+- The load tools: the budget table counts what never came as over budget,
+  takes "unchecked" as no verdict, and holds the counts, the simulator's exit
+  and the pool's health - a run that lost entries or phones, or broke the
+  pool, no longer says "held". The load test holds each text's status, the
+  verdict's 3 s and at most one end by the watchdog (077ec93 had let any
+  number pass); a worker's end says its CPU time. `tools/load/groups.py`
+  compares the core's groups with F1's for the same entries.
+- With the core's activity type, a triple whose check could not be made - a
+  worker that died, say -, sent again as the phone and the manual tell the
+  student, is that entry again and is checked again; before, it was refused as
+  sent already. Spaces around a field no longer make another entry, the
+  phone's "n of the limit" counts as entering does (one taken back gives its
+  place back), a crowd graph's fields offer the edges' labels the projector
+  draws too, not its nodes alone, and an entry that counts no more - replaced,
+  or taken back - has no verdict on the phone. A text the pool set aside (it
+  ended a checking process twice) says it cannot be checked here, rather than
+  "send it again", which the server refuses for it.
+- A game keeps its references' results with them through a restart, not their
+  keys alone: a stale game's reveal and archive show the reference's result
+  again.
+- At the reveal with `solution=show` the reference's card and a group shown
+  after it stand beside the bars, or below them in a tall box, rather than
+  over them; and the card's rule no longer frames a playing video.
+- The presenter window's texts say what the core does: Block holds for the
+  rest of the game, in every activity, and is undone under the Last acts of
+  the activity where it was made, which list a block that holds however many
+  acts came after it; Reset makes an activity ready again - it opens with O,
+  or when a page of its frame before its reveal comes to the projector, unless
+  it opens by hand -, and hidden groups, merges and blocks stay. The panel's
+  refusals of a group, term or act that is not there have codes of their own
+  (no-group, no-term, no-act) and come in the window's language; two German
+  texts are idiomatic now.
+- The manual says how to switch between the core's type and F1's (end the
+  lecture first, and open the windows again), what +30 s and the host
+  console's counts do, what `\reveal<n>` does for an activity never opened,
+  and that Oxigraph's SPARQL errors give the right line but sometimes
+  misleading words. `--workers` says how the default is counted (the physical
+  cores less two, at least one, two spares and one that normalizes), and the
+  Docker files pass it. A worker's memory is about 25 MB at rest and about 67
+  MB at its peak while it checks; a check may take up to 1 GB before it is
+  ended.
+- `texstage pdf` says the references it left undefined, as a build does; a
+  build whose deck publish cannot read says why it was not sent.
+- texstage is 0.2.1.dev7: the review's fixes (above), where 0.2.1.dev6 - the
+  one lecture-tools 0.1.0.dev7 pins - has them not. The kinds' packages still
+  need 0.2.1.dev4 or later.
+
+## Earlier 0.2.1.dev6 candidate
 
 - The activity framework's core is the default activity type: `texstage serve`
   and `texstage present` run it unless they are started with `--activities f1`,
@@ -28,7 +111,9 @@
   starting server does not prepare such a game's deck; a game moved from F1's
   tables takes the results F1 kept.
 - The load runs (`tools/load/run.py`) and `tools/simulate.py` play a server of
-  the activity framework's type too (`--activities core`): the phones send its
+  the activity framework's type too - the load runs by default, as `texstage
+  serve` runs it (`--activities f1`: F1's), the simulator whichever type the
+  server's welcome names: the phones send its
   entries and load the kinds' files their welcome names, and a projector's and
   a presenter's window count the picture's updates a second against the
   design's budget of four.

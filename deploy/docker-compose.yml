@@ -4,12 +4,16 @@
 #
 #   cd deploy
 #   echo TEXSTAGE_DOMAIN=quiz.example.org > .env
+#   echo TEXSTAGE_WORKERS=2 >> .env          # optional: the worker processes that check the activities (default 2)
 #   docker compose up -d --build
 #   docker compose exec texstage texstage lecturer add NAME --data /data     # a presenter key per lecturer
 #
 # texstage itself is not published on a port: only Caddy reaches it, so it may trust the
 # X-Forwarded-* headers of every peer (--forwarded-allow-ips '*') - that gives it the
 # students' addresses (wrong PINs are counted per address) and the https:// origin.
+# --workers: in a container the server would count the host's cores, not the container's - give
+# as many as its CPUs and memory hold (two spares and one that normalizes run besides them;
+# docs/installation-advanced.md, Hosting).
 services:
   texstage:
     build:
@@ -17,7 +21,7 @@ services:
       dockerfile: deploy/Dockerfile
     command: ["texstage", "serve", "/data/bundles", "--data", "/data", "--host", "0.0.0.0", "--port", "8470",
               "--public-url", "https://${TEXSTAGE_DOMAIN:?set TEXSTAGE_DOMAIN in deploy/.env}",
-              "--forwarded-allow-ips", "*"]
+              "--forwarded-allow-ips", "*", "--workers", "${TEXSTAGE_WORKERS:-2}"]
     volumes:
       - texstage-data:/data
     restart: unless-stopped

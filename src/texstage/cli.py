@@ -31,8 +31,11 @@ def cmd_pdf(args: argparse.Namespace) -> int:
     except LatexError as err:
         print(f"texstage: LaTeX failed\n{err}", file=sys.stderr)
         return 1
+    from texstage.build.builder import unsettled
     note = f", {result.overfull} overfull boxes" if result.overfull else ""
     print(f"{result.pdf}{note}")
+    for warning in unsettled(result, None, "the PDF"):   # (?? on the pages, or a last pass that still asked)
+        print(f"  warning: {warning}")
     return 0
 
 
@@ -145,11 +148,13 @@ def deliver(bundle: Path, out_dir: Path, server: str, key: str | None, data: Pat
         key = key or find_key(server)
         if not key:
             raise PublishError("no presenter key: --key, or TEXSTAGE_KEY")
-        bundles, _ = find_bundles([bundle])
+        bundles, problems = find_bundles([bundle])
+        if not bundles:                                  # (it was neither sent nor said - the review of 2026-11-19)
+            raise PublishError("; ".join(problems) or f"no bundle in {bundle}")
         publish(bundles, server, key, say=said.append)
     except PublishError as err:
         said.append(f"warning: the deck is not on {server} ({err}) - texstage publish {bundle} --url {server} "
-                    f"once it can be reached")
+                    f"sends it, once the server can be reached and takes it")
     return said
 
 
@@ -966,7 +971,9 @@ def checks_options(parser: argparse.ArgumentParser, starting: str = "") -> None:
                              "results count, and every difference goes to checks-compare.csv in the game's archive "
                              "folder; the core's type always checks on the server")
     parser.add_argument("--workers", type=_positive,
-                        help=f"{starting}the worker processes that check on the server (default: the cores less two)")
+                        help=f"{starting}the worker processes that check the live activities' texts on the server "
+                             "(default: the physical cores less two, at least one - in a container the host's cores); "
+                             "two spares and one process that normalizes run besides them")
     parser.add_argument("--max-players", type=_positive, help=f"{starting}phones a game takes at most (default 1000)")
     parser.add_argument("--activities", choices=["core", "f1"], default=None,
                         help=f"{starting}the live activities' type: core (default) - the activity framework's, with "

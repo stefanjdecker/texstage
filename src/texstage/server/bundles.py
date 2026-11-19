@@ -181,7 +181,11 @@ def holds(b: Bundle) -> bool:
         return False
 
 
-def load_bundle(path: Path) -> Bundle:
+def load_bundle(path: Path, plays: bool = True) -> Bundle:
+    """The bundle in this folder, checked: its format and ID, the content types it needs - and, with `plays`,
+    whether this server can play its activities (types.refuses: the kinds installed here). texstage publish
+    asks without: the server it sends a deck to judges that itself (until 2026-11-19 publish skipped a deck
+    whose kinds its own machine lacked, or had older - nothing sent)."""
     try:
         with (path / "deck.json").open(encoding="utf-8") as f:
             deck = json.loads(f.read())
@@ -205,7 +209,7 @@ def load_bundle(path: Path) -> Bundle:
         if unknown:
             raise BundleError(f"{path}: the deck needs {', '.join(unknown)}, which this server does not know - "
                               f"update texstage")
-        why = stage_types.refuses(deck)                  # (the core's type: a kind this server lacks)
+        why = stage_types.refuses(deck) if plays else None      # (the core's type: a kind this server lacks)
         if why:
             raise BundleError(f"{path}: {why}")
         public, private = deck.get("items", {}).get("quiz", {}), keys.get("items", {}).get("quiz", {})
@@ -350,12 +354,14 @@ def key(path: Path) -> str:
 class BundleStore:
     RESCAN_S = 2.0           # an unknown ID rescans the folders at most this often
 
-    def __init__(self, roots: list[Path], published: Path | None = None, more=None):
+    def __init__(self, roots: list[Path], published: Path | None = None, more=None, plays: bool = True):
         """published: the folder of uploaded bundles, <lecturer>/<deck>/<bundle id>/ - they
         belong to their lecturer; the bundles in the other folders are open to every lecturer.
-        more: further folders, asked at every scan (the builds of this machine, builds.py)."""
+        more: further folders, asked at every scan (the builds of this machine, builds.py).
+        plays=False: a deck this server could not play is found too (load_bundle; texstage publish)."""
         self.roots = [Path(r) for r in roots]
         self.more = more or (lambda: [])
+        self.plays = plays
         self.published = key(published) if published else None
         self.bundles: dict[str, Bundle] = {}
         self.dropped: set[str] = set()     # (keys) a cleanup can still be removing files asynchronously
@@ -384,7 +390,7 @@ class BundleStore:
             bid = known.bundle.id
         else:
             try:
-                bid = load_bundle(path).id
+                bid = self.load(path).id
             except BundleError:
                 bid = next((bid for bid, b in self.bundles.items() if key(b.path) == here), None)
         if bid is None:
@@ -393,6 +399,10 @@ class BundleStore:
         for folder, s in seen.items():                   # its other copies, as the record has them
             if folder not in self.dropped and s.bundle is not None and s.bundle.id == bid and os.path.isdir(folder):
                 self._merge(s.bundle, self.owner(Path(folder)))
+
+    def load(self, path: Path) -> Bundle:
+        """load_bundle, judging the deck as this store does (plays) - called as before where it judges."""
+        return load_bundle(path) if self.plays else load_bundle(path, plays=False)
 
     def owner(self, folder: Path) -> str | None:
         if self.published is None:
@@ -468,7 +478,7 @@ class BundleStore:
             owner = self.owner(folder)
             if s is None or now is None or s.stamp != now:
                 try:
-                    b = load_bundle(folder)
+                    b = self.load(folder)
                     s = Seen(now, b, b.complete())
                 except BundleError as err:
                     s = Seen(None, skipped=skipped_folder(folder, owner, err), error=str(err))
@@ -515,7 +525,7 @@ class BundleStore:
     def add(self, path: Path) -> Bundle:
         """A bundle that has just arrived (texstage publish, a PPTX's join slide) - in the record at once, so
         that drop() finds it as a copy of its build."""
-        b = load_bundle(path)
+        b = self.load(path)
         here = key(path)
         self.dropped.discard(here)
         self.seen = {**self.seen, here: Seen(stamp(path), b, b.complete())}

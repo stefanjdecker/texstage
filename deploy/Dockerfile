@@ -32,4 +32,8 @@ VOLUME /data
 EXPOSE 8470
 HEALTHCHECK --interval=30s --timeout=5s \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8470/api/status', timeout=3)"
-CMD ["texstage", "serve", "/data/bundles", "--data", "/data", "--host", "0.0.0.0", "--port", "8470"]
+# --workers: the worker processes that check the live activities' texts. Without it the server starts the
+# physical cores less two - in a container the host's cores, not the container's -, and two spares and one
+# that normalizes besides them: give as many as the container's CPUs and memory hold
+# (docs/installation-advanced.md, Hosting)
+CMD ["texstage", "serve", "/data/bundles", "--data", "/data", "--host", "0.0.0.0", "--port", "8470", "--workers", "2"]

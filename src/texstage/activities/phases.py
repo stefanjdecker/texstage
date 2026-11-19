@@ -214,7 +214,7 @@ class Phases:
         if st.phase == "open" or (st.phase == "closed" and not reopen):
             return
         if st.phase == "revealed":
-            raise Refused("a revealed step stays revealed - reset it to ask again", "revealed")
+            raise Refused("a revealed step stays revealed - reset it, then open it, to ask again", "revealed")
         if st.phase == "paused":
             if st.paused_by == "quiz" and self.round_on and time_ms in (None, st.time_left):
                 return                                    # it waits for the round's end already

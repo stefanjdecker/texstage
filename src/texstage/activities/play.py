@@ -20,6 +20,7 @@ Nothing here runs a kind's code, reads a clock or writes a file: the server's ev
 """
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
@@ -108,7 +109,7 @@ class Play:
     # -------------------------------------------------------------- a restart
     def load(self, steps: Iterable[StepRow], entries: Iterable[EntryRow], checks: Iterable[CheckRow],
              details: Iterable[DetailRow], acts: Iterable[ModerationRow], *, now: int,
-             round_on: bool = False) -> list[StepRow]:
+             round_on: bool = False, top: int = 0) -> list[StepRow]:
         """The game as the tables have it, in the order the parts need: the steps, the entries, the
         checks, the acts - a block is for its entry's student -, then the reductions. The steps that
         changed as the server was away (phases.py: load). The references are not here: a restarted
@@ -117,7 +118,7 @@ class Play:
         rows = self.phases.load(steps, now, round_on)
         self.entries.load(entries)
         self.checks.load(checks, details, entries)
-        self.moderation.load(acts)
+        self.moderation.load(acts, top)                # (top: the acts' highest number - Moderation.load)
         self.reduced.load(self.phases.steps.values(), entries)
         self.pictures.moved(*self.phases.steps.values())
         self._unchecked = entries
@@ -155,18 +156,28 @@ class Play:
     def blocked(self, player: str) -> bool:
         return player in self.moderation.blocked
 
+    def _unchecked_one(self, e: EntryRow) -> bool:
+        """Whether an entry's check could not be made (checks.py: state) - sent again, it is asked for again."""
+        return self.checks.state(e) == "unchecked"
+
     def enter(self, part: Part, player: str, entry, sent: dict, *, now: int, step: str = ONE,
               blocked: bool = False) -> Entered:
         """A phone's entry, after a tick. blocked: the engine's word of the player (muted); the acts'
-        is asked here. An entry sent again changes nothing and asks for nothing."""
+        is asked here. An entry sent again changes nothing and asks for nothing - but one that could not
+        be checked is asked for again, as the phone and the manual promise (the review of 2026-11-19:
+        where all count, its input sent again was refused as sent already)."""
         self.tick(now)
         st = self.step(part.activity, step)
         got = self.entries.enter(st, part.setup.rules, player, entry, sent, now=now,
-                                 blocked=blocked or self.blocked(player))
+                                 blocked=blocked or self.blocked(player), unchecked=self._unchecked_one)
         if got.new:
             jobs = [job for old in got.replaced for job in self.checks.left(old)]
             jobs += self.checks.entered(got.entry)[0]
             self.reduced.touch(st, got.entry, *got.replaced)
+            self._ask(jobs)
+        elif self._unchecked_one(got.entry):              # (by its id, or where all count by its input)
+            jobs = self.checks.again([got.entry])
+            self.reduced.touch(st, got.entry)             # (waiting now, if it was asked for)
             self._ask(jobs)
         return got
 
@@ -242,7 +253,9 @@ class Play:
     def step_part(self, part: Part, step: str = ONE) -> dict:
         """The step's own part of a phone's state: the same for every phone of the game, so that it is
         serialized once (the design's 10.4). What a field offers is the deck's words and then what the
-        projector draws - a student takes up a term another wrote."""
+        projector draws - its nodes and its edges' labels, the most students first: a student takes up
+        a term another wrote (LA section 10: "the terms the projector shows"; the review of 2026-11-19:
+        the predicates were not offered)."""
         st = self.step(part.activity, step)
         rules = part.setup.rules
         out = {"activity": st.activity, "step": st.step, "epoch": st.epoch, "phase": st.phase,
@@ -252,34 +265,52 @@ class Play:
             if part.item.get(name) is not None:
                 out[name] = part.item[name]
         if part.setup.reduction == "crowd":
-            drawn = [n["label"] for n in self.picture(part, "display", step).get("nodes", ())]
-            out["suggest"] = list(dict.fromkeys([*part.item.get("suggest", ()), *drawn]))[:SUGGEST_MAX]
+            picture, drawn = self.picture(part, "display", step), Counter()
+            for n in picture.get("nodes", ()):
+                drawn[n["label"]] += n["n"]
+            for edge in picture.get("edges", ()):         # (a label: the students of its edges together)
+                if edge.get("label"):
+                    drawn[edge["label"]] += edge["n"]
+            words = sorted(drawn, key=lambda w: -drawn[w])        # (among as many: nodes first, as drawn)
+            out["suggest"] = list(dict.fromkeys([*part.item.get("suggest", ()), *words]))[:SUGGEST_MAX]
         return out
 
     def mine(self, part: Part, player: str, step: str = ONE) -> dict:
         """A phone's own part: its student's entries of the step's epoch, the latest first, each with
-        what feedback= allows of its check - and after the reveal its verdict. An entry the lecturer
-        hid is the student's as before: no phone is told."""
+        what feedback= allows of its check - and, for one that counts, its verdict (after the reveal),
+        and how much of the limit is used, as entering counts it. An entry the lecturer hid is the
+        student's as before: no phone is told - where the latest counts, one hidden that the student
+        sent another after is replaced, as it would be in."""
         st = self.step(part.activity, step)
         theirs = [e for e in self.entries.mine(st, player) if e.state != "withdrawn"]
-        counted = theirs if part.setup.rules.counts == "latest" else [e for e in theirs if e.state in ("in", "hidden")]
-        return {"activity": st.activity, "step": st.step, "epoch": st.epoch, "used": len(counted),
-                "blocked": self.blocked(player), "entries": [self._shown(part, st, e) for e in reversed(theirs)]}
+        standing = [e for e in theirs if e.state in ("in", "hidden")]
+        over = {e.id for e in standing[:-1]} if part.setup.rules.counts == "latest" else set()
+        return {"activity": st.activity, "step": st.step, "epoch": st.epoch,
+                "used": self.entries.used(st, part.setup.rules, player), "blocked": self.blocked(player),
+                "entries": [self._shown(part, st, e, e.id in over) for e in reversed(theirs)]}
 
-    def _shown(self, part: Part, st: StepRow, e: EntryRow) -> dict:
-        out = {"id": e.id, "input": e.input, "state": "in" if e.state == "hidden" else e.state}
+    def _shown(self, part: Part, st: StepRow, e: EntryRow, replaced: bool = False) -> dict:
+        """An entry as its phone has it: hidden is in; replaced - by the entry's state, or as mine() sees
+        it - or taken back, it counts no more and has no verdict (the review of 2026-11-19: a replaced
+        query said "Correct" beside the latest, which was not)."""
+        state = "replaced" if replaced else "in" if e.state == "hidden" else e.state
+        out = {"id": e.id, "input": e.input, "state": state}
         revealed = st.phase == "revealed"
         level = FEEDBACK.index(part.feedback)
         if level == 0 and not revealed:
             return out | {"check": "received"}
         check = self.checks.of(e)
         if check is None or check.status == "internal":   # (why the server could not: not the phone's)
-            return out | {"check": "unchecked" if check is not None else self.checks.state(e)}
+            # set aside (it ended workers): final - sent again it is refused, so its phone says no "again"
+            return out | {"check": "aside" if check is not None and check.aside else "unchecked" if check is not None
+                          else self.checks.state(e)}
         out |= {"check": "checked", "status": check.status}
         if check.message is not None:
             out["message"] = check.message
         if check.at is not None:
             out["at"] = check.at
+        if state != "in":                                 # (what it says of the reference: none either)
+            return out
         if level >= 2 or revealed:
             verdict = self.reduced.verdict(st.activity, st.step, check)
             if verdict is not None:

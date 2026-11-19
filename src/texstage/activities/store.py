@@ -28,6 +28,7 @@ import asyncio
 import dataclasses
 import hashlib
 import json
+import logging
 import sqlite3
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -45,6 +46,9 @@ ASIDE_KEPT = 100                     # the rows set aside that the writer rememb
 F1_SET_ASIDE = "set aside: "         # F1's mark of a text its pool set aside (server/activity.py: SET_ASIDE)
 F1_FINAL = ("ok", "syntax", "error", "timeout", "refused")     # F1's statuses that are a verdict
 MIN_MAX = 1000                       # a crowd graph's minimum, at most (the kind's option: min)
+
+
+log = logging.getLogger("texstage.activities")
 
 
 @dataclass
@@ -342,6 +346,8 @@ class Loaded:
     checks: list[CheckRow] = field(default_factory=list)
     details: list[DetailRow] = field(default_factory=list)
     moderation: list[ModerationRow] = field(default_factory=list)       # in the order of the acts
+    top: dict[str, int] = field(default_factory=dict)   # per game the highest act number the table has, of a row
+    #                                                     that reads or not: new acts are numbered after it
 
 
 def _rows(db: sqlite3.Connection, cls, sessions: list[str]) -> list:
@@ -351,12 +357,16 @@ def _rows(db: sqlite3.Connection, cls, sessions: list[str]) -> list:
     out = []
     order = "session, n" if cls is ModerationRow else "rowid"
     for r in db.execute(f"SELECT {', '.join(cols)} FROM {table} WHERE session IN ({marks}) ORDER BY {order}", sessions):
-        values = {}
-        for c, v in zip(cols, r):
-            if v is None and c in defaults:               # a column that came later: the row's default
-                v = defaults[c]
-            values[c] = json.loads(v) if c in encoded and v is not None else bool(v) if c in flags else v
-        out.append(cls(**values))
+        try:
+            values = {}
+            for c, v in zip(cols, r):
+                if v is None and c in defaults:           # a column that came later: the row's default
+                    v = defaults[c]
+                values[c] = json.loads(v) if c in encoded and v is not None else bool(v) if c in flags else v
+            out.append(cls(**values))
+        except (ValueError, TypeError) as err:  # a row that does not read: left out, said - its game's others load,
+            log.error("activities: a row of %s does not read, and is left out: %s %r",   # and nothing of it is written
+                      table, err, tuple(r)[:4])  # over (the review of 2026-11-19: a game started empty, and wrote over)
     return out
 
 
@@ -366,7 +376,15 @@ def load(db: sqlite3.Connection, sessions: Iterable[str]) -> Loaded:
     if not sessions:
         return Loaded()
     return Loaded(_rows(db, StepRow, sessions), _rows(db, EntryRow, sessions), _rows(db, CheckRow, sessions),
-                  _rows(db, DetailRow, sessions), _rows(db, ModerationRow, sessions))
+                  _rows(db, DetailRow, sessions), _rows(db, ModerationRow, sessions),
+                  {sid: top(db, sid) for sid in sessions})
+
+
+def top(db: sqlite3.Connection, session: str) -> int:
+    """The game's highest act number in the table, of a row that reads or not - new acts are numbered after it,
+    and so write over none (moderation.py: load). A number stored as anything but one is none."""
+    n = db.execute("SELECT MAX(n) FROM moderation WHERE session = ? AND typeof(n) = 'integer'", (session,)).fetchone()[0]
+    return n if isinstance(n, int) else 0
 
 
 # ------------------------------------------------------------------ the move of F1's data (the plan of F2, 4.10)

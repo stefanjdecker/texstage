@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 
@@ -207,6 +209,48 @@ def test_the_build_delivers_its_deck(tmp_path, monkeypatch):
         with urllib.request.urlopen(req, timeout=10) as r:
             (d,) = json.loads(r.read())
     assert d["deck"] == "delivered" and d["complete"] is True                  # uploaded, complete
+
+
+OWN_KIND_DECK = r"""\documentclass[aspectratio=169]{beamer}
+\usepackage{texactivity}
+\begin{document}
+\begin{frame}[t,fragile]{A choice}
+\begin{activity}[id=coast, kind=choice, options={Paris, Nice}]\prompt{On the coast?}\reference{Nice}\end{activity}
+\end{frame}
+\end{document}
+"""
+
+
+def test_build_and_publish_send_a_deck_of_texstages_own_kinds(tmp_path, monkeypatch):
+    """A deck of texstage's own kinds - which the core's activity type plays, a server's default since
+    0.2.1.dev6, and F1's refuses - reaches a hosted server through its build (--server) and through texstage
+    publish, and the server takes it. (Until 2026-11-19 no test sent one: with F1's type the default, the
+    tests of build and publish passed.)"""
+    import urllib.request
+
+    from test_own_kinds import own_kinds
+    from test_publish import running
+    from test_server import KEY, config
+    from texstage import cli
+    from texstage.server.app import create_app
+    own_kinds()                                     # (skipped where texstage is not installed; failed without them)
+    tex = tmp_path / "own.tex"
+    tex.write_text(OWN_KIND_DECK, encoding="utf-8")
+    out = tmp_path / "out"
+
+    def listed(url: str) -> list:
+        with urllib.request.urlopen(urllib.request.Request(f"{url}/api/decks", headers={"X-Texquiz-Key": KEY}),
+                                    timeout=10) as r:
+            return [(d["deck"], d["complete"]) for d in json.loads(r.read())]
+    for name in ("hosted", "other"):
+        (tmp_path / name).mkdir()
+    monkeypatch.setattr(cli, "on_this_machine", lambda server: False)      # (it runs here: as if elsewhere)
+    with running(create_app(config(tmp_path / "hosted"))) as hosted, running(create_app(config(tmp_path / "other"))) as other:
+        assert cli.main(["build", str(tex), "-o", str(out), "--server", hosted, "--key", KEY,
+                         "--data", str(tmp_path / "data"), "--no-check", "--no-stage"]) == 0
+        assert listed(hosted) == [("own", True)]                              # the build sent it, the server took it
+        assert cli.main(["publish", str(out), "--url", other, "--key", KEY]) == 0
+        assert listed(other) == [("own", True)]                               # and so did texstage publish
 
 
 def test_a_build_for_a_second_server_carries_its_key(tmp_path, monkeypatch):
@@ -473,35 +517,121 @@ def test_check_finds_a_quiz_frame_that_runs_into_the_footline(tmp_path):
 
 
 
-def test_latex_runs_again_while_the_log_asks(tmp_path, monkeypatch):
-    """A pass that could not read the .aux or .nav the pass before wrote (on Windows a virus
-    scanner may hold a file just written) typesets as a first one - frame totals 1, references ??,
-    a new bundle ID: compile_deck runs again while the log asks for it, two passes more at most,
-    and not after a single pass asked for."""
-    from texstage.build import latex, compiler
-    logs, calls = [], []
+def fake_pdflatex(monkeypatch, logs: list[str]) -> list:
+    """pdflatex replaced: each pass writes the next of these logs (the last again), and is recorded."""
+    from texstage.build import compiler, latex
+    calls = []
 
     def pdflatex(cmd, **kw):
-        calls.append(cmd)
+        calls.append((cmd, kw))
         out = Path(next(a.split("=", 1)[1] for a in cmd if a.startswith("-output-directory=")))
         job = next(a.split("=", 1)[1] for a in cmd if a.startswith("-jobname="))
         (out / f"{job}.log").write_text(logs[min(len(calls), len(logs)) - 1], encoding="utf-8")
         return subprocess.CompletedProcess(cmd, 0, "", "")
     monkeypatch.setattr(latex.shutil, "which", lambda name: name)
     monkeypatch.setattr(compiler.subprocess, "run", pdflatex)
+    return calls
+
+
+def test_latex_runs_again_while_the_log_asks(tmp_path, monkeypatch):
+    """A pass that could not read the .aux or .nav the pass before wrote (on Windows a virus
+    scanner may hold a file just written) typesets as a first one - frame totals 1, references ??,
+    a new bundle ID: compile_deck runs again while the log asks for it, two passes more at most,
+    and not after a single pass asked for. A compile still unsettled after them says so - the line
+    that asks (its result's unsettled, which the build warns of: builder.unsettled) -, as it says the
+    references its last pass left undefined."""
+    from texstage.build import latex
+    logs: list[str] = []
+    calls = fake_pdflatex(monkeypatch, logs)
     tex = tmp_path / "deck.tex"
     tex.write_text("x", encoding="utf-8")
     first = "No file deck-present.aux.\nNo file deck-present.nav.\n"
     settled = "(./deck-present.aux) (./deck-present.nav)\n"
     moved = "LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.\n"
-    for passes, those, runs in ((2, [first, settled], 2),            # as usual
-                                (2, [first, first, settled], 3),     # the second pass missed the .aux
-                                (2, [first, moved, settled], 3),     # the references moved
-                                (2, [first] * 5, 4),                 # never settled: two more at most
-                                (1, [first], 1)):                    # one pass asked for: one
+    for passes, those, runs, unsettled in (
+            (2, [first, settled], 2, None),                                  # as usual
+            (2, [first, first, settled], 3, None),                           # the second pass missed the .aux
+            (2, [first, moved, settled], 3, None),                           # the references moved
+            (2, [first] * 5, 4, "No file deck-present.aux."),                # never settled: two more at most,
+            (2, [first, moved, moved, moved], 4, moved.strip()),             # and it says so
+            (1, [first], 1, None)):                                          # one pass asked for: one (a draft)
         logs[:], calls[:] = those, []
-        latex.compile_deck(tex, "present", tmp_path / "out", passes=passes)
-        assert len(calls) == runs, (passes, those)
+        r = latex.compile_deck(tex, "present", tmp_path / "out", passes=passes)
+        assert (len(calls), r.unsettled, r.undefined) == (runs, unsettled, ()), (passes, those)
+    gone = "LaTeX Warning: Reference `sec:gone' on page 2 undefined on input line 9.\n"
+    logs[:] = [first, settled + gone + gone + "LaTeX Warning: Citation `knuth84' on page 3 undefined on input line 12.\n"
+               + "LaTeX Warning: There were undefined references.\n"]
+    r = latex.compile_deck(tex, "present", tmp_path / "out")
+    assert (r.unsettled, r.undefined) == (None, ("sec:gone", "knuth84"))
+
+
+def test_pdflatex_gets_plain_paths(tmp_path, monkeypatch):
+    r"""pdflatex writes into an output folder given as \\?\C:\... (Windows' extended-length form) but reads
+    none of it back - no .aux: every pass typesets as a first one, its references ?? (the stage PDF of KG's
+    01-Intro, 2026-11-18: 137 of them, and the build said nothing). Path.resolve() gives that form for a new
+    folder another thread makes meanwhile - the stage compile's, beside the present compile (compiler.plain).
+    Whatever resolve() gives, and if the folder is given so: pdflatex gets plain paths, and so does the result."""
+    from texstage.build import latex
+    calls = fake_pdflatex(monkeypatch, ["(./deck-present.aux)\n"])
+    tex = tmp_path / "deck.tex"
+    tex.write_text("x", encoding="utf-8")
+    out = (tmp_path / "new" / "build").resolve()
+    for given, resolved in ((out, "prefixed"), (Path("\\\\?\\" + str(out)), "as it is")):
+        with monkeypatch.context() as m:
+            if resolved == "prefixed":                    # (as in the race - on any system)
+                real = os.path.realpath
+                m.setattr(os.path, "realpath", lambda p, **kw: "\\\\?\\" + real(p, **kw).removeprefix("\\\\?\\"))
+            calls.clear()
+            r = latex.compile_deck(tex, "present", given)
+        assert len(calls) == 2, resolved                  # the two passes asked for, each with plain paths
+        for cmd, kw in calls:
+            assert f"-output-directory={out}" in cmd and kw["cwd"] == tex.parent.resolve(), resolved
+            assert "\\\\?\\" not in kw["env"]["TEXINPUTS"] and not any(a.startswith("\\\\?\\") for a in cmd), resolved
+        assert (r.pdf, r.log) == (out / "deck-present.pdf", out / "deck-present.log"), resolved
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows' extended-length paths")
+def test_a_deck_compiled_into_an_extended_length_folder_reads_its_aux(tmp_path):
+    r"""The fault itself, with pdflatex: an output folder given as \\?\C:\... - each pass read no .aux
+    ("No file refs-present.aux"), the reference stayed ?? (before 2026-11-19)."""
+    from texstage.build.latex import compile_deck
+    tex = deck(tmp_path, "refs", r"""
+        \section{One}\label{sec:one}
+        \begin{frame}{One}See section \ref{sec:one}.\end{frame}""")
+    r = compile_deck(tex, "present", Path("\\\\?\\" + str(tmp_path.resolve() / "out")))
+    assert "No file refs-present.aux" not in r.log.read_text(encoding="utf-8", errors="replace")
+    assert not str(r.pdf).startswith("\\\\?\\") and (r.unsettled, r.undefined) == (None, ())
+
+
+def test_the_warnings_of_what_pdflatex_left_unsettled():
+    """The build's warnings for an unsettled compile (builder.unsettled): the line that asks for another
+    pass and the references ??; the deck's own undefined references once - the stage PDF's are those
+    the present compile resolved (KG's 01-Intro: 137 in the stage PDF, none on the slides)."""
+    from texstage.build.builder import unsettled
+    from texstage.build.latex import CompileResult
+
+    def made(pdf: str, asks: str | None = None, undefined: tuple = ()) -> CompileResult:
+        return CompileResult(Path(pdf), Path(pdf).with_suffix(".log"), None, 0, asks, undefined)
+    refs = tuple(f"sl:intro:{i}" for i in range(137))
+    assert unsettled(made("slides-present.pdf"), made("slides-stage.pdf", "No file slides-stage.aux.", refs)) == [
+        "the stage PDF (slides-stage.pdf): 137 references ?? (sl:intro:0, sl:intro:1, sl:intro:2, ...) - pdflatex's "
+        "last pass still asks for another (\"No file slides-stage.aux.\"); build again"]
+    assert unsettled(made("d-present.pdf", "Rerun to get outlines right"), None) == [
+        "the slides (d-present.pdf): references or frame totals may be wrong - pdflatex's last pass still asks for "
+        "another (\"Rerun to get outlines right\"); build again"]
+    assert unsettled(made("d-present.pdf", undefined=("sec:gone",)), made("d-stage.pdf", undefined=("sec:gone",))) == [
+        "the slides (d-present.pdf): 1 reference undefined, ?? on the pages: sec:gone"]
+    assert unsettled(made("d-present.pdf"), made("d-stage.pdf")) == unsettled(made("d-present.pdf"), None) == []
+
+
+def test_a_build_says_what_pdflatex_left_undefined(tmp_path):
+    """A reference the deck does not define builds, with a warning - once, though both compiles have it:
+    ?? on the slides must not ship silently."""
+    tex = deck(tmp_path, "refs", r"""
+        \section{One}\label{sec:one}
+        \begin{frame}{One}See section \ref{sec:one}, not \ref{sec:gone}.\end{frame}""")
+    r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key", stage=True))
+    assert r.warnings == ["the slides (refs-present.pdf): 1 reference undefined, ?? on the pages: sec:gone"]
 
 
 # ------------------------------------------------------------------ a video (texvideo)
@@ -975,3 +1105,16 @@ def test_an_activity_that_no_slide_opens_is_warned_of(tmp_path):
 """, encoding="utf-8")
     r = build(tex, tmp_path / "out", BuildOptions(check=False, key="test-key"))
     assert r.warnings == ["activity r: no slide opens it - its \\reveal<n> reveals it from the first one on"]
+
+
+def test_texstage_pdf_says_the_references_it_left_undefined(tmp_path, capsys):
+    """texstage pdf says what pdflatex left unsettled, as a build does (builder.unsettled; the review of
+    2026-11-19: a deck's ?? went by without a word)."""
+    from texstage import cli
+    tex = tmp_path / "refs.tex"
+    tex.write_text("\\documentclass{article}\n\\begin{document}\nSee \\ref{nowhere}.\n\\end{document}\n",
+                   encoding="utf-8")
+    assert cli.main(["pdf", str(tex), "-o", str(tmp_path / "out")]) == 0
+    out = capsys.readouterr().out
+    assert "warning: the PDF (refs-handout.pdf): 1 reference undefined, ?? on the pages: nowhere" in out, out
+

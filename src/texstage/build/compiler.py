@@ -12,6 +12,21 @@ import shutil
 import subprocess
 
 RERUN_PATTERN = r"Rerun to get|Label\(s\) may have changed|^No file \S+\.(?:aux|nav)\.$"
+LONG = "\\\\?\\"                 # Windows' extended-length form: \\?\C:\..., \\?\UNC\server\share\...
+
+
+def plain(path: str | Path) -> Path:
+    r"""path absolute and resolved, never in the extended-length form \\?\C:\...: pdflatex writes its
+    output into such a folder but reads none of it back - no .aux, so every pass typesets as a first
+    one (references ??). Path.resolve() gives that form for a folder missing two levels deep that
+    another thread makes meanwhile (two compiles side by side into a new folder: builder.py):
+    ntpath.realpath strips the prefix only where the plain path then resolves, or fails as at first -
+    and "path not found" has become "file not found"."""
+    def short(text: str) -> str:
+        if text.startswith(LONG + "UNC\\"):
+            return "\\\\" + text[len(LONG) + 4:]
+        return text[len(LONG):] if text.startswith(LONG) else text
+    return Path(short(str(Path(short(str(path))).resolve())))
 
 
 @dataclass(frozen=True)
@@ -49,7 +64,8 @@ def compile_latex(
 ) -> LatexResult:
     """Compile beside the source, leaving relative includes and local styles intact.
 
-    Explicit relative output_dir/texinputs paths resolve from the caller's CWD.
+    Explicit relative output_dir/texinputs paths resolve from the caller's CWD; the
+    engine gets them plain, never in Windows' extended-length form (plain).
     Without output_dir all artifacts stay beside the source. No course discovery,
     source rewriting, cleanup, style injection or PDF interpretation takes place.
     pdflatex runs passes times, then up to extra_passes while the log matches
@@ -69,12 +85,12 @@ def compile_latex(
                                any(char in jobname for char in '/\\<>:"|?*\r\n')):
         raise ValueError("jobname must be a filename without a directory or reserved characters")
     rerun = re.compile(RERUN_PATTERN if rerun_pattern is None else rerun_pattern, re.MULTILINE)
-    source = Path(tex).resolve()
+    source = plain(tex)
     if not source.is_file():
         raise FileNotFoundError(f"LaTeX source not found: {source}")
     if shutil.which(engine) is None:
         raise FileNotFoundError(f"{engine} is not on PATH")
-    output = Path(output_dir).resolve() if output_dir is not None else source.parent
+    output = plain(output_dir) if output_dir is not None else source.parent
     name = jobname if jobname is not None else source.stem
     command = [engine]
     if engine == "latexmk":
@@ -96,7 +112,7 @@ def compile_latex(
         # duplicate PATH/Path keys instead of overriding the inherited setting.
         environment.update({key.upper() if os.name == "nt" else key: value for key, value in env.items()})
     if texinputs:
-        environment["TEXINPUTS"] = os.pathsep.join(str(Path(path).resolve()) for path in texinputs) \
+        environment["TEXINPUTS"] = os.pathsep.join(str(plain(path)) for path in texinputs) \
             + os.pathsep + environment.get("TEXINPUTS", "")
     output.mkdir(parents=True, exist_ok=True)
     log = output / f"{name}.log"

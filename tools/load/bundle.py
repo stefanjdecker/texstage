@@ -73,8 +73,8 @@ def lecture(folder: Path) -> tuple[bytes, str, bytes, str]:
     return ttl, sparql, prefixes, turtle
 
 
-def make(out: Path, lecture_folder: Path | None = None) -> str:
-    """Writes the bundle to out; its id."""
+def make(out: Path, lecture_folder: Path | None = None, crowd: bool = False) -> str:
+    """Writes the bundle to out; its id. crowd: a crowd graph besides, of triples (groups.py's; not the runs')."""
     if lecture_folder is not None:
         ttl, sparql_ref, prefixes, turtle_ref = lecture(lecture_folder)
     else:
@@ -91,7 +91,8 @@ def make(out: Path, lecture_folder: Path | None = None) -> str:
                    "tokens": ["rdfs:label", "."]},
         "sql": {"input": "code", "limit": 5, "engine": "sql", "seed": name(SQL_SEED, ".sql"),
                 "tokens": ["SELECT", "FROM", "WHERE", "quantity"]},
-    }
+    } | ({"crowd": {"input": "tuple", "limit": 5, "fields": ["Subject", "Predicate", "Object"], "suggest": [":KG"],
+                    "min": 1}} if crowd else {})
 
     def live(item):
         return [{"type": "activity", "item": item, "rects": {"box": box}}]

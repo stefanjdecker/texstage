@@ -1,6 +1,6 @@
 # Showcase feature coverage
 
-Target: the current texstage 0.2.1.dev6 candidate. This is a tour of every major
+Target: the current texstage 0.2.1.dev7 candidate. This is a tour of every major
 user-facing feature family, not a test of every low-level core macro or every
 combination of configuration keys. The command reference remains authoritative
 for exhaustive option syntax.

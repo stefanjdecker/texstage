@@ -413,8 +413,10 @@ after its review - fourteen findings, fixed -, and what it settled:
   count that are in or hidden - what the lecturer hid gives no place back, and is not taken a
   second time -, one taken back gives its place back, and a student sends at most three times the
   limit in all, so that nobody fills a step's 10,000 by sending and taking back (F1 had both holes).
-  `counts=all` refuses a student's same input twice (`duplicate`) as it was typed; inputs that only
-  normalize alike are package 4's.
+  `counts=all` refuses a student's same input twice (`duplicate`) as it was typed, but for the
+  spaces around a field; inputs that only normalize alike are package 4's. One whose check could
+  not be made, sent again, is that entry again, and its check is asked for again (the review of
+  2026-11-19).
 - **Hide and show** are the entries' own moves (moderation, package 5, calls them): only what is in
   is hidden, only what is hidden is shown - and where the latest counts and the student has sent
   another since, the one shown again is replaced by it, so that no student counts twice (package 5's
@@ -1461,7 +1463,10 @@ does not see what F2 stored (3).
 - **The lectures:** the KG lecture's decks built with lecture-tools after it has taken F2, their
   groups compared with F1's (package 13). Compared on 2026-11-18, the lecture's entries and made-up
   ones sent to a server of each type: the groups are F1's; what differs is as designed, and one
-  fault - a stale game's references after a restart - is fixed (4.12).
+  fault - a stale game's references after a restart - is fixed (4.12). `tools/load/groups.py` runs
+  the comparison again (since the review of 2026-11-19, which found it could not be rerun): the
+  same made-up entries to a server of each type, the groups compared; the tie order differs by
+  design - F1's by the raw key, the core's correct first - and is said apart.
 - **The load:** F0's runs on F2, on the presentation laptop with the phones from a second machine
   (package 13). The runs play the core's type since (`--activities core`, their default since
   package 14); rehearsed on the development machine with its phones on it, within the budgets

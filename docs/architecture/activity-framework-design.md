@@ -802,7 +802,12 @@ the texts are not.
 ## 12. On the phones
 
 - **One thing at a time,** as today: the quiz's round while one is open - it pauses the open
-  step (5.2) -, else the current step of the open activity, else the waiting screen.
+  step (5.2) -, else the step that runs (open or paused); else whichever the phones were shown
+  last - the step closed or revealed last, with the student's entries and verdicts, or the
+  quiz's reading, round or result after it -, else the waiting screen. The server says when each
+  became what the phones show (the step's `at`, the game's `quiz_at`), and keeps both with the
+  game. (The review of 2026-11-19: a closed activity stayed on the phones through every later
+  quiz.)
 - **One screen for every kind:** the prompt, the input (the core's or the kind's), *Send*, the
   student's entries and their states, in the deck's language.
 - **An entry's states:** sent; received (the server has stored it); being checked; then what
@@ -909,7 +914,8 @@ lecture shows (F5).
 
 Measured so far: F0 on one machine, and F1 on a laptop with its phones simulated on it, alone and
 through its tunnel ([activity-framework-plan.md](activity-framework-plan.md), 4.9); the core's type
-on that laptop, alone, beside F1's on the same day - every budget held, the projector's four updates a
+on the same machine - the development machine, not the presentation laptop -, alone, beside F1's on
+the same day - every budget held, the projector's four updates a
 second by the core's only (F2's package 13,
 [activity-framework-plan-f2.md](activity-framework-plan-f2.md), 4.12). The phones from a second
 machine, over Wi-Fi, are still to come.

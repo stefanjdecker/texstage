@@ -560,7 +560,7 @@ def test_todays_crowd_graph(seed):
             else:
                 g.act(act, target=rng.choice(known), off=rng.random() < 0.4)
         except Refused as e:
-            assert e.code in ("invalid", "cycle")
+            assert e.code in ("invalid", "cycle", "no-term")
         if not loose and rng.random() < 0.3:
             e = rng.choice(entries)
             if e.state == "in" and rng.random() < 0.5:
@@ -614,10 +614,10 @@ def test_a_group_is_hidden_from_the_projector_and_shown_in_detail():
     assert [a["n"] for a in g.picture("stage")["acts"]] == [4, 3, 2, 1] and "acts" not in g.picture()
     assert g.picture("stage")["acts"][1] == {"n": 3, "act": "hide", "created": g.moderation.rows[2].created,
                                              "target": two, "off": True}
-    refused("invalid", g.act, "hide", target="0123456789abcdef")
+    refused("no-group", g.act, "hide", target="0123456789abcdef")
     refused("invalid", g.act, "hide", target=None)
     refused("invalid", g.act, "hide", target=two, entry="entry-0001")
-    refused("invalid", g.act, "show", target=gid("ok", "nobody's"))
+    refused("no-group", g.act, "show", target=gid("ok", "nobody's"))
     refused("invalid", g.act, "praise", target=two)
     refused("invalid", g.act, "hide", target=two, off="yes")
     for act, more in (("merge", {"target": one, "onto": two}), ("unmerge", {"target": one}),
@@ -626,7 +626,7 @@ def test_a_group_is_hidden_from_the_projector_and_shown_in_detail():
     assert len(g.moderation.rows) == 4
     # a group whose entries are all gone cannot be shown, but stays hidden or not as it was
     g.withdraw(g.entries.get(A, S, "entry-0001"))
-    refused("invalid", g.act, "show", target=one)
+    refused("no-group", g.act, "show", target=one)
     assert g.act("hide", target=one).row is not None
 
 
@@ -676,6 +676,30 @@ def test_a_student_is_blocked_and_what_they_sent_is_hidden():
     refused("invalid", g.act, "block")
 
 
+def test_a_block_that_holds_stays_in_the_last_acts_however_many_came_after_it():
+    """The panel lists the last acts to undo - and after them every block that holds: its Undo is its
+    student's only way back, in every activity (the second review of 2026-11-19: after ten more acts it was
+    gone). Undone by its number, the student sends again; one unblocked is no longer listed beyond them."""
+    from texstage.activities.moderation import ACTS_LISTED
+    g = crowd()
+    e1 = g.send("p1", [":a", ":p", ":b"])
+    g.send("p2", [":a", ":p", ":c"])
+    block = g.act("block", entry=e1.id).row
+    for k in range(2, ACTS_LISTED + 4):                        # more acts than the list's
+        g.act("min", value=k)
+
+    def listed():
+        return [a["n"] for a in g.moderation.acts(g.st.activity, g.st.step, g.st.epoch)]
+    assert len(listed()) == ACTS_LISTED + 1 and listed()[-1] == block.n
+    g.undo(block.n)
+    assert g.moderation.blocked == set() and block.n not in listed()
+    again = g.act("block", entry=e1.id).row
+    g.act("block", entry=e1.id, off=True)                      # unblocked by an act of its own
+    for k in range(2, ACTS_LISTED + 4):
+        g.act("min", value=k + 20)
+    assert again.n not in listed() and len(listed()) == ACTS_LISTED
+
+
 def test_terms_are_merged_hidden_and_approved():
     g = crowd(review=True)
     g.send("p1", [":Aachen", ":liegtIn", ":NRW"])
@@ -694,10 +718,10 @@ def test_terms_are_merged_hidden_and_approved():
     refused("cycle", g.act, "merge", target=":Aachen", onto=":aachen")
     refused("invalid", g.act, "merge", target=":Aachen", onto=":Aachen")
     refused("invalid", g.act, "merge", target=":Aachen", onto=":liegtIn")          # a label is no node
-    refused("invalid", g.act, "merge", target=":nobody", onto=":Aachen")
+    refused("no-term", g.act, "merge", target=":nobody", onto=":Aachen")
     refused("invalid", g.act, "merge", target=":Aachen", onto=":NRW", role="edge")
-    refused("invalid", g.act, "unmerge", target=":nobody")
-    refused("invalid", g.act, "approve", target=":nobody")
+    refused("no-term", g.act, "unmerge", target=":nobody")
+    refused("no-term", g.act, "approve", target=":nobody")
     refused("reduction", g.act, "show", target=":Aachen")
     assert g.act("merge", target=":aachen", onto=":Aachen").row is None and g.act("unmerge", target=":Köln").row is None
     g.act("merge", target=":aachen", onto=":Köln")              # merged into another: the earlier merge is replaced
@@ -744,7 +768,7 @@ def test_every_act_can_be_undone():
     assert g.undo().row.n == 1 and g.moderation.of(A, S).merges == {}
     assert g.undo() == moderation_module.Done()                # none left
     assert [r.undone for r in g.moderation.rows] == [True] * 6 and g.picture("stage")["acts"] == []
-    refused("invalid", g.undo, 99)
+    refused("no-act", g.undo, 99)
     refused("invalid", g.undo, True)
     # taking a hide back, undone: hidden again
     g.act("hide", entry=e2.id)
@@ -899,9 +923,10 @@ def test_the_acts_are_loaded_after_the_entries():
     g.act("hide", target=":b")
     g.act("block", entry=e.id)
     again = crowd()
-    with pytest.raises(ValueError, match="load a game's entries before its acts"):      # else nobody were blocked,
-        again.moderation.load(g.moderation.rows)                                        # and nothing said so
-    assert again.moderation.rows == [] and again.moderation.blocked == set()
+    again.moderation.load(g.moderation.rows)       # a block whose entry is not there blocks nobody, and the log says
+    assert again.moderation.blocked == set()       # so: its row did not read, say - the game loads (the third review
+    assert again.moderation.top == 2               # of 2026-11-19: it did not); its acts come after the table's
+    again = crowd()
     again.entries.load([e])
     again.moderation.load(g.moderation.rows)
     assert again.moderation.blocked == {"p1"} and again.moderation.of(A, S).hidden == {":b"}
@@ -1085,7 +1110,7 @@ def test_after_a_reset_no_undo_reaches_into_the_earlier_epoch():
     g.move("open")
     assert [a["n"] for a in g.picture("stage")["acts"]] == [1]  # the act on the entry is no longer the panel's
     assert g.moderation.acts(A, S) == g.moderation.acts(A, S, 0) and len(g.moderation.acts(A, S)) == 2
-    refused("invalid", g.undo, 2)
+    refused("no-act", g.undo, 2)
     assert g.undo().row.n == 1 and g.undo() == moderation_module.Done()      # the last act that is this epoch's
     assert e1.state == "hidden" and not g.moderation.rows[1].undone
     # a block of the earlier epoch can be undone: the student sends again, the earlier entries stay as they are
@@ -1270,8 +1295,8 @@ def test_a_tallys_choice_that_nobody_made_can_be_hidden_and_the_rest_is_capped(m
     assert g.act("hide", target=nobody).row.target == nobody
     assert [x["id"] for x in g.picture()["groups"]] == [gid("ok", "k:A")]
     assert [(x["id"], x["hidden"]) for x in g.picture("stage")["groups"]] == [(nobody, True), (gid("ok", "k:A"), False)]
-    refused("invalid", g.act, "show", target=nobody)           # nothing of it to show
-    refused("invalid", g.act, "hide", target=gid("ok", "k:Z"))
+    refused("no-group", g.act, "show", target=nobody)           # nothing of it to show
+    refused("no-group", g.act, "hide", target=gid("ok", "k:Z"))
     assert g.act("hide", target=nobody, off=True).row is not None and len(g.picture()["groups"]) == 2
     monkeypatch.setattr(reduce_module, "GROUPS_SHOWN", 2)
     for i, text in enumerate(["x1", "x2", "x2", "x3", "x3", "x3", "loop"]):
@@ -1395,7 +1420,7 @@ def test_the_acts_of_two_steps_are_apart():
     g.act("hide", target=":a")                                 # 1, of the step a
     assert g.moderation.act(other, g.setup, "min", value=3, now=5).row.n == 2
     assert [a["n"] for a in g.moderation.acts(A, S)] == [1] and [a["n"] for a in g.moderation.acts("b", S)] == [2]
-    refused("invalid", g.undo, 2)                              # another step's act
+    refused("no-act", g.undo, 2)                              # another step's act
     assert g.undo().row.n == 1 and g.undo() == moderation_module.Done()
     assert g.moderation.of("b", S).min == 3 and g.moderation.undo(other, g.setup).row.n == 2
     # an entry's id is its step's: the acts on one of another step with the same id are not about this one
@@ -1442,7 +1467,7 @@ def test_what_the_acts_take_from_a_window():
     g.move("open")
     assert g.act("hide", target=":b").row is not None and g.act("approve", target=":a").row is not None
     assert g.act("hide", target=":b", off=True).row is not None
-    refused("invalid", g.act, "hide", target=":nobody")
+    refused("no-term", g.act, "hide", target=":nobody")
     assert g.act("unmerge", target=":a").row is not None and g.moderation.of(A, S).merges == {}
     # a group that is hidden and gone with its epoch can be shown again
     q = Game()
@@ -1451,7 +1476,7 @@ def test_what_the_acts_take_from_a_window():
     q.move("reset")
     q.move("open")
     assert q.act("hide", target=gid("ok", "k1"), off=True).row is not None
-    refused("invalid", q.act, "hide", target=gid("ok", "k1"))  # ... and is none to hide, until it comes again
+    refused("no-group", q.act, "hide", target=gid("ok", "k1"))  # ... and is none to hide, until it comes again
 
 
 def test_a_game_takes_so_many_acts_that_hold_and_so_many_rows(monkeypatch):
@@ -1480,4 +1505,4 @@ def test_a_reset_empties_a_crowd_graph():
     g.move("open")
     pic = g.picture("stage")
     assert (pic["nodes"], pic["edges"], pic["terms"], pic["more"]) == ([], [], [], 0)
-    refused("invalid", g.act, "merge", target=":a", onto=":b")   # the earlier epoch's terms are not this one's
+    refused("no-term", g.act, "merge", target=":a", onto=":b")   # the earlier epoch's terms are not this one's

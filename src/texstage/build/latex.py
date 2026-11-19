@@ -9,7 +9,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from .compiler import RERUN_PATTERN, compile_latex
+from .compiler import RERUN_PATTERN, compile_latex, plain
 
 def latex_dir() -> Path:
     """Where texquiz.sty is: in an installed package texstage/latex/ (pyproject.toml maps the
@@ -22,6 +22,7 @@ LATEX_DIR = latex_dir()
 MODES = ("handout", "solutions", "present")
 EXTRA_PASSES = 2                 # at most, after the passes asked for, while the log asks for one
 RERUN = re.compile(RERUN_PATTERN, re.MULTILINE)
+UNDEFINED = re.compile(r"^LaTeX Warning: (?:Reference|Citation) [`'](.*?)' on page", re.MULTILINE)   # (... undefined)
 
 
 class LatexError(RuntimeError):
@@ -34,6 +35,8 @@ class CompileResult:
     log: Path
     tqz: Path | None
     overfull: int
+    unsettled: str | None = None        # the last pass's line that asks for another, when none was left
+    undefined: tuple[str, ...] = ()     # the references (and citations) the last pass left ??
 
 
 def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = False,
@@ -44,15 +47,17 @@ def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = Fal
     mode, the .tqz metadata file.  notes=True: every page holds the slide and its
     note page, typeset for text extraction (notes.py); notes="stage": the deck's own
     note pages, each a page of its own after its slide (texstage).  explicit_mode=False
-    compiles like a plain pdflatex run (the package then picks its default mode itself)."""
+    compiles like a plain pdflatex run (the package then picks its default mode itself). The result says
+    what the last pass left unsettled, which a build must not ship silently: its line that still asks for
+    another pass (wants_rerun) when no pass was left, and the references it left undefined."""
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
     if notes not in (False, True, "stage"):
         raise ValueError(f"notes must be False, True or 'stage', not {notes!r}")
     if shutil.which("pdflatex") is None:
         raise LatexError("pdflatex is not on PATH")
-    tex = tex.resolve()
-    out_dir = out_dir.resolve()
+    tex = plain(tex)
+    out_dir = plain(out_dir)                # (not \\?\C:\..., which a compile beside this one can make it)
     out_dir.mkdir(parents=True, exist_ok=True)
     jobname = jobname or f"{tex.stem}-{mode}"
     flags = (rf"\def\texquizmode{{{mode}}}" if explicit_mode else "") \
@@ -68,19 +73,23 @@ def compile_deck(tex: Path, mode: str, out_dir: Path, *, notes: bool | str = Fal
         raise LatexError(first_error(log) or result.stdout[-2000:])
     tqz = out_dir / f"{jobname}.tqz"
     return CompileResult(out_dir / f"{jobname}.pdf", log, tqz if mode == "present" else None,
-                         count_overfull(log))
+                         count_overfull(log),
+                         wants_rerun(result.log_text) if passes > 1 else None,    # (one pass asked for: a draft)
+                         tuple(dict.fromkeys(UNDEFINED.findall(result.log_text))))
 
 
-def wants_rerun(log: Path) -> bool:
-    """The last pass's log asks for another one: cross-references or Beamer's navigation not
-    settled, or the .aux or .nav the pass before wrote not read - on Windows a virus scanner may
-    still hold a file just written, and the pass then typesets as a first one (frame totals 1,
-    references ??, and a new bundle ID for the same source)."""
-    try:
-        text = log.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return False
-    return bool(RERUN.search(text))
+def wants_rerun(log: str) -> str | None:
+    r"""The line of a pass's log (its text) that asks for another pass, None if none does: cross-references
+    or Beamer's navigation not settled, or the .aux or .nav the pass before wrote not read - on Windows a
+    virus scanner may still hold a file just written, or pdflatex was given its output folder as \\?\C:\...
+    (compiler.plain), and the pass then typesets as a first one (frame totals 1, references ??, and a new
+    bundle ID for the same source)."""
+    found = RERUN.search(log)
+    if found is None:
+        return None
+    start = log.rfind("\n", 0, found.start()) + 1
+    end = log.find("\n", found.end())
+    return log[start:end if end >= 0 else len(log)].strip()
 
 
 def first_error(log: Path) -> str:

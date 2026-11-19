@@ -37,6 +37,22 @@ test("a step's time: what is left of it as the server read it, and a clock", () 
   assert.deepEqual([phone.clock(0), phone.clock(59_001), phone.clock(60_000), phone.clock(125_000)], ["0:00", "1:00", "1:00", "2:05"]);
 });
 
+test("the step a phone shows instead of the quiz: one that runs, one that ended until the quiz shows something after it", () => {
+  // (the review of 2026-11-19, A1: a closed activity hid every later quiz's reading, result and leaderboard)
+  const at = 5000;
+  for (const phase of ["open", "paused"]) assert.equal(phone.stepShown({ phase, at }, { quiz_at: 9000 }), true);
+  for (const phase of ["closed", "revealed"]) {
+    assert.equal(phone.stepShown({ phase, at }, {}), true);                     // no quiz shown yet
+    assert.equal(phone.stepShown({ phase, at }, { quiz_at: null }), true);
+    assert.equal(phone.stepShown({ phase, at }, { quiz_at: 4000 }), true);      // the quiz was before it
+    assert.equal(phone.stepShown({ phase, at }, { quiz_at: 5000 }), false);     // in the same move: the quiz's
+    assert.equal(phone.stepShown({ phase, at }, { quiz_at: 9000 }), false);     // after it: a reading, a round
+  }
+  assert.equal(phone.stepShown({ phase: "closed" }, { quiz_at: 1 }), false);    // a step without its time
+  assert.equal(phone.stepShown({ phase: "ready", at }, {}), false);
+  assert.equal(phone.stepShown(null, {}), false);
+});
+
 test("what an entry's state says - in the deck's language, the check's message in the kind's words", () => {
   const L = texts("en").steps;
   const kinds = new Kinds({}, "en");

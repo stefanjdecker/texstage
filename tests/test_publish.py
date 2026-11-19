@@ -480,6 +480,57 @@ def test_behind_a_proxy(live):
     assert b'"key"' in get("/api/presenter-key", {})                 # on the machine itself: yes
 
 
+def kinds_bundle(folder: Path, query: str | None = None) -> str:
+    """test_activity's deck of a crowd graph and a query, naming its kinds as this machine has them - the
+    query's of version `query`, if given; its ID."""
+    from test_activity import make_activity_bundle
+    from texstage.activities import registry
+    have = {f.name: f for f in registry.found()}
+    if not {"sparql-query", "triples"} <= set(have):
+        pytest.skip("needs texstage-kinds-rdf")
+    kinds = {n: {"package": have[n].package, "version": have[n].version, "api": have[n].api}
+             for n in ("sparql-query", "triples")}
+    if query is not None:
+        kinds["sparql-query"]["version"] = query
+    return make_activity_bundle(folder, query={"kind": "sparql-query"}, crowd={"kind": "triples"},
+                                deck_more={"kinds": kinds})
+
+
+@pytest.mark.parametrize("here", ["lacks", "older"])
+def test_publish_leaves_the_kinds_to_the_server(live, tmp_path, monkeypatch, here):
+    """texstage publish finds and sends a deck whatever kinds the publishing machine has - none of the deck's,
+    or older ones: the server it goes to judges that, and takes it if it has them. (Until 2026-11-19 publish
+    judged by its own machine's kinds: such a deck was skipped - "no bundles found", nothing sent.)"""
+    import dataclasses
+
+    from texstage.activities import registry
+    bid = kinds_bundle(tmp_path / "chapter" / "act.bundle")
+    real = registry.found
+
+    def found_here():
+        if here == "lacks":
+            return tuple(f for f in real() if f.package == "texstage")
+        return tuple(dataclasses.replace(f, version="0.0.1") if f.name == "sparql-query" else f for f in real())
+    with monkeypatch.context() as m:                # (the server runs in this process: only while publish looks)
+        m.setattr(registry, "found", found_here)
+        found, problems = find_bundles([tmp_path / "chapter"])
+    assert [b.id for b in found] == [bid] and problems == []
+    assert publish(found, live, KEY, say=lambda s: None) == 1
+
+
+def test_a_deck_the_server_refuses_is_said_and_the_others_go(live, tmp_path, capsys):
+    """The server judges what texstage publish sends: a deck it refuses - a kind of a version no machine has -
+    is said with the server's why, the other decks still go, and the command fails."""
+    refused = kinds_bundle(tmp_path / "lecture" / "act.bundle", query="99.0")
+    fb = make_bundle(tmp_path / "lecture" / "quiz")
+    assert main(["publish", str(tmp_path / "lecture"), "--url", live, "--key", KEY]) == 1
+    out, err = capsys.readouterr()
+    assert f"act: bundle {refused} refused - PUT {live}/api/bundles/{refused}: 400 " in out
+    assert "sparql-query of texstage-kinds-rdf 99.0, this server has" in out          # the server's why
+    assert f"test: bundle {fb.id} published" in out
+    assert "texstage: the server refused act (1 sent)" in err and "no bundles found" not in err
+
+
 def test_publish_command(live, tmp_path, capsys):
     fb = make_bundle(tmp_path / "chapter" / "build" / "texquiz")
     (b,), _ = find_bundles([tmp_path / "chapter"])
@@ -492,3 +543,37 @@ def test_publish_command(live, tmp_path, capsys):
     assert f"second: bundle {fb2.id} published" in capsys.readouterr().out
     assert main(["publish", str(tmp_path / "nothing"), "--url", live, "--key", KEY]) == 1
     assert main(["publish", str(fb.path), "--url", "http://127.0.0.1:9", "--key", KEY]) == 1
+
+
+def test_a_build_says_why_its_deck_was_not_sent(tmp_path, monkeypatch):
+    """cli.deliver: a bundle publish cannot read is said with why - before, it was neither sent nor said (the
+    review of 2026-11-19)."""
+    from texstage import cli
+    folder = tmp_path / "broken.bundle"
+    folder.mkdir()
+    (folder / "deck.json").write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(cli, "on_this_machine", lambda server: False)
+    said = cli.deliver(folder, tmp_path / "out", "https://quiz.example.org", "a-key", tmp_path / "data")
+    (warning,) = [s for s in said if "not on https://quiz.example.org" in s]
+    assert "broken.bundle" in warning and "texstage publish" in warning, warning
+
+
+def test_a_refusal_whose_answer_cannot_be_read_is_said_as_the_decks_refusal(monkeypatch):
+    """A deck too large: the server answers 413 and closes the connection, so reading its answer resets. It is
+    the deck's refusal - said, the other decks still go -, not a traceback (the second review of 2026-11-19)."""
+    import io
+    import urllib.error
+
+    from texstage import publish as pub
+
+    class Reset(io.BytesIO):
+        def read(self, *args):
+            raise ConnectionResetError("the connection was reset")
+
+    def urlopen(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 413, "Payload Too Large", {}, Reset())
+    monkeypatch.setattr(pub.urllib.request, "urlopen", urlopen)
+    with pytest.raises(pub.PublishError) as e:
+        pub.call("http://quiz.example/api/bundles/x", "a-key", "PUT", b"zip")
+    assert e.value.status == 413 and "413 Payload Too Large" in str(e.value)
+

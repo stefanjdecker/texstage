@@ -54,7 +54,7 @@ from texstage.checks import cleaning
 from texstage.checks.cleaning import TERM_MAX, TEXT_MAX, is_literal, norm_term, term_key  # noqa: F401 - the type's names
 from texstage.engines import ENGINES
 from texstage.server import sheets
-from texstage.server.types import Refused
+from texstage.server.hook import Refused  # (not types.py, which imports this module)
 
 NAME = "activity"
 MESSAGES = ("activity.open", "activity.close", "activity.reveal", "activity.merge", "activity.unmerge",

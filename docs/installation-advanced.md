@@ -9,7 +9,7 @@ requirements/runtime.txt, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-0.2.1.dev6-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-0.2.1.dev7-py3-none-any.whl
 python -m pip install --no-deps path/to/texstage_kinds_rdf-0.1.0-py3-none-any.whl path/to/texstage_kinds_sql-0.1.0-py3-none-any.whl
 python -m pip check
 ```
@@ -49,11 +49,15 @@ live activities after texstage. The image's command - and the `command` of
 docker-compose.yml - serves with the default activity type, the activity
 framework's core, which uses them; with `--activities f1` added it serves with
 F1's type, kept until a class has used the core. The core's type starts its
-worker processes with the server: the physical cores less two, two spares and
-one that normalizes - in a container the host's cores, so give the command
-`--workers` to fit the container's CPUs and memory (a worker takes some 20 MB
-at rest, up to 70 MB while it checks). Container base tags and
-operating-system packages are not digest
+worker processes with the server - by default the physical cores less two, at
+least one - and besides them two spares and one that normalizes. In a container
+the default counts the host's cores, not the container's, so both commands give
+`--workers 2` (docker-compose.yml: `TEXSTAGE_WORKERS` in deploy/.env): give as
+many as the container's CPUs and memory hold. Each process takes some 25 MB at
+rest, and a worker's checks took at most 67 MB in the load runs - but that is a
+peak of ordinary checks, not a limit: one check may take up to 1 GB more than its
+worker holds before the pool ends that worker, so leave room for that above the
+processes' sum. Container base tags and operating-system packages are not digest
 locked in this candidate; pin and test deployment images as part of the final
 hosting decision.
 

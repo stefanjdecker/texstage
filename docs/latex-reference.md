@@ -33,7 +33,7 @@ Packages, commands, options and developer interfaces
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev6 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev7 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -369,7 +369,7 @@ The build checks the references as the server checks them: a choice's reference 
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. |
+| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. A syntax error comes in Oxigraph's own words: the line and column it names are right, but what it says it expected there is sometimes misleading - look at that place in the query (with --activities f1 as well). |
 | `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - Python's on the server, or with --activities f1 sql.js in the presenter's browser. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
 | `kind=turtle-graph` (`engine=turtle`) | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. In texstage-kinds-rdf. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |

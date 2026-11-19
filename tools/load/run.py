@@ -30,13 +30,17 @@ tunnel - the same runs in the same order on both, with the same part of a name, 
 
 The laptop's side starts a server per run and waits for Enter, pressed when the phones' side says the run
 is done; the phones' side waits for each new server by itself. Each side writes results-<side>.json to
-its scratch folder, and the phones' side prints the table with the budgets. One budget is the laptop's own
-to measure: a slide change in the presenter window, under 100 ms throughout - open it as /stage?timing,
-and its console says each change's time. The projector's updates are counted on the phones' side, by a
-projector's connection of its own.
+its scratch folder and prints its table: the phones' side the budgets - what never came, an entry not
+sent, acknowledged or checked, a file not loaded, counted as over them - and that every entry and every
+phone came through and the simulator ended well; the laptop's side that the pool held: not broken, no
+worker ended but by its watchdog's way with a long text, its normalizing process never ended (run local
+has both in one). One budget is the laptop's own to measure: a slide change in the presenter window,
+under 100 ms throughout - open it as /stage?timing, and its console says each change's time. The
+projector's updates are counted on the phones' side, by a projector's connection of its own.
 
-The scratch folder gets the bundle (bundle.py), a data folder per run and the logs. From F0's
-tools/spike/run_q7.py (branch f0-spike), which ran the spike's pool.
+The scratch folder gets the bundle (bundle.py), a data folder per run, the logs and each run's entries
+(entries-<n>.json: each text, its status, its times). From F0's tools/spike/run_q7.py (branch f0-spike),
+which ran the spike's pool. Whether the core gives F1's groups for the same entries: groups.py.
 """
 from __future__ import annotations
 
@@ -51,6 +55,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
+from collections import Counter
 from pathlib import Path
 
 import psutil
@@ -68,42 +73,133 @@ RUNS = [  # (name, activity, share of texts running into their budget, repetitio
     ("SPARQL, heavier seed, 1 %", "sparql-big", 0.01, 1),
     ("Turtle", "turtle", 0.0, 1),
 ]
-LINES = {
-    "joined_s": (r"phones joined in ([\d.]+) s", float),
-    "refused": (r"^joins refused and tried again: (\d+)", int),
-    "fetch": (r"loaded by (\d+) phones \((\d+) failed, (\d+) unfinished\): median (\d+) ms, 95 % (\d+) ms, "
-              r"max (\d+) ms", int),
-    "open": (r"^open: (\d+) phones after (\d+) ms \(median (\d+) ms\)", int),
-    "close": (r"^close: (\d+) phones after (\d+) ms \(median (\d+) ms\)", int),
-    "ack": (r"^acknowledged: median (\d+) ms, 95 % (\d+) ms, max (\d+) ms \((\d+)\)", int),
-    "checked": (r"^checked - sent until the phone had its verdict: median (\d+) ms, 95 % (\d+) ms, max (\d+) ms "
-                r"\((\d+)\)", int),
-    "others": (r"^\.\.\. of the texts that do not run into their budget: median (\d+) ms, 95 % (\d+) ms, "
-               r"max (\d+) ms \((\d+)\)", int),
-    "projector": (r"^projector: the picture changed at most (\d+) times in a second \((\d+) versions", int),
-    "panel": (r"^panel: the picture changed at most (\d+) times in a second \((\d+) versions", int),
+TIMES = (r"median (?P<median>\d+|never)(?: ms)?, 95 % (?P<p95>\d+|never)(?: ms)?, max (?P<max>\d+|never)(?: ms)? "
+         r"\((?P<n>\d+)(?: of (?P<of>\d+))?\)")         # (of: how many there were to be; one missing is "never")
+PHASE = r" (?P<phones>\d+)(?: of (?P<of>\d+))? phones after (?P<last>\d+) ms \(median (?P<median>\d+) ms\)"
+LINES = {                                               # the simulator's lines: each a dict of its numbers
+    "joined": r"(?P<phones>\d+) phones joined in (?P<s>[\d.]+) s",
+    "refused": r"^joins refused and tried again: (?P<n>\d+)",
+    "fetch": r"loaded by (?P<loaded>\d+) phones \((?P<failed>\d+) failed, (?P<unfinished>\d+) unfinished\): " + TIMES,
+    "open": r"^open:" + PHASE,
+    "close": r"^close:" + PHASE,
+    "entries": r"^entries: (?P<sent>\d+)(?: of (?P<of>\d+))? sent within .*?; (?P<distinct>\d+) distinct texts, "
+               r"(?P<runaway>\d+) running into their budget",
+    "ack": r"^acknowledged: " + TIMES,
+    "checked": r"^checked - sent until the phone had its verdict: " + TIMES,
+    "others": r"^\.\.\. of the texts that do not run into their budget: " + TIMES,
+    "projector": r"^projector: the picture changed at most (?P<most>\d+) times in a second \((?P<versions>\d+) versions",
+    "panel": r"^panel: the picture changed at most (?P<most>\d+) times in a second \((?P<versions>\d+) versions",
+    "drops": r"^connections lost and taken up again: (?P<n>\d+)",
 }
-# the design's budgets (AF 15.1): what of a run is held against which, at most how much of what
-BUDGETS = {"an entry acknowledged (95 %)": (lambda r: r.get("ack", [0, None])[1], 500, "ms"),
-           "its verdict (95 %)": (lambda r: r.get("checked", [0, None])[1], 3000, "ms"),
-           "... of the texts that do not run into their budget (95 %)":
-               (lambda r: r.get("others", r.get("checked", [0, None]))[1], 3000, "ms"),
-           "the activity open on every phone": (lambda r: r.get("open", [0, None])[1], 500, "ms"),
-           "... and closed": (lambda r: r.get("close", [0, None])[1], 500, "ms"),
-           "the files on a phone (95 %)": (lambda r: r.get("fetch", [0] * 5)[4] if r.get("fetch") else None, 30_000, "ms"),
-           "the projector's picture": (lambda r: r.get("projector", [None])[0], 4, "updates in a second")}
+VERDICTS = ("ok", "invalid", "syntax", "error", "refused", "timeout")     # a check's statuses (F1: syntax); the
+WATCHDOG = ("cpu", "clock")         # rest - unchecked, internal, no verdict, not sent, refused (code) - are none
+#                                     ... and the ends of a worker that are the watchdog's way with a long text
 
 
 def parse(out: str) -> dict:
+    """The simulator's lines (LINES), each a dict of its numbers - None for one that never came -, and the
+    entries' statuses."""
     res = {}
-    for name, (pattern, kind) in LINES.items():
+    for name, pattern in LINES.items():
         m = re.search(pattern, out, re.M)
         if m:
-            vals = [kind(g) for g in m.groups()]
-            res[name] = vals[0] if len(vals) == 1 else vals
+            res[name] = {k: None if v in (None, "never") else float(v) if "." in v else int(v)
+                         for k, v in m.groupdict().items()}
     m = re.search(r"^statuses: (.*)$", out, re.M)
     res["statuses"] = ast.literal_eval(m.group(1)) if m else None
     return res
+
+
+# ------------------------------------------------------------------ what a run is held against
+def asked(r: dict, what: str) -> int | None:
+    """What the run asked the simulator for: phones, entries (one a phone at most), or others - the entries
+    whose texts do not run into their budget, as the simulator says."""
+    phones, burst = r.get("players"), r.get("burst")
+    entries = min(burst, phones) if burst and phones else None
+    runaway = (r.get("entries") or {}).get("runaway")
+    return {"phones": phones, "entries": entries,
+            "others": None if entries is None or runaway is None else entries - runaway}[what]
+
+
+def p95(r: dict, name: str, of: int | None) -> int | str:
+    """A line's 95 % over all there were to be: what never came counts as over any budget, as the simulator
+    counts it ("k of n" - else the percentiles of what came alone said a budget held while entries were lost);
+    a line that does not, with fewer than asked for, is over too. Else why there is none."""
+    line = r.get(name)
+    if not line:
+        return "not measured"
+    total = max(of or 0, line["n"])
+    if line["p95"] is None or (line["n"] < total and (line.get("of") or 0) < total):
+        return f"never for {total - line['n']} of {total}"
+    return line["p95"]
+
+
+def every(r: dict, name: str) -> int | str:
+    """When the last phone had the phase: a phone that never had it is over any budget."""
+    line = r.get(name)
+    if not line:
+        return "not measured"
+    total = max(asked(r, "phones") or 0, line.get("of") or 0, line["phones"])
+    return line["last"] if line["phones"] >= total else f"never on {total - line['phones']} of {total} phones"
+
+
+def lost_entries(r: dict) -> str | None:
+    """What of the burst never came: entries not sent, not acknowledged, without a verdict."""
+    e = r.get("entries")
+    if not e:
+        return "not measured"
+    total = max(asked(r, "entries") or 0, e.get("of") or 0, e["sent"])
+    acked, checked = ((r.get(name) or {}).get("n", 0) for name in ("ack", "checked"))
+    if e["sent"] == acked == checked == total:
+        return None
+    no = {k: v for k, v in (r.get("statuses") or {}).items() if k not in VERDICTS}
+    return f"{e['sent']} of {total} sent, {acked} acknowledged, {checked} with a verdict" + (f" {no}" if no else "")
+
+
+def lost_phones(r: dict) -> str | None:
+    """A phone that did not join, did not load its files, or lost its connection (and took it up again)."""
+    joined, fetch = r.get("joined"), r.get("fetch")
+    if not joined:
+        return "not measured"
+    why = [f"{joined['phones']} of {r['players']} joined"] if joined["phones"] < (r.get("players") or 0) else []
+    if fetch and (fetch["failed"] or fetch["unfinished"]):
+        why.append(f"the files failed on {fetch['failed']}, unfinished on {fetch['unfinished']}")
+    if (r.get("drops") or {}).get("n"):
+        why.append(f"{r['drops']['n']} connections lost and taken up again")
+    return "; ".join(why) or None
+
+
+def pool_faults(r: dict) -> str | None:
+    """A pool that broke, a worker it ended other than by its watchdog's way with a long text, its normalizing
+    process ended (by the server's log: ended, normalizer_ended)."""
+    why = ["broken"] if r.get("pool_broken") else []
+    faults = Counter(w for w in r.get("workers_ended_for") or () if w not in WATCHDOG)
+    if faults:
+        why.append("workers ended: " + ", ".join(f"{w} ({k})" for w, k in faults.items()))
+    if r.get("normalizer_ended_for"):
+        why.append("the normalizing process: " + ", ".join(r["normalizer_ended_for"]))
+    return "; ".join(why) or None
+
+
+# the design's budgets (AF 15.1): what of a run is held against which, at most how much of what - a reason
+# instead of a number, such as "never for 360 of 1000", is over it
+BUDGETS = {"an entry acknowledged (95 %)": (lambda r: p95(r, "ack", asked(r, "entries")), 500, "ms"),
+           "its verdict (95 %)": (lambda r: p95(r, "checked", asked(r, "entries")), 3000, "ms"),
+           "... of the texts that do not run into their budget (95 %)":
+               (lambda r: p95(r, "others", asked(r, "others")) if r.get("others") else
+                p95(r, "checked", asked(r, "entries")), 3000, "ms"),
+           "the activity open on every phone": (lambda r: every(r, "open"), 500, "ms"),
+           "... and closed": (lambda r: every(r, "close"), 500, "ms"),
+           "the files on a phone (95 %)": (lambda r: p95(r, "fetch", asked(r, "phones")), 30_000, "ms"),
+           "the projector's picture": (lambda r: (r.get("projector") or {}).get("most", "not measured"), 4,
+                                       "updates in a second")}
+# ... and what a run must have besides - each: why not, or None - on the phones' side, or the server's (the pool)
+MUST = {"every entry of the burst sent, acknowledged and given its verdict": ("phones", lost_entries),
+        "every phone joined, with its files, and none lost its connection": ("phones", lost_phones),
+        "the simulator ended well": ("phones", lambda r: None if r["exit"] == 0 else f"exit {r['exit']}"),
+        "the pool not broken, no worker ended but by its watchdog, the normalizing process never":
+            ("server", pool_faults)}
+SIDE = {"phones": ("exit", "the phones' side"), "server": ("pool_broken", "the server's side")}   # what its runs have
 
 
 def runs(part: str) -> list[tuple[str, str, float, int]]:
@@ -121,7 +217,15 @@ def status(base: str, timeout: float = 1.0) -> dict | None:
         return None
 
 
-ENDED = re.compile(r"checks: worker \S+ ended: (.*)")      # pool.py's line as it ends a worker (_died)
+ENDED = re.compile(r"checks: worker \S+ ended: (.*?)(?: \(after ([\d.]+) s of CPU\))?\s*$", re.M)   # pool.py's
+NORMALIZING = re.compile(r"checks: the normalizing process ((?:ended|did not start).*?)\s*$", re.M)  # line, and
+#                                                                     normalizer.py's, as each ends a process
+
+
+def pool_broke(log: str) -> bool:
+    """Whether the server's log says its pool broke - it, or its normalizing process, started no more - or never
+    started (checking.py: NoPool; the second review of 2026-11-19: such a run's pool line said held)."""
+    return "no more are started" in log or "the pool did not start" in log
 
 
 def ended(log: str) -> list[str]:
@@ -129,7 +233,18 @@ def ended(log: str) -> list[str]:
     check over its first slice of CPU time runs again with its whole budget, one over the clock's backstop once
     more, one over its whole budget is the text's timeout. Anything else is a fault: a process that died, did
     not start or was not ready in time, took too much memory, or could not prepare."""
-    return ENDED.findall(log)
+    return [why for why, _ in ENDED.findall(log)]
+
+
+def ended_cpu(log: str) -> float:
+    """The CPU time of the workers the pool ended, as its watchdog last read it - gone by the run's end."""
+    return sum(float(cpu) for _, cpu in ENDED.findall(log) if cpu)
+
+
+def normalizer_ended(log: str) -> list[str]:
+    """Why the pool's normalizing process ended, each time (normalizer.py: _lost) - never, in a run that is
+    well: its input is tried again on the next process, and the verdicts alone do not show it."""
+    return NORMALIZING.findall(log)
 
 
 # ------------------------------------------------------------------ the server's side
@@ -152,7 +267,8 @@ class Server:
         for _ in range(120):
             if self.proc.poll() is not None:
                 raise RuntimeError(f"the server ended at once - see {log}")
-            if status(self.base) is not None:
+            if (s := status(self.base)) is not None:
+                self.served = s.get("activities", "f1")      # the activity type it runs (F1's says none)
                 break
             time.sleep(0.5)
         else:
@@ -196,14 +312,15 @@ class Server:
             time.sleep(1.0)
 
     def stop(self) -> dict:
-        """The server's and its workers' CPU time, their largest memory, the workers the pool ended and why
-        (ended) - then the end of them all."""
+        """The server's and its workers' CPU time - those alive at the end, and those the pool ended -, their
+        largest memory, the workers the pool ended and why (ended), its normalizing process's ends, the activity
+        type it ran - then the end of them all."""
         self.watching = False
         server, workers = self.tree()
-        usage = dict(self.peak)
+        usage, alive = dict(self.peak) | {"served": self.served}, None
         try:
             usage["server_cpu_s"] = round(sum(server.cpu_times()[:2]), 1) if server else None
-            usage["workers_cpu_s"] = round(sum(sum(w.cpu_times()[:2]) for w in workers), 1)
+            alive = sum(sum(w.cpu_times()[:2]) for w in workers)
         except psutil.Error:
             pass
         try:
@@ -216,46 +333,82 @@ class Server:
             pass
         self.proc.wait(10)
         text = self.log.read_text(encoding="utf-8", errors="replace")
+        if alive is not None:
+            usage["workers_cpu_s"] = round(alive + ended_cpu(text), 1)
         usage["workers_ended_for"] = ended(text)
         usage["workers_ended"] = len(usage["workers_ended_for"])
-        usage["pool_broken"] = "no more are started" in text
+        usage["normalizer_ended_for"] = normalizer_ended(text)
+        usage["pool_broken"] = pool_broke(text)
         return usage
 
 
 # ------------------------------------------------------------------ the phones' side
 def phones(bundle: Path, args, activity: str, runaway: float, n: int, log: Path, more: list[str]) -> dict:
+    """A run's phones (tools/simulate.py): its lines (parse), what it was asked for - the phones and the burst
+    its counts are held against -, how it ended; each entry's text and status in entries-<n>.json."""
     cmd = [PY, "-I", str(ROOT / "tools" / "simulate.py"), str(bundle), "--url", args.url, "--key", args.key,
            "--players", str(args.players), "--join-within", str(args.join_within),
            *([] if args.no_fetch else ["--fetch", FETCH]), "--activity", activity, "--burst", str(args.burst), "--within", "10", "--deadline", "--distinct", "0.3",
-           "--runaway", str(runaway), "--wait", "30", "--seed", str(n), *more]
+           "--runaway", str(runaway), "--wait", "30", "--seed", str(n), "--entries", str(log.with_name(f"entries-{n}.json")),
+           *more]
     t = time.perf_counter()
-    sim = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
-    log.write_text(sim.stdout + sim.stderr, encoding="utf-8")
-    return {"seconds": round(time.perf_counter() - t), **parse(sim.stdout), "exit": sim.returncode}
+    try:
+        sim = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=900)
+        stdout, stderr, code = sim.stdout, sim.stderr, sim.returncode
+    except subprocess.TimeoutExpired as e:                  # one that hangs - a phone that never joins - failed too
+        stdout, stderr = (x.decode(errors="replace") if isinstance(x, bytes) else x or "" for x in (e.stdout, e.stderr))
+        code = "timeout (900 s)"
+    log.write_text(stdout + stderr, encoding="utf-8")
+    return {"seconds": round(time.perf_counter() - t), "players": args.players, "burst": args.burst, **parse(stdout),
+            "exit": code}
 
 
 def table(results: list[dict]) -> str:
+    """The runs' numbers - "never" for what never came, "-" for what was not measured here -, then each budget
+    and what a run must have: held in every run, or NOT, where and why. A line of the other side - the pool's
+    on the phones' side of a session - says so: that side's table has it."""
+    def at(r, name, key):
+        v = (r.get(name) or {}).get(key, "-")
+        return "never" if v is None else v
     out = [f"{'run':30} {'ack 95 %':>9} {'verdict 95 %':>13} {'max':>7} {'others 95 %':>12} {'max':>7} {'open':>6} "
-           f"{'close':>6} {'files 95 %':>10} {'proj/s':>6}  statuses"]
+           f"{'close':>6} {'files 95 %':>10} {'proj/s':>6} {'entries: sent/ack/verdict of':>29} {'ended':>6}  statuses"]
     for r in results:
-        f = r.get("fetch") or [0] * 6
-        out.append(f"{r['run'] + ' #' + str(r['repetition']):30} {r.get('ack', [0, 0])[1]:>9} "
-                   f"{r.get('checked', [0, 0])[1]:>13} {r.get('checked', [0, 0, 0])[2]:>7} "
-                   f"{r.get('others', ['', ''])[1]:>12} {r.get('others', ['', '', ''])[2]:>7} {r.get('open', [0, 0])[1]:>6} "
-                   f"{r.get('close', [0, 0])[1]:>6} {f[4]:>10} {r.get('projector', [''])[0]:>6}  {r.get('statuses')}")
+        counts = f"{at(r, 'entries', 'sent')}/{at(r, 'ack', 'n')}/{at(r, 'checked', 'n')} of {asked(r, 'entries') or '-'}"
+        ended = f"{len(r['workers_ended_for'])}{' broken' if r.get('pool_broken') else ''}" if "pool_broken" in r else "-"
+        out.append(f"{r['run'] + ' #' + str(r['repetition']):30} {at(r, 'ack', 'p95'):>9} {at(r, 'checked', 'p95'):>13} "
+                   f"{at(r, 'checked', 'max'):>7} {at(r, 'others', 'p95'):>12} {at(r, 'others', 'max'):>7} "
+                   f"{at(r, 'open', 'last'):>6} {at(r, 'close', 'last'):>6} {at(r, 'fetch', 'p95'):>10} "
+                   f"{at(r, 'projector', 'most'):>6} {counts:>29} {ended:>6}  {r.get('statuses', '')}")
     out.append("")
-    for what, (value, budget, unit) in BUDGETS.items():
-        over = [f"{r['run']} #{r['repetition']}: {value(r)} {unit}" for r in results
-                if value(r) is None or value(r) > budget]
-        out.append(f"{what}, at most {budget} {unit}: " + ("held in every run" if not over else "NOT in " + "; ".join(over)))
+    lines = [(f"{what}, at most {budget} {unit}", "phones", lambda r, v=value, b=budget, u=unit: over(v(r), b, u))
+             for what, (value, budget, unit) in BUDGETS.items()] + [(what, *must) for what, must in MUST.items()]
+    for what, side, why in lines:
+        key, name = SIDE[side]
+        here = [r for r in results if key in r]
+        if not here:
+            out.append(f"{what}: {name} has it")
+            continue
+        missed = [f"{r['run']} #{r['repetition']}: {w}" for r in here if (w := why(r)) is not None]
+        out.append(f"{what}: " + ("held in every run" if not missed else "NOT in " + "; ".join(missed)))
     return "\n".join(out)
+
+
+def over(value: int | str, budget: int, unit: str) -> str | None:
+    """None if the budget held; else what it was - a number over it, or why there is none."""
+    if isinstance(value, str):
+        return value
+    return None if value <= budget else f"{value} {unit}"
 
 
 # ------------------------------------------------------------------ the three ways to run
 def write(scratch: Path, side: str, results: list[dict], activities: str = "core") -> Path:
+    """results-<side>.json: activities, the type asked for (--activities); served, the one the servers ran - each
+    run's too."""
     out = scratch / f"results-{side}.json"
+    served = sorted({str(r.get("served")) for r in results})
     out.write_text(json.dumps({"cores": psutil.cpu_count(logical=False), "threads": psutil.cpu_count(),
-                               "activities": activities, "runs": results}, indent=1) + "\n", encoding="utf-8")
+                               "activities": activities, "served": served[0] if len(served) == 1 else served,
+                               "runs": results}, indent=1) + "\n", encoding="utf-8")
     return out
 
 
@@ -308,7 +461,7 @@ def serve(args) -> int:
             usage = server.stop()
         results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **usage})
         print(json.dumps(results[-1]), flush=True)
-    print(f"\n{write(args.scratch, 'server', results, args.activities)}")
+    print("\n" + table(results) + f"\n\n{write(args.scratch, 'server', results, args.activities)}")
     return 0
 
 
@@ -330,7 +483,8 @@ def call(args) -> int:
         if s.get("activities", "f1") != args.activities:
             print(f"  (that server runs the activity type {s.get('activities', 'f1')}, not --activities {args.activities})")
         run = phones(path, args, activity, runaway, n, args.scratch / f"simulate-{n}.log", args.more)
-        results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway, **run})
+        results.append({"run": name, "repetition": i, "activity": activity, "runaway": runaway,
+                        "served": s.get("activities", "f1"), **run})
         print(json.dumps(results[-1]) + "\n  this run is done: Enter on the laptop", flush=True)
     print("\n" + table(results) + f"\n\n{write(args.scratch, 'phones', results, args.activities)}")
     return 0

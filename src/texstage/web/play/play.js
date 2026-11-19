@@ -15,7 +15,7 @@
 
 import { browserLanguage, errorText, languageOf, markLanguage, supported, texts } from "/static/i18n/i18n.js";
 import { ActivityScreen } from "/static/play/activity.js";
-import { StepScreen, parseNumber, phoneLanguage } from "/static/play/activities.js";
+import { StepScreen, parseNumber, phoneLanguage, stepShown } from "/static/play/activities.js";
 import { Kinds } from "/static/kinds.js";
 import { Client } from "/static/shared/client.js";
 import { color, shapeSVG } from "/static/shared/shapes.js";
@@ -111,6 +111,8 @@ const client = new Client({
   onWelcome: (m) => {
     welcomed = m;
     activities = m.activities || "core";
+    step = null;           // the game's cast follows the welcome: a phone come to another game - New game, the
+    //                        join slide after the podium, a rebuild - keeps no step of the one before (review R1)
     // the deck's kinds, in its language: with the first state - the ones there are, after a reconnect to the
     // same deck (a screen made before the state comes has them; the cast comes first)
     if (JSON.stringify(m.kindFiles || {}) !== kindsOf) kinds = null;
@@ -123,6 +125,7 @@ const client = new Client({
   onBye: (m) => {
     forget();
     state = null;
+    step = null;
     if (m.reason === "kicked") return showMessage(T.kicked);
     if (m.pin) pinHere = m.pin;                         // New game: one tap joins it
     showMessage(m.pin ? T.gameOverNew : T.gameOver, m.pin ? T.joinNew : T.again);
@@ -290,7 +293,7 @@ function render() {
   if (tab === "qa") questions();
   const r = state.round;
   const asking = r && (r.phase === "get-ready" || r.phase === "open");
-  if (activities === "core" && !state.session.finished && !asking && step && step.phase !== "ready") {
+  if (activities === "core" && !state.session.finished && !asking && stepShown(step, state)) {
     const k = `step:${step.activity}:${step.step}:${step.epoch}:${step.input}`;
     if (k !== screenKey || !typeScreen) {
       screenKey = k;

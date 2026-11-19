@@ -60,6 +60,43 @@ def act_name(bundle_id: str, aid: str) -> str:
     return f"{bundle_id}/{aid}"
 
 
+class NoPool:
+    """The pool that did not start - psutil missing, no job object, no process could be made: broken from the
+    first (the review's B1, since the core's type is the default: such a server did not run, its quizzes
+    neither). What is prepared fails and what is checked is internal, with why; the windows say why
+    (activities.py: problems), and the quizzes run."""
+
+    def __init__(self, why: str):
+        self.broken = why
+        self.closed = False
+
+    def prepare(self, *args, **kwargs) -> cf.Future:
+        return _failed(RuntimeError(self.broken))
+
+    def submit(self, *args, **kwargs) -> cf.Future:
+        return _resolved({"status": "internal", "error": self.broken, "tries": 0})
+
+    def normalize(self, *args, **kwargs) -> cf.Future:
+        return _resolved({"error": self.broken})
+
+    def withdraw(self, *args, **kwargs) -> bool:
+        return False
+
+    def drop(self, *args, **kwargs) -> None:
+        pass
+
+    def wait_ready(self, timeout: float = 0.0) -> bool:
+        return False
+
+    def stats(self) -> dict:
+        return {"workers": 0, "ready": 0, "spares": 0, "busy": 0, "queued": 0, "long": 0, "activities": 0,
+                "set_aside": 0, "broken": self.broken, "ended": [], "failed": {},
+                "normalizing": {"waiting": 0, "ended": 0, "broken": self.broken}}
+
+    def close(self) -> None:
+        self.closed = True
+
+
 class Checks:
     def __init__(self, mode: str, bundles=None, workers: int | None = None, **pool_options):
         if mode not in ("server", "both"):
@@ -85,9 +122,13 @@ class Checks:
 
     # ------------------------------------------------------------------ the pool
     def start(self, wake: Callable[[], None] | None = None) -> Checks:
-        from texstage.server.pool import Pool
         self.wake = wake or (lambda: None)
-        self.pool = Pool(self.workers, **self.pool_options).start()
+        try:
+            from texstage.server.pool import Pool
+            self.pool = Pool(self.workers, **self.pool_options).start()
+        except Exception as e:  # noqa: BLE001 - the server runs on without a pool (NoPool)
+            log.exception("checks: the pool did not start; the activities' texts are not checked")
+            self.pool = NoPool(f"the pool did not start: {str(e).splitlines()[0][:200] if str(e) else type(e).__name__}")
         return self
 
     def close(self) -> None:

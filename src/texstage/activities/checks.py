@@ -160,9 +160,9 @@ class Checks:
                 self._step(e.activity, e.step).have(e.norm, e)
 
     def again(self, entries: Iterable[EntryRow]) -> list:
-        """After a restart: the entries that still want a check and have none are asked for again - those
-        that waited, those whose check failed for the server's reasons, those normalize refused. The
-        jobs."""
+        """After a restart - or for an entry its student sent again (play.py: enter) -: the entries that
+        still want a check and have none are asked for again - those that waited, those whose check failed
+        for the server's reasons, those normalize refused. The jobs."""
         jobs = []
         for e in entries:
             if e.session == self.session and e.state in WAITS and self.of(e) is None:

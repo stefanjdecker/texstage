@@ -24,7 +24,10 @@ the check's to say.
 The limit: with counts=latest every entry a student sent counts against it. With counts=all those
 count that are in or that the lecturer hid - hiding gives no place back -, and one taken back gives
 its place back; so that nobody fills a step by sending and taking back, a student sends at most
-TAKEN_BACK times the limit in all. What a student has in, or had hidden, is not taken a second time.
+TAKEN_BACK times the limit in all. What a student has in, or had hidden, is not taken a second time -
+compared without the spaces around a field, which the kinds' normalize drops -; but one whose check
+could not be made, sent again, is that entry again, and its check is asked for again (enter: unchecked;
+the review of 2026-11-19: the phone and the manual tell the student to send it again).
 
 In memory, per step: every entry by its id, and of the step's epoch the entries by student, the
 students who have one in, and the counts - what a phone's view and the panel read, so that none goes
@@ -98,8 +101,9 @@ class Rules:
 
 
 class Entered(NamedTuple):
-    """What enter() gives: the entry, whether it is new - not one sent again -, and the student's
-    earlier entries it replaced (counts=latest), which leave their groups and the checks' queue."""
+    """What enter() gives: the entry, whether it is new - not one sent again, by its id or (unchecked) by
+    its input -, and the student's earlier entries it replaced (counts=latest), which leave their groups
+    and the checks' queue."""
     entry: EntryRow
     new: bool
     replaced: list[EntryRow]
@@ -204,6 +208,37 @@ def shaped(rules: Rules, sent: dict) -> dict:
     raise Refused(f"no input {rules.input}")
 
 
+def alike(input: dict) -> dict:
+    """An input as a student's two are compared, where all count: its fields without the spaces around
+    them - " :Ada " is ":Ada", as the kinds' normalize has it -, else as it was sent. What is kept and
+    shown is as it was sent."""
+    fields = input.get("fields") if isinstance(input, dict) else None
+    if isinstance(fields, list):
+        return {"fields": [f.strip() if isinstance(f, str) else f for f in fields]}
+    return input
+
+
+def _used(rules: Rules, theirs) -> int:
+    """How much of the limit a student's entries of an epoch take: with counts=latest each one sent; with
+    counts=all those in or hidden - and all of it, once TAKEN_BACK times the limit were sent."""
+    if rules.counts == "latest":
+        return len(theirs)
+    standing = sum(1 for e in theirs if e.state in ("in", "hidden"))
+    return max(standing, rules.limit) if len(theirs) >= rules.limit * TAKEN_BACK else standing
+
+
+def _equal(rules: Rules, theirs, sent) -> list[EntryRow]:
+    """Where all count: the student's entries, in or hidden, of the input sent (alike) - none for an input
+    not of the step's shape, which is refused in its turn."""
+    if rules.counts != "all" or not theirs:
+        return []
+    try:
+        input = alike(shaped(rules, sent))
+    except Refused:
+        return []
+    return [old for old in theirs if old.state in ("in", "hidden") and alike(old.input) == input]
+
+
 def _closed(st: StepRow) -> Refused:
     return Refused("this step is paused", "paused") if st.phase == "paused" else Refused("this step is closed", "closed")
 
@@ -246,13 +281,20 @@ class Entries:
         held = self._of(st)
         return {"entries": held.count, "students": len(held.ins)}
 
+    def used(self, st: StepRow, rules: Rules, player: str) -> int:
+        """How much of the limit a student has used in the step's epoch, as enter() counts it - what a
+        phone says as "n of the limit" (the review of 2026-11-19: it did not count what was taken back)."""
+        return _used(rules, self._of(st).mine.get(player, ()))
+
     # -------------------------------------------------------------- from the phones
     def enter(self, st: StepRow, rules: Rules, player: str, entry, sent: dict, *, now: int,
-              blocked: bool = False) -> Entered:
+              blocked: bool = False, unchecked: Callable[[EntryRow], bool] | None = None) -> Entered:
         """A phone's entry, in a step as it is after a tick. An id the step has is the entry sent
-        again - the one that is there, whatever the step's phase is now. Refused, with the phone's
-        code: closed, paused, blocked, too-fast, too-many, full, duplicate, text, field, too-long, choice,
-        number, too-large."""
+        again - the one that is there, whatever the step's phase is now. Where all count, an input the
+        student has in, or had hidden, is refused (duplicate) - but one whose check could not be made
+        (unchecked: the checks' word of an entry) is that entry sent again: it takes no place, and its
+        check is the caller's to ask for again. Refused, with the phone's code: closed, paused, blocked,
+        too-fast, too-many, full, duplicate, text, field, too-long, choice, number, too-large."""
         if not isinstance(player, str) or not player:
             raise Refused("no such student")
         if not isinstance(entry, str) or not ID.fullmatch(entry):
@@ -271,12 +313,12 @@ class Entries:
         if last is not None and 0 <= now - last < rules.gap_ms:          # (a clock set back: no gap is asked)
             raise Refused(f"one every {rules.gap_ms / 1000:g} seconds", "too-fast")
         theirs = held.mine.get(player, ())
-        if rules.counts == "latest":
-            over = len(theirs) >= rules.limit
-        else:
-            standing = sum(1 for old in theirs if old.state in ("in", "hidden"))
-            over = standing >= rules.limit or len(theirs) >= rules.limit * TAKEN_BACK
-        if over:
+        equal = _equal(rules, theirs, sent)
+        again = next((old for old in equal if unchecked(old)), None) if unchecked is not None else None
+        if again is not None:                             # (nothing is added: no place, no step's room - the gap
+            held.last[player] = now                       # counts from it, so that it is asked at most so often)
+            return Entered(again, False, [])
+        if _used(rules, theirs) >= rules.limit:
             raise Refused(f"at most {rules.limit} from each of you", "too-many")
         if held.total >= PER_STEP:
             raise Refused("this step has had enough entries", "full")
@@ -287,7 +329,7 @@ class Entries:
                 if old.state == "in":
                     held.change(old, "replaced")
                     replaced.append(old)
-        elif any(old.state in ("in", "hidden") and old.input == input for old in theirs):
+        elif equal:
             raise Refused("you have sent this one already", "duplicate")
         e = EntryRow(entry, self.session, st.activity, st.step, st.epoch, player, now, input)
         held.add(e)

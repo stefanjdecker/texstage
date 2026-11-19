@@ -163,6 +163,9 @@ def deck_references(bundle: Path | None) -> dict[str, list[str]]:
     return {aid: list(k.get("reference") or []) for aid, k in (keys.get("items", {}).get("activity") or {}).items()}
 
 
+NO_VERDICT = ("unchecked", "internal")          # what a phone shows of an entry the server could not check: no verdict
+
+
 class Phone:
     window = 4.0                                # answers come within this many seconds
     rtts: list[int] = []                        # all phones: answer sent -> "ok" (ms)
@@ -267,9 +270,7 @@ class Phone:
             else:
                 self.state = m
                 if e and "checked" not in e:
-                    verdict = self.verdict(e)
-                    if verdict is not None:
-                        e["checked"], e["status"] = now_ms(), verdict
+                    self.note(e)
                 r = m.get("round")
                 if r:
                     self.seen.setdefault(r["id"], now_ms())
@@ -295,6 +296,16 @@ class Phone:
         return {"id": s["activity"], "phase": s["phase"], "input": "tuple" if s.get("input") == "fields" else s.get("input"),
                 "limit": s.get("limit", 1), "fields": s.get("fields") or [], "engine": s.get("engine"),
                 "tokens": s.get("tokens") or [], "blocked": mine.get("activity") == s["activity"] and bool(mine.get("blocked"))}
+
+    def note(self, e: dict) -> None:
+        """A burst entry as the phone's state shows it now: its verdict and when it came ("checked") - or, while
+        the server could not check it, unchecked or internal: no verdict, which the burst does not wait for once
+        it is internal (final), and an unchecked one may yet get."""
+        verdict = self.verdict(e)
+        if verdict in NO_VERDICT:
+            e["status"] = verdict
+        elif verdict is not None:
+            e["checked"], e["status"] = now_ms(), verdict
 
     def verdict(self, e: dict) -> str | None:
         """A burst entry's status once the phone has it - its check's, or unchecked (the server could not) -,
@@ -426,12 +437,16 @@ class Phone:
         await self.send({"t": "answer", "round": r["id"], "answer": answer, "id": r["id"]})
 
 
-def percentiles(values: list[int]) -> str:
-    if not values:
-        return "none"
+def percentiles(values: list[int], of: int | None = None) -> str:
+    """Their median, 95 % and largest in ms, and how many - with of, of how many there were to be: those
+    missing count as over any budget, and a percentile that falls on one is "never" (tools/load/run.py reads
+    it so: the percentiles of what came alone said a budget held while entries were lost)."""
     v = sorted(values)
-    pick = lambda q: v[min(len(v) - 1, int(q * len(v)))]   # noqa: E731
-    return f"median {pick(0.5)} ms, 95 % {pick(0.95)} ms, max {v[-1]} ms ({len(v)})"
+    n = max(len(v), of or 0)
+    if not n:
+        return "none"
+    pick = lambda q: f"{v[i]} ms" if (i := min(n - 1, int(q * n))) < len(v) else "never"   # noqa: E731
+    return f"median {pick(0.5)}, 95 % {pick(0.95)}, max {pick(1.0)} ({len(v)}{'' if of is None else f' of {of}'})"
 
 
 # ------------------------------------------------------------------ --activity: F0's runs
@@ -447,7 +462,8 @@ def is_runaway(text: str) -> bool:
 
 def burst_texts(engine: str, reference: str, n: int, distinct: float, runaway: float, rng: random.Random) -> list[str]:
     """n texts for a burst: a share distinct (the reference with a LIMIT of its own), a share running
-    into its budget (each its own), the rest a few common ones, right and wrong, again and again."""
+    into its budget (each its own), the rest a few common ones, right and wrong, each once and then again
+    and again (so that a small burst has a wrong one too: the load test holds each text's status)."""
     ref = reference.strip().rstrip(";")
     if engine == "turtle":                                        # a graph: the same in other spellings, wrong
         prefix = (re.search(r"([A-Za-z][\w-]*):", ref) or re.search("(x)", "x")).group(1)
@@ -463,6 +479,7 @@ def burst_texts(engine: str, reference: str, n: int, distinct: float, runaway: f
         distinct_texts = [f"{ref} LIMIT {i + 1}" for i in range(round(n * distinct))]
     texts = [RUNAWAY[engine].format(k=i) for i in range(round(n * runaway))] if RUNAWAY.get(engine) else []
     texts += distinct_texts
+    texts += common[:max(0, n - len(texts))]
     texts += [rng.choice(common) for _ in range(max(0, n - len(texts)))]
     rng.shuffle(texts)
     return texts[:n]
@@ -593,18 +610,18 @@ async def drive_activity(args, deck: dict, key: str, phones: list, rng: random.R
         sent = now_ms()
         await stage.send({"t": "activity.open", "activity": aid, "id": "open"})
         last, median, count = await fanout(phones, lambda p: (p.current() or {}).get("phase") == "open", sent)
-        print(f"open: {count} phones after {last} ms (median {median} ms)", flush=True)
+        print(f"open: {count} of {len(phones)} phones after {last} ms (median {median} ms)", flush=True)
         end = start + args.within + args.wait
         while time.monotonic() < end:                      # the burst, then until every entry has its verdict
-            if time.monotonic() > start + args.within and \
-                    sum(1 for e in Phone.entries if "checked" in e or "refused" in e) >= n:
+            if time.monotonic() > start + args.within and sum(1 for e in Phone.entries if "checked" in e or "refused" in e
+                                                              or e.get("status") == "internal") >= n:
                 break
             await asyncio.sleep(0.1)
         until = time.monotonic()
         sent = now_ms()
         await stage.send({"t": "activity.close", "activity": aid, "id": "close"})
         last, median, count = await fanout(phones, lambda p: (p.current() or {}).get("phase") != "open", sent)
-        print(f"close: {count} phones after {last} ms (median {median} ms)")
+        print(f"close: {count} of {len(phones)} phones after {last} ms (median {median} ms)")
         for w, name in ((display, "projector"), (stage, "panel")):
             print(f"{name}: the picture changed at most {w.most_in_a_second(start, until)} times in a second "
                   f"({len([t for t in w.told if start <= t <= until])} versions during the burst); its pictures came in "
@@ -612,18 +629,25 @@ async def drive_activity(args, deck: dict, key: str, phones: list, rng: random.R
     finally:
         for task in windows:
             task.cancel()
-    entries = Phone.entries
-    statuses = Counter(e.get("status") or (f"refused ({e['refused']})" if "refused" in e else "no verdict")
-                       for e in entries)
-    print(f"entries: {len(entries)} sent within {args.within} s ({'most at the end' if args.deadline else 'evenly'}); "
-          f"{len(set(texts))} distinct texts, {sum(1 for t in texts if is_runaway(t))} running into their budget")
-    print(f"acknowledged: {percentiles([e['ack'] - e['sent'] for e in entries if 'ack' in e])}")
+    entries = Phone.entries                                 # the times over the whole burst: one never sent, never
+    for e in entries:                                       # acknowledged or without a verdict counts as over budget
+        e["status"] = e.get("status") or (f"refused ({e['refused']})" if "refused" in e else "no verdict")
+    statuses = Counter(e["status"] for e in entries) + Counter({"not sent": n - len(entries)})
+    others = sum(1 for t in texts if not is_runaway(t))
+    print(f"entries: {len(entries)} of {n} sent within {args.within} s ({'most at the end' if args.deadline else 'evenly'}); "
+          f"{len(set(texts))} distinct texts, {n - others} running into their budget")
+    print(f"acknowledged: {percentiles([e['ack'] - e['sent'] for e in entries if 'ack' in e], n)}")
     print(f"checked - sent until the phone had its verdict: "
-          f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e])}")
-    if any(is_runaway(t) for t in texts):                   # (F2's plan, 4.6: what a runaway text costs the others)
+          f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e], n)}")
+    if others < n:                                          # (F2's plan, 4.6: what a runaway text costs the others)
         print(f"... of the texts that do not run into their budget: "
-              f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e and not is_runaway(e['text'])])}")
+              f"{percentiles([e['checked'] - e['sent'] for e in entries if 'checked' in e and not is_runaway(e['text'])], others)}")
     print("statuses:", dict(statuses.most_common()))
+    print(f"connections lost and taken up again: {len(Phone.drops)}")
+    if args.entries:                                        # each text and how it went, for a closer look
+        args.entries.write_text(json.dumps([{"text": e["text"], "status": e["status"],
+                                             **{f"{k}_ms": e[k] - e["sent"] for k in ("ack", "checked") if k in e}}
+                                            for e in entries], indent=1, ensure_ascii=False), encoding="utf-8")
 
 
 async def main():
@@ -656,6 +680,8 @@ async def main():
                     help="with --activity: the share of texts that run into their budget")
     ap.add_argument("--wait", type=float, default=30.0,
                     help="with --activity: seconds after the burst to wait for the last verdicts")
+    ap.add_argument("--entries", type=Path, help="with --activity: a JSON file for the burst's entries - each text, "
+                                                 "its status, the ms until it was acknowledged and checked")
     ap.add_argument("--fetch", help="a path every phone loads when it joins, e.g. /static/vendor/katex/katex.min.js")
     ap.add_argument("--join-within", type=float, default=0.0,
                     help="with the bundle: the phones join spread over this many seconds (default: all at once)")
@@ -741,7 +767,8 @@ async def main():
             what = " and ".join(([args.fetch] if args.fetch else []) +
                                 ([f"the kinds' {len(Phone.kind_files)} files"] if Phone.kind_files else []))
             print(f"{what} loaded by {len(Phone.fetches)} phones ({len(Phone.fetch_failed)} failed, "
-                  f"{unfinished} unfinished): {percentiles([round(1000 * s) for s in Phone.fetches])}", flush=True)
+                  f"{unfinished} unfinished): {percentiles([round(1000 * s) for s in Phone.fetches], args.players)}",
+                  flush=True)
             if Phone.fetch_failed:
                 print("  failures:", dict(Counter(Phone.fetch_failed).most_common(3)), flush=True)
         if Phone.refused:

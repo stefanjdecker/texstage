@@ -141,7 +141,7 @@ def test_a_crowd_graph_over_websockets(tmp_path):
                     .get("version") == pic["version"])["stage"]["activity"]
         assert seen["current"] == "crowd" and seen["items"]["crowd"]["phase"] == "open"
         assert recv(p2, "activity.step", until=lambda m: ":A" in (m["step"] or {}).get("suggest", ()))["step"][
-            "suggest"] == [":KG", ":A", ":B"]                              # what is drawn is offered
+            "suggest"] == [":KG", ":A", ":B", ":p"]                        # what is drawn is offered, labels too
         # the projector reads; it moves nothing and moderates nothing
         for n, (t, more) in enumerate((("activity.moderate", {"act": "hide", "group": ":A"}), ("activity.close", {}),
                                        ("activity.layout", {"at": {}}))):
@@ -483,7 +483,7 @@ def test_a_stale_game_judges_by_the_references_it_kept(tmp_path):
     pool.answer("prepare", [OK1], "query")
     pool.answer("prepare", [], "crowd")
     w.engine.apply_checks(w.now)
-    assert w.engine.sessions[w.s.id].stage[activities.REFERENCES] == {"query": [{"status": "ok", "key": "k1"}],
+    assert w.engine.sessions[w.s.id].stage[activities.REFERENCES] == {"query": [OK1],
                                                                       "crowd": []}
     w.show(259)
     for pid, n, text, outcome in ((ada, 1, RIGHT, {"status": "ok", "key": "k1"}), (bea, 2, WRONG, {"status": "invalid"})):
@@ -507,6 +507,73 @@ def test_a_stale_game_judges_by_the_references_it_kept(tmp_path):
     engine.apply_checks(later)
     assert judged(engine, w.s.id, later)[0] == [("ok", False, "incorrect"), ("invalid", False, "incorrect")]
     assert engine.sessions[w.s.id].stage[activities.REFERENCES]["query"] == [{"status": "ok", "key": "k2"}]
+    engine.store.close()
+
+
+def test_a_game_whose_core_is_made_after_its_deck_was_prepared_keeps_its_references_too(tmp_path):
+    """A game that comes after the deck was prepared is given the references when its core is made (_known) -
+    and keeps them, as one that was there when they came: a stale restart judges by them (the review of
+    2026-11-19, D4: untested)."""
+    w, pool, book = core_world(tmp_path)
+    w.join("Ada")
+    pool.answer("prepare", [OK1], "query")
+    pool.answer("prepare", [], "crowd")
+    w.engine.apply_checks(w.now)
+    other = w.engine.open_session("act", w.bid, w.now, owner="other")
+    assert activities.REFERENCES not in w.engine.sessions[other.id].stage     # (the outcomes came before it)
+    w.engine.type_message(other.id, "activity.view", {"activity": "query"}, w.now, role="stage")   # its core
+    assert w.engine.sessions[other.id].stage[activities.REFERENCES] == {"query": [OK1],
+                                                                        "crowd": []}
+    engine, checks, later = restarted_stale(tmp_path, w)
+    assert engine.type_message(other.id, "activity.view", {"activity": "query"}, later, role="stage")["picture"][
+        "references"] == [{"group": gid("ok", "k1")}]
+    engine.store.close()
+
+
+def test_a_server_that_starts_again_prepares_its_open_games_decks_again(tmp_path):
+    """The kept references give verdicts at once, yet the pool's count: a fresh game's deck is prepared again
+    when the server starts (game.py: resume_checks), and its outcomes replace the kept ones (the review of
+    2026-11-19, D4: the restart test passed on the kept references alone)."""
+    w, pool, book = core_world(tmp_path)
+    w.join("Ada")
+    pool.answer("prepare", [OK1], "query")
+    pool.answer("prepare", [], "crowd")
+    w.engine.apply_checks(w.now)
+    w.show(259)
+    w.engine.books["activity"].writer.flush()
+    w.engine.store.close()
+    checks = FakeChecks()
+    engine = Engine(BundleStore([tmp_path / "bundles"]), Store(tmp_path / "store.sqlite3"), Settings(), checks=checks)
+    engine.resume_checks(w.now + 60_000)                                # a minute later: the game is fresh
+    assert sorted(c[1] for c in checks.pool.calls if c[0] == "prepare") == [f"{w.bid}/crowd", f"{w.bid}/query"]
+    checks.pool.answer("prepare", [{"status": "ok", "key": "k2"}], "query")
+    engine.apply_checks(w.now + 60_000)
+    assert engine.sessions[w.s.id].stage[activities.REFERENCES]["query"] == [{"status": "ok", "key": "k2"}]
+    assert engine.type_message(w.s.id, "activity.view", {"activity": "query"}, w.now + 60_000, role="stage")[
+        "picture"]["references"] == [{"group": gid("ok", "k2")}]
+    engine.store.close()
+
+
+def test_a_stale_game_shows_and_archives_its_references_result_too(tmp_path):
+    """Not only the reference's key: its result is kept as a check's is (the details table), so the reveal's
+    solution and the archive have it after a stale restart (the review of 2026-11-19, D5: they had none)."""
+    w, pool, book = core_world(tmp_path)
+    (ada,) = w.join("Ada")
+    pool.answer("prepare", [OK1], "query")
+    pool.answer("prepare", [], "crowd")
+    w.engine.apply_checks(w.now)
+    w.show(259)
+    enter(w, ada, 1, text=WRONG)
+    pool.answer("normalize", {"input": {"text": WRONG}})
+    w.engine.apply_checks(w.now)
+    pool.answer("submit", {"status": "invalid"})                       # (no check of the reference's key)
+    w.engine.apply_checks(w.now)
+    w.stage("activity.reveal", activity="query")
+    engine, checks, later = restarted_stale(tmp_path, w)
+    pic = engine.type_message(w.s.id, "activity.view", {"activity": "query"}, later, role="stage")["picture"]
+    assert pic["solution"][0]["detail"] == OK1["detail"]
+    shown = json.loads(activities.archive(engine._call(engine.sessions[w.s.id], activities, later))["activity-query.json"])
+    assert shown["solution"][0]["detail"] == OK1["detail"]
     engine.store.close()
 
 
@@ -677,7 +744,7 @@ def test_the_steps_part_goes_to_the_phones_at_most_once_a_second_unless_a_step_m
     enter(w, ada, 1, activity="crowd", fields=[":A", ":p", ":B"])            # (six seconds on)
     checked([":A", ":p", ":B"])
     assert w.engine.pulse(w.tick(300)) == {w.s.id}          # the windows: a new version
-    assert json.loads(w.engine.take_casts()[w.s.id])["step"]["suggest"] == [":KG", ":A", ":B"]    # the phones: what a field offers
+    assert json.loads(w.engine.take_casts()[w.s.id])["step"]["suggest"] == [":KG", ":A", ":B", ":p"]    # the phones: what a field offers
     w.engine.type_player_message(bea, "activity.enter", {"activity": "crowd", "entry": "entry-00002",
                                                          "fields": [":C", ":p", ":D"]}, w.tick(100))
     checked([":C", ":p", ":D"])
@@ -686,7 +753,7 @@ def test_the_steps_part_goes_to_the_phones_at_most_once_a_second_unless_a_step_m
     w.engine.pulse(w.tick(500))
     assert w.engine.take_casts() == {}
     w.engine.pulse(w.tick(200))                             # more than a second after the last one
-    assert json.loads(w.engine.take_casts()[w.s.id])["step"]["suggest"] == [":KG", ":A", ":B", ":C", ":D"]
+    assert json.loads(w.engine.take_casts()[w.s.id])["step"]["suggest"] == [":KG", ":p", ":A", ":B", ":C", ":D"]
     w.stage("activity.close", activity="crowd")             # a step moves: at once
     assert json.loads(w.engine.take_casts()[w.s.id])["step"]["phase"] == "closed"
     w.engine.store.close()

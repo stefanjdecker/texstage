@@ -59,7 +59,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 0.2.1.dev6 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 0.2.1.dev7 - development candidate available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -183,7 +183,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev6 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev7 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -281,7 +281,7 @@ The presenter is at `/stage` on your quiz server. On the server laptop it normal
 - **Remove from the list** hides a deck; its build stays. Choose **Undo** in the notice, or **Put back** in the list of removed decks below the cards. The deck's next build also brings it back. A deck uploaded to the server offers **Delete** instead.
 - Use **Upload a deck** for a `.bundle.zip` created by texstage build. Upload the bundle, not an arbitrary PDF.
 
-A deck built while the library is open appears after a reload. If the server cannot present a deck, for example because it lacks an activity type the deck uses, the top of the page names the deck and the reason. A browser presentation requires a build containing the stage PDF; rebuild without `--no-stage` if it is missing.
+A deck built while the library is open appears after a reload. If the server cannot present a deck, for example because a kind of activity the deck uses is not installed where it runs, the top of the page names the deck and the reason. A browser presentation requires a build containing the stage PDF; rebuild without `--no-stage` if it is missing.
 
 ![Deck library during a lecture. The card shows the first slide, when the deck was last presented and the running session's PIN; Continue returns to it. The three-dot menu holds the deck actions.](images/manual/01-deck-library.jpg)
 
@@ -441,28 +441,28 @@ A live activity lets every student send something - a query, triples, a choice, 
 texstage present deck.tex
 ```
 
-`texstage serve` runs the same type. The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools), before the server starts - it reads them as it starts; the deck page names a deck the server does not play, and why. Until a class has used the core, a server started with `--activities f1` runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--activities f1 --checks server`, which checks them on the server. Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other.
+`texstage serve` runs the same type. The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools), before the server starts - it reads them as it starts; the deck page names a deck the server does not play, and why. Until a class has used the core, a server started with `--activities f1` runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--activities f1 --checks server`, which checks them on the server. Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other. Before you switch, end the lecture - **End lecture …** in the deck's **Lectures**, or **New game** -, so that the type that played it writes its archive: a game of the core's type that ends under F1's leaves its activities out of the archive. Then start the server with the other type, and close and open the presenter, projector and host windows again: an open window keeps the type it was opened with.
 
 ### Open, close and reveal
 
-An activity opens when its frame comes to the projector, unless it says `open=manual`; leaving the frame closes it, and going back does not open it again. With `time=` its time counts down on the phones, in the panel and on the host console, and closes it at zero. A frame with `\reveal<n>` reveals the activity on its n-th slide. Everything else is in the panel: choose **Activities** in the presenter's tools.
+An activity opens when its frame comes to the projector, unless it says `open=manual`; leaving the frame closes it, and going back does not open it again. With `time=` its time counts down on the phones, in the panel and on the host console, and closes it at zero. A frame with `\reveal<n>` reveals the activity on its n-th slide - if it was opened: one that is not open yet (`open=manual`, or after **Reset**) stays as it is there, and **R** reveals it. Everything else is in the panel: choose **Activities** in the presenter's tools.
 
 | Control | Key | What it does |
 | --- | --- | --- |
 | **Open** | O | Opens the activity - also again after it closed, going on with what was sent. A paused activity resumes. |
 | **Close** | C | Nothing new comes in; what waits is still checked. |
 | **Pause** / **Resume** | S | Stops the time, and the phones cannot send until it resumes. A quiz question that opens pauses the activity, and its end resumes it. |
-| **+30 s** / **No time** | + / - | Adds half a minute, or stops the countdown: the activity stays open until it is closed. |
-| **Reveal** | R | Asks first. Every window marks the reference's group, and every phone shows whether its entry is right. With `solution=show`, the default, the reference and its result appear on the projector. |
-| **Reset** | X | Asks first. The activity starts anew: what was sent stays in the archive but no longer counts. |
+| **+30 s** / **No time** | + / - | **+30 s** adds half a minute to the countdown - an activity without a time gets one of 30 seconds, and closes when it runs out. **No time** stops the countdown: the activity stays open until it is closed. |
+| **Reveal** | R | Asks first. Every window marks the reference's group, and every phone shows whether its entry is right. With `solution=show`, the default, the projector also shows the references until **Reset**: a short one in a line above the bars, a query or a graph with its result in a card beside them - below them in a box taller than wide. `solution=mark` marks the reference's group alone. |
+| **Reset** | X | Asks first. The activity is ready again: what was sent stays in the archive but no longer counts, and the reveal and a shown group are gone; hidden groups, merges, approvals, the minimum and blocks stay. It opens again with **O** - or, unless the deck says `open=manual`, when a page of its frame before its reveal comes to the projector: the frame shown again from its start, say; a page from the reveal on opens nothing. Until then the phones show what they would without it: the waiting screen, or the quiz. |
 
 The keys work in the presenter for the activity on the current slide.
 
 ### Watch and moderate
 
-The panel shows the phase and the time, the counts - students, entries, checked, waiting, unchecked -, and the groups, the largest first: the entries whose checks give the same result, each group with the text most of them sent and its result. No name is shown. **Show** puts a group's text and result on the projector, **Hide** keeps a group off it, and **Block** stops whoever sent the text shown: what they sent is hidden, and they cannot send more. A crowd graph lists its terms instead: **Merge…** a term into another, **Unmerge**, **Hide**, **Approve** with `review`, and the students a triple needs before it shows (**On the projector from**). Each act is listed under **Last acts**, where **Undo** takes it back.
+The panel shows the phase and the time, the counts - students, entries, checked, waiting, unchecked -, and the groups, the largest first: the entries whose checks give the same result, each group with the text most of them sent and its result. No name is shown. **Show** puts a group's text and result on the projector, in a card beside the bars - beside the reference's after the reveal -, **Hide** keeps a group off it, and **Block** stops whoever sent the text shown for the rest of the game: what they sent to this activity is hidden, and they cannot send anything more, to any activity of the lecture. **Undo** at the block, under this activity's **Last acts**, lifts it - after a **Reset** too. A crowd graph lists its terms instead: **Merge…** a term into another, **Unmerge**, **Hide**, **Approve** with `review`, and the students a triple needs before it shows (**On the projector from**). Each act is listed under **Last acts**, where **Undo** takes it back.
 
-What the projector shows - and so the box on your slide - is the deck's choice: `projector=live` (the default) lets the picture grow, `count` shows only how many sent until the activity closes, `hidden` shows nothing until the reveal. What the phones learn before the reveal is `feedback=`: by default whether an entry runs, or its syntax error. The host console has a line per activity with its phase, time and counts.
+What the projector shows - and so the box on your slide - is the deck's choice: `projector=live` (the default) lets the picture grow, `count` shows only how many sent until the activity closes, `hidden` shows nothing until the reveal. What the phones learn before the reveal is `feedback=`: by default whether an entry runs, or its syntax error. The host console has a line of the deck's activities with each one's phase, and the time and the counts of the current one - the one that runs, else the one opened or revealed last.
 
 ### On the phones
 
@@ -573,9 +573,9 @@ Before class: verify the build, join from a real phone, rehearse one question an
 ### Take part in a live activity
 
 - Type your query or answer, or fill in the fields, then tap Send (Add for a triple). A single choice is sent as you tap it; for several, tap them, then Send.
-- Each entry is listed with its state: Received, Being checked …, then what the presenter lets you see, such as whether your query runs or where its syntax error is. After the reveal you see whether it is right.
+- Each entry is listed with its state: Received, Being checked …, then what the presenter lets you see, such as whether your query runs, or its syntax error - with its line and column where the engine gives them, as SPARQL's and Turtle's do; SQLite names the word it stopped at. After the reveal you see whether it is right.
 - Where only your latest entry counts, a later one replaces it. The × takes an entry back while the activity is open.
-- Could not be checked is not your fault: send it again, or tell the presenter.
+- Could not be checked is not your fault: send it again, or tell the presenter. This one cannot be checked here says the server has given up on that text - it ended a checking process twice -, and sending it again does not help.
 
 ### Ask for help
 
@@ -628,7 +628,7 @@ Screenshot sources and hashes are listed in [images/manual/captures.json](images
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev6 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev7 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -964,7 +964,7 @@ The build checks the references as the server checks them: a choice's reference 
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. |
+| `kind=sparql-query` (`engine=sparql`) | Queries a Turtle seed (.ttl). References contain SPARQL queries. In texstage-kinds-rdf. A syntax error comes in Oxigraph's own words: the line and column it names are right, but what it says it expected there is sometimes misleading - look at that place in the query (with --activities f1 as well). |
 | `kind=sql-query` (`engine=sql`) | Read-only queries over tables initialized by SQL statements (.sql), run by SQLite - Python's on the server, or with --activities f1 sql.js in the presenter's browser. References contain SQL queries. In texstage-kinds-sql. See SQL activities: permitted statements below. |
 | `kind=turtle-graph` (`engine=turtle`) | Participants write Turtle. A .ttl seed supplies base/prefix declarations; seed triples are not copied into the participant graph. References contain Turtle graphs. In texstage-kinds-rdf. |
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |

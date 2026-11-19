@@ -33,7 +33,7 @@ from texstage import DEFAULT_SERVER
 from texstage.build import activity, quiz, video
 from texstage.build import bundle as bnd
 from texstage.build.check import Finding, check_log, locator, shipped_pages
-from texstage.build.latex import compile_deck
+from texstage.build.latex import CompileResult, compile_deck
 from texstage.build.pdf import Pdf
 from texstage.build.powerpoint import PptxDeck, origin
 from texstage.keys import find_key
@@ -207,7 +207,7 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
             raise BuildError(f"{staged.pdf.name}: {err}") from None
     pictures = render_slides(present.pdf, count, tqz.paper, opts.height)
     phone, phone_files = quiz.files(tqz, render_pages(present.pdf, range(count + 1, total + 1)))
-    warnings: list[str] = []
+    warnings = unsettled(present, staged)
     slides = plan_slides(tqz, pictures, warnings)
     for s in slides:
         if s.boxes(uses_addin=True) and s.boxes(uses_addin=False):
@@ -317,6 +317,29 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     if opts.check:
         result.findings = check(tex, present, pictures, work, opts, stage)
     return result
+
+
+def unsettled(present: CompileResult, staged: CompileResult | None, what: str = "the slides") -> list[str]:
+    """Warnings for what pdflatex left unsettled in the PDFs the deck ships, the slides' and the stage PDF
+    (compile_deck): its last pass still asking for another - a pass that read none of the .aux the one
+    before wrote typesets as a first one -, or references undefined, ?? on the pages. Until 2026-11-19 a
+    build shipped them silently. The deck's own undefined references are said once: the stage PDF's are
+    those the present compile resolved."""
+    said, known = [], set()
+    for what, c in ((what, present), ("the stage PDF", staged)):           # (what: texstage pdf's, "the PDF")
+        if c is None:
+            continue
+        refs = [r for r in c.undefined if r not in known]
+        known.update(c.undefined)
+        counted = f"{len(refs)} reference{'' if len(refs) == 1 else 's'}"
+        named = ", ".join(refs[:3]) + (", ..." if len(refs) > 3 else "")
+        if c.unsettled:
+            said.append(f"{what} ({c.pdf.name}): " + (f"{counted} ?? ({named})" if refs else
+                        "references or frame totals may be wrong") +
+                        f" - pdflatex's last pass still asks for another (\"{c.unsettled}\"); build again")
+        elif refs:
+            said.append(f"{what} ({c.pdf.name}): {counted} undefined, ?? on the pages: {named}")
+    return said
 
 
 def compile_present(tex: Path, work: Path, opts: BuildOptions):

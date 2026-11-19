@@ -6,7 +6,7 @@ The source is public at [stefanjdecker/texstage](https://github.com/stefanjdecke
 with project information at [www.texstage.org](https://www.texstage.org).
 The `main` branch includes the PowerPoint conversion, shared compilation and
 German-language compatibility changes. The current version is the
-0.2.1.dev6 development candidate; source publication is distinct from declaring
+0.2.1.dev7 development candidate; source publication is distinct from declaring
 a supported package release. Follow [installation.md](installation.md) to install
 the checkout with its matching dependency locks.
 
