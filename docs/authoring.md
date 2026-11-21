@@ -6,6 +6,26 @@ with [PDF edition](manual.pdf).
 `latex/texquiz.sty` adds live quizzes to any Beamer deck. A quiz is written where it is shown:
 either as a frame of its own, or inside one of your frames, next to the material it is about.
 
+Contents:
+
+- [Setup](#setup)
+- [A quiz with its own frame](#a-quiz-with-its-own-frame)
+- [A quiz inside your frame](#a-quiz-inside-your-frame)
+- [Answer frames](#answer-frames)
+- [Question types](#question-types)
+- [Options](#options)
+- [What each build contains](#what-each-build-contains)
+- [Live activities](#live-activities)
+- [Building the live deck](#building-the-live-deck)
+- [Presenting](#presenting)
+- [The browser presenter](#the-browser-presenter)
+- [The deck page](#the-deck-page)
+- [Playing a quiz](#playing-a-quiz)
+- [Presenting with PowerPoint](#presenting-with-powerpoint)
+- [Laptop or hosted server](#laptop-or-hosted-server)
+- [Themes](#themes)
+- [Limitations (v0.1)](#limitations-v01)
+
 ## Setup
 
 ```latex
@@ -170,31 +190,49 @@ keep working. A plain standalone compile shows the placeholder; to see a quiz wh
 use `texstage pdf --present 045.tex` (output in `texquiz-out/` next to the source; the preview
 ends with the phones' pictures as extra small pages).
 
-## The live deck
+## Live activities
+
+Besides quizzes, a deck can hold live activities, written with `texactivity.sty`: the phones
+send triples, queries, graphs, choices, numbers or short texts, the server checks them, and the
+projector shows what the class sent. Each activity has a kind - a plugin; `texstage kinds` lists
+the installed ones -, and a deck needs its kinds where it is built and served. The
+[LaTeX reference](latex-reference.md#activity-environment-and-common-options) has the environment
+and every option, the manual's [Run a live activity](manual.md#run-a-live-activity) the controls
+in the lecture. A server runs them with the activity framework's core, its default type;
+`--activities f1` starts the older type, which skips decks with texstage's own kinds (choice,
+number, text).
+
+## Building the live deck
 
 ```bash
-python tools/scripts/texstage-build.py 06-SPARQL-Semantics      # a lecture chapter
 texstage build deck.tex                                          # any deck
+python tools/scripts/texstage-build.py 06-SPARQL-Semantics      # a lecture chapter (lecture-tools)
 ```
 
-This writes, in the chapter's `build/texquiz/`:
+`texstage build deck.tex` writes into `texquiz-out/` next to the deck, and on the quiz server the
+deck is called after the file (`deck`). A lecture's own command, lecture-tools'
+`texstage-build.py`, writes into the chapter's `build/texquiz/` and calls the deck
+`<course>-<chapter>`, e.g. `kg-06-sparql-semantics` - the course comes from `"course"` in the
+lecture's `lecture.json` (else the lecture folder's name), so chapters of different courses never
+mix. Either way the build makes:
 
-- `06-SPARQL-Semantics.pptx` - the slides as pictures with their notes, as `beamer2pptx.py`
+- `<name>.pptx` - the slides as pictures with their notes, as `beamer2pptx.py`
   makes them, plus a live object on every quiz, answer, join, leaderboard and podium slide,
-  and before them a first slide that prepares the quiz slides (below);
-- `06-SPARQL-Semantics-static.pptx` - the same slides without the live objects, for
+  and before them a first slide that prepares the quiz slides
+  ([Presenting with PowerPoint](#presenting-with-powerpoint));
+- `<name>-static.pptx` - the same slides without the live objects, for
   presenting without the quiz (any PC, no server);
-- `06-SPARQL-Semantics.bundle/` - the questions and answer keys for the quiz server;
-- `06-SPARQL-Semantics.bundle.zip` - the same as one file, to upload by hand (below).
+- `<name>.bundle/` - the questions and answer keys for the quiz server;
+- `<name>.bundle.zip` - the same as one file, to upload by hand
+  ([How a deck reaches its quiz server](#how-a-deck-reaches-its-quiz-server)).
 
-On the quiz server the deck is called `<course>-<chapter>`, e.g. `kg-06-sparql-semantics` -
-the course comes from `"course"` in the lecture's `lecture.json` (else the lecture folder's
-name), so chapters of different courses never mix. Every build is a version of its own: a
+Every build is a version of its own: a
 PPTX plays the build it was made with, also next to newer ones - unless a game of a newer build
 of the deck is open and was active in the last six hours. The server then refuses the older
 build: end that game (the deck's *Lectures …*, *End lecture …*) or play the newer build.
 
-Every build also makes the stage PDF for texstage, the browser presenter (below): the deck
+Every build also makes the stage PDF for texstage, the browser presenter
+([The browser presenter](#the-browser-presenter)): the deck
 compiled once more with its own note pages, alongside the first; `--no-stage` skips it, for a
 quicker build for PowerPoint alone - such a build cannot be presented in the browser, and
 `texstage present` builds it again. Options: `--server <url>` (the quiz server the live deck
@@ -202,114 +240,7 @@ uses, default the laptop's `http://localhost:8470`), `--height <px>` (default 10
 `texstage retarget <pptx> --server <url>` points a built live deck at another server in a
 second, without building again.
 
-**Presenting** - one command starts the lecture:
-
-```bash
-python tools/scripts/texstage-present.py 06-SPARQL-Semantics                # in the browser (texstage)
-python tools/scripts/texstage-present.py 06-SPARQL-Semantics --powerpoint   # in PowerPoint
-texstage present deck.tex                                                   # any deck
-```
-
-It builds the deck first if its build is missing or older than its frames, pictures and styles
-in the chapter's folder (`--build` builds anyway, `--no-build` never - after a change to the
-lecture's shared `dbis-style.sty`, build with `--build`); `texstage-present.py` also once a
-chapter whose slides it refers to has had its deck built anew - the slide numbers it takes from
-that chapter's `slides.aux` - or the chapters were renumbered. Whatever build it presents, it
-first says again what that build warned of when it was made - references pdflatex left undefined
-(?? on the slides), a pass unsettled, a video PowerPoint does not play -, as the build recorded it
-in its `built.json`. Then it uses the quiz server already
-running on this machine or starts one - over every chapter's build, with the remembered tunnel,
-as `texstage-serve.py` does; its window stays open for the lecture - and opens the deck: in
-texstage's presenter window, or with `--powerpoint` the live PowerPoint file. `texstage` is
-the same command by the browser presenter's name (`texstage deck.tex`). A server that runs
-already is used as it is: `present` says which of its options that server does not take
-(`--activities` when it runs the other type, `--tunnel`, `--public-url`, `--host`, further
-folders - stop it and present again to have them), the activity type it runs if that is not the
-default and none was asked for (`--activities f1`, or a server started before the core's became the
-default), whether it has the deck's build or why not
-(a kind it lacks, a server started with another `--data`), and when the build would end a game
-of the deck's build before that has players. **Built again in the lecture** (in the break, say):
-the presenter window then asks before the new build ends the running game - the phones would
-join again with a new PIN and the scores start anew; *Keep the running build* goes on with it.
-
-**In the browser instead of PowerPoint** (texstage): `texstage present` opens the presenter
-window on the deck (`http://localhost:8470/stage` lists all decks of the server); *Projector*
-opens the projector window (a click in it makes it full screen). The presenter window shows the
-current and the next step, your notes (as text with A−/A+, or the note page), a timer that starts
-with the first step - drag the dividers between them to share the window as in PowerPoint (a double
-click puts one back; each browser remembers them); B, W and F make the projector black, white or frozen, G shows all frames - the
-arrow keys and Enter choose one there -, a number and Enter jumps there. B, W and F cover the projector
-only: every step still reaches the phones, so stepping on starts the next quiz round or opens the next
-activity - look ahead in the next step's pane, or in G without choosing. The quizzes run as with PowerPoint. Write on the slides with a pen
-(Wacom: *Use Windows Ink* on) - it draws without choosing a tool, its eraser end erases - or
-choose a tool: P pen, H highlighter, E eraser, L laser pointer (it is where the mouse, the pen or
-the finger is; with a mouse the cursor itself turns into the red dot), Z zoom (drag a box; the
-whole slide again: a tap on the red "zoomed" label over the slide, the Zoom button, or Z - the
-next slide ends the zoom anyway); N inserts a whiteboard page after the frame (Shift+N with a grid); Ctrl+Z /
-Ctrl+Y. *Clear* erases the frame's ink at once - ↶ or Ctrl+Z brings it back. **Links** on a slide
-(`\href`, `\url` to a web address) work in both windows: over one the cursor turns into a hand
-and shows the address, and a click - with the mouse, or a tap of a finger - opens it in a new
-tab; in the presenter window while navigating (↖), so a tool keeps its clicks, and never with a
-pen, which draws. The ink stays with its
-frame for the lecture. When the deck has ink or whiteboard pages from before, *Present* asks: a
-*new presentation* starts without them (they stay with the earlier lecture in the archive; the
-phones join a new game), *continue that lecture* goes on with them - for a chapter that takes two
-lectures. **A pen display in the hall** that shows the projected picture (a Wacom at the
-lectern): put the projector window on it - its pen draws there too, in the presenter window's pen
-colour and width, the eraser end erases, the side button held shows the laser pointer, and ↶ /
-Ctrl+Z in the presenter window take it back; map the tablet's pen to its own screen (Wacom
-settings, Mapping). **An iPad as presenter:** *Devices*, *Pair a
-device* in the presenter window shows a QR code; scan it with the iPad, and allow the iPad when
-the code it shows is the one in the presenter window. The iPad then runs the presenter window
-itself - write with the Pencil, swipe to step - while the laptop drives the projector; it stays
-paired until you remove it under *Devices*. It needs the laptop's address (the room's network) or
-the tunnel; the number next to the connection's dot is the round trip in milliseconds. Turn off
-Scribble on the iPad (Settings → Apple Pencil → Scribble): with it on, a stroke started quickly
-after the last one is lost - iPadOS keeps that touch for its handwriting. **After the
-lecture**, *Make the PDF* gives the annotated PDF for the students - every frame as it was shown
-last, with your ink, and the whiteboard pages, without your notes - and keeps it with the quiz
-results in the server's archive (`archive/<deck>/<date>-<PIN>/` in its data folder), which
-*Download the archive* gives as one ZIP. When the game ends - *New game*, a new build, the next
-lecture - its results, polls, questions and sketches go to that folder by themselves; an ended
-game's are under the deck's *Lectures …* (its card's ⋯). The phones in a game that ends say so,
-with *Join the new game* where the deck has one: it fills in the new PIN and the same nickname, and
-a tap on *Join* joins. A phone
-that still has the old PIN - the QR code, a form filled in before - is told the game is over and
-gets the new game's PIN, for two hours; it does not count as a wrong PIN (300 of those from one
-address in ten minutes lock that address out - through the tunnel, a whole lecture hall).
-**Recording the lecture:** *Record* in the presenter
-window (on the laptop) - check in the dialog that the bar moves when you speak, choose another
-microphone if not, then *Choose the screen …* and pick the projector's screen (or the projector
-window) in the browser's dialog, which shows every screen and window as a miniature; the
-presenter window says first which screen the projector window is on, where the browser lets it.
-Once chosen, the dialog closes and the recording waits in the top bar, not started and without a
-file: the chosen screen as a live miniature (larger under the pointer - the projector's picture, not
-the presenter window?), the microphone's level, *● Start* and ✕. Put right first what needs it -
-sharing an entire screen takes a full-screen presenter window out of full screen (the browser's
-"is sharing your screen" bar takes the focus; *Start* or ✕ brings full screen back), the bar can be
-hidden -, then *● Start*; ✕ lets the screen and the microphone go. The screen can be chosen before
-the lecture, too, and *● Start* clicked when it begins. *Also record the computer's sound* (off unless ticked) adds the
-deck's videos' sound - the browser gives it for an entire screen ("Also share system audio",
-Chromium on Windows), mixed with your voice. The video is what the hall sees - slides, ink,
-pointer, quizzes - with your voice; the red dot, pause and stop are in the presenter window only.
-The top bar warns when the microphone has heard nothing for 30 s, or is gone; a recording that
-stops by itself (the projector window closed, the display changed, *Stop sharing*) says so until
-you dismiss it, with *Record again*. It goes to the
-server every 10 s into the archive, so a crash loses seconds at most; after *Stop*, *After the
-lecture* lists it for *Download* (a WebM file - with ffmpeg installed, also with a seek index).
-Changing the deck or starting a new game does not stop it (the projector window follows the deck
-by itself); reloading or closing the presenter window does. The presenter window must be opened
-as `http://localhost:…` (as `texstage present` does) or over HTTPS - browsers record the screen only
-there. **Questions not in the deck:** *Poll* asks one now - yes/no, A–F (answer texts optional:
-with the letters alone, the slide or you give the answers), a scale 1–5, a word cloud, free text
-or a sketch; type the question, with formulas between `$...$`. The projector shows the poll and
-then its results instead of the slide; → or Esc takes it back to your slide. **Questions from the
-audience:** *Q&A*, *open for the phones* - the phones get a tab to ask (anonymously) and upvote;
-the panel lists them by votes: *Show* puts one on the projector, *Done*, *Delete*, *Block* (the
-asker cannot ask any more). **Sketches:** for a sketch question (`type=sketch` in the deck, or a
-sketch poll) the phones draw; *Sketches* shows the drawings as they come, and the ones you pick go
-on the projector. The archive keeps the polls (`polls.csv`), the questions (`questions.csv`) and
-every sketch as SVG.
+### The build's check
 
 It also checks your quiz and answer frames as they really look - the course's own checks
 only see their placeholders - and fails if a frame's content runs into the footline (a
@@ -324,6 +255,240 @@ notes; activity and video frames are not checked:
 
 `shrink=` on quiz frames works as usual; the live overlays still find the answer boxes.
 
+### How a deck reaches its quiz server
+
+Every deck reaches its quiz server through its build, the same way for all: `texstage build`
+(and so `texstage-build.py`) records the build folder in the data folder of the laptop's quiz
+server (`builds.json` in `~/.texstage` - or `~/.texquiz`, the data folder's name until 2026-10-10,
+where only that one exists), and that server looks there too - whatever folder it was
+started with, also for a deck built while it runs; texstage's presenter lists these decks as
+well. A deck built for another server (`--server`, below) is uploaded to it at the end of the
+build. The PowerPoint file carries no deck: PowerPoint keeps at most 2 MB for an add-in, too
+little for a chapter.
+
+**Uploading a deck by hand.** If a server does not have a deck - the build could not reach
+it, or it was built for another one - open that server's deck list in a browser (the host
+page `…/host`, or texstage's presenter `…/stage`) and click **Upload a deck**, or drop the
+file onto the list: the chapter's `<chapter>.bundle.zip` from `build/texquiz/` - several at once, a
+semester's chapters, go up one after the other. The list says
+what arrived ("uploaded, 12 quizzes, 64 slides"), or that the server has it already. It
+takes the presenter key the page is signed in with. A deck built before 2026-10-09 has no
+`.bundle.zip`: zip its `.bundle` folder (Explorer: Send to → Compressed folder) and upload
+that.
+
+## Presenting
+
+One command starts the lecture:
+
+```bash
+python tools/scripts/texstage-present.py 06-SPARQL-Semantics                # in the browser (texstage)
+python tools/scripts/texstage-present.py 06-SPARQL-Semantics --powerpoint   # in PowerPoint
+texstage present deck.tex                                                   # any deck
+```
+
+It builds the deck first if its build is missing or older than its frames, pictures and styles
+in the chapter's folder (`--build` builds anyway, `--no-build` never - after a change to the
+lecture's shared `dbis-style.sty`, build with `--build`); `texstage-present.py` also once a
+chapter whose slides it refers to has had its deck built anew - the slide numbers it takes from
+that chapter's `slides.aux` - or the chapters were renumbered.
+
+Whatever build it presents, it
+first says again what that build warned of when it was made - references pdflatex left undefined
+(?? on the slides), a pass unsettled, a video PowerPoint does not play -, as the build recorded it
+in its `built.json`. Then it uses the quiz server already
+running on this machine or starts one - over every chapter's build, with the remembered tunnel,
+as `texstage-serve.py` does; its window stays open for the lecture - and opens the deck: in
+texstage's presenter window, or with `--powerpoint` the live PowerPoint file. `texstage` is
+the same command by the browser presenter's name (`texstage deck.tex`).
+
+A server that runs
+already is used as it is: `present` says which of its options that server does not take
+(`--activities` when it runs the other type, `--tunnel`, `--public-url`, `--host`, further
+folders - stop it and present again to have them), the activity type it runs if that is not the
+default and none was asked for (`--activities f1`, or a server started before the core's became the
+default), whether it has the deck's build or why not
+(a kind it lacks, a server started with another `--data`), and when the build would end a game
+of the deck's build before that has players.
+
+**Built again in the lecture** (in the break, say):
+the presenter window then asks before the new build ends the running game - the phones would
+join again with a new PIN and the scores start anew; *Keep the running build* goes on with it.
+
+## The browser presenter
+
+`texstage present` opens the presenter
+window on the deck (`http://localhost:8470/stage` lists all decks of the server:
+[The deck page](#the-deck-page)); *Projector*
+opens the projector window (a click in it makes it full screen). The presenter window shows the
+current and the next step, your notes (as text with A−/A+, or the note page), a timer that starts
+with the first step - drag the dividers between them to share the window as in PowerPoint (a double
+click puts one back; each browser remembers them). The quizzes run as with PowerPoint
+([Playing a quiz](#playing-a-quiz)).
+
+### Keys
+
+B, W and F make the projector black, white or frozen, G shows all frames - the
+arrow keys and Enter choose one there -, a number and Enter jumps there. B, W and F cover the projector
+only: every step still reaches the phones, so stepping on starts the next quiz round or opens the next
+activity - look ahead in the next step's pane, or in G without choosing. The manual's
+[shortcut card](manual.md#presenter-shortcut-card) lists every key.
+
+### Ink, zoom and whiteboard pages
+
+Write on the slides with a pen
+(Wacom: *Use Windows Ink* on) - it draws without choosing a tool, its eraser end erases - or
+choose a tool: P pen, H highlighter, E eraser, L laser pointer (it is where the mouse, the pen or
+the finger is; with a mouse the cursor itself turns into the red dot), Z zoom (drag a box; the
+whole slide again: a tap on the red "zoomed" label over the slide, the Zoom button, or Z - the
+next slide ends the zoom anyway); N inserts a whiteboard page after the frame (Shift+N with a grid); Ctrl+Z /
+Ctrl+Y. *Clear* erases the frame's ink at once - ↶ or Ctrl+Z brings it back. The ink stays with its
+frame for the lecture.
+
+**Links** on a slide
+(`\href`, `\url` to a web address) work in both windows: over one the cursor turns into a hand
+and shows the address, and a click - with the mouse, or a tap of a finger - opens it in a new
+tab; in the presenter window while navigating (↖), so a tool keeps its clicks, and never with a
+pen, which draws.
+
+**A second lecture of the same deck:** when the deck has ink or whiteboard pages from before, *Present* asks: a
+*new presentation* starts without them (they stay with the earlier lecture in the archive; the
+phones join a new game), *continue that lecture* goes on with them - for a chapter that takes two
+lectures.
+
+### A pen display or an iPad
+
+**A pen display in the hall** that shows the projected picture (a Wacom at the
+lectern): put the projector window on it - its pen draws there too, in the presenter window's pen
+colour and width, the eraser end erases, the side button held shows the laser pointer, and ↶ /
+Ctrl+Z in the presenter window take it back; map the tablet's pen to its own screen (Wacom
+settings, Mapping).
+
+**An iPad as presenter:** *Devices*, *Pair a
+device* in the presenter window shows a QR code; scan it with the iPad, and allow the iPad when
+the code it shows is the one in the presenter window. The iPad then runs the presenter window
+itself - write with the Pencil, swipe to step - while the laptop drives the projector; it stays
+paired until you remove it under *Devices*. It needs the laptop's address (the room's network) or
+the tunnel; the number next to the connection's dot is the round trip in milliseconds. Turn off
+Scribble on the iPad (Settings → Apple Pencil → Scribble): with it on, a stroke started quickly
+after the last one is lost - iPadOS keeps that touch for its handwriting.
+
+### Recording
+
+*Record* in the presenter
+window (on the laptop) - check in the dialog that the bar moves when you speak, choose another
+microphone if not, then *Choose the screen …* and pick the projector's screen (or the projector
+window) in the browser's dialog, which shows every screen and window as a miniature; the
+presenter window says first which screen the projector window is on, where the browser lets it.
+Once chosen, the dialog closes and the recording waits in the top bar, not started and without a
+file: the chosen screen as a live miniature (larger under the pointer - the projector's picture, not
+the presenter window?), the microphone's level, *● Start* and ✕. Put right first what needs it -
+sharing an entire screen takes a full-screen presenter window out of full screen (the browser's
+"is sharing your screen" bar takes the focus; *Start* or ✕ brings full screen back), the bar can be
+hidden -, then *● Start*; ✕ lets the screen and the microphone go. The screen can be chosen before
+the lecture, too, and *● Start* clicked when it begins.
+
+*Also record the computer's sound* (off unless ticked) adds the
+deck's videos' sound - the browser gives it for an entire screen ("Also share system audio",
+Chromium on Windows), mixed with your voice. The video is what the hall sees - slides, ink,
+pointer, quizzes - with your voice; the red dot, pause and stop are in the presenter window only.
+The top bar warns when the microphone has heard nothing for 30 s, or is gone; a recording that
+stops by itself (the projector window closed, the display changed, *Stop sharing*) says so until
+you dismiss it, with *Record again*.
+
+It goes to the
+server every 10 s into the archive, so a crash loses seconds at most; after *Stop*, *After the
+lecture* lists it for *Download* (a WebM file - with ffmpeg installed, also with a seek index).
+Changing the deck or starting a new game does not stop it (the projector window follows the deck
+by itself); reloading or closing the presenter window does. The presenter window must be opened
+as `http://localhost:…` (as `texstage present` does) or over HTTPS - browsers record the screen only
+there.
+
+### Polls, audience questions and sketches
+
+**Questions not in the deck:** *Poll* asks one now - yes/no, A–F (answer texts optional:
+with the letters alone, the slide or you give the answers), a scale 1–5, a word cloud, free text
+or a sketch; type the question, with formulas between `$...$`. The projector shows the poll and
+then its results instead of the slide; → or Esc takes it back to your slide.
+
+**Questions from the
+audience:** *Q&A*, *open for the phones* - the phones get a tab to ask (anonymously) and upvote;
+the panel lists them by votes: *Show* puts one on the projector, *Done*, *Delete*, *Block* (the
+asker cannot ask any more).
+
+**Sketches:** for a sketch question (`type=sketch` in the deck, or a
+sketch poll) the phones draw; *Sketches* shows the drawings as they come, and the ones you pick go
+on the projector. The archive keeps the polls (`polls.csv`), the questions (`questions.csv`) and
+every sketch as SVG.
+
+### After the lecture
+
+*Make the PDF* gives the annotated PDF for the students - every frame as it was shown
+last, with your ink, and the whiteboard pages, without your notes - and keeps it with the quiz
+results in the server's archive (`archive/<deck>/<date>-<PIN>/` in its data folder), which
+*Download the archive* gives as one ZIP. When the game ends - *New game*, a new build, the next
+lecture - its results, polls, questions and sketches go to that folder by themselves; an ended
+game's are under the deck's *Lectures …* (its card's ⋯).
+
+The phones in a game that ends say so,
+with *Join the new game* where the deck has one: it fills in the new PIN and the same nickname, and
+a tap on *Join* joins. A phone
+that still has the old PIN - the QR code, a form filled in before - is told the game is over and
+gets the new game's PIN, for two hours; it does not count as a wrong PIN (300 of those from one
+address in ten minutes lock that address out - through the tunnel, a whole lecture hall).
+
+## The deck page
+
+texstage's presenter (`…/stage`) keeps the decks in folders of your own:
+*New folder*, then drag a deck onto a folder - or onto a step of the path above the list - or
+use the deck's ⋯ (*Move to …*, *Rename …*: a name of its own on the page). A card shows the deck's
+first slide and when you presented it last (*presented today, 10:14*, *presented 12 Nov*); where its
+lecture runs, its button says *Continue* and its tag the game's PIN - elsewhere *Present* (a lecture
+left for hours is over: the deck's next opening is a new one). The search field looks through all
+folders; *By name*, *Newest first* or *Recently presented* orders them.
+
+⋯ › *Remove from the list*
+takes a deck built on this computer off the list - its build folder stays -; the window asks first
+if its lecture runs (the lecture goes on). The notice's *Undo*, *Put back* in the list of removed
+decks below the cards, or the deck's next build brings it back. A deck uploaded to the server is
+deleted instead (⋯ › *Delete*), not while a game of it is under way. A folder's ⋯ renames, moves or
+deletes it (what it holds moves up; no deck is deleted). On a phone, a card's buttons go below its
+text. Folders and names are each lecturer's own, kept by the server (`library.json` in its
+data folder).
+
+A deck the server finds and does not play - a kind of activity it lacks (a deck of
+texstage's own kinds is skipped with `--activities f1`), a format it is too old for, a broken
+`deck.json` - is on no list; the page says at the top which and why, and so does the server's
+window when it finds a new one (`skipped: ...`). If `texstage present` names a deck the page
+cannot present, the page says why.
+
+A deck's ⋯ › *Lectures …* lists its games, the running one
+and the ended ones, each with what it left: the results (CSV), the archive (ZIP), *Make the PDF*
+from that lecture's ink, its recordings, and *Delete …* for an ended one - its results, ink,
+questions and recordings leave the server. *End
+lecture …* in *Lectures …* ends the open game at once - its results go to the archive, the phones are
+told, and an upload of the deck can be deleted right away -; *Continue* presents an earlier lecture's
+build with its ink and whiteboard pages, to go on with it.
+
+⋯ › *Builds …* lists every build of the deck on the
+server: *Present* an older one to go back to it (the window asks before it ends a game of
+another build), *Download* one as the `.bundle.zip` another server takes, *Delete …* an upload -
+each says what changed since the build before it (*3 slides changed, 1 quiz added*).
+`texstage present` goes back from the command line too: name the build folder itself (a
+`<name>.bundle`, a server's kept copy in `served/`, an upload), and that build is presented.
+
+*Select* ticks several decks (Shift: a
+range) to move them at once - *Move to …* makes a new folder on the spot - or to remove them. A deck
+built meanwhile appears by itself, as does the host console's list (which shows your names and
+folders too); the host console also asks before a new build ends a game with players.
+
+*Storage*
+shows what your decks hold on the server (uploads, copies kept for games, lectures, their archive and
+recordings). Nothing is deleted by itself but a deck's builds beyond its newest ten, as before: a lecture
+goes with its *Delete …*, and on the server's
+machine `texstage data` shows the whole data folder per deck, while `texstage data clean --before
+2026-04-01 --recordings` (or `--lectures`, `--copies`, one `--deck`) lists what would go and deletes
+it with `--yes` - never an open game, nor a copy it plays, nor a recording still being made.
+
 ## Playing a quiz
 
 ```bash
@@ -331,7 +496,7 @@ python tools/scripts/texstage-serve.py                  # a lecture: every chapt
 texstage serve texquiz-out                               # any deck's output folder
 ```
 
-(the server alone - `texstage-present.py`, above, starts it too). Open
+(the server alone - [Presenting](#presenting) starts it too). Open
 `http://localhost:8470/host` in a browser on the laptop: it pairs with the server by
 itself, lists the decks and starts a game. The page shows the slides with the live quiz on top
 and works with the arrow keys or a clicker (F: full screen) - a whole quiz lecture without
@@ -370,7 +535,7 @@ texstage addin install            # "texstage (localhost:8470)", for the server 
 texstage addin list               # which servers' add-ins are registered
 ```
 
-`texstage-present.py <chapter> --powerpoint` (above) starts the server and opens the chapter's
+`texstage-present.py <chapter> --powerpoint` ([Presenting](#presenting)) starts the server and opens the chapter's
 `build/texquiz/<chapter>.pptx` - or start the server and open the file yourself. Present it as usual,
 Presenter View included: the clicker alone plays the game - the join slide opens it, a quiz's
 reading slide shows its question, the next click shows the answers and starts the countdown,
@@ -412,64 +577,6 @@ live slide, and on a PC without the add-in the live slides even stay blank. Its 
 leaderboard slides also store only the question picture (what PowerPoint shows while a
 slide's add-in starts), so in the editing view's thumbnails they look like their question
 slides; in the slideshow the add-in shows the answer.
-
-Every deck reaches its quiz server through its build, the same way for all: `texstage build`
-(and so `texstage-build.py`) records the build folder in the data folder of the laptop's quiz
-server (`builds.json` in `~/.texstage` - or `~/.texquiz`, the data folder's name until 2026-10-10,
-where only that one exists), and that server looks there too - whatever folder it was
-started with, also for a deck built while it runs; texstage's presenter lists these decks as
-well. A deck built for another server (`--server`, below) is uploaded to it at the end of the
-build. The PowerPoint file carries no deck: PowerPoint keeps at most 2 MB for an add-in, too
-little for a chapter.
-
-**Uploading a deck by hand.** If a server does not have a deck - the build could not reach
-it, or it was built for another one - open that server's deck list in a browser (the host
-page `…/host`, or texstage's presenter `…/stage`) and click **Upload a deck**, or drop the
-file onto the list: the chapter's `<chapter>.bundle.zip` from `build/texquiz/` - several at once, a
-semester's chapters, go up one after the other. The list says
-what arrived ("uploaded, 12 quizzes, 64 slides"), or that the server has it already. It
-takes the presenter key the page is signed in with. A deck built before 2026-10-09 has no
-`.bundle.zip`: zip its `.bundle` folder (Explorer: Send to → Compressed folder) and upload
-that.
-
-**The deck page.** texstage's presenter (`…/stage`) keeps the decks in folders of your own:
-*New folder*, then drag a deck onto a folder - or onto a step of the path above the list - or
-use the deck's ⋯ (*Move to …*, *Rename …*: a name of its own on the page). A card shows the deck's
-first slide and when you presented it last (*presented today, 10:14*, *presented 12 Nov*); where its
-lecture runs, its button says *Continue* and its tag the game's PIN - elsewhere *Present* (a lecture
-left for hours is over: the deck's next opening is a new one). The search field looks through all
-folders; *By name*, *Newest first* or *Recently presented* orders them. ⋯ › *Remove from the list*
-takes a deck built on this computer off the list - its build folder stays -; the window asks first
-if its lecture runs (the lecture goes on). The notice's *Undo*, *Put back* in the list of removed
-decks below the cards, or the deck's next build brings it back. A deck uploaded to the server is
-deleted instead (⋯ › *Delete*), not while a game of it is under way. A folder's ⋯ renames, moves or
-deletes it (what it holds moves up; no deck is deleted). On a phone, a card's buttons go below its
-text. Folders and names are each lecturer's own, kept by the server (`library.json` in its
-data folder). A deck the server finds and does not play - a kind of activity it lacks (a deck of
-texstage's own kinds is skipped with `--activities f1`), a format it is too old for, a broken
-`deck.json` - is on no list; the page says at the top which and why, and so does the server's
-window when it finds a new one (`skipped: ...`). If `texstage present` names a deck the page
-cannot present, the page says why. A deck's ⋯ › *Lectures …* lists its games, the running one
-and the ended ones, each with what it left: the results (CSV), the archive (ZIP), *Make the PDF*
-from that lecture's ink, its recordings, and *Delete …* for an ended one - its results, ink,
-questions and recordings leave the server. ⋯ › *Builds …* lists every build of the deck on the
-server: *Present* an older one to go back to it (the window asks before it ends a game of
-another build), *Download* one as the `.bundle.zip` another server takes, *Delete …* an upload -
-each says what changed since the build before it (*3 slides changed, 1 quiz added*).
-`texstage present` goes back from the command line too: name the build folder itself (a
-`<name>.bundle`, a server's kept copy in `served/`, an upload), and that build is presented. *End
-lecture …* in *Lectures …* ends the open game at once - its results go to the archive, the phones are
-told, and an upload of the deck can be deleted right away -; *Continue* presents an earlier lecture's
-build with its ink and whiteboard pages, to go on with it. *Select* ticks several decks (Shift: a
-range) to move them at once - *Move to …* makes a new folder on the spot - or to remove them. A deck
-built meanwhile appears by itself, as does the host console's list (which shows your names and
-folders too); the host console also asks before a new build ends a game with players. *Storage*
-shows what your decks hold on the server (uploads, copies kept for games, lectures, their archive and
-recordings). Nothing is deleted by itself but a deck's builds beyond its newest ten, as before: a lecture
-goes with its *Delete …*, and on the server's
-machine `texstage data` shows the whole data folder per deck, while `texstage data clean --before
-2026-04-01 --recordings` (or `--lectures`, `--copies`, one `--deck`) lists what would go and deletes
-it with `--yes` - never an open game, nor a copy it plays, nor a recording still being made.
 
 ## Laptop or hosted server
 
@@ -537,7 +644,7 @@ Decks built for the laptop and then retargeted, or built while the server could 
 reached, go up with
 `python tools/scripts/texstage-publish.py --url https://quiz.example.org --key=<key> --remember`;
 publishing again sends only decks that changed. Or by hand: **Upload a deck** in the server's
-deck list takes the `.bundle.zip` (above).
+deck list takes the `.bundle.zip` ([How a deck reaches its quiz server](#how-a-deck-reaches-its-quiz-server)).
 
 ## Themes
 

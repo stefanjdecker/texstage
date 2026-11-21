@@ -12,19 +12,14 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import re
 import shutil
 import subprocess
 
-from manual_latex import latex
+from manual_latex import APPENDIX, latex, slug
 from reference_format import markdown as reference_markdown
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
-
-
-def slug(text):
-    return re.sub(r"[^a-z0-9 -]", "", text.lower()).replace(" ", "-")
 
 
 def markdown(data):
@@ -32,8 +27,18 @@ def markdown(data):
              "# " + data["title"], "", "**" + data["subtitle"] + "**", "",
              "[Download the illustrated PDF](manual.pdf) | [LaTeX source](manual-latex/main.tex) "
              "| [LaTeX build instructions](manual-latex/README.md)", "", "## Contents", ""]
-    lines += [f"- [{p['title']}](#{slug(p['title'])})" for p in data["pages"][1:]]
+    pages = data["pages"][1:]
+    lines += [f"- [{p['title']}](#{slug(p['title'])})" for p in pages if not p.get("reference")]
+    if any(p.get("reference") for p in pages):         # the reference: an appendix, its pages under it
+        lines += [f"- [{APPENDIX}](#{slug(APPENDIX)})"]
+        lines += [f"  - [{p['title']}](#{slug(p['title'])})" for p in pages if p.get("reference")]
+    lines += [""]                                        # the cover's text is no part of the list
+    appendix = False
     for index, page in enumerate(data["pages"]):
+        if index and page.get("reference") and not appendix:
+            lines += ["", "# " + APPENDIX, "",
+                      "The same text is published on its own as [latex-reference.md](latex-reference.md)."]
+            appendix = True
         if index:
             lines += ["", "## " + page["title"], ""]
         for block in page["blocks"]:
@@ -53,7 +58,9 @@ def markdown(data):
                 lines += [""]
         for picture in page["images"]:
             lines += [f"![{picture['caption']}]({picture['file']})", "", picture["caption"], ""]
-    return "\n".join(lines).rstrip() + "\n"
+    # a link to manual.md, in a page the reference shares, goes to this manual's first chapter here
+    first = slug(data["pages"][1]["title"])
+    return "\n".join(lines).rstrip().replace("](manual.md)", f"](#{first})") + "\n"
 
 
 def check_images(data):

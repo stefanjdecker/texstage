@@ -36,10 +36,10 @@ Version 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev8 -\allowbreak{} develop
 \end{subfigure}
 \caption{Presenter and participant interfaces}
 \end{figure}
-\manualsection{What texstage does}
+\manualsection{What texstage does}\label{sec:what-texstage-does}
 texstage turns a LaTeX Beamer presentation into an interactive teaching session.\allowbreak{} You write ordinary slides and add quiz commands in a .\allowbreak{}tex file.\allowbreak{} texstage compiles that source, prepares the presentation files, and runs a server that connects your presenter browser, the audience display and participants' phones.\allowbreak{} You can also create a static PDF handout or a PDF with solutions.\par
 
-For example, a lecturer writes a multiple-\allowbreak{}choice question, presents its reading step, opens answering, and then reveals the explanation.\allowbreak{} Students open a join link, enter the session PIN and answer in a browser.\allowbreak{} The presenter sees the accepted answers and controls what the audience sees.\allowbreak{} A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide (Run a live activity).\par
+For example, a lecturer writes a multiple-\allowbreak{}choice question, presents its reading step, opens answering, and then reveals the explanation.\allowbreak{} Students open a join link, enter the session PIN and answer in a browser.\allowbreak{} The presenter sees the accepted answers and controls what the audience sees.\allowbreak{} A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide (\hyperref[sec:run-a-live-activity]{Run a live activity}).\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
@@ -63,7 +63,7 @@ Participant & Uses a reachable /\allowbreak{}play address, session PIN and nickn
 
 The browser workflow is the starting path in this manual.\allowbreak{} PowerPoint integration, recording, hosted servers and tunnels are optional later topics, explained in the \href{\manualdocroot authoring.md}{authoring guide} and the \href{\manualdocroot installation-advanced.md}{advanced installation guide}.\allowbreak{} texstage can present Beamer material without DBIS styling.\allowbreak{} It does not create the teaching content for you, and a static PDF by itself does not run a live quiz.\par
 
-\manualsection{Choose your starting path}
+\manualsection{Choose your starting path}\label{sec:choose-your-starting-path}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.300000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.700000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -110,7 +110,7 @@ PIN /\allowbreak{} presenter key & The PIN admits participants to the current se
 texstage /\allowbreak{} texquiz & texstage is the installed command and application.\allowbreak{} texquiz.\allowbreak{}sty is the LaTeX quiz package it ships.\allowbreak{} Some output folders retain the older name texquiz-\allowbreak{}out. \\ \addlinespace[3pt]
 \end{longtable}}
 
-\manualsection{Install Python and obtain the source}
+\manualsection{Install Python and obtain the source}\label{sec:install-python-and-obtain-the-source}
 Use CPython 3.\allowbreak{}12, 3.\allowbreak{}13 or 3.\allowbreak{}14 for this candidate; these are the versions targeted by its checks.\allowbreak{} Install Python from \href{https://www.python.org/downloads/}{python.\allowbreak{}org} or your operating system package manager.\allowbreak{} Open a new terminal after installation.\allowbreak{} On Windows use PowerShell; on macOS or Linux use Terminal.\allowbreak{} Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.\par
 
 The public source is \href{https://github.com/stefanjdecker/texstage}{stefanjdecker/\allowbreak{}texstage on GitHub}.\allowbreak{} With Git installed, open a terminal in the parent folder where you want to keep the source, then run:\par
@@ -164,7 +164,7 @@ python -m pip --version
 
 The paths printed by both commands must point inside this project's .\allowbreak{}venv.\allowbreak{} Reopen and activate the same environment in each new terminal before running the tools.\allowbreak{} Installation downloads dependencies and needs network access; subsequent local examples use the files already installed.\par
 
-\manualsection{Install texstage and check the tools}
+\manualsection{Install texstage and check the tools}\label{sec:install-texstage-and-check-the-tools}
 Run these commands at the texstage source root in the environment just created.\par
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -210,7 +210,7 @@ Run these checks in the same terminal you will use for the tutorial.\allowbreak{
 
 If you only serve a supplied bundle, skip the TeX installation.\allowbreak{} The source archive includes tutorials and dependency locks; a Python wheel is an installation package and is not a substitute for this tutorial source tree.\allowbreak{} See \href{\manualdocroot installation-advanced.md}{additional installation recipes} for verified-\allowbreak{}wheel installation and optional PowerPoint setup.\par
 
-\manualsection{Start your first session}
+\manualsection{Start your first session}\label{sec:start-your-first-session}
 Goal: see a compiled slide, open the presenter, submit a practice answer, and reveal its result.\allowbreak{} Stay in the texstage source root with .\allowbreak{}venv active.\allowbreak{} Use the supplied synthetic example so this rehearsal does not touch any existing course.\par
 
 \manualsubheading{1  Compile a static preview}
@@ -244,7 +244,7 @@ Use an unused port.\allowbreak{} If texstage is already serving on 8765, present
 \manualsubheading{4  Stop and resume}
 Finish the practice session and save any exports you need.\allowbreak{} Press Ctrl+C in the terminal that started the server to stop it.\allowbreak{} Closing a browser tab alone does not stop the server.\allowbreak{} Run the same present command from the same source root to reopen the deck and reuse the rehearsal data.\allowbreak{} Navigation backwards does not reset answered questions; use Ask again or New game as described later.\par
 
-\manualsection{Move from one laptop to a real phone}
+\manualsection{Move from one laptop to a real phone}\label{sec:move-from-one-laptop-to-a-real-phone}
 First confirm the laptop-\allowbreak{}only rehearsal works.\allowbreak{} Then put the presenter computer and phone on a network that allows them to reach each other.\allowbreak{} The server prints a line beginning phones join at.\allowbreak{} Open that /\allowbreak{}play address on the phone and enter the current PIN.\allowbreak{} The phone does not need access to the .\allowbreak{}tex file or the Python installation.\par
 
 localhost and 127.\allowbreak{}0.\allowbreak{}0.\allowbreak{}1 mean the device you are using.\allowbreak{} They work for a participant tab on the presenter computer, but point to the phone itself when opened on a phone.\allowbreak{} The screenshot addresses are demonstration values; never copy them as the actual classroom address.\par
@@ -259,7 +259,7 @@ texstage present examples/manual/demo.tex --data .manual-data --port 8765 --no-t
 
 The address above is only an example: replace 192.\allowbreak{}168.\allowbreak{}1.\allowbreak{}23 with your presenter computer's reachable address.\allowbreak{} Stop your rehearsal server before restarting with changed settings.\allowbreak{} -\allowbreak{}-\allowbreak{}public-\allowbreak{}url changes the address advertised to participants; it does not configure the network or open a firewall.\allowbreak{} For access beyond the local network, follow the hosting and security guides linked in \href{\manualdocroot installation-advanced.md}{additional installation recipes}.\par
 
-\manualsection{Make the demonstration your own}
+\manualsection{Make the demonstration your own}\label{sec:make-the-demonstration-your-own}
 After the first successful session, create a new folder named my-\allowbreak{}first-\allowbreak{}deck alongside the examples directory.\allowbreak{} Save the complete small quiz in Author a small quiz and choose the right export below as my-\allowbreak{}first-\allowbreak{}deck/\allowbreak{}deck.\allowbreak{}tex.\allowbreak{} Use a plain-\allowbreak{}text or LaTeX editor and save UTF-\allowbreak{}8 text with the .\allowbreak{}tex extension.\allowbreak{} Change the question title, choices and explanation; keep each quiz id unique within the deck.\par
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -292,7 +292,7 @@ Handout /\allowbreak{} solutions PDF & Choose the intended audience explicitly.\
 .\allowbreak{}manual-\allowbreak{}data & Private rehearsal server state, including authorization material.\allowbreak{} Keep it out of public repositories and student downloads. \\ \addlinespace[3pt]
 \end{longtable}}
 
-\manualsection{Choose a deck}
+\manualsection{Choose a deck}\label{sec:choose-a-deck}
 \manualsubheading{Open the library}
 The presenter is at \texttt{/\allowbreak{}stage} on your quiz server.\allowbreak{} On the server laptop it normally obtains the local presenter key automatically.\allowbreak{} A remote presenter uses an authorized key or a paired device.\allowbreak{} The key is the file \texttt{presenter-\allowbreak{}key} in the server's data folder; \texttt{texstage serve} prints its first characters when it starts, and all of it with \texttt{-\allowbreak{}-\allowbreak{}show-\allowbreak{}key}.\par
 
@@ -315,13 +315,14 @@ A deck built while the library is open appears by itself within a few seconds.\a
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/01-deck-library.jpg}
 \caption{Deck library during a lecture.\allowbreak{} The card shows the first slide, when the deck was last presented and the running session's PIN; Continue returns to it.\allowbreak{} The three-\allowbreak{}dot menu holds the deck actions.}
 \end{figure}
-\manualsection{Know your presenter workspace}
+\manualsection{Know your presenter workspace}\label{sec:know-your-presenter-workspace}
 \begin{itemize}
 \item \textbf{Current slide, left:} the step being presented, including live quiz content.
 \item \textbf{Next, upper right:} a preview of the next step.\allowbreak{} It may show the correct answer before the audience sees it.
 \item \textbf{Notes, lower right:} switch between rendered \textbf{Page} and \textbf{Text} views.\allowbreak{} Use \textbf{A-\allowbreak{} /\allowbreak{} A+} for text size.
 \item \textbf{Top bar:} session PIN, connection indicator, latency, player count and join address, then \textbf{Record}, \textbf{Projector} and \textbf{Devices} -\allowbreak{} these three only in a window signed in with the presenter key, not on a paired device.\allowbreak{} Its three-\allowbreak{}dot menu holds \textbf{After the lecture}, \textbf{Results (CSV)}, \textbf{New game} and \textbf{Decks}.
 \item \textbf{Bottom bar:} annotation tools, slide navigation, elapsed timer, display controls and Overview.
+\item \textbf{Host console} (\texttt{/\allowbreak{}host} on the quiz server): a second, simpler control page.\allowbreak{} It lists the decks and starts a game, shows the slides with the live quiz on top for a quiz lecture without PowerPoint, and with PowerPoint it is the remote that shows who has joined.\allowbreak{} Where this manual says host console or host window, it means this page.
 \end{itemize}
 
 Show the \textbf{Projector} window to the audience.\allowbreak{} Keep this presenter window private: its notes, previews and controls are for you.\allowbreak{} Drag the dividers to adjust the slide and notes areas; double-\allowbreak{}click a divider to restore its default position.\par
@@ -331,7 +332,7 @@ Show the \textbf{Projector} window to the audience.\allowbreak{} Keep this prese
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/02-presenter-workspace.jpg}
 \caption{Presenter workspace with text notes.\allowbreak{} Next previews the join slide.\allowbreak{} The elapsed lecture timer is separate from a quiz countdown.}
 \end{figure}
-\manualsection{Connect the audience}
+\manualsection{Connect the audience}\label{sec:connect-the-audience}
 \begin{itemize}
 \item Choose \textbf{Projector}, move that window onto the audience display, and use an extended desktop.\allowbreak{} If a pop-\allowbreak{}up is blocked, allow the projector window for this server.\allowbreak{} The projector can enter full screen when clicked; F is the presenter freeze shortcut, not its full-\allowbreak{}screen command.
 \item Advance to the join slide.\allowbreak{} Participants scan its QR code or open its address, enter the current PIN and choose a nickname.
@@ -343,7 +344,7 @@ Show the \textbf{Projector} window to the audience.\allowbreak{} Keep this prese
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/03-presenter-join.jpg}
 \caption{The join slide shows the session address, PIN, QR code and player count.\allowbreak{} The PIN shown here is only an example.}
 \end{figure}
-\manualsection{Join and wait on your phone}
+\manualsection{Join and wait on your phone}\label{sec:join-and-wait-on-your-phone}
 No app installation is needed.\allowbreak{} Open the session address in a browser, enter the PIN shown in the room and a nickname, then tap \textbf{Join}.\allowbreak{} A QR code may prefill the PIN.\allowbreak{} \textbf{You're in!} confirms that joining succeeded.\par
 
 When the question appears, read it first.\allowbreak{} The reading screen deliberately has no answer buttons.\allowbreak{} Wait for the presenter to advance again.\allowbreak{} Keep this browser tab open throughout the session.\par
@@ -369,7 +370,7 @@ When the question appears, read it first.\allowbreak{} The reading screen delibe
 \end{subfigure}
 \caption{Join and wait on your phone}
 \end{figure}
-\manualsection{Run a timed question}
+\manualsection{Run a timed question}\label{sec:run-a-timed-question}
 \begin{itemize}
 \item \textbf{Read:} advance onto the reading step.\allowbreak{} The question appears on the shared screen and phones, without starting the round.
 \item \textbf{Open:} advance once more.\allowbreak{} A three-\allowbreak{}second Get ready countdown precedes the answer timer.
@@ -385,7 +386,7 @@ The answer counter is accepted answers /\allowbreak{} (accepted answers + connec
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/07-presenter-question.jpg}
 \caption{A question is open, with its countdown and answer counter.\allowbreak{} The private Next pane already previews the reveal.}
 \end{figure}
-\manualsection{Submit an answer and read feedback}
+\manualsection{Submit an answer and read feedback}\label{sec:submit-an-answer-and-read-feedback}
 For a single-\allowbreak{}choice or true/\allowbreak{}false question, tap one answer to submit it immediately.\allowbreak{} For multiple selections and other input forms, use \textbf{Submit}.\allowbreak{} \textbf{Answer sent} confirms acceptance; wait for the reveal rather than tapping again.\par
 
 After reveal, the phone shows the result, points and rank when scoring is enabled.\allowbreak{} Polls and practice rounds have different feedback.\allowbreak{} The score here is illustrative: timing, question settings and streaks can affect points.\par
@@ -411,7 +412,7 @@ After reveal, the phone shows the result, points and rank when scoring is enable
 \end{subfigure}
 \caption{Submit an answer and read feedback}
 \end{figure}
-\manualsection{Reveal and discuss the result}
+\manualsection{Reveal and discuss the result}\label{sec:reveal-and-discuss-the-result}
 \begin{itemize}
 \item The reveal can show the correct choices, response counts and an explanation authored in the deck.\allowbreak{} Give the group time to discuss why an answer is correct.
 \item Going backwards does not automatically restart a question.\allowbreak{} Its previous state and results are retained.
@@ -423,7 +424,7 @@ After reveal, the phone shows the result, points and rank when scoring is enable
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/10-presenter-reveal.jpg}
 \caption{Reveal view for the planet question.\allowbreak{} The correct answer is marked and the authored explanation is visible.}
 \end{figure}
-\manualsection{Use the different answer formats}
+\manualsection{Use the different answer formats}\label{sec:use-the-different-answer-formats}
 For \textbf{multiple choice}, tap every intended answer and then \textbf{Submit}; selected answers have check marks.\allowbreak{} For \textbf{numeric} questions, set the slider or enter a number, check its units and submit.\allowbreak{} For \textbf{ordering}, use the up/\allowbreak{}down buttons to arrange the items before submitting.\par
 
 Text and open-\allowbreak{}response questions provide a text field.\allowbreak{} Sketch questions provide a drawing pad with pen colors, Undo, Clear and Submit.\allowbreak{} A poll can use one or several choices and has no correct answer.\allowbreak{} Follow the instructions shown on that round.\par
@@ -449,7 +450,7 @@ Text and open-\allowbreak{}response questions provide a text field.\allowbreak{}
 \end{subfigure}
 \caption{Use the different answer formats}
 \end{figure}
-\manualsection{Navigate and control the shared display}
+\manualsection{Navigate and control the shared display}\label{sec:navigate-and-control-the-shared-display}
 \manualsubheading{Move through the deck}
 Use \textbf{Next /\allowbreak{} Previous}, the arrow keys, PageDown /\allowbreak{} PageUp, or a clicker.\allowbreak{} Space and Enter also advance.\allowbreak{} A frame can contain several steps: reading, answering and reveal are different steps of the same quiz frame.\par
 
@@ -470,7 +471,7 @@ Keep the overview private: its thumbnails may include reveal answers.\allowbreak
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/12-presenter-overview.jpg}
 \caption{Overview displays one thumbnail per frame and lets the presenter jump directly.\allowbreak{} Correct answers can be visible in these thumbnails.}
 \end{figure}
-\manualsection{Ask and moderate audience questions}
+\manualsection{Ask and moderate audience questions}\label{sec:ask-and-moderate-audience-questions}
 In the presenter, open \textbf{Q\&A} and enable \textbf{open for the phones}.\allowbreak{} Participants then get a \textbf{Questions} tab where they can submit a question and upvote another open question.\allowbreak{} Their own question cannot be upvoted by them.\par
 
 Use \textbf{Show} to place a question on the projector, \textbf{Hide} to remove it from the screen, and \textbf{Done} when it has been addressed.\allowbreak{} Delete and Block are moderation actions.\allowbreak{} Closing the panel alone does not close submissions; turn off \textbf{open for the phones} when finished.\allowbreak{} Questions are displayed without the participant nickname.\par
@@ -485,7 +486,7 @@ Use \textbf{Show} to place a question on the projector, \textbf{Hide} to remove 
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/15-presenter-questions.jpg}
 \caption{The presenter chooses which question to show and when to mark it done.}
 \end{figure}
-\manualsection{Run a live activity}
+\manualsection{Run a live activity}\label{sec:run-a-live-activity}
 A live activity lets every student send something -\allowbreak{} a query, triples, a choice, a number or a short answer -\allowbreak{}; texstage checks each entry on the server and gathers what the class sent into one picture in the activity's box on the slide.\allowbreak{} A server runs live activities on the activity framework's core, its default activity type:\par
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -494,7 +495,7 @@ texstage present deck.tex
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-\texttt{texstage serve} runs the same type.\allowbreak{} The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools), before the server starts -\allowbreak{} it reads them as it starts; the deck page names a deck the server does not play, and why.\allowbreak{} Until a class has used the core, a server started with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1} runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries -\allowbreak{} keep it open, or start the server with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1 -\allowbreak{}-\allowbreak{}checks server}, which checks them on the server.\allowbreak{} Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other.\allowbreak{} Before you switch, end the lecture -\allowbreak{} \textbf{End lecture …} in the deck's \textbf{Lectures}, or \textbf{New game} -\allowbreak{}, so that the type that played it writes its archive: a game of the core's type that ends under F1's leaves its activities out of the archive.\allowbreak{} Then start the server with the other type, and close and open the presenter, projector and host windows again: an open window keeps the type it was opened with.\par
+\texttt{texstage serve} runs the same type.\allowbreak{} The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (\hyperref[sec:install-texstage-and-check-the-tools]{Install texstage and check the tools}), before the server starts -\allowbreak{} it reads them as it starts; the deck page names a deck the server does not play, and why.\par
 
 \manualsubheading{Open, close and reveal}
 An activity opens when you reach its frame -\allowbreak{} also under Freeze, Black or White -\allowbreak{}, unless it says \texttt{open=\allowbreak{}manual}; leaving the frame closes it, and going back does not open it again.\allowbreak{} With \texttt{time=} its time counts down on the phones, in the panel and on the host console, and closes it at zero.\allowbreak{} A frame with \texttt{\textbackslash{}\allowbreak{}reveal<n>} reveals the activity on its n-\allowbreak{}th slide -\allowbreak{} if it was opened: one that is not open yet (\texttt{open=\allowbreak{}manual}, or after \textbf{Reset}) stays as it is there, and \textbf{R} reveals it.\allowbreak{} Everything else is in the panel: choose \textbf{Activities} in the presenter's tools.\par
@@ -531,7 +532,10 @@ What the projector shows -\allowbreak{} and so the box on your slide -\allowbrea
 \manualsubheading{On the phones}
 Students see the prompt and its input -\allowbreak{} a query field with the deck's tokens, two or three fields, the options, a number or a short answer -\allowbreak{}, tap \textbf{Send} (\textbf{Add} for a triple; a choice of one option goes as it is tapped) and see each entry's state: \textbf{Received}, \textbf{Being checked …}, then what the deck lets them see.\allowbreak{} An entry the server could not check says so -\allowbreak{} not the student's fault -\allowbreak{} and is checked again when it is sent again.\allowbreak{} The server checks every entry itself, so the presenter window need not stay open for it.\allowbreak{} The game's archive keeps each activity's entries (\texttt{activity-\allowbreak{}<id>.\allowbreak{}csv}, without names), its final picture and, for a crowd graph, the graph as SVG.\par
 
-\manualsection{Use annotation and optional presenter tools}
+\manualsubheading{The older activity type}
+Until a class has used the core, a server started with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1} runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries -\allowbreak{} keep it open, or start the server with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1 -\allowbreak{}-\allowbreak{}checks server}, which checks them on the server.\allowbreak{} Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other.\allowbreak{} Before you switch, end the lecture -\allowbreak{} \textbf{End lecture …} in the deck's \textbf{Lectures}, or \textbf{New game} -\allowbreak{}, so that the type that played it writes its archive: a game of the core's type that ends under F1's leaves its activities out of the archive.\allowbreak{} Then start the server with the other type, and close and open the presenter, projector and host windows again: an open window keeps the type it was opened with.\par
+
+\manualsection{Use annotation and optional presenter tools}\label{sec:use-annotation-and-optional-presenter-tools}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.200000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.800000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -553,12 +557,12 @@ Poll & Ask an unplanned Yes /\allowbreak{} No, A-\allowbreak{}F, scale, word-\al
 Devices & On the laptop choose Pair a device.\allowbreak{} Open or scan the offered link on the other device, then approve the request on the laptop.\allowbreak{} Only approve devices you intend to give presenter control. \\ \addlinespace[3pt]
 Record & It needs the presenter window on localhost or HTTPS.\allowbreak{} Choose the microphone, then in the browser chooser the projector's display or window -\allowbreak{} the intended audience output, not the private presenter view.\allowbreak{} The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose \textbf{Start}; the cross beside it cancels.\allowbreak{} Stop recording before exporting it. \\ \addlinespace[3pt]
 Video & A deck's video plays on the projector, with its sound.\allowbreak{} The presenter's copy is muted and has a bar: a click into the video or \textbf{K} plays or pauses it, \textbf{J} goes back 10 seconds, and the position can be dragged.\allowbreak{} If the browser wants a click before it plays sound, the presenter says so: click into the projector window once. \\ \addlinespace[3pt]
-Sketches /\allowbreak{} Activities & These controls appear for matching content in the deck.\allowbreak{} Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (Run a live activity). \\ \addlinespace[3pt]
+Sketches /\allowbreak{} Activities & These controls appear for matching content in the deck.\allowbreak{} Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (\hyperref[sec:run-a-live-activity]{Run a live activity}). \\ \addlinespace[3pt]
 \end{longtable}}
 
 Recording and device/\allowbreak{}screen integration depend on browser support and permissions.\allowbreak{} Microphone and screen recording were not part of the screenshot session.\allowbreak{} Rehearse them on the presenting computer before class.\allowbreak{} The \href{\manualdocroot authoring.md}{authoring guide} and \href{\manualdocroot installation.md}{installation guide} cover the wider workflows.\par
 
-\manualsection{Finish the session and export the material}
+\manualsection{Finish the session and export the material}\label{sec:finish-the-session-and-export-the-material}
 A podium slide finishes the quiz session and shows final standings on phones.\allowbreak{} \textbf{After the lecture}, in the top bar's three-\allowbreak{}dot menu, opens the export tools; opening that panel alone does not end a quiz.\allowbreak{} \textbf{New game}, or returning to the join slide after a podium, starts a new session with a new PIN.\allowbreak{} To end a lecture without starting another, choose \textbf{End lecture …} in the deck's \textbf{Lectures …} on the deck page.\par
 
 Choose \textbf{Make the PDF} for the last-\allowbreak{}shown version of each frame, ink and whiteboard pages; the PDF is also saved to the server archive.\allowbreak{} \textbf{Results (CSV)}, in the same menu, exports participant results.\allowbreak{} The archive ZIP combines the annotated PDF, if generated, and results.\allowbreak{} Recorded takes appear in the Recordings list.\allowbreak{} Review student-\allowbreak{}facing files before sharing; keep result data and presenter credentials private.\par
@@ -573,7 +577,7 @@ Choose \textbf{Make the PDF} for the last-\allowbreak{}shown version of each fra
 \includegraphics[width=\linewidth,height=0.45\textheight,keepaspectratio]{../images/manual/19-after-the-lecture.jpg}
 \caption{Generate the annotated PDF and download the archive.\allowbreak{} No recording was made in this example.}
 \end{figure}
-\manualsection{Author a small quiz and choose the right export}
+\manualsection{Author a small quiz and choose the right export}\label{sec:author-a-small-quiz-and-choose-the-right-export}
 A quiz belongs in a Beamer document.\allowbreak{} Give each question a stable, unique ID.\allowbreak{} Mark correct choices with \texttt{\textbackslash{}\allowbreak{}choice*}; ordinary \texttt{\textbackslash{}\allowbreak{}choice} entries are distractors.\allowbreak{} \texttt{\textbackslash{}\allowbreak{}explain} supplies feedback.\allowbreak{} The existing authoring guide describes all question types and options.\par
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -619,7 +623,7 @@ The \texttt{pdf} and \texttt{build} commands normally write to \texttt{texquiz-\
 
 See \href{\manualdocroot powerpoint.md}{plain PowerPoint conversion} for resolution, output and note options.\allowbreak{} For separate course slide files, lecture-\allowbreak{}tools assembles the document before calling Texstage.\allowbreak{} The \href{\manualdocroot compilation.md}{shared compilation guide} explains the compile\_\allowbreak{}latex Python API used by course builders; it is not a separate texstage command.\par
 
-\manualsection{Troubleshoot before and during a session}
+\manualsection{Troubleshoot before and during a session}\label{sec:troubleshoot-before-and-during-a-session}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.250000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.750000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -652,7 +656,7 @@ Recording has no sound & Check browser permission, the selected microphone and i
 
 Before class: verify the build, join from a real phone, rehearse one question and its reveal, check the projector and notes, and know which static PDF/\allowbreak{}PPTX you will use if the live connection fails.\par
 
-\manualsection{Participant quick reference}
+\manualsection{Participant quick reference}\label{sec:participant-quick-reference}
 \manualsubheading{Join}
 \begin{itemize}
 \item Scan the QR code or open the address shown in the room.
@@ -684,7 +688,7 @@ Before class: verify the build, join from a real phone, rehearse one question an
 \item Do not enter a presenter key.\allowbreak{} The participant page needs only the session PIN and nickname.
 \end{itemize}
 
-\manualsection{Presenter shortcut card}
+\manualsection{Presenter shortcut card}\label{sec:presenter-shortcut-card}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.240000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.280000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.250000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.230000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -711,7 +715,7 @@ Activity: +30 s /\allowbreak{} no time & + /\allowbreak{} - & Video: play or pau
 
 This shortcut card is for the texstage browser presenter.\allowbreak{} PowerPoint uses its own presentation controls.\allowbreak{} The lecture timer shortcut does not pause a quiz countdown.\allowbreak{} Black, White and Freeze cover only the projector: the phones follow every step.\allowbreak{} The activity keys are for the activity on the current slide -\allowbreak{} not with -\allowbreak{}-\allowbreak{}activities f1; Reveal and Reset ask first.\par
 
-\manualsection{About the screenshots and further help}
+\manualsection{About the screenshots and further help}\label{sec:about-the-screenshots-and-further-help}
 The screenshots were captured with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev3 from source revision \texttt{261776bbf3\allowbreak{}ed6b8e9275\allowbreak{}cd9fe3650c\allowbreak{}cbe67af737} on 15 November 2026, in one session; the deck page (01) was retaken with texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev8 from source revision \texttt{262d45e7b6\allowbreak{}c41af1811b\allowbreak{}aabcb22035\allowbreak{}ba5bf88628} on 21 November 2026.\allowbreak{} The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport.\allowbreak{} Browser size is emulated; physical phone hardware was not tested for these captures.\allowbreak{} The capture version is recorded separately from the manual version.\par
 
 All content, nicknames and results are synthetic.\allowbreak{} Alex is an example participant.\allowbreak{} The PIN, local address and scores are illustrations, not credentials for a running class.\allowbreak{} The demonstration server was isolated from existing courses and presenter data.\allowbreak{} Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.\par
@@ -747,8 +751,11 @@ For a reproducible problem, record the package version, operating system, browse
 Screenshot sources and hashes are listed in \href{\manualdocroot images/manual/captures.json}{images/\allowbreak{}manual/\allowbreak{}captures.\allowbreak{}json}.\allowbreak{} The \href{\manualdocroot manual-maintenance.md}{manual maintenance guide} explains how to refresh the images and regenerate all reading formats.\par
 
 \FloatBarrier
-\manualsection{LaTeX reference: packages and loading}
-Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \href{\manualdocroot manual.md}{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
+\appendix
+\section*{Appendix: the LaTeX reference}
+\addcontentsline{toc}{section}{Appendix: the LaTeX reference}
+\manualsection{LaTeX reference: packages and loading}\label{sec:latex-reference-packages-and-loading}
+Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \hyperref[sec:what-texstage-does]{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
 
 This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev8 candidate.\par
 
@@ -770,7 +777,7 @@ This reference covers all four shipped LaTeX packages and their author-\allowbre
 \texttt{texquiz.\allowbreak{}sty} & Quizzes, quiz/\allowbreak{}answer frame options, join/\allowbreak{}leaderboard/\allowbreak{}podium frames and customizable answer rendering.\allowbreak{} Requires the core, TikZ and pdftexcmds; QR support is optional. \\ \addlinespace[3pt]
 \texttt{texvideo.\allowbreak{}sty} & The video command, static posters and live playback metadata.\allowbreak{} Requires the core, graphicx and TikZ; qrcode is optional. \\ \addlinespace[3pt]
 \texttt{texactivit\allowbreak{}y.\allowbreak{}sty} & Tuple, choice, number, text and code activities, prompts, seeds and reference answers.\allowbreak{} Requires the core and Beamer facilities. \\ \addlinespace[3pt]
-\texttt{docs/\allowbreak{}manual-\allowbreak{}latex/\allowbreak{}manual.\allowbreak{}sty} & Documentation layout only: headings, typography, tables and page furniture.\allowbreak{} Do not load it in a lecture deck. \\ \addlinespace[3pt]
+\texttt{docs/\allowbreak{}manual-\allowbreak{}latex/\allowbreak{}manual.\allowbreak{}sty} & Documentation layout only: headings, typography, tables and page furniture.\allowbreak{} Do not load it in a lecture deck; \href{\manualdocroot manual-latex/README.md}{manual-\allowbreak{}latex/\allowbreak{}README.\allowbreak{}md} describes it. \\ \addlinespace[3pt]
 \end{longtable}}
 
 \par\noindent\begin{minipage}{\linewidth}
@@ -787,7 +794,7 @@ This reference covers all four shipped LaTeX packages and their author-\allowbre
 
 The texstage CLI supplies the installed style directory.\allowbreak{} For plain pdfLaTeX, put the four generic files on the TeX search path or use the repository-\allowbreak{}relative loading shown in the reference example.\allowbreak{} Do not mix package copies from different revisions.\allowbreak{} DBIS themes and course notation belong to lecture-\allowbreak{}tools.\par
 
-\manualsection{Build modes and notes}
+\manualsection{Build modes and notes}\label{sec:build-modes-and-notes}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -821,7 +828,7 @@ texstage build examples/reference/reference.tex
 
 The core needs a LaTeX kernel dated 2023-\allowbreak{}06-\allowbreak{}01 or newer.\allowbreak{} \texttt{texstage pdf} and \texttt{texstage build} always run pdfLaTeX, so a deck must compile with it; the packages' LuaLaTeX code path is untested, and no texstage command uses it.\allowbreak{} XeLaTeX is rejected for present mode.\allowbreak{} Live video codecs, external display placement and Office playback need separate platform rehearsal.\par
 
-\manualsection{Quiz environments and body commands}
+\manualsection{Quiz environments and body commands}\label{sec:quiz-environments-and-body-commands}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -848,7 +855,7 @@ The core needs a LaTeX kernel dated 2023-\allowbreak{}06-\allowbreak{}01 or newe
 
 Choice, explanation, acceptance and step commands are local to the quiz body.\allowbreak{} Do not put arbitrary paragraphs, verbatim or listings directly in that body.\allowbreak{} Put supporting material in a surrounding fragile,quiz frame and keep the question/\allowbreak{}reveal layout compact.\allowbreak{} Explicit choice ids identify authored choices; the public A/\allowbreak{}B/\allowbreak{}.\allowbreak{}.\allowbreak{}.\allowbreak{} labels follow the displayed order after shuffling.\par
 
-\manualsection{Quiz types and scoring}
+\manualsection{Quiz types and scoring}\label{sec:quiz-types-and-scoring}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -876,7 +883,7 @@ Choice, explanation, acceptance and step commands are local to the quiz body.\al
 
 Type inference checks ordering items, accepted text, choices, then a boolean/\allowbreak{}numeric answer.\allowbreak{} Polls, open text, sketches and numeric estimates without an answer should declare their type.\allowbreak{} Poll/\allowbreak{}open/\allowbreak{}sketch/\allowbreak{}estimate questions force points=\allowbreak{}none; explicitly requesting scoring for them is an error.\allowbreak{} Scoring is server behavior, not a LaTeX calculation.\par
 
-\manualsection{Quiz options: identity, timing and layout}
+\manualsection{Quiz options: identity, timing and layout}\label{sec:quiz-options-identity-timing-and-layout}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -893,7 +900,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/\al
 \endlastfoot
 \texttt{id} & Required, unique across the deck: 1-\allowbreak{}63 characters, starts with a lower-\allowbreak{}case letter or digit, then lower-\allowbreak{}case letters/\allowbreak{}digits/\allowbreak{}hyphens. \\ \addlinespace[3pt]
 \texttt{type} & single, multiple, truefalse, poll, numeric, text, open, order or sketch; otherwise inferred when unambiguous. \\ \addlinespace[3pt]
-\texttt{time} & Integer 5-\allowbreak{}240 seconds.\allowbreak{} Inherits quizsetup; initial default 20. \\ \addlinespace[3pt]
+\texttt{time} & Integer 5-\allowbreak{}240 seconds.\allowbreak{} Inherits quizsetup; initial default 20.\allowbreak{} An activity's \texttt{time} is another key: 1-\allowbreak{}14400 seconds (\hyperref[sec:activity-environment-and-common-options]{Activity environment and common options}). \\ \addlinespace[3pt]
 \texttt{points} & standard, double or none.\allowbreak{} Inherits quizsetup; initial default standard, except forced-\allowbreak{}unscored types. \\ \addlinespace[3pt]
 \texttt{leaderboar\allowbreak{}d} & true/\allowbreak{}false; bare key means true.\allowbreak{} Default follows setup.\allowbreak{} Only a scored quiz gets one: on a poll, open, sketch or \texttt{points=\allowbreak{}none} question, or a numeric one without an answer, the key does nothing.\allowbreak{} Automatic result pages do not increment the authored frame number. \\ \addlinespace[3pt]
 \texttt{shuffle} & true/\allowbreak{}false; bare key means true.\allowbreak{} Initially false.\allowbreak{} Deterministic choice shuffling is shared between slide and phones; ordering questions are always shuffled. \\ \addlinespace[3pt]
@@ -905,7 +912,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/\al
 
 Time, points, leaderboard, shuffle, reveal and title have setup-\allowbreak{}level counterparts.\allowbreak{} Per-\allowbreak{}question values override them.\allowbreak{} Other question keys listed in the following section are not accepted by quizsetup.\par
 
-\manualsection{Quiz options: answer data}
+\manualsection{Quiz options: answer data}\label{sec:quiz-options-answer-data}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -920,7 +927,7 @@ Time, points, leaderboard, shuffle, reveal and title have setup-\allowbreak{}lev
 \endfoot
 \bottomrule
 \endlastfoot
-\texttt{select} & Only polls: single (default) or multiple. \\ \addlinespace[3pt]
+\texttt{select} & Only polls: single (default) or multiple.\allowbreak{} A choice activity's \texttt{select} is one or many instead (\hyperref[sec:choice-number-and-text-activities]{Choice, number and text activities}). \\ \addlinespace[3pt]
 \texttt{answer} & true/\allowbreak{}false for truefalse; a decimal for numeric.\allowbreak{} Omit for an unscored numeric estimate. \\ \addlinespace[3pt]
 \texttt{tolerance} & Numeric tolerance, default 0.\allowbreak{} Must be nonnegative. \\ \addlinespace[3pt]
 \texttt{min, max} & Optional numeric bounds.\allowbreak{} min must not exceed max; a scored answer interval must intersect the allowed range.\allowbreak{} Both bounds select a phone slider. \\ \addlinespace[3pt]
@@ -945,7 +952,7 @@ Time, points, leaderboard, shuffle, reveal and title have setup-\allowbreak{}lev
 
 Use ordinary decimal notation such as -\allowbreak{}1.\allowbreak{}5, not exponents or a comma decimal separator.\allowbreak{} Avoid irrelevant keys: the supported contract is the type-\allowbreak{}specific one above, even where a parser accepts an unused value.\par
 
-\manualsection{Setup defaults and session frames}
+\manualsection{Setup defaults and session frames}\label{sec:setup-defaults-and-session-frames}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -973,8 +980,8 @@ Use ordinary decimal notation such as -\allowbreak{}1.\allowbreak{}5, not expone
 
 For delayed answers, give the quiz reveal=\allowbreak{}none, then write an answer=\allowbreak{}its-\allowbreak{}id frame later.\allowbreak{} Do not put quizjoinframe, quizleaderboardframe or quizpodiumframe inside a frame: each command creates one.\par
 
-\manualsection{Quiz display strings (1/\allowbreak{}2)}
-These quizsetup keys replace visible static slide text.\allowbreak{} Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below.\allowbreak{} A value given here wins in every language.\allowbreak{} The phone application and the presenter windows follow the deck's language by themselves.\par
+\manualsection{Quiz display strings (1/\allowbreak{}2)}\label{sec:quiz-display-strings-12}
+These quizsetup keys replace visible static slide text.\allowbreak{} Without them, a text follows the deck's language (see \hyperref[sec:deck-language-and-live-labels]{Deck language and live labels}): the English or German default below.\allowbreak{} A value given here wins in every language.\allowbreak{} The phone application and the presenter windows follow the deck's language by themselves.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.260000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}}
@@ -1010,8 +1017,8 @@ These quizsetup keys replace visible static slide text.\allowbreak{} Without the
 
 Use braces for values containing commas or paragraphs.\allowbreak{} Change the setup after loading a theme to retain your override.\allowbreak{} For the DBIS German strings and its leaderboard defaults, see the separate lecture-\allowbreak{}tools style reference.\par
 
-\manualsection{Quiz display strings (2/\allowbreak{}2)}
-These quizsetup keys replace visible static slide text.\allowbreak{} Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below.\allowbreak{} A value given here wins in every language.\allowbreak{} The phone application and the presenter windows follow the deck's language by themselves.\par
+\manualsection{Quiz display strings (2/\allowbreak{}2)}\label{sec:quiz-display-strings-22}
+The remaining texts.\allowbreak{} How the setup sets them, and what wins over the deck's language, is on \hyperref[sec:quiz-display-strings-12]{Quiz display strings (1/\allowbreak{}2)}.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.260000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.370000\linewidth-2\tabcolsep\relax}}
@@ -1039,15 +1046,7 @@ These quizsetup keys replace visible static slide text.\allowbreak{} Without the
 \texttt{accepted-\allowbreak{}label} & Accepted answers: & Akzeptierte Antworten: \\ \addlinespace[3pt]
 \end{longtable}}
 
-\par\noindent\begin{minipage}{\linewidth}
-\begin{Verbatim}
-\quizsetup{title=Question, true-label=Yes, false-label=No}
-\end{Verbatim}
-\end{minipage}\par\smallskip
-
-Use braces for values containing commas or paragraphs.\allowbreak{} Change the setup after loading a theme to retain your override.\allowbreak{} For the DBIS German strings and its leaderboard defaults, see the separate lecture-\allowbreak{}tools style reference.\par
-
-\manualsection{Quiz theme hooks}
+\manualsection{Quiz theme hooks}\label{sec:quiz-theme-hooks}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1082,7 +1081,7 @@ Colors are texquiz-\allowbreak{}1 through texquiz-\allowbreak{}6, texquiz-\allow
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-\manualsection{Video command and options}
+\manualsection{Video command and options}\label{sec:video-command-and-options}
 Load texvideo, then place the command inside a Beamer frame.\allowbreak{} Every video requires a local JPEG/\allowbreak{}PNG poster.\allowbreak{} Paths are relative to the deck directory.\allowbreak{} The poster determines the rendered aspect ratio; match it to the video.\par
 
 {\small
@@ -1119,7 +1118,7 @@ Load texvideo, then place the command inside a Beamer frame.\allowbreak{} Every 
 
 Reusing an id retains the same video and playback state.\allowbreak{} Its source, poster and playback keys must agree.\allowbreak{} Repeating the same id twice on one slide is an error.\allowbreak{} Give separate videos distinct ids.\par
 
-\manualsection{Video output and portability}
+\manualsection{Video output and portability}\label{sec:video-output-and-portability}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1145,7 +1144,7 @@ Compilation checks poster geometry and packaging, not successful playback on eve
 
 The full command contract is in texvideo.\allowbreak{}sty and src/\allowbreak{}texstage/\allowbreak{}build/\allowbreak{}video.\allowbreak{}py.\allowbreak{} Do not interpret a warning-\allowbreak{}only online URL as proof that an embedded browser player exists for it.\par
 
-\manualsection{Activity environment and common options}
+\manualsection{Activity environment and common options}\label{sec:activity-environment-and-common-options}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1166,7 +1165,7 @@ The full command contract is in texvideo.\allowbreak{}sty and src/\allowbreak{}t
 \texttt{\textbackslash{}\allowbreak{}seed\{\allowbreak{}verbatim text\}} & Inline code-\allowbreak{}activity data.\allowbreak{} Use a fragile frame, or prefer seed=\allowbreak{}data.\allowbreak{}ttl /\allowbreak{} seed=\allowbreak{}data.\allowbreak{}sql.\allowbreak{} If a seed file and inline seed are both supplied, the file takes precedence. \\ \addlinespace[3pt]
 \texttt{\textbackslash{}\allowbreak{}reveal<n>} & Inside activity, at most once, n a slide's number: the frame's slides from the n-\allowbreak{}th on -\allowbreak{} Beamer overlays -\allowbreak{} reveal the activity, and the slides before it open it.\allowbreak{} Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. \\ \addlinespace[3pt]
 \texttt{id} & Required, 1-\allowbreak{}63 lower-\allowbreak{}case letters/\allowbreak{}digits/\allowbreak{}hyphens, starting with a letter or digit.\allowbreak{} Same id must keep the same definition. \\ \addlinespace[3pt]
-\texttt{kind} & The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own, see Choice, number and text activities), triples, sql-\allowbreak{}query, sparql-\allowbreak{}query, turtle-\allowbreak{}graph (texstage-\allowbreak{}kinds-\allowbreak{}rdf, texstage-\allowbreak{}kinds-\allowbreak{}sql).\allowbreak{} texstage build asks the kind, which checks its own keys -\allowbreak{} every key texactivity does not know is the kind's, and the build warns of one the kind does not take. \\ \addlinespace[3pt]
+\texttt{kind} & The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own; \hyperref[sec:choice-number-and-text-activities]{Choice, number and text activities}), triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph (texstage-\allowbreak{}kinds-\allowbreak{}rdf), sql-\allowbreak{}query (texstage-\allowbreak{}kinds-\allowbreak{}sql).\allowbreak{} \texttt{texstage kinds} lists the installed ones; \href{\manualdocroot installation.md}{installation.\allowbreak{}md} installs the kinds' packages.\allowbreak{} texstage build asks the kind, which checks its own keys -\allowbreak{} every key texactivity does not know is the kind's, and the build warns of one the kind does not take. \\ \addlinespace[3pt]
 \texttt{input} & tuple (default) or code: the activity's kind as decks named it before kinds -\allowbreak{} input=\allowbreak{}tuple is kind=\allowbreak{}triples, input=\allowbreak{}code with engine=\allowbreak{}sql, sparql or turtle is kind=\allowbreak{}sql-\allowbreak{}query, sparql-\allowbreak{}query or turtle-\allowbreak{}graph.\allowbreak{} Code input requires engine and seed data. \\ \addlinespace[3pt]
 \texttt{width, height} & Default linewidth and 0.\allowbreak{}6 textheight.\allowbreak{} Size the box to leave room for the frame title and other material. \\ \addlinespace[3pt]
 \texttt{open} & auto (default) opens when the frame is reached; manual waits for the presenter. \\ \addlinespace[3pt]
@@ -1182,7 +1181,7 @@ The full command contract is in texvideo.\allowbreak{}sty and src/\allowbreak{}t
 
 The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/\allowbreak{}reference/\allowbreak{}seed/\allowbreak{}reveal aliases.\allowbreak{} Use the local names inside activity.\allowbreak{} Arbitrary body text is not a substitute for prompt.\allowbreak{} The build checks \texttt{counts}, \texttt{gap}, \texttt{time}, \texttt{budget}, \texttt{feedback}, \texttt{projector} and \texttt{solution}; \texttt{texstage serve} and \texttt{present} use them, and a server started with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1} leaves them aside.\par
 
-\manualsection{Tuple activities: options and example}
+\manualsection{Tuple activities: options and example}\label{sec:tuple-activities-options-and-example}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1218,7 +1217,7 @@ The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and Texact
 
 A tuple activity is of the kind triples (texstage-\allowbreak{}kinds-\allowbreak{}rdf): kind=\allowbreak{}triples and input=\allowbreak{}tuple, the default, are the same.\allowbreak{} Handout, solutions and PowerPoint show the static activity prompt -\allowbreak{} and a choice's options.\allowbreak{} Live interaction is implemented in the texstage browser presenter and phones.\allowbreak{} The current PowerPoint add-\allowbreak{}in implements quizzes, not live activities.\par
 
-\manualsection{Choice, number and text activities}
+\manualsection{Choice, number and text activities}\label{sec:choice-number-and-text-activities}
 Three kinds come with texstage itself and need no extra package: kind=\allowbreak{}choice, kind=\allowbreak{}number and kind=\allowbreak{}text.\allowbreak{} Phones choose among options, send a number or a short answer; the projector shows a tally, a histogram or the grouped answers, and the reveal marks what is right.\allowbreak{} These kinds run only on the activity framework's core, a server's default activity type; a server started with \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1} skips such a deck and says why.\par
 
 {\small
@@ -1237,7 +1236,7 @@ Three kinds come with texstage itself and need no extra package: kind=\allowbrea
 \endlastfoot
 \texttt{kind=\allowbreak{}choice} & One option, or several with select=\allowbreak{}many, of those listed in options.\allowbreak{} The projector counts each option in the deck's order, an option nobody chose included -\allowbreak{} with select=\allowbreak{}many, the students who chose it, alone or with others.\allowbreak{} A student may change their mind: the latest choice counts. \\ \addlinespace[3pt]
 \texttt{options} & For choice, required: 2-\allowbreak{}26 comma-\allowbreak{}separated options, each 1-\allowbreak{}100 characters and given once.\allowbreak{} They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape -\allowbreak{} on the phones, the projector's bars and the slide.\allowbreak{} Options and references are read as LaTeX sets them: an accent is its letter (\texttt{Espa\textbackslash{}\allowbreak{}\textasciitilde{}na} is España), a tie a space (\texttt{New\textasciitilde{}York}).\allowbreak{} As in every key, \texttt{\textbackslash{}\allowbreak{}\&} or \texttt{\textbackslash{}\allowbreak{}\textasciicircum{}} stands for the character itself -\allowbreak{} TeX reads \texttt{\textasciicircum{}\textasciicircum{}} as a character code -\allowbreak{}, so ô is written ô. \\ \addlinespace[3pt]
-\texttt{select} & For choice: one (default) or many.\allowbreak{} With many, a phone marks several options and sends them together. \\ \addlinespace[3pt]
+\texttt{select} & For choice: one (default) or many (a quiz poll's \texttt{select} is single or multiple).\allowbreak{} With many, a phone marks several options and sends them together. \\ \addlinespace[3pt]
 \texttt{kind=\allowbreak{}number} & A number, positive or negative.\allowbreak{} Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers -\allowbreak{} 3.\allowbreak{}141 on a German phone, 3141 on an English one.\allowbreak{} The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width -\allowbreak{} numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. \\ \addlinespace[3pt]
 \texttt{tolerance} & For number: how far an answer may lie from a reference and still be right.\allowbreak{} 0 (default) or more, in ASCII digits with at most one point, e.\allowbreak{}g.\allowbreak{} 0.\allowbreak{}5; \texttt{tolerance=\allowbreak{}0,5} is refused, as the comma ends the key.\allowbreak{} Without a reference nothing is judged, and the build warns of a tolerance given without one. \\ \addlinespace[3pt]
 \texttt{kind=\allowbreak{}text} & A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-\allowbreak{}width space) is no part of it.\allowbreak{} The projector groups the answers by that form. \\ \addlinespace[3pt]
@@ -1272,7 +1271,7 @@ Three kinds come with texstage itself and need no extra package: kind=\allowbrea
 
 The build checks the references as the server checks them: a choice's reference that is none of its options, or a number's reference that is no number, stops the build.\allowbreak{} Handout and PowerPoint show the prompt and a choice's options -\allowbreak{} each with its shape in its colour, as the phones show them, so that the prompt need not repeat them; the solutions add the references.\allowbreak{} The \href{\manualdocroot ../examples/showcase/README.md}{feature showcase} and the \href{\manualdocroot ../examples/demo/README.md}{live-\allowbreak{}activity demo deck} present one activity of each kind.\par
 
-\manualsection{Code activities: engines and data}
+\manualsection{Code activities: engines and data}\label{sec:code-activities-engines-and-data}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1300,7 +1299,7 @@ The seed is distributed with the activity and is visible to participants; it mus
 
 The builder validates data sizes and engine-\allowbreak{}specific seed extensions.\allowbreak{} A plain PDF compile cannot establish that SQL/\allowbreak{}SPARQL/\allowbreak{}Turtle semantics or results match the teaching objective.\par
 
-\manualsection{SQL activities: permitted statements}
+\manualsection{SQL activities: permitted statements}\label{sec:sql-activities-permitted-statements}
 An SQL activity is a read-\allowbreak{}only query exercise.\allowbreak{} The instructor's seed may contain CREATE TABLE and INSERT statements to prepare the teaching data.\allowbreak{} After loading that seed, texstage switches the in-\allowbreak{}memory SQLite database to read-\allowbreak{}only mode.\allowbreak{} Where a submission runs depends on how the server is started: by default -\allowbreak{} the activity framework's core -\allowbreak{} in one of the server's worker processes, by Python's SQLite, against an in-\allowbreak{}memory copy of the seed and within a budget of CPU time; with -\allowbreak{}-\allowbreak{}activities f1 in a worker of the presenter's browser (sql.\allowbreak{}js), which sends the server its result, or, with -\allowbreak{}-\allowbreak{}checks server as well, in the server's worker processes.\allowbreak{} Either way no student's SQL runs against the server's own database or a course database.\par
 
 Students can type any SQL text, but the check accepts only one query statement: SELECT, VALUES or WITH .\allowbreak{}.\allowbreak{}.\allowbreak{} SELECT.\allowbreak{} It refuses commands that change tables or rows, including CREATE, INSERT, UPDATE, DELETE and DROP TABLE.\allowbreak{} PRAGMA and ATTACH commands are also refused, as are multiple statements in one submission.\allowbreak{} The tokens option adds keyboard shortcut buttons; it does not limit what a student can type or grant permission to run a command.\par
@@ -1329,7 +1328,7 @@ Result grouping compares returned values.\allowbreak{} Column names and row orde
 
 The SQL check has no writable exercise mode.\allowbreak{} To teach table creation or updates, use a separately isolated notebook or database lab.\allowbreak{} The instructor's seed initialization is distinct from the student submissions above.\par
 
-\manualsection{Code activity example and build checks}
+\manualsection{Code activity example and build checks}\label{sec:code-activity-example-and-build-checks}
 \par\noindent\begin{minipage}{\linewidth}
 \begin{Verbatim}
 \begin{frame}[fragile]{Query the people table}
@@ -1367,7 +1366,7 @@ For ordinary course files, prefer seed=\allowbreak{}people.\allowbreak{}sql and 
 
 Runnable examples and an isolated validation command are provided in \href{\manualdocroot ../examples/reference/README.md}{examples/\allowbreak{}reference/\allowbreak{}README.\allowbreak{}md}.\allowbreak{} They use dedicated output/\allowbreak{}data directories and do not load existing courses.\par
 
-\manualsection{Activity labels and documentation helpers}
+\manualsection{Activity labels and documentation helpers}\label{sec:activity-labels-and-documentation-helpers}
 The activity label hooks are ordinary macros.\allowbreak{} By default they give the text of the deck's language, English or German; redefine them after loading texactivity for other wording.\allowbreak{} The phone UI follows the deck's language by itself.\par
 
 {\small
@@ -1394,11 +1393,7 @@ The activity label hooks are ordinary macros.\allowbreak{} By default they give 
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-\texttt{docs/\allowbreak{}manual-\allowbreak{}latex/\allowbreak{}manual.\allowbreak{}sty} only controls this manual: portrait A4 article layout, typography, colors, tables and headers/\allowbreak{}footers.\allowbreak{} Its \texttt{\textbackslash{}\allowbreak{}manualsect\allowbreak{}ion\{\allowbreak{}title\}} creates a numbered section without forcing a page break; \texttt{\textbackslash{}\allowbreak{}manualsubh\allowbreak{}eading\{\allowbreak{}title\}} formats a small heading; \texttt{\textbackslash{}\allowbreak{}manualcapt\allowbreak{}ion} selects caption text.\allowbreak{} The document supplies \texttt{\textbackslash{}\allowbreak{}manualvers\allowbreak{}ion} and \texttt{\textbackslash{}\allowbreak{}manualdate}.\par
-
-This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption, placeins, needspace, hyperref, bookmark, microtype and upquote.\allowbreak{} Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands.\allowbreak{} It is not a lecture-\allowbreak{}deck package.\par
-
-\manualsection{Core interfaces for package developers}
+\manualsection{Core interfaces for package developers}\label{sec:core-interfaces-for-package-developers}
 These expl3 interfaces are shared by texquiz, texvideo and texactivity.\allowbreak{} They are documented for maintainers of the current candidate, not a promise of a versioned plugin ABI.\allowbreak{} Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.\par
 
 {\small
@@ -1430,7 +1425,7 @@ These expl3 interfaces are shared by texquiz, texvideo and texactivity.\allowbre
 
 Do not emit arbitrary records from a course deck.\allowbreak{} The Python build registry must understand the content type, its public metadata, private answer data, phone assets and rendering.\allowbreak{} Shipout and shrink corrections are coordinated by the core.\par
 
-\manualsection{Core asset and layout helpers}
+\manualsection{Core asset and layout helpers}\label{sec:core-asset-and-layout-helpers}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1459,7 +1454,7 @@ Do not emit arbitrary records from a course deck.\allowbreak{} The Python build 
 
 Names containing @, names beginning \_\allowbreak{}\_\allowbreak{}, parser temporaries and global state variables are implementation details.\allowbreak{} The core also patches Beamer shrink/\allowbreak{}shipout handling; do not copy those internals into themes.\allowbreak{} The maintained inventory records source hashes so changes require a documentation review.\par
 
-\manualsection{LaTeX examples and common authoring failures}
+\manualsection{LaTeX examples and common authoring failures}\label{sec:latex-examples-and-common-authoring-failures}
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
 \toprule
@@ -1493,7 +1488,7 @@ The compiled reference example covers every quiz type, delayed answers, explicit
 
 The \href{\manualdocroot latex-reference-inventory.json}{reference inventory} and \href{\manualdocroot ../examples/reference/README.md}{example build instructions} accompany this chapter.\allowbreak{} Existing courses and pinned styles do not need to change to read or build these isolated examples.\par
 
-\manualsection{Deck language and live labels}
+\manualsection{Deck language and live labels}\label{sec:deck-language-and-live-labels}
 Texstage records the active Babel or Polyglossia language when LaTeX builds a deck, and everything the deck's audience and lecturer read follows it: the slides' static texts (the quizsetup defaults, the activity labels), the live views on the projector, the phones, the presenter and host windows, the PowerPoint add-\allowbreak{}in, and the polls typed during the lecture.\allowbreak{} German variants such as ngerman select German; English and unsupported languages use English.\allowbreak{} A phone that scans the join slide's code shows its join form in the deck's language, otherwise in its browser language until it has joined.\allowbreak{} Pages without a deck, such as the deck list and device pairing, use the browser language.\allowbreak{} Rebuild an existing bundle to capture its deck language.\par
 
 \par\noindent\begin{minipage}{\linewidth}

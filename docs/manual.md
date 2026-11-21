@@ -32,29 +32,31 @@
 - [Participant quick reference](#participant-quick-reference)
 - [Presenter shortcut card](#presenter-shortcut-card)
 - [About the screenshots and further help](#about-the-screenshots-and-further-help)
-- [LaTeX reference: packages and loading](#latex-reference-packages-and-loading)
-- [Build modes and notes](#build-modes-and-notes)
-- [Quiz environments and body commands](#quiz-environments-and-body-commands)
-- [Quiz types and scoring](#quiz-types-and-scoring)
-- [Quiz options: identity, timing and layout](#quiz-options-identity-timing-and-layout)
-- [Quiz options: answer data](#quiz-options-answer-data)
-- [Setup defaults and session frames](#setup-defaults-and-session-frames)
-- [Quiz display strings (1/2)](#quiz-display-strings-12)
-- [Quiz display strings (2/2)](#quiz-display-strings-22)
-- [Quiz theme hooks](#quiz-theme-hooks)
-- [Video command and options](#video-command-and-options)
-- [Video output and portability](#video-output-and-portability)
-- [Activity environment and common options](#activity-environment-and-common-options)
-- [Tuple activities: options and example](#tuple-activities-options-and-example)
-- [Choice, number and text activities](#choice-number-and-text-activities)
-- [Code activities: engines and data](#code-activities-engines-and-data)
-- [SQL activities: permitted statements](#sql-activities-permitted-statements)
-- [Code activity example and build checks](#code-activity-example-and-build-checks)
-- [Activity labels and documentation helpers](#activity-labels-and-documentation-helpers)
-- [Core interfaces for package developers](#core-interfaces-for-package-developers)
-- [Core asset and layout helpers](#core-asset-and-layout-helpers)
-- [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
-- [Deck language and live labels](#deck-language-and-live-labels)
+- [Appendix: the LaTeX reference](#appendix-the-latex-reference)
+  - [LaTeX reference: packages and loading](#latex-reference-packages-and-loading)
+  - [Build modes and notes](#build-modes-and-notes)
+  - [Quiz environments and body commands](#quiz-environments-and-body-commands)
+  - [Quiz types and scoring](#quiz-types-and-scoring)
+  - [Quiz options: identity, timing and layout](#quiz-options-identity-timing-and-layout)
+  - [Quiz options: answer data](#quiz-options-answer-data)
+  - [Setup defaults and session frames](#setup-defaults-and-session-frames)
+  - [Quiz display strings (1/2)](#quiz-display-strings-12)
+  - [Quiz display strings (2/2)](#quiz-display-strings-22)
+  - [Quiz theme hooks](#quiz-theme-hooks)
+  - [Video command and options](#video-command-and-options)
+  - [Video output and portability](#video-output-and-portability)
+  - [Activity environment and common options](#activity-environment-and-common-options)
+  - [Tuple activities: options and example](#tuple-activities-options-and-example)
+  - [Choice, number and text activities](#choice-number-and-text-activities)
+  - [Code activities: engines and data](#code-activities-engines-and-data)
+  - [SQL activities: permitted statements](#sql-activities-permitted-statements)
+  - [Code activity example and build checks](#code-activity-example-and-build-checks)
+  - [Activity labels and documentation helpers](#activity-labels-and-documentation-helpers)
+  - [Core interfaces for package developers](#core-interfaces-for-package-developers)
+  - [Core asset and layout helpers](#core-asset-and-layout-helpers)
+  - [LaTeX examples and common authoring failures](#latex-examples-and-common-authoring-failures)
+  - [Deck language and live labels](#deck-language-and-live-labels)
+
 A practical guide to presenting Beamer decks, running live quizzes and participating from a phone.
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
@@ -74,7 +76,7 @@ A participant answers in the browser.
 
 texstage turns a LaTeX Beamer presentation into an interactive teaching session. You write ordinary slides and add quiz commands in a .tex file. texstage compiles that source, prepares the presentation files, and runs a server that connects your presenter browser, the audience display and participants' phones. You can also create a static PDF handout or a PDF with solutions.
 
-For example, a lecturer writes a multiple-choice question, presents its reading step, opens answering, and then reveals the explanation. Students open a join link, enter the session PIN and answer in a browser. The presenter sees the accepted answers and controls what the audience sees. A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide (Run a live activity).
+For example, a lecturer writes a multiple-choice question, presents its reading step, opens answering, and then reveals the explanation. Students open a join link, enter the session PIN and answer in a browser. The presenter sees the accepted answers and controls what the audience sees. A live activity goes further: every student sends a query, triples, a choice, a number or a short answer, and texstage checks and groups what the class sent into one picture on the slide ([Run a live activity](#run-a-live-activity)).
 
 | Component | Your part in the session |
 | --- | --- |
@@ -297,6 +299,7 @@ Deck library during a lecture. The card shows the first slide, when the deck was
 - **Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.
 - **Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices** - these three only in a window signed in with the presenter key, not on a paired device. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.
 - **Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview.
+- **Host console** (`/host` on the quiz server): a second, simpler control page. It lists the decks and starts a game, shows the slides with the live quiz on top for a quiz lecture without PowerPoint, and with PowerPoint it is the remote that shows who has joined. Where this manual says host console or host window, it means this page.
 
 Show the **Projector** window to the audience. Keep this presenter window private: its notes, previews and controls are for you. Drag the dividers to adjust the slide and notes areas; double-click a divider to restore its default position.
 
@@ -444,7 +447,7 @@ A live activity lets every student send something - a query, triples, a choice, 
 texstage present deck.tex
 ```
 
-`texstage serve` runs the same type. The kinds of activity the deck uses must be installed where the server runs, as where the deck is built (Install texstage and check the tools), before the server starts - it reads them as it starts; the deck page names a deck the server does not play, and why. Until a class has used the core, a server started with `--activities f1` runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--activities f1 --checks server`, which checks them on the server. Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other. Before you switch, end the lecture - **End lecture …** in the deck's **Lectures**, or **New game** -, so that the type that played it writes its archive: a game of the core's type that ends under F1's leaves its activities out of the archive. Then start the server with the other type, and close and open the presenter, projector and host windows again: an open window keeps the type it was opened with.
+`texstage serve` runs the same type. The kinds of activity the deck uses must be installed where the server runs, as where the deck is built ([Install texstage and check the tools](#install-texstage-and-check-the-tools)), before the server starts - it reads them as it starts; the deck page names a deck the server does not play, and why.
 
 ### Open, close and reveal
 
@@ -471,6 +474,10 @@ What the projector shows - and so the box on your slide - is the deck's choice: 
 
 Students see the prompt and its input - a query field with the deck's tokens, two or three fields, the options, a number or a short answer -, tap **Send** (**Add** for a triple; a choice of one option goes as it is tapped) and see each entry's state: **Received**, **Being checked …**, then what the deck lets them see. An entry the server could not check says so - not the student's fault - and is checked again when it is sent again. The server checks every entry itself, so the presenter window need not stay open for it. The game's archive keeps each activity's entries (`activity-<id>.csv`, without names), its final picture and, for a crowd graph, the graph as SVG.
 
+### The older activity type
+
+Until a class has used the core, a server started with `--activities f1` runs the older activity type, F1's, which the lectures used before: its panel and phone screen are older, it skips decks of choice, number or text activities, and by default the presenter window checks the queries - keep it open, or start the server with `--activities f1 --checks server`, which checks them on the server. Switch between the two types between lectures, not during one: a game of the older type moves to the core's once, when the core's type first starts with it, and entries sent to one type after that are not seen by the other. Before you switch, end the lecture - **End lecture …** in the deck's **Lectures**, or **New game** -, so that the type that played it writes its archive: a game of the core's type that ends under F1's leaves its activities out of the archive. Then start the server with the other type, and close and open the presenter, projector and host windows again: an open window keeps the type it was opened with.
+
 
 ## Use annotation and optional presenter tools
 
@@ -483,7 +490,7 @@ Students see the prompt and its input - a query field with the deck's tokens, tw
 | Devices | On the laptop choose Pair a device. Open or scan the offered link on the other device, then approve the request on the laptop. Only approve devices you intend to give presenter control. |
 | Record | It needs the presenter window on localhost or HTTPS. Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it. |
 | Video | A deck's video plays on the projector, with its sound. The presenter's copy is muted and has a bar: a click into the video or **K** plays or pauses it, **J** goes back 10 seconds, and the position can be dragged. If the browser wants a click before it plays sound, the presenter says so: click into the projector window once. |
-| Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (Run a live activity). |
+| Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them ([Run a live activity](#run-a-live-activity)). |
 
 Recording and device/screen integration depend on browser support and permissions. Microphone and screen recording were not part of the screenshot session. Rehearse them on the presenting computer before class. The [authoring guide](authoring.md) and [installation guide](installation.md) cover the wider workflows.
 
@@ -628,9 +635,13 @@ For a reproducible problem, record the package version, operating system, browse
 Screenshot sources and hashes are listed in [images/manual/captures.json](images/manual/captures.json). The [manual maintenance guide](manual-maintenance.md) explains how to refresh the images and regenerate all reading formats.
 
 
+# Appendix: the LaTeX reference
+
+The same text is published on its own as [latex-reference.md](latex-reference.md).
+
 ## LaTeX reference: packages and loading
 
-Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
+Use this section as a lookup after completing the first-session tutorial in the [user manual](#what-texstage-does). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
 This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev8 candidate.
 
@@ -640,7 +651,7 @@ This reference covers all four shipped LaTeX packages and their author-facing co
 | `texquiz.sty` | Quizzes, quiz/answer frame options, join/leaderboard/podium frames and customizable answer rendering. Requires the core, TikZ and pdftexcmds; QR support is optional. |
 | `texvideo.sty` | The video command, static posters and live playback metadata. Requires the core, graphicx and TikZ; qrcode is optional. |
 | `texactivity.sty` | Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. |
-| `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck. |
+| `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck; [manual-latex/README.md](manual-latex/README.md) describes it. |
 
 ```
 \documentclass[aspectratio=169]{beamer}
@@ -715,7 +726,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/num
 | --- | --- |
 | `id` | Required, unique across the deck: 1-63 characters, starts with a lower-case letter or digit, then lower-case letters/digits/hyphens. |
 | `type` | single, multiple, truefalse, poll, numeric, text, open, order or sketch; otherwise inferred when unambiguous. |
-| `time` | Integer 5-240 seconds. Inherits quizsetup; initial default 20. |
+| `time` | Integer 5-240 seconds. Inherits quizsetup; initial default 20. An activity's `time` is another key: 1-14400 seconds ([Activity environment and common options](#activity-environment-and-common-options)). |
 | `points` | standard, double or none. Inherits quizsetup; initial default standard, except forced-unscored types. |
 | `leaderboard` | true/false; bare key means true. Default follows setup. Only a scored quiz gets one: on a poll, open, sketch or `points=none` question, or a numeric one without an answer, the key does nothing. Automatic result pages do not increment the authored frame number. |
 | `shuffle` | true/false; bare key means true. Initially false. Deterministic choice shuffling is shared between slide and phones; ordering questions are always shuffled. |
@@ -731,7 +742,7 @@ Time, points, leaderboard, shuffle, reveal and title have setup-level counterpar
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `select` | Only polls: single (default) or multiple. |
+| `select` | Only polls: single (default) or multiple. A choice activity's `select` is one or many instead ([Choice, number and text activities](#choice-number-and-text-activities)). |
 | `answer` | true/false for truefalse; a decimal for numeric. Omit for an unscored numeric estimate. |
 | `tolerance` | Numeric tolerance, default 0. Must be nonnegative. |
 | `min, max` | Optional numeric bounds. min must not exceed max; a scored answer interval must intersect the allowed range. Both bounds select a phone slider. |
@@ -773,7 +784,7 @@ For delayed answers, give the quiz reveal=none, then write an answer=its-id fram
 
 ## Quiz display strings (1/2)
 
-These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
+These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see [Deck language and live labels](#deck-language-and-live-labels)): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
 
 | Setup key | English | German |
 | --- | --- | --- |
@@ -797,7 +808,7 @@ Use braces for values containing commas or paragraphs. Change the setup after lo
 
 ## Quiz display strings (2/2)
 
-These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
+The remaining texts. How the setup sets them, and what wins over the deck's language, is on [Quiz display strings (1/2)](#quiz-display-strings-12).
 
 | Setup key | English | German |
 | --- | --- | --- |
@@ -811,12 +822,6 @@ These quizsetup keys replace visible static slide text. Without them, a text fol
 | `sketch-hint` | Draw your answer on your phone. | Zeichnen Sie Ihre Antwort auf dem Handy. |
 | `answer-label` | Answer: | Antwort: |
 | `accepted-label` | Accepted answers: | Akzeptierte Antworten: |
-
-```
-\quizsetup{title=Question, true-label=Yes, false-label=No}
-```
-
-Use braces for values containing commas or paragraphs. Change the setup after loading a theme to retain your override. For the DBIS German strings and its leaderboard defaults, see the separate lecture-tools style reference.
 
 
 ## Quiz theme hooks
@@ -890,7 +895,7 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | `\seed{verbatim text}` | Inline code-activity data. Use a fragile frame, or prefer seed=data.ttl / seed=data.sql. If a seed file and inline seed are both supplied, the file takes precedence. |
 | `\reveal<n>` | Inside activity, at most once, n a slide's number: the frame's slides from the n-th on - Beamer overlays - reveal the activity, and the slides before it open it. Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. |
 | `id` | Required, 1-63 lower-case letters/digits/hyphens, starting with a letter or digit. Same id must keep the same definition. |
-| `kind` | The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own, see Choice, number and text activities), triples, sql-query, sparql-query, turtle-graph (texstage-kinds-rdf, texstage-kinds-sql). texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
+| `kind` | The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own; [Choice, number and text activities](#choice-number-and-text-activities)), triples, sparql-query and turtle-graph (texstage-kinds-rdf), sql-query (texstage-kinds-sql). `texstage kinds` lists the installed ones; [installation.md](installation.md) installs the kinds' packages. texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
 | `input` | tuple (default) or code: the activity's kind as decks named it before kinds - input=tuple is kind=triples, input=code with engine=sql, sparql or turtle is kind=sql-query, sparql-query or turtle-graph. Code input requires engine and seed data. |
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
@@ -937,7 +942,7 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 | --- | --- |
 | `kind=choice` | One option, or several with select=many, of those listed in options. The projector counts each option in the deck's order, an option nobody chose included - with select=many, the students who chose it, alone or with others. A student may change their mind: the latest choice counts. |
 | `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
-| `select` | For choice: one (default) or many. With many, a phone marks several options and sends them together. |
+| `select` | For choice: one (default) or many (a quiz poll's `select` is single or multiple). With many, a phone marks several options and sends them together. |
 | `kind=number` | A number, positive or negative. Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers - 3.141 on a German phone, 3141 on an English one. The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width - numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. |
 | `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. Without a reference nothing is judged, and the build warns of a tolerance given without one. |
 | `kind=text` | A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-width space) is no part of it. The projector groups the answers by that form. |
@@ -1042,10 +1047,6 @@ The activity label hooks are ordinary macros. By default they give the text of t
 ```
 \renewcommand{\texactivitylabel}{Live task -- use your phone}
 ```
-
-`docs/manual-latex/manual.sty` only controls this manual: portrait A4 article layout, typography, colors, tables and headers/footers. Its `\manualsection{title}` creates a numbered section without forcing a page break; `\manualsubheading{title}` formats a small heading; `\manualcaption` selects caption text. The document supplies `\manualversion` and `\manualdate`.
-
-This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption, placeins, needspace, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.
 
 
 ## Core interfaces for package developers

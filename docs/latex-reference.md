@@ -41,7 +41,7 @@ This reference covers all four shipped LaTeX packages and their author-facing co
 | `texquiz.sty` | Quizzes, quiz/answer frame options, join/leaderboard/podium frames and customizable answer rendering. Requires the core, TikZ and pdftexcmds; QR support is optional. |
 | `texvideo.sty` | The video command, static posters and live playback metadata. Requires the core, graphicx and TikZ; qrcode is optional. |
 | `texactivity.sty` | Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. |
-| `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck. |
+| `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck; [manual-latex/README.md](manual-latex/README.md) describes it. |
 
 ```
 \documentclass[aspectratio=169]{beamer}
@@ -116,7 +116,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/num
 | --- | --- |
 | `id` | Required, unique across the deck: 1-63 characters, starts with a lower-case letter or digit, then lower-case letters/digits/hyphens. |
 | `type` | single, multiple, truefalse, poll, numeric, text, open, order or sketch; otherwise inferred when unambiguous. |
-| `time` | Integer 5-240 seconds. Inherits quizsetup; initial default 20. |
+| `time` | Integer 5-240 seconds. Inherits quizsetup; initial default 20. An activity's `time` is another key: 1-14400 seconds ([Activity environment and common options](#activity-environment-and-common-options)). |
 | `points` | standard, double or none. Inherits quizsetup; initial default standard, except forced-unscored types. |
 | `leaderboard` | true/false; bare key means true. Default follows setup. Only a scored quiz gets one: on a poll, open, sketch or `points=none` question, or a numeric one without an answer, the key does nothing. Automatic result pages do not increment the authored frame number. |
 | `shuffle` | true/false; bare key means true. Initially false. Deterministic choice shuffling is shared between slide and phones; ordering questions are always shuffled. |
@@ -132,7 +132,7 @@ Time, points, leaderboard, shuffle, reveal and title have setup-level counterpar
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `select` | Only polls: single (default) or multiple. |
+| `select` | Only polls: single (default) or multiple. A choice activity's `select` is one or many instead ([Choice, number and text activities](#choice-number-and-text-activities)). |
 | `answer` | true/false for truefalse; a decimal for numeric. Omit for an unscored numeric estimate. |
 | `tolerance` | Numeric tolerance, default 0. Must be nonnegative. |
 | `min, max` | Optional numeric bounds. min must not exceed max; a scored answer interval must intersect the allowed range. Both bounds select a phone slider. |
@@ -174,7 +174,7 @@ For delayed answers, give the quiz reveal=none, then write an answer=its-id fram
 
 ## Quiz display strings (1/2)
 
-These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
+These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see [Deck language and live labels](#deck-language-and-live-labels)): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
 
 | Setup key | English | German |
 | --- | --- | --- |
@@ -198,7 +198,7 @@ Use braces for values containing commas or paragraphs. Change the setup after lo
 
 ## Quiz display strings (2/2)
 
-These quizsetup keys replace visible static slide text. Without them, a text follows the deck's language (see Deck language and live labels): the English or German default below. A value given here wins in every language. The phone application and the presenter windows follow the deck's language by themselves.
+The remaining texts. How the setup sets them, and what wins over the deck's language, is on [Quiz display strings (1/2)](#quiz-display-strings-12).
 
 | Setup key | English | German |
 | --- | --- | --- |
@@ -212,12 +212,6 @@ These quizsetup keys replace visible static slide text. Without them, a text fol
 | `sketch-hint` | Draw your answer on your phone. | Zeichnen Sie Ihre Antwort auf dem Handy. |
 | `answer-label` | Answer: | Antwort: |
 | `accepted-label` | Accepted answers: | Akzeptierte Antworten: |
-
-```
-\quizsetup{title=Question, true-label=Yes, false-label=No}
-```
-
-Use braces for values containing commas or paragraphs. Change the setup after loading a theme to retain your override. For the DBIS German strings and its leaderboard defaults, see the separate lecture-tools style reference.
 
 
 ## Quiz theme hooks
@@ -291,7 +285,7 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | `\seed{verbatim text}` | Inline code-activity data. Use a fragile frame, or prefer seed=data.ttl / seed=data.sql. If a seed file and inline seed are both supplied, the file takes precedence. |
 | `\reveal<n>` | Inside activity, at most once, n a slide's number: the frame's slides from the n-th on - Beamer overlays - reveal the activity, and the slides before it open it. Without it, the frame opens the activity and leaving it closes it; the build warns of an activity that no slide opens. |
 | `id` | Required, 1-63 lower-case letters/digits/hyphens, starting with a letter or digit. Same id must keep the same definition. |
-| `kind` | The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own, see Choice, number and text activities), triples, sql-query, sparql-query, turtle-graph (texstage-kinds-rdf, texstage-kinds-sql). texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
+| `kind` | The activity's kind, as an installed package of kinds names it: choice, number and text (texstage's own; [Choice, number and text activities](#choice-number-and-text-activities)), triples, sparql-query and turtle-graph (texstage-kinds-rdf), sql-query (texstage-kinds-sql). `texstage kinds` lists the installed ones; [installation.md](installation.md) installs the kinds' packages. texstage build asks the kind, which checks its own keys - every key texactivity does not know is the kind's, and the build warns of one the kind does not take. |
 | `input` | tuple (default) or code: the activity's kind as decks named it before kinds - input=tuple is kind=triples, input=code with engine=sql, sparql or turtle is kind=sql-query, sparql-query or turtle-graph. Code input requires engine and seed data. |
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
@@ -338,7 +332,7 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 | --- | --- |
 | `kind=choice` | One option, or several with select=many, of those listed in options. The projector counts each option in the deck's order, an option nobody chose included - with select=many, the students who chose it, alone or with others. A student may change their mind: the latest choice counts. |
 | `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
-| `select` | For choice: one (default) or many. With many, a phone marks several options and sends them together. |
+| `select` | For choice: one (default) or many (a quiz poll's `select` is single or multiple). With many, a phone marks several options and sends them together. |
 | `kind=number` | A number, positive or negative. Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers - 3.141 on a German phone, 3141 on an English one. The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width - numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. |
 | `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. Without a reference nothing is judged, and the build warns of a tolerance given without one. |
 | `kind=text` | A short answer of at most 100 characters, compared as quiz text answers are: case, accents and spacing do not matter, and what is not seen (a zero-width space) is no part of it. The projector groups the answers by that form. |
@@ -443,10 +437,6 @@ The activity label hooks are ordinary macros. By default they give the text of t
 ```
 \renewcommand{\texactivitylabel}{Live task -- use your phone}
 ```
-
-`docs/manual-latex/manual.sty` only controls this manual: portrait A4 article layout, typography, colors, tables and headers/footers. Its `\manualsection{title}` creates a numbered section without forcing a page break; `\manualsubheading{title}` formats a small heading; `\manualcaption` selects caption text. The document supplies `\manualversion` and `\manualdate`.
-
-This documentation style loads fontenc, lmodern, geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption, placeins, needspace, hyperref, bookmark, microtype and upquote. Compile the documentation with pdfLaTeX; its PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.
 
 
 ## Core interfaces for package developers

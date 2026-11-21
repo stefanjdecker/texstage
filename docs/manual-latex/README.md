@@ -43,6 +43,14 @@ You can edit and compile main.tex directly for your own version. In this reposit
 LaTeX, Markdown and PDF editions. Repository edits to text belong there;
 otherwise regenerating the manual will overwrite local changes to main.tex.
 
+`manual.sty` only controls this manual: portrait A4 article layout, typography, colors, tables
+and headers/footers. Its `\manualsection{title}` creates a numbered section without forcing a
+page break; `\manualsubheading{title}` formats a small heading; `\manualcaption` selects caption
+text. The document supplies `\manualversion` and `\manualdate`. It loads fontenc, lmodern,
+geometry, xcolor, graphicx, array, longtable, booktabs, fvextra, enumitem, caption, subcaption,
+placeins, needspace, hyperref, bookmark, microtype and upquote; compile it with pdfLaTeX, as its
+PDF text mapping uses pdfTeX commands. It is not a lecture-deck package.
+
 Edit manual.sty to change the LaTeX layout. The exporter lives in
 [manual_latex.py](../../maintenance/manual_latex.py). From the repository root,
 regenerate with:

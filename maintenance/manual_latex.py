@@ -4,6 +4,14 @@ from __future__ import annotations
 
 import re
 
+APPENDIX = "Appendix: the LaTeX reference"   # the heading over the pages marked "reference"
+FIRST = ["what-texstage-does"]              # the manual's first chapter: where a link to manual.md goes
+
+
+def slug(text):
+    """A heading's anchor, as GitHub makes it: in the Markdown editions and as the PDF's label sec:<slug>."""
+    return re.sub(r"[^a-z0-9 -]", "", text.lower()).replace(" ", "-")
+
 
 def literal(text):
     """Escape prose, including CLI flags, paths and LaTeX examples."""
@@ -39,6 +47,9 @@ def inline(text):
             parts.append(r"\texttt{" + breakable(code, code=True) + "}")
         elif bold is not None:
             parts.append(r"\textbf{" + inline(bold) + "}")
+        elif url == "manual.md" or url.startswith("#"):  # a section of this manual: a link inside the PDF
+            name = FIRST[0] if url == "manual.md" else url[1:]
+            parts.append(r"\hyperref[sec:" + name + "]{" + inline(label) + "}")
         else:
             target = literal(url)
             if not re.match(r"[a-zA-Z][\w+.-]*:", url):
@@ -116,6 +127,7 @@ def gallery(images, title):
 
 def latex(data):
     cover=data["pages"][0]
+    FIRST[0]=slug(data["pages"][1]["title"])
     lines=[
         "% SPDX-License-Identifier: Apache-2.0",
         "% Generated from docs/manual-content.json by maintenance/build_manual.py.",
@@ -133,9 +145,11 @@ def latex(data):
     reference_started = False
     for page in data["pages"][1:]:
         if page.get("reference") and not reference_started:
-            lines += [r"\FloatBarrier"]
+            lines += [r"\FloatBarrier", r"\appendix",                   # the reference: sections A, B, ...
+                      r"\section*{"+literal(APPENDIX)+"}", r"\addcontentsline{toc}{section}{"+literal(APPENDIX)+"}"]
             reference_started = True
-        lines += [r"\manualsection{"+inline(page["title"])+"}",*blocks(page["blocks"])]
+        lines += [r"\manualsection{"+inline(page["title"])+r"}\label{sec:"+slug(page["title"])+"}",
+                  *blocks(page["blocks"])]
         if page["layout"]=="gallery":
             lines += gallery(page["images"],page["title"])
         else:
