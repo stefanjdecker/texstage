@@ -423,7 +423,7 @@
             "**Next, upper right:** a preview of the next step. It may show the correct answer before the audience sees it.",
             "**Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.",
             "**Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices** - these three only in a window signed in with the presenter key, not on a paired device. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.",
-            "**Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview.",
+            "**Bottom bar:** annotation tools and whiteboard pages, then **Poll**, **Q&A**, **Sketches** and **Activities** (the last two only when the deck has sketch questions or activities); below them slide navigation, the elapsed timer - it starts with the first step; its button or T pauses it, the round arrow resets it and the stopwatch sets a target duration -, display controls and Overview.",
             "**Host console** (`/host` on the quiz server): a second, simpler control page. It lists the decks and starts a game, shows the slides with the live quiz on top for a quiz lecture without PowerPoint, and with PowerPoint it is the remote that shows who has joined. Where this manual says host console or host window, it means this page."
           ]
         },
@@ -494,9 +494,9 @@
           "bullets": [
             "**Read:** advance onto the reading step. The question appears on the shared screen and phones, without starting the round.",
             "**Open:** advance once more. A three-second Get ready countdown precedes the answer timer.",
-            "**Control:** **Pause**, **+10 s** and **Stop the question** sit at the foot of the current slide while the question is open; pointing at the slide shows them in full. Pausing the quiz also pauses the answering interface on phones.",
+            "**Control:** **Pause**, **+10 s** and **Stop the question** sit at the foot of the current slide while the question is open, as small icon buttons; pointing at the slide shows them in full, and pointing at a button its name. Pausing the quiz also pauses the answering interface on phones.",
             "**Close:** the round can close when the time runs out, when all connected participants have answered, or when you stop it.",
-            "**Reveal:** advance to the reveal step or use **Show the answer** when offered. Discuss the explanation and results."
+            "**Reveal:** advance to the reveal step or use the **Show the answer** button (a check mark) when offered. Discuss the explanation and results."
           ]
         },
         {
@@ -546,7 +546,7 @@
           "bullets": [
             "The reveal can show the correct choices, response counts and an explanation authored in the deck. Give the group time to discuss why an answer is correct.",
             "Going backwards does not automatically restart a question. Its previous state and results are retained.",
-            "**Ask again (practice)** reruns the question without points and rewinds later questions so they can run anew. Use it deliberately: it also discards the affected later answers and points. Use **New game** for a fresh group and a new PIN."
+            "**Ask again (practice)** (a round arrow) reruns the question without points and rewinds later questions so they can run anew. Use it deliberately: it also discards the affected later answers and points. Use **New game** for a fresh group and a new PIN."
           ]
         }
       ],
@@ -1188,7 +1188,7 @@
               ],
               [
                 "`texactivity.sty`",
-                "Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities."
+                "Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core, Beamer facilities and TikZ."
               ],
               [
                 "`docs/manual-latex/manual.sty`",
@@ -2080,7 +2080,7 @@
               ],
               [
                 "`options`",
-                "For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\\~na` is España), a tie a space (`New~York`). As in every key, `\\&` or `\\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô."
+                "For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\\~na` is España), a tie a space (`New~York`). As in every key, `\\&` or `\\^` stands for the character itself - TeX reads `^^` as a character code -, so `\\^o` gives ^o: type ô itself."
               ],
               [
                 "`select`",

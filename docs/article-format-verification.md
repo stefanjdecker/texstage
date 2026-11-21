@@ -3,6 +3,12 @@
 Converted on 28 October 2026 in an isolated checkout using Python 3.14,
 TeX Live 2026 / pdfLaTeX and latexmk 4.88.
 
+This is the record of that conversion; the manual has changed since. On
+21 November 2026 it has 43 pages, with the LaTeX reference as a lettered
+appendix, and its screenshots were retaken - all 19 on 15 November 2026
+(0.2.1.dev3), the deck page again on 21 November 2026 (0.2.1.dev8);
+[captures.json](images/manual/captures.json) records each one's provenance.
+
 The [manual](manual.pdf), including its LaTeX reference, is a 29-page portrait
 A4 article. Its [native source](manual-latex/main.tex) uses the standard article
 class, 11-point serif text, a conventional title and contents, continuous numbered

@@ -1,8 +1,8 @@
 # LaTeX reference verification
 
 This records the initial content and functional verification. The subsequent
-[article-format verification](article-format-verification.md) records the current
-PDF layout and page counts.
+[article-format verification](article-format-verification.md) records the PDF
+layout and page counts of 28 October 2026.
 
 Validated locally with TeX Live 2026 / pdfLaTeX and Python 3.14.
 The initial landscape native edition compiled to 41 pages. The desktop LaTeX compiler was

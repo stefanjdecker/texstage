@@ -108,6 +108,7 @@ answered — without marking the right answer, which comes on the answer frame. 
 | ordering | `type=order`, `\step{...}` in the **correct** order | yes (`partial` for partial credit) |
 | sketch | `type=sketch` - the phones draw; the lecturer picks drawings for the projector (texstage) | no |
 
+Single choice, multiple choice and polls take 2–6 `\choice`, ordering questions 2–6 `\step`.
 The type is inferred from the body when it is unambiguous (choices with one or several `*`,
 `\accept`, `\step`, `answer=true|false|<number>`).
 
@@ -185,7 +186,8 @@ live deck's PowerPoint notes:
 | present | `texstage pdf --present` (preview); `texstage build` makes the PowerPoint | reading slide (the question alone), question slide (+ reveal slide) | as written | PowerPoint + quiz server (instructor only) |
 
 Every quiz, answer, join and podium frame is exactly one frame in every build and one page in
-the handout and solutions builds, so "one page per source file", label and frame-number checks
+the handout and solutions builds - except an answer frame with overlays, which keeps all its
+overlay pages in the solutions build -, so "one page per source file", label and frame-number checks
 keep working. A plain standalone compile shows the placeholder; to see a quiz while writing,
 use `texstage pdf --present 045.tex` (output in `texquiz-out/` next to the source; the preview
 ends with the phones' pictures as extra small pages).
@@ -330,7 +332,10 @@ click puts one back; each browser remembers them). The quizzes run as with Power
 B, W and F make the projector black, white or frozen, G shows all frames - the
 arrow keys and Enter choose one there -, a number and Enter jumps there. B, W and F cover the projector
 only: every step still reaches the phones, so stepping on starts the next quiz round or opens the next
-activity - look ahead in the next step's pane, or in G without choosing. The manual's
+activity - look ahead in the next step's pane, or in G without choosing. T starts or pauses the
+timer (↺ resets it, ⏱ sets a target duration). Esc closes what is open over the slide - the
+overview, the sketches, a poll on the projector - and else puts a drawing tool away. On the host
+page ([Playing a quiz](#playing-a-quiz)) F is full screen instead. The manual's
 [shortcut card](manual.md#presenter-shortcut-card) lists every key.
 
 ### Ink, zoom and whiteboard pages
@@ -443,12 +448,12 @@ texstage's presenter (`…/stage`) keeps the decks in folders of your own:
 use the deck's ⋯ (*Move to …*, *Rename …*: a name of its own on the page). A card shows the deck's
 first slide and when you presented it last (*presented today, 10:14*, *presented 12 Nov*); where its
 lecture runs, its button says *Continue* and its tag the game's PIN - elsewhere *Present* (a lecture
-left for hours is over: the deck's next opening is a new one). The search field looks through all
+left for six hours is over: the deck's next opening is a new one). The search field looks through all
 folders; *By name*, *Newest first* or *Recently presented* orders them.
 
 ⋯ › *Remove from the list*
-takes a deck built on this computer off the list - its build folder stays -; the window asks first
-if its lecture runs (the lecture goes on). The notice's *Undo*, *Put back* in the list of removed
+takes a deck built on this computer off the list - its build folder stays -; the window always asks
+first, and says so when its lecture runs (the lecture goes on). The notice's *Undo*, *Put back* in the list of removed
 decks below the cards, or the deck's next build brings it back. A deck uploaded to the server is
 deleted instead (⋯ › *Delete*), not while a game of it is under way. A folder's ⋯ renames, moves or
 deletes it (what it holds moves up; no deck is deleted). On a phone, a card's buttons go below its
@@ -507,14 +512,17 @@ nickname; a phone that loses its connection, or is reloaded, comes back as the s
 Every quiz begins with its **reading slide**: the question alone, the answers' room still
 empty; the phones show the question too. Nothing runs - the class reads as long as you like.
 The next click (→, or the clicker) shows the answers and starts the round: 3 seconds "Get
-ready!", then the countdown. In a speaker script, `[Timer.]` marks that click.
+ready!", then the countdown. (The DBIS courses' speaker scripts mark that click with `[Timer.]`;
+texstage does not read it.)
 
 During the countdown, the answer counter shows accepted answers out of **accepted answers
 plus connected players still waiting to answer**. A submitted answer stays counted if its
 phone disconnects. An unanswered player leaves the total while offline and returns on
 reconnection; extra tabs for the same player count only once. The total can therefore change
 during a question. Disconnecting alone does not end it: the next accepted answer checks
-whether everyone connected has answered, and the timer or lecturer can still close it.
+whether everyone connected has answered, and the timer or lecturer can still close it. A phone
+that dropped less than 30 seconds ago still counts as one to wait for, so that a brief
+reconnection does not close the round without it.
 
 On the slides, the mouse shows a few buttons for the lecturer: pause, 10 seconds more, stop
 the question, show the answer, ask again (↻, a practice round without points). A game remembers
@@ -573,10 +581,10 @@ prepares what is left, in the lecture (as it did for every deck built before 202
 
 **Without the quiz, present `<chapter>-static.pptx`.** The live deck cannot fall back by
 itself: if its server is not running, PowerPoint puts a yellow "ADD-IN ERROR" bar on every
-live slide, and on a PC without the add-in the live slides even stay blank. Its reveal and
-leaderboard slides also store only the question picture (what PowerPoint shows while a
-slide's add-in starts), so in the editing view's thumbnails they look like their question
-slides; in the slideshow the add-in shows the answer.
+live slide, and on a PC without the add-in the live slides even stay blank. Its reveal,
+leaderboard and answer-frame slides also store only the question picture (what PowerPoint shows
+while a slide's add-in starts), so in the editing view's thumbnails they look like their
+question slides; in the slideshow the add-in shows the real slide.
 
 ## Laptop or hosted server
 

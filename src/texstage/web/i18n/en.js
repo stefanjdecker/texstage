@@ -339,7 +339,7 @@ export default {
       undo: "undo (Ctrl+Z)", redo: "redo (Ctrl+Y)", clear: "Clear", clearTitle: "erase all ink of this frame",
       board: "Whiteboard", boardTitle: "a whiteboard page after this frame (N)",
       grid: "Grid", gridTitle: "a whiteboard page with a grid (Shift+N)",
-      poll: "Poll", pollTitle: "ask a question now: yes/no, A-D, a scale, a word cloud, text or a sketch",
+      poll: "Poll", pollTitle: "ask a question now: yes/no, A-F, a scale, a word cloud, text or a sketch",
       qa: "Q&A", qaTitle: "questions from the audience",
       sketches: "Sketches", sketchesTitle: "the drawings of this sketch question",
       activities: "Activities", activitiesTitle: "the deck's live activities: open, close, reveal, moderate",

@@ -298,7 +298,7 @@ Deck library during a lecture. The card shows the first slide, when the deck was
 - **Next, upper right:** a preview of the next step. It may show the correct answer before the audience sees it.
 - **Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.
 - **Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices** - these three only in a window signed in with the presenter key, not on a paired device. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.
-- **Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview.
+- **Bottom bar:** annotation tools and whiteboard pages, then **Poll**, **Q&A**, **Sketches** and **Activities** (the last two only when the deck has sketch questions or activities); below them slide navigation, the elapsed timer - it starts with the first step; its button or T pauses it, the round arrow resets it and the stopwatch sets a target duration -, display controls and Overview.
 - **Host console** (`/host` on the quiz server): a second, simpler control page. It lists the decks and starts a game, shows the slides with the live quiz on top for a quiz lecture without PowerPoint, and with PowerPoint it is the remote that shows who has joined. Where this manual says host console or host window, it means this page.
 
 Show the **Projector** window to the audience. Keep this presenter window private: its notes, previews and controls are for you. Drag the dividers to adjust the slide and notes areas; double-click a divider to restore its default position.
@@ -342,9 +342,9 @@ Read first; the answers open on the next step.
 
 - **Read:** advance onto the reading step. The question appears on the shared screen and phones, without starting the round.
 - **Open:** advance once more. A three-second Get ready countdown precedes the answer timer.
-- **Control:** **Pause**, **+10 s** and **Stop the question** sit at the foot of the current slide while the question is open; pointing at the slide shows them in full. Pausing the quiz also pauses the answering interface on phones.
+- **Control:** **Pause**, **+10 s** and **Stop the question** sit at the foot of the current slide while the question is open, as small icon buttons; pointing at the slide shows them in full, and pointing at a button its name. Pausing the quiz also pauses the answering interface on phones.
 - **Close:** the round can close when the time runs out, when all connected participants have answered, or when you stop it.
-- **Reveal:** advance to the reveal step or use **Show the answer** when offered. Discuss the explanation and results.
+- **Reveal:** advance to the reveal step or use the **Show the answer** button (a check mark) when offered. Discuss the explanation and results.
 
 The answer counter is accepted answers / (accepted answers + connected players still waiting). A submitted answer remains counted if its phone disconnects. Unanswered offline participants drop out of the denominator until they reconnect.
 
@@ -376,7 +376,7 @@ Feedback appears after the presenter reveals it.
 
 - The reveal can show the correct choices, response counts and an explanation authored in the deck. Give the group time to discuss why an answer is correct.
 - Going backwards does not automatically restart a question. Its previous state and results are retained.
-- **Ask again (practice)** reruns the question without points and rewinds later questions so they can run anew. Use it deliberately: it also discards the affected later answers and points. Use **New game** for a fresh group and a new PIN.
+- **Ask again (practice)** (a round arrow) reruns the question without points and rewinds later questions so they can run anew. Use it deliberately: it also discards the affected later answers and points. Use **New game** for a fresh group and a new PIN.
 
 ![Reveal view for the planet question. The correct answer is marked and the authored explanation is visible.](images/manual/10-presenter-reveal.jpg)
 
@@ -650,7 +650,7 @@ This reference covers all four shipped LaTeX packages and their author-facing co
 | `texstage.sty` | Shared mode selection, page records, geometry and phone assets. Loaded automatically by every content package; it does not select a course theme. |
 | `texquiz.sty` | Quizzes, quiz/answer frame options, join/leaderboard/podium frames and customizable answer rendering. Requires the core, TikZ and pdftexcmds; QR support is optional. |
 | `texvideo.sty` | The video command, static posters and live playback metadata. Requires the core, graphicx and TikZ; qrcode is optional. |
-| `texactivity.sty` | Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core and Beamer facilities. |
+| `texactivity.sty` | Tuple, choice, number, text and code activities, prompts, seeds and reference answers. Requires the core, Beamer facilities and TikZ. |
 | `docs/manual-latex/manual.sty` | Documentation layout only: headings, typography, tables and page furniture. Do not load it in a lecture deck; [manual-latex/README.md](manual-latex/README.md) describes it. |
 
 ```
@@ -941,7 +941,7 @@ Three kinds come with texstage itself and need no extra package: kind=choice, ki
 | Syntax / option | Meaning and default |
 | --- | --- |
 | `kind=choice` | One option, or several with select=many, of those listed in options. The projector counts each option in the deck's order, an option nobody chose included - with select=many, the students who chose it, alone or with others. A student may change their mind: the latest choice counts. |
-| `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so ô is written ô. |
+| `options` | For choice, required: 2-26 comma-separated options, each 1-100 characters and given once. They become the phones' buttons, a formula typeset, each with its shape in its colour; from seven options on each also carries its letter, A to Z, inside its shape - on the phones, the projector's bars and the slide. Options and references are read as LaTeX sets them: an accent is its letter (`Espa\~na` is España), a tie a space (`New~York`). As in every key, `\&` or `\^` stands for the character itself - TeX reads `^^` as a character code -, so `\^o` gives ^o: type ô itself. |
 | `select` | For choice: one (default) or many (a quiz poll's `select` is single or multiple). With many, a phone marks several options and sends them together. |
 | `kind=number` | A number, positive or negative. Phones accept a decimal comma (2,5) as well as a point, and digits grouped by three (1 000); one separator before three digits alone (3,141) is read as the phone's own language writes numbers - 3.141 on a German phone, 3141 on an English one. The projector draws a histogram: a bar per number while there are at most twelve, else bars of equal width - numbers far from the rest (beyond three times the spread of the middle half) gather in a bar at either end, so that a joke answer does not squeeze the others into one bar. |
 | `tolerance` | For number: how far an answer may lie from a reference and still be right. 0 (default) or more, in ASCII digits with at most one point, e.g. 0.5; `tolerance=0,5` is refused, as the comma ends the key. Without a reference nothing is judged, and the build warns of a tolerance given without one. |

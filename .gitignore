@@ -33,6 +33,7 @@ deploy/.env
 /.reference-build/
 /.showcase-build/
 /.showcase-data/
+/.demo-data/
 
 /_site/
 

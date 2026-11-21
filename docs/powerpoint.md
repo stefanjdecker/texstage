@@ -74,5 +74,6 @@ This is an additive API version 1 extension. Integrations should use
 `texstage.api`, not import build internals. The existing lecture-tools
 `beamer2pptx` command and script forward here with all options preserved.
 The [manual command reference](manual.md#author-a-small-quiz-and-choose-the-right-export)
-compares plain conversion with the live export workflow. Its screenshots retain
-their recorded 0.2.1.dev0 capture provenance.
+compares plain conversion with the live export workflow. Its screenshots record
+their capture version and source revision in
+[captures.json](images/manual/captures.json).

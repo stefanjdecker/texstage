@@ -309,7 +309,7 @@ export default {
       undo: "Rückgängig (Strg+Z)", redo: "Wiederholen (Strg+Y)", clear: "Löschen", clearTitle: "alle Anmerkungen dieser Folie löschen",
       board: "Whiteboard", boardTitle: "eine Whiteboard-Seite nach dieser Folie (N)",
       grid: "Raster", gridTitle: "eine Whiteboard-Seite mit Raster (Umschalt+N)",
-      poll: "Umfrage", pollTitle: "jetzt eine Frage stellen: Ja/Nein, A–D, eine Skala, eine Wortwolke, Text oder eine Skizze",
+      poll: "Umfrage", pollTitle: "jetzt eine Frage stellen: Ja/Nein, A–F, eine Skala, eine Wortwolke, Text oder eine Skizze",
       qa: "Fragen", qaTitle: "Fragen aus dem Publikum",
       sketches: "Skizzen", sketchesTitle: "die Zeichnungen dieser Skizzenfrage",
       activities: "Aktivitäten", activitiesTitle: "die Live-Aktivitäten des Foliensatzes: öffnen, schließen, auflösen, moderieren",

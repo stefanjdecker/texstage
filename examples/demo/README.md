@@ -6,14 +6,17 @@ after [installation](../../docs/installation.md):
 ```sh
 texstage pdf examples/demo/demo.tex
 texstage pdf --present examples/demo/demo.tex
-texstage build examples/demo/demo.tex
-texstage present examples/demo/demo.tex
+texstage build examples/demo/demo.tex --data .demo-data
+texstage present examples/demo/demo.tex --data .demo-data --port 8765 --no-tunnel
 ```
 
 The first command creates the handout. Output goes to `texquiz-out` beside the
-source by default. Use `--output-dir` for a separate destination and `--data`
-on live commands for a disposable server data directory. Do not distribute the
-live PowerPoint file with its presenter key as student material.
+source by default; use `--output-dir` for a separate destination. The live
+commands keep the demo apart from your lectures: `--data` gives them a disposable
+server data folder (`.demo-data`, ignored by git) instead of your own, `--port` a
+port where no lecture's server runs, and `--no-tunnel` leaves out a tunnel you may
+have remembered. Do not distribute the live PowerPoint file with its presenter key
+as student material.
 
 ## Live activities
 
@@ -24,7 +27,7 @@ started with `--activities f1` skips the deck and says why:
 
 ```sh
 texstage pdf --solutions examples/demo/activities.tex
-texstage present examples/demo/activities.tex --port 8471
+texstage present examples/demo/activities.tex --data .demo-data --port 8471 --no-tunnel
 ```
 
 Use a port where no server runs yet: `present` reuses a running server as it is.
