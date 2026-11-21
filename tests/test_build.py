@@ -494,6 +494,16 @@ def test_reveal_none_without_answer_frame_warns(tmp_path):
     assert [s.phase for s in r.slides][:4] == ["join", "read", "question", "leaderboard"]
 
 
+def test_a_deck_that_sets_its_own_mode(tmp_path):
+    """The mode is texstage's to choose: a deck's own \\texstagemode wins over the command's
+    \\texquizmode, so its present build is a handout without quiz data - the build says why
+    instead of failing on the missing .tqz."""
+    tex = deck(tmp_path, "own-mode", ANSWERED_LATER)
+    tex.write_text("\\def\\texstagemode{handout}\n" + tex.read_text(encoding="utf-8"), encoding="utf-8")
+    with pytest.raises(BuildError, match="sets its own mode"):
+        build(tex, tmp_path / "out", BuildOptions(key="test-key"))
+
+
 def test_answer_frame_naming_an_unknown_quiz(tmp_path):
     body = ANSWERED_LATER.replace("answer=cities", "answer=towns")
     with pytest.raises(BuildError, match="answer=towns"):

@@ -75,7 +75,7 @@
     {
       "file": "latex/texquiz.sty",
       "scope": "runtime",
-      "sha256": "5ec973bfcf668312c0ede1d441679b423dcdc218c69ae5932def7d9824a19cd9",
+      "sha256": "6e0772d81f77d2f4f06a49fa49031c0e2770ddeffc31e13bca5200a58ebab0bb",
       "commands": [
         "accept",
         "choice",

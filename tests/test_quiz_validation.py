@@ -83,6 +83,20 @@ def test_unanswerable_numeric_settings_are_authoring_errors(tmp_path, options, m
     assert message in log_text(tmp_path)
 
 
+@pytest.mark.parametrize("value", ["0", "201", "999", "-5", "ten"])
+def test_an_open_answer_limit_outside_1_to_200_is_an_authoring_error(tmp_path, value):
+    """max-chars=0 made a question that refuses every answer: the range is checked, not only the digits."""
+    with pytest.raises(LatexError):
+        compile_quiz(tmp_path, rf"\begin{{quiz}}[id=o,type=open,max-chars={value}]{{One word?}}\end{{quiz}}")
+    assert "max-chars must be an integer 1" in log_text(tmp_path)
+
+
+def test_an_open_answer_limit_of_200_is_kept(tmp_path):
+    result = compile_quiz(tmp_path, r"\begin{quiz}[id=o,type=open,max-chars=200]{One word?}\end{quiz}")
+    (question,) = Tqz.read(result.tqz).questions.values()
+    assert int(question.open["max_chars"]) == 200
+
+
 @pytest.mark.parametrize("mode", ["handout", "solutions"])
 def test_numeric_settings_are_also_checked_outside_present_mode(tmp_path, mode):
     with pytest.raises(LatexError):

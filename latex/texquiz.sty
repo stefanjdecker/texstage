@@ -316,7 +316,11 @@
       { \tl_gset:Ne \g__tq_display_tl { \l_keys_choice_tl } } ,
     max-chars .code:n =
       \regex_match:nnTF { \A [0-9]{1,3} \Z } {#1}
-        { \int_gset:Nn \g__tq_maxchars_int {#1} }
+        {
+          \int_compare:nTF { 1 <= #1 <= 200 }
+            { \int_gset:Nn \g__tq_maxchars_int {#1} }
+            { \__tq_error:n { max-chars~must~be~an~integer~1--200. } }
+        }
         { \__tq_error:n { max-chars~must~be~an~integer~1--200. } } ,
     partial .bool_gset:N = \g__tq_partial_bool ,
     partial .default:n = true ,

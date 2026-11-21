@@ -83,7 +83,7 @@ For example, a lecturer writes a multiple-choice question, presents its reading 
 | Audience display | A separate projector browser window shows the shared slide. Use an extended desktop to keep notes and answers private. |
 | Participant | Uses a reachable /play address, session PIN and nickname in a browser. No Python, TeX, app or account installation is needed. |
 
-The browser workflow is the starting path in this manual. PowerPoint integration, recording, hosted servers and tunnels are optional later topics. texstage can present Beamer material without DBIS styling. It does not create the teaching content for you, and a static PDF by itself does not run a live quiz.
+The browser workflow is the starting path in this manual. PowerPoint integration, recording, hosted servers and tunnels are optional later topics, explained in the [authoring guide](authoring.md) and the [advanced installation guide](installation-advanced.md). texstage can present Beamer material without DBIS styling. It does not create the teaching content for you, and a static PDF by itself does not run a live quiz.
 
 
 ## Choose your starting path
@@ -659,10 +659,10 @@ The texstage CLI supplies the installed style directory. For plain pdfLaTeX, put
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `\def\texstagemode{handout}` | Define before documentclass. Quiz and answer frames become neutral placeholders; videos remain posters and activities retain their prompts. |
+| `\def\texstagemode{handout}` | For a plain pdflatex run, defined before the deck is read: `pdflatex "\def\texstagemode{handout}\input{deck.tex}"`. Quiz and answer frames become neutral placeholders; videos remain posters and activities retain their prompts. |
 | `\def\texstagemode{solutions}` | Questions, correct choices and explanations are visible. Activity references are printed. Videos remain posters. |
 | `\def\texstagemode{present}` | Live layout and .tqz metadata. The builder makes the browser bundle and PowerPoint exports; compiling a raw PDF does not start a live session. |
-| `\def\texquizmode{...}` | Legacy alias accepted when texstagemode is absent. An explicitly defined texstagemode takes precedence. |
+| `\def\texquizmode{...}` | The switch texstage's own commands set: `texstage pdf` and `texstage build` define it in front of the deck. A `\texstagemode` wins over it, so a deck that texstage builds must set neither: its own mode would override the command's, and `texstage build` stops. |
 | `No explicit mode` | At begin-document, Beamer notes enabled selects solutions; otherwise handout. Use explicit modes when this distinction matters. |
 | `\texquiznotes` | Build-owned switch: empty selects extraction-oriented notes on the right; stage selects separate note pages, omits extra phone-asset pages and stabilizes the stage PDF. Let the CLI set it. |
 
@@ -673,7 +673,7 @@ texstage pdf --present examples/reference/reference.tex
 texstage build examples/reference/reference.tex
 ```
 
-The core needs a LaTeX kernel dated 2023-06-01 or newer. Present mode supports pdfLaTeX and has a LuaLaTeX code path; the supplied examples are validated with pdfLaTeX. XeLaTeX is rejected for present mode. Live video codecs, external display placement and Office playback need separate platform rehearsal.
+The core needs a LaTeX kernel dated 2023-06-01 or newer. `texstage pdf` and `texstage build` always run pdfLaTeX, so a deck must compile with it; the packages' LuaLaTeX code path is untested, and no texstage command uses it. XeLaTeX is rejected for present mode. Live video codecs, external display placement and Office playback need separate platform rehearsal.
 
 
 ## Quiz environments and body commands
@@ -684,7 +684,7 @@ The core needs a LaTeX kernel dated 2023-06-01 or newer. Present mode supports p
 | `\quizsetup{keys}` | Sets deck-wide defaults and display strings. Call after loading texquiz and after any theme whose defaults you want to override. |
 | `\choice[id=label]{text}` | Adds an incorrect choice. Nonempty text; id defaults to A, B, ... in authored order. Explicit ids use 1-32 ASCII letters/digits/hyphens and must be unique within the quiz. |
 | `\choice*[id=label]{text}` | Marks a correct choice. Several starred choices infer multiple choice; explicit type=multiple also permits one starred choice. |
-| `\explain{text}` | At most one explanation per quiz. Shown on the built-in reveal/solutions page; with reveal=none, explain on a separate answer frame. |
+| `\explain{text}` | At most one explanation per quiz, shown on the built-in reveal and in the solutions PDF. With reveal=none, give it on the answer frame: a quiz inside your own `[quiz]` frame then prints its `\explain` nowhere, and one with a frame of its own still prints it in the solutions PDF. |
 | `\accept{text}` | One or more accepted answers for type=text. Hyperref converts the authored text to plain Unicode for scoring. Use texorpdfstring for unsupported math/macros. |
 | `\step{text}` | One nonempty ordering item, written in the correct order. The displayed order is shuffled. |
 | `\note{text}, \label{name}` | Beamer commands accepted in a quiz body; notes and stable slide references remain available. The quiz title is not its id. |
@@ -717,7 +717,7 @@ Type inference checks ordering items, accepted text, choices, then a boolean/num
 | `type` | single, multiple, truefalse, poll, numeric, text, open, order or sketch; otherwise inferred when unambiguous. |
 | `time` | Integer 5-240 seconds. Inherits quizsetup; initial default 20. |
 | `points` | standard, double or none. Inherits quizsetup; initial default standard, except forced-unscored types. |
-| `leaderboard` | true/false; bare key means true. Default follows setup and is false for unscored questions unless explicitly set. Automatic result pages do not increment the authored frame number. |
+| `leaderboard` | true/false; bare key means true. Default follows setup. Only a scored quiz gets one: on a poll, open, sketch or `points=none` question, or a numeric one without an answer, the key does nothing. Automatic result pages do not increment the authored frame number. |
 | `shuffle` | true/false; bare key means true. Initially false. Deterministic choice shuffling is shared between slide and phones; ordering questions are always shuffled. |
 | `reveal` | slide (default) creates the built-in reveal; none defers it to an answer frame. |
 | `title` | Title of a generated quiz frame; initially Quiz. Inside an authored frame, use that frame title. A neutral title is used for handout placeholders. |
@@ -738,7 +738,7 @@ Time, points, leaderboard, shuffle, reveal and title have setup-level counterpar
 | `step` | Positive numeric slider increment, default 1 when a slider is used. At least one value min + k*step must fall in the correct interval. |
 | `unit` | Optional numeric unit text, initially empty, e.g. ms. |
 | `display` | Only open text: wordcloud (default) or list. |
-| `max-chars` | Open-text input limit, default 80; the build validates 1-200. The TeX parser accepts digits before the bundle validation applies the range. |
+| `max-chars` | Open-text input limit, 1-200 characters, default 80; any other value stops the compile. |
 
 ```
 \begin{quiz}[id=latency, type=numeric, answer=2.5,
@@ -760,13 +760,13 @@ Use ordinary decimal notation such as -1.5, not exponents or a comma decimal sep
 | --- | --- |
 | `\quizsetup{time=20, points=standard}` | Initial time and scoring defaults; same valid values as quiz options. |
 | `leaderboard=true, shuffle=false, reveal=slide` | Initial global behavior. A DBIS theme changes some of these defaults. |
-| `title=Quiz, join-url={}` | Default quiz title; no static join address until you supply one. The live server supplies the active address/PIN. |
+| `title=Quiz, join-url={}` | Default quiz title; no static join address until you supply one. The live server supplies the active address/PIN. `join-url` is printed on the join frame of the handout and solutions PDFs; the live join slide shows the server's own address. |
 | `\quizjoinframe[title=..., note={...}]` | Creates a join frame outside any frame. Default title Join the quiz. Static modes show join-text and join-url; live mode displays the active session. |
-| `\quizleaderboardframe[title=..., note={...}]` | Explicit standings frame outside any frame. Default title Leaderboard. This is separate from automatically inserted post-question standings. |
+| `\quizleaderboardframe[title=..., note={...}]` | Explicit standings frame outside any frame. Default title Leaderboard (`leaderboard-title`). Right after a quiz's reveal or answer frame it takes the place of the leaderboard the builder would add there. |
 | `\quizpodiumframe[title=..., note={...}]` | Final standings outside any frame. Default title Final standings; reaching it finishes the live quiz session. |
 | `title, note (frame keys)` | The only keys accepted by these three frame commands. note is optional, may contain paragraphs, and is carried to presenter notes. |
 | `\begin{frame}[quiz]` | Hosts an inline quiz. The whole frame is replaced by a neutral placeholder in handout mode. Use fragile,quiz when the supporting material contains listings. |
-| `\begin{frame}[answer=quiz-id]` | Reveals that quiz on this frame. With bare answer the frame is hidden in the handout, but has no quiz-id association. |
+| `\begin{frame}[answer=quiz-id]` | Reveals that quiz on this frame. In the handout `answer` and `answer=quiz-id` alike become a placeholder page ("The answer is shown in the lecture."); a bare `answer` names no quiz. |
 
 For delayed answers, give the quiz reveal=none, then write an answer=its-id frame later. Do not put quizjoinframe, quizleaderboardframe or quizpodiumframe inside a frame: each command creates one.
 
@@ -895,9 +895,15 @@ The full command contract is in texvideo.sty and src/texstage/build/video.py. Do
 | `width, height` | Default linewidth and 0.6 textheight. Size the box to leave room for the frame title and other material. |
 | `open` | auto (default) opens when the frame is reached; manual waits for the presenter. |
 | `limit` | Contributions per student: 1-50. Default 10 for tuple and choice, 5 for code, number and text. |
-| `counts, gap, time, budget, feedback, projector, solution` | The activity framework's keys, F2: counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; texstage serve and present use them - a server started with `--activities f1` leaves them aside. |
+| `counts=latest|all` | Which of a student's entries count: `latest` replaces the earlier ones, `all` counts each. Default: `all` for triples, `latest` for every other kind. |
+| `gap=<seconds>` | How long a student waits between two entries, 0-3600 seconds, decimals allowed. Default: 1 for choice; 2 for triples, number and text; 5 for queries and graphs. |
+| `time=<seconds>` | The activity's time when its slide opens it, 1-14400 seconds; at zero it closes. Default: no time - it stays open until it is closed. |
+| `budget=<ms>` | A check's CPU time, from 1 ms up to the kind's maximum (1000 ms for every kind texstage ships). Default: that maximum. |
+| `feedback=none|status|verdict|full` | What a phone learns before the reveal: `none` that its entry arrived; `status` also whether its check ran, with its message; `verdict` also right or wrong; `full` also how it compares with the reference. Default: `status`. |
+| `projector=live|count|hidden` | What the class sees while the activity runs: the entries as they come, only their number, or none of them. Default: `live`. |
+| `solution=show|mark` | What the reveal shows: `show` puts the references on the projector too, `mark` only marks the reference's group. Default: `show`. |
 
-The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt.
+The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt. The build checks `counts`, `gap`, `time`, `budget`, `feedback`, `projector` and `solution`; `texstage serve` and `present` use them, and a server started with `--activities f1` leaves them aside.
 
 
 ## Tuple activities: options and example
@@ -974,7 +980,7 @@ The build checks the references as the server checks them: a choice's reference 
 | `seed` | Required for code input, as a file or inline seed. UTF-8 text; a BOM is accepted for files. Maximum encoded seed size is 2 MiB. |
 | `reference` | Optional reference file. Its text is appended to any inline references. Each reference is 1-2000 characters. References are private bundle answer data, not public phone seed data. |
 | `tokens` | Extra keyboard buttons: up to 40 entries of 1-60 characters. Engine punctuation is added automatically. Escape TeX punctuation in key values, e.g. backslash followed by # or %. |
-| `Unused tuple keys` | fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied. |
+| `Unused tuple keys` | fields, suggest, min, review and terms have no effect on a code activity. Any value of them warns, except the fields preset, an empty `suggest` and `review=false`. |
 
 The seed is distributed with the activity and is visible to participants; it must contain synthetic/public teaching data. A code activity can omit references for an exploratory task. Providing a reference is what permits comparison with a model result. Students' code runs only in the checks texstage brings - in the server's worker processes or, with `--activities f1`, in the presenter's browser, in memory and within a time budget -, never against a course database.
 
@@ -1085,14 +1091,18 @@ Names containing @, names beginning __, parser temporaries and global state vari
 
 | Syntax / option | Meaning and default |
 | --- | --- |
-| `Unknown key or invalid id` | Check the correct key namespace: quizsetup, quiz, choice, special frame, video or activity. Use stable ids and avoid underscores in quiz/activity ids. |
+| `Unknown key or invalid id` | Check the correct key namespace: quizsetup, quiz, choice, special frame, video or activity. Use stable ids and avoid underscores in quiz/activity ids. An unknown activity key is no error: it goes to the activity's kind, and only `texstage build` warns (`<key> - not for <kind>`). |
+| `a quiz and a video (or activity) on one slide` | The build stops: in PowerPoint the quiz's add-in covers the whole slide. Give each a frame of its own. |
+| `kind=<name> - ... install <package>` | The build stops at a kind that is not installed; the default `input=tuple` needs texstage-kinds-rdf. Install the kinds' package where the deck is built and served (`texstage kinds` lists them). |
+| `answer=<id> names no quiz of this deck` | The build stops: a frame's `answer=` names a quiz id the deck does not have. |
+| `no \quizjoinframe` / `reveal=none, but no frame has answer=` | Warnings: a deck with quizzes but no join frame shows nobody how to join, and a `reveal=none` quiz without an answer frame never shows the class whether it was right. |
 | `Text outside a quiz command` | Move material into the surrounding quiz frame, or into the question/choice/explanation argument. |
 | `Reference/seed breaks compilation` | Use a fragile frame for inline verbatim, or external UTF-8 data/reference files. |
 | `No correct slider value` | Choose bounds and a positive step that actually contain a value in answer +/- tolerance. |
 | `Answers appear in a handout` | Check the selected build mode and whether authored answer frames carry the answer option. |
 | `Static activity in PowerPoint` | Expected for this candidate. Use the browser presenter for live activities. |
 | `Deck skipped: start the server without --activities f1` | The deck has a choice, number or text activity, which only the activity framework's core runs, a server's default activity type. Start the server without `--activities f1`: `texstage present deck.tex` or `texstage serve`. |
-| `Overfull or excessive shrink` | Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
+| `Overfull or excessive shrink` | The build checks quiz and answer frames only. It fails at a vertical overfull of 1 pt or more (content in the footline), a horizontal one of 5 pt or more, or a shrink of `--max-shrink` (default 15 %) or more; smaller overfulls are listed as notes. Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
 | `Theme overlay is misaligned` | Keep answer-box width/height and lower-left reference point consistent with the hook contract. |
 
 The compiled reference example covers every quiz type, delayed answers, explicit session frames, video poster packaging and tuple/code activity records. Coverage is an inventory of the documented project interfaces; it does not claim to document all commands provided by LaTeX, Beamer, TikZ or other dependencies.

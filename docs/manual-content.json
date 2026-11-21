@@ -72,7 +72,7 @@
           }
         },
         {
-          "p": "The browser workflow is the starting path in this manual. PowerPoint integration, recording, hosted servers and tunnels are optional later topics. texstage can present Beamer material without DBIS styling. It does not create the teaching content for you, and a static PDF by itself does not run a live quiz."
+          "p": "The browser workflow is the starting path in this manual. PowerPoint integration, recording, hosted servers and tunnels are optional later topics, explained in the [authoring guide](authoring.md) and the [advanced installation guide](installation-advanced.md). texstage can present Beamer material without DBIS styling. It does not create the teaching content for you, and a static PDF by itself does not run a live quiz."
         }
       ]
     },
@@ -1218,7 +1218,7 @@
             "rows": [
               [
                 "`\\def\\texstagemode{handout}`",
-                "Define before documentclass. Quiz and answer frames become neutral placeholders; videos remain posters and activities retain their prompts."
+                "For a plain pdflatex run, defined before the deck is read: `pdflatex \"\\def\\texstagemode{handout}\\input{deck.tex}\"`. Quiz and answer frames become neutral placeholders; videos remain posters and activities retain their prompts."
               ],
               [
                 "`\\def\\texstagemode{solutions}`",
@@ -1230,7 +1230,7 @@
               ],
               [
                 "`\\def\\texquizmode{...}`",
-                "Legacy alias accepted when texstagemode is absent. An explicitly defined texstagemode takes precedence."
+                "The switch texstage's own commands set: `texstage pdf` and `texstage build` define it in front of the deck. A `\\texstagemode` wins over it, so a deck that texstage builds must set neither: its own mode would override the command's, and `texstage build` stops."
               ],
               [
                 "`No explicit mode`",
@@ -1251,7 +1251,7 @@
           "code": "texstage pdf examples/reference/reference.tex\ntexstage pdf --solutions examples/reference/reference.tex\ntexstage pdf --present examples/reference/reference.tex\ntexstage build examples/reference/reference.tex"
         },
         {
-          "p": "The core needs a LaTeX kernel dated 2023-06-01 or newer. Present mode supports pdfLaTeX and has a LuaLaTeX code path; the supplied examples are validated with pdfLaTeX. XeLaTeX is rejected for present mode. Live video codecs, external display placement and Office playback need separate platform rehearsal."
+          "p": "The core needs a LaTeX kernel dated 2023-06-01 or newer. `texstage pdf` and `texstage build` always run pdfLaTeX, so a deck must compile with it; the packages' LuaLaTeX code path is untested, and no texstage command uses it. XeLaTeX is rejected for present mode. Live video codecs, external display placement and Office playback need separate platform rehearsal."
         }
       ],
       "images": [],
@@ -1287,7 +1287,7 @@
               ],
               [
                 "`\\explain{text}`",
-                "At most one explanation per quiz. Shown on the built-in reveal/solutions page; with reveal=none, explain on a separate answer frame."
+                "At most one explanation per quiz, shown on the built-in reveal and in the solutions PDF. With reveal=none, give it on the answer frame: a quiz inside your own `[quiz]` frame then prints its `\\explain` nowhere, and one with a frame of its own still prints it in the solutions PDF."
               ],
               [
                 "`\\accept{text}`",
@@ -1407,7 +1407,7 @@
               ],
               [
                 "`leaderboard`",
-                "true/false; bare key means true. Default follows setup and is false for unscored questions unless explicitly set. Automatic result pages do not increment the authored frame number."
+                "true/false; bare key means true. Default follows setup. Only a scored quiz gets one: on a poll, open, sketch or `points=none` question, or a numeric one without an answer, the key does nothing. Automatic result pages do not increment the authored frame number."
               ],
               [
                 "`shuffle`",
@@ -1485,7 +1485,7 @@
               ],
               [
                 "`max-chars`",
-                "Open-text input limit, default 80; the build validates 1-200. The TeX parser accepts digits before the bundle validation applies the range."
+                "Open-text input limit, 1-200 characters, default 80; any other value stops the compile."
               ]
             ],
             "widths": [
@@ -1526,7 +1526,7 @@
               ],
               [
                 "`title=Quiz, join-url={}`",
-                "Default quiz title; no static join address until you supply one. The live server supplies the active address/PIN."
+                "Default quiz title; no static join address until you supply one. The live server supplies the active address/PIN. `join-url` is printed on the join frame of the handout and solutions PDFs; the live join slide shows the server's own address."
               ],
               [
                 "`\\quizjoinframe[title=..., note={...}]`",
@@ -1534,7 +1534,7 @@
               ],
               [
                 "`\\quizleaderboardframe[title=..., note={...}]`",
-                "Explicit standings frame outside any frame. Default title Leaderboard. This is separate from automatically inserted post-question standings."
+                "Explicit standings frame outside any frame. Default title Leaderboard (`leaderboard-title`). Right after a quiz's reveal or answer frame it takes the place of the leaderboard the builder would add there."
               ],
               [
                 "`\\quizpodiumframe[title=..., note={...}]`",
@@ -1550,7 +1550,7 @@
               ],
               [
                 "`\\begin{frame}[answer=quiz-id]`",
-                "Reveals that quiz on this frame. With bare answer the frame is hidden in the handout, but has no quiz-id association."
+                "Reveals that quiz on this frame. In the handout `answer` and `answer=quiz-id` alike become a placeholder page (\"The answer is shown in the lecture.\"); a bare `answer` names no quiz."
               ]
             ],
             "widths": [
@@ -1964,8 +1964,32 @@
                 "Contributions per student: 1-50. Default 10 for tuple and choice, 5 for code, number and text."
               ],
               [
-                "`counts, gap, time, budget, feedback, projector, solution`",
-                "The activity framework's keys, F2: counts=latest or all, gap (seconds between two entries of a student), time (seconds: its page opens it with this time), budget (a check's CPU time in ms, at most the kind's), feedback=none, status, verdict or full, projector=live, count or hidden, solution=show or mark. The build records and checks them; texstage serve and present use them - a server started with `--activities f1` leaves them aside."
+                "`counts=latest|all`",
+                "Which of a student's entries count: `latest` replaces the earlier ones, `all` counts each. Default: `all` for triples, `latest` for every other kind."
+              ],
+              [
+                "`gap=<seconds>`",
+                "How long a student waits between two entries, 0-3600 seconds, decimals allowed. Default: 1 for choice; 2 for triples, number and text; 5 for queries and graphs."
+              ],
+              [
+                "`time=<seconds>`",
+                "The activity's time when its slide opens it, 1-14400 seconds; at zero it closes. Default: no time - it stays open until it is closed."
+              ],
+              [
+                "`budget=<ms>`",
+                "A check's CPU time, from 1 ms up to the kind's maximum (1000 ms for every kind texstage ships). Default: that maximum."
+              ],
+              [
+                "`feedback=none|status|verdict|full`",
+                "What a phone learns before the reveal: `none` that its entry arrived; `status` also whether its check ran, with its message; `verdict` also right or wrong; `full` also how it compares with the reference. Default: `status`."
+              ],
+              [
+                "`projector=live|count|hidden`",
+                "What the class sees while the activity runs: the entries as they come, only their number, or none of them. Default: `live`."
+              ],
+              [
+                "`solution=show|mark`",
+                "What the reveal shows: `show` puts the references on the projector too, `mark` only marks the reference's group. Default: `show`."
               ]
             ],
             "widths": [
@@ -1975,7 +1999,7 @@
           }
         },
         {
-          "p": "The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt."
+          "p": "The exported TexactivityPrompt, TexactivityReference, TexactivitySeed and TexactivityReveal commands are the implementation backing for the local prompt/reference/seed/reveal aliases. Use the local names inside activity. Arbitrary body text is not a substitute for prompt. The build checks `counts`, `gap`, `time`, `budget`, `feedback`, `projector` and `solution`; `texstage serve` and `present` use them, and a server started with `--activities f1` leaves them aside."
         }
       ],
       "images": [],
@@ -2132,7 +2156,7 @@
               ],
               [
                 "`Unused tuple keys`",
-                "fields, suggest, min, review and terms have no code-input effect and cause warnings when non-default values are supplied."
+                "fields, suggest, min, review and terms have no effect on a code activity. Any value of them warns, except the fields preset, an empty `suggest` and `review=false`."
               ]
             ],
             "widths": [
@@ -2440,7 +2464,23 @@
             "rows": [
               [
                 "`Unknown key or invalid id`",
-                "Check the correct key namespace: quizsetup, quiz, choice, special frame, video or activity. Use stable ids and avoid underscores in quiz/activity ids."
+                "Check the correct key namespace: quizsetup, quiz, choice, special frame, video or activity. Use stable ids and avoid underscores in quiz/activity ids. An unknown activity key is no error: it goes to the activity's kind, and only `texstage build` warns (`<key> - not for <kind>`)."
+              ],
+              [
+                "`a quiz and a video (or activity) on one slide`",
+                "The build stops: in PowerPoint the quiz's add-in covers the whole slide. Give each a frame of its own."
+              ],
+              [
+                "`kind=<name> - ... install <package>`",
+                "The build stops at a kind that is not installed; the default `input=tuple` needs texstage-kinds-rdf. Install the kinds' package where the deck is built and served (`texstage kinds` lists them)."
+              ],
+              [
+                "`answer=<id> names no quiz of this deck`",
+                "The build stops: a frame's `answer=` names a quiz id the deck does not have."
+              ],
+              [
+                "`no \\quizjoinframe` / `reveal=none, but no frame has answer=`",
+                "Warnings: a deck with quizzes but no join frame shows nobody how to join, and a `reveal=none` quiz without an answer frame never shows the class whether it was right."
               ],
               [
                 "`Text outside a quiz command`",
@@ -2468,7 +2508,7 @@
               ],
               [
                 "`Overfull or excessive shrink`",
-                "Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning."
+                "The build checks quiz and answer frames only. It fails at a vertical overfull of 1 pt or more (content in the footline), a horizontal one of 5 pt or more, or a shrink of `--max-shrink` (default 15 %) or more; smaller overfulls are listed as notes. Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning."
               ],
               [
                 "`Theme overlay is misaligned`",

@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "inputs": {
-    "docs/manual-content.json": "3435d1e7e1197bb4a2266600f76bde0aaf11587c9f509adc7da846b8785927e3",
+    "docs/manual-content.json": "f0e7df2907974d8352bf04fdf8e12d1f9d89249fad2876645e54619d806f32f7",
     "docs/images/manual/captures.json": "4ecacaf258de088eb243ed6cb3c2992fb08f11358de734ea0a94bddbd9760f3f",
     "maintenance/build_manual.py": "bd11a5032ebd2298dbd50527886e709159bdf9ee39e57ad559b8830ec9d74d39",
     "maintenance/manual_latex.py": "25853ebaeaf9c6e2d2552a0d8ac56ee6806d45f6aa4440f944db826fdc0a4acd",
     "docs/manual-latex/manual.sty": "89d2f61a0baf9e91669e07f6f656eb0db36d623413e026534110d746cd6d85da",
     "maintenance/reference_format.py": "926a40d617d7243dae9815563d6c1aa7bf47c2e3fb04b4009420ad6a821bf279",
-    "docs/latex-reference-inventory.json": "4bbe91173f72794673a587c8ffe3b43de05cf65b3b954f2a2b66740c764f519f"
+    "docs/latex-reference-inventory.json": "47726671a0b5530e86aa060b93f025f6351507db58cfbf28cd48b2b63163a69d"
   },
   "outputs": {
-    "manual.md": "736bed092b227e41206e49d01f56ddefdcb632a2aa06666255c820fbe5996183",
-    "manual.pdf": "809807b2ae34d424dbaf47053ccc8f5fdb618229b12bd87c8918dc599fc89ba7",
-    "manual-latex/main.tex": "5235f55bc55d12171b99b5efeed78a57460bf3033be1bf9173133f97f68685ca",
-    "latex-reference.md": "c361cd2394e6fabfffe82ca1328a2feb10d47d805d095175c8dad8da1a3d7194"
+    "manual.md": "b58e10417c95cd823a94455045874feb63a8c3d7500671dd84d5f1fdcbdd5a90",
+    "manual.pdf": "f47a4a8f2a70bd09010ab1e92ad3dc5c1b68d7b62ecc31857940712d06383f23",
+    "manual-latex/main.tex": "60ef3b7e496508c589e02e5c8251a725fedc7b8ba53f1f8f9f59ead1760e9578",
+    "latex-reference.md": "e18a7256fb012557c18f37d7c7f580bc18953b5ed08238740029f720df485059"
   }
 }

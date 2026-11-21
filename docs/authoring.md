@@ -67,10 +67,10 @@ A frame that gives the answer away gets the option `answer`:
 In the handout it becomes a placeholder page with the neutral title "Answer" (a title like
 "The Answer Is C" would tell). With `=<quiz id>` it also tells the live deck that this slide
 reveals that quiz: the question is closed and scored there, the phones learn whether they were
-right. This fits predict-then-see questions, whose quiz has `reveal=none`: the quiz keeps one
-slide, and after the timer the slide shows what the class answered — without marking the right
-answer, which comes on the answer frame. Without `reveal=none` the quiz frame gets a second
-slide that reveals the answer itself.
+right. This fits predict-then-see questions, whose quiz has `reveal=none`: the quiz frame keeps
+its reading and question slides, and after the timer the question slide shows what the class
+answered — without marking the right answer, which comes on the answer frame. Without
+`reveal=none` the quiz frame gets a third slide that reveals the answer itself.
 
 `\label` on placeholder pages still works: references to the frame keep their numbers.
 
@@ -96,7 +96,9 @@ Short-text answers are scored as the text students see: `\accept{AT\&T}` accepts
 nonbreaking spaces and ordinary text formatting use Hyperref's Unicode conversion.
 For math or a command without a plain-text representation, supply it explicitly,
 for example `\accept{\texorpdfstring{$x^2$}{x squared}}`. Unsupported conversions
-stop the build rather than silently changing the accepted answer.
+stop the build rather than silently changing the accepted answer. When a phone's answer is
+compared, case, accents and spacing do not count: `munchen` and `MÜNCHEN` score as well, so
+such variants need no `\accept` of their own.
 
 Numeric questions require a nonnegative `tolerance`, a positive `step` when set,
 and `min <= max` when both bounds are set. At least part of the correct interval
@@ -111,19 +113,28 @@ On a quiz: `id` (required, unique: lower-case letters, digits, hyphens), `time` 
 `points=standard|double|none`, `leaderboard=true|false`, `reveal=slide|none`, `shuffle`,
 `cols=1..6`, `title`.
 
+- **Points**: a right answer earns 1000 points (`points=double`: 2000), falling linearly to half
+  of that at the time limit; from the second right answer in a row a streak adds 100, at most
+  500. `points=none` makes the quiz unscored. With `partial`, a multiple-choice or ordering
+  answer earns the share it got right, and counts as right for the streak only when it is exact.
 - **Answer order** is the authored order unless `shuffle` is given; shuffling is deterministic
   (the same in every build) and is the same on the slide and the phones. Ordering questions are
   always shown shuffled and never in their solved order.
 - **Columns**: all answers in one row if each fits its cell on one line (the DBIS look allows
   up to six per row, the default look two — Kahoot's 2 × 2), else two columns if each fits on
-  two lines, else one answer per row. `cols=` overrides this.
+  two lines, else one answer per row - except that five or six answers always get at least two
+  columns. `cols=` overrides this.
 - **Leaderboards** are added by the builder after a scored quiz is revealed (unless
-  `leaderboard=false`); they are not frames, so frame numbers stay the same in every build.
+  `leaderboard=false`); they are not frames, so frame numbers stay the same in every build. A
+  `\quizleaderboardframe` of your own right after the reveal or answer frame takes the place of
+  the added one.
 
 In `\quizsetup` (defaults for the whole deck): `time`, `points`, `leaderboard` (DBIS: `false` -
 one leaderboard per session, on its last scored quiz with `leaderboard=true`), `reveal`,
 `shuffle`, `title` (frame title of quizzes and their placeholders, default "Quiz"; DBIS:
-"Question"), `join-url`, and the texts `join-title`, `join-text`, `podium-title`,
+"Question"), `join-url` (the address printed on the join frame of the handout and solutions
+PDFs; the live join slide shows the server's own), and the texts `join-title`, `join-text`,
+`leaderboard-title`, `podium-title`,
 `handout-heading`, `handout-text`, `answer-title`, `answer-heading`, `answer-text`,
 `results-text`, `true-label`, `false-label`, `number-hint`, `text-hint`, `multiple-hint`,
 `poll-hint` (a poll with several answers: "Tick all that apply.", as on the phones),
@@ -131,8 +142,10 @@ one leaderboard per session, on its last scored quiz with `leaderboard=true`), `
 deck's language's - English, or German for a German deck (babel's main language) -; a text
 given here wins in any language.
 
-Frames of their own: `\quizjoinframe` (lobby: QR code, PIN, players joining) and
-`\quizpodiumframe` (final standings), each optionally `[title=..., note={...}]`. They have no
+Frames of their own: `\quizjoinframe` (lobby: QR code, PIN, players joining),
+`\quizleaderboardframe` (standings) and `\quizpodiumframe` (final standings), each optionally
+`[title=..., note={...}]`. A deck with quizzes needs a join frame before its first quiz - the
+build warns without one - and usually ends with the podium. They have no
 body to write a `\note` into, so `note` is their speaker note - paragraphs and `[stage
 directions]` are fine inside the braces; it appears wherever Beamer shows notes and in the
 live deck's PowerPoint notes:
@@ -154,7 +167,8 @@ live deck's PowerPoint notes:
 Every quiz, answer, join and podium frame is exactly one frame in every build and one page in
 the handout and solutions builds, so "one page per source file", label and frame-number checks
 keep working. A plain standalone compile shows the placeholder; to see a quiz while writing,
-use `texstage pdf --present 045.tex` (output in `texquiz-out/` next to the source).
+use `texstage pdf --present 045.tex` (output in `texquiz-out/` next to the source; the preview
+ends with the phones' pictures as extra small pages).
 
 ## The live deck
 
@@ -182,7 +196,8 @@ build: end that game (the deck's *Lectures …*, *End lecture …*) or play the 
 
 Every build also makes the stage PDF for texstage, the browser presenter (below): the deck
 compiled once more with its own note pages, alongside the first; `--no-stage` skips it, for a
-quicker build for PowerPoint alone. Options: `--server <url>` (the quiz server the live deck
+quicker build for PowerPoint alone - such a build cannot be presented in the browser, and
+`texstage present` builds it again. Options: `--server <url>` (the quiz server the live deck
 uses, default the laptop's `http://localhost:8470`), `--height <px>` (default 1080).
 `texstage retarget <pptx> --server <url>` points a built live deck at another server in a
 second, without building again.
@@ -297,8 +312,10 @@ on the projector. The archive keeps the polls (`polls.csv`), the questions (`que
 every sketch as SVG.
 
 It also checks your quiz and answer frames as they really look - the course's own checks
-only see their placeholders - and fails if a frame's content runs into the footline, a frame
-is shrunk by 15 % or more, or a speaker note is too long for its page:
+only see their placeholders - and fails if a frame's content runs into the footline (a
+vertical overfull of 1 pt or more), runs 5 pt or more too wide, is shrunk by 15 % or more
+(`--max-shrink`), or a speaker note is too long for its page. Smaller overfulls are listed as
+notes; activity and video frames are not checked:
 
 ```
   CHECK: 032.tex (quiz cities-two-rivers, present build): overfull 13.8pt too high - the
@@ -494,7 +511,8 @@ The server runs cloudflared itself and stops it when it stops, the join slides s
 `quiz.example.org/play`, and after a few seconds it says "the tunnel works" (or why not). The
 decks stay as they are: PowerPoint still talks to `http://localhost:8470`, only the students'
 address is new - nothing to rebuild. `texstage check` tries that address over the internet,
-too. `--no-tunnel` serves in the room's network again. Try the lecture hall's network once:
+too. `--no-tunnel` serves in the room's network again and forgets the tunnel: later starts have
+none until `--tunnel <name>` is given again. Try the lecture hall's network once:
 cloudflared needs to get out to Cloudflare (port 7844).
 
 **On a hosted server** (set up from `deploy/`, see `docs/architecture/design.md` §8): register its add-in
@@ -535,8 +553,9 @@ each with a small shape badge matching the phone buttons.
   surrounding frame (with `[fragile,quiz]`) or use `\texttt`.
 - No overlays inside a quiz frame: the package makes the reveal slide.
 - One quiz per frame.
-- Tested with pdfLaTeX (TeX Live 2026) only. The present build needs pdfLaTeX or LuaLaTeX
-  (LuaLaTeX untested); XeLaTeX is rejected for it.
+- pdfLaTeX only: `texstage pdf` and `texstage build` always run pdflatex (tested with TeX Live
+  2026). The packages' LuaLaTeX code path is untested and no texstage command uses it; XeLaTeX
+  is rejected for the present build.
 
 For all four packages, exact options/defaults, output modes and developer hooks,
 see the [complete LaTeX reference](latex-reference.md). It is included in the

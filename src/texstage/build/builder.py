@@ -187,6 +187,9 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     deck_id = opts.deck_id or slug(name)
     work = out_dir / "build"
     present, staged = compile_present(tex, work, opts)
+    if not present.tqz.exists():         # a deck's own \texstagemode wins over the command's \texquizmode
+        raise BuildError(f"the present build wrote no quiz data ({present.tqz.name}): {tex.name} sets its own "
+                         f"mode (\\texstagemode or \\texquizmode) - remove it, texstage's commands choose the mode")
     tqz = Tqz.read(present.tqz)
     with Pdf(present.pdf) as doc:
         total = len(doc)

@@ -64,8 +64,10 @@ On the same computer, participant browsers can use http://127.0.0.1:8766/play.
 For actual phones, use the LAN address shown by texstage, on the same reachable
 network. Do not type localhost on a phone. Allow the local server through the
 firewall if prompted and permitted. An isolated guest Wi-Fi network may block
-peer connections. The [manual](../../docs/manual.md) explains HTTPS hosting and
-tunnels when participants are remote.
+peer connections. When participants are remote, the
+[authoring guide](../../docs/authoring.md#laptop-or-hosted-server) explains tunnels and
+hosted servers, and the [advanced installation](../../docs/installation-advanced.md) HTTPS
+hosting.
 
 Use three real devices or independent browser profiles, named Alex, Sam and
 Riley. Tabs in one profile can share an identity. One participant is sufficient
