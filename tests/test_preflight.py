@@ -122,8 +122,11 @@ def test_the_first_slide_prepares(registered, tmp_path):
     assert (d.live, d.first, d.bundles) == (1, True, {"0123456789abcdef"})
     ok, out = run(pptx)
     assert ok and "1 live slides" in out and "built before 2026-10-10" not in out, out
+    # the last hint before "ready" says where the slideshow starts: at the first slide, which prepares
+    assert "start the slideshow at the first slide" in out and "show the join slide once" not in out, out
     ok, out = run(make_pptx(tmp_path / "older.pptx", registered, KEY))
     assert ok and "the join slide prepares the quiz slides" in out, out
+    assert "show the join slide once" in out and "at the first slide" not in out, out
 
 
 def test_a_join_slide_that_carries_too_much(registered, tmp_path, monkeypatch):

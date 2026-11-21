@@ -202,8 +202,10 @@ def check(pptx: Path, say=print, registry_key: str | None = None, office_js: str
             line(False, f"Office.js not reachable ({getattr(err, 'reason', err)}) - this PC needs the internet")
 
     if ok:
-        line(None, "before the class watches: start the slideshow and show the join slide once - it "
-                   "prepares the live slides, so that they do not flicker in the lecture")
+        line(None, ("before the class watches: start the slideshow at the first slide - it prepares the "
+                    "live slides, so that they do not flicker in the lecture") if d.first else
+                   ("before the class watches: start the slideshow and show the join slide once - it "
+                    "prepares the live slides, so that they do not flicker in the lecture"))
         say("ready")
     else:
         say("not ready" + (f" - without the quiz, present {static.name}" if static.exists() else ""))

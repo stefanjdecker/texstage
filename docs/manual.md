@@ -256,7 +256,7 @@ texstage pdf --solutions my-first-deck/deck.tex
 texstage present my-first-deck/deck.tex --data .manual-data --port 8765 --no-tunnel
 ```
 
-Check the printed solutions PDF before presenting. Re-run present after saving an edit; it rebuilds changed source. If the presentation is already open, reload or reopen the deck after the build. For a clean practice round choose New game. A .tex edit alone does not alter the page already displayed in a browser.
+Check the printed solutions PDF before presenting. Re-run present after saving an edit: it rebuilds changed source and opens the new build in a new tab. Reloading a tab that is already open shows the build that tab had. If the running game already has players, the new tab asks first: **Open this build** ends that game (the phones join again with a new PIN, and the scores start anew), **Keep the running build** goes on with it. For a clean practice round choose New game. A .tex edit alone does not alter the page already displayed in a browser.
 
 | File or folder | Keep or share? |
 | --- | --- |
@@ -271,17 +271,19 @@ Check the printed solutions PDF before presenting. Re-run present after saving a
 
 ### Open the library
 
-The presenter is at `/stage` on your quiz server. On the server laptop it normally obtains the local presenter key automatically. A remote presenter uses an authorized key or a paired device.
+The presenter is at `/stage` on your quiz server. On the server laptop it normally obtains the local presenter key automatically. A remote presenter uses an authorized key or a paired device. The key is the file `presenter-key` in the server's data folder; `texstage serve` prints its first characters when it starts, and all of it with `--show-key`.
 
 - Choose **Present** on the deck you want to use. Each card shows the deck's first slide and when you last presented it.
 - While a deck's lecture is running, its card shows the session PIN and the button says **Continue**, which returns to the same session. A lecture left idle for six hours has ended; the next **Present** starts a new session.
 - Use search to find a deck across folders. Choose **By name**, **Newest first** or **Recently presented** to change the order.
 - Use **New folder** to organize your library. Drag a deck onto a folder, or use **Move to** or **Rename** in the deck's three-dot menu.
-- The same menu lists the deck's **Lectures**, each with its results, archive and recordings, and its **Builds**, so you can present or download an older build.
+- If the deck's last lecture left ink or whiteboard pages, **Present** asks first: **New presentation** starts without them (they stay with that lecture in the archive, and the phones join a new game); **Continue that lecture** goes on with them, for a chapter that takes two lectures.
+- The same menu lists the deck's **Lectures …**: each lecture with its **Results (CSV)**, **Archive (ZIP)**, **Make the PDF** from its ink, and its recordings. **End lecture …** ends the running one at once (its results go to the archive, and the phones are told); **Continue** goes on with an earlier one; **Delete …** removes an ended one. **Builds …** presents or downloads an older build.
 - **Remove from the list** hides a deck; its build stays. Choose **Undo** in the notice, or **Put back** in the list of removed decks below the cards. The deck's next build also brings it back. A deck uploaded to the server offers **Delete** instead.
+- **Select** ticks several decks to move or remove them at once (Shift: a range). **Storage** shows what your decks hold on the server, and how to clean it.
 - Use **Upload a deck** for a `.bundle.zip` created by texstage build. Upload the bundle, not an arbitrary PDF.
 
-A deck built while the library is open appears after a reload. If the server cannot present a deck, for example because a kind of activity the deck uses is not installed where it runs, the top of the page names the deck and the reason. A browser presentation requires a build containing the stage PDF; rebuild without `--no-stage` if it is missing.
+A deck built while the library is open appears by itself within a few seconds. If the server cannot present a deck, for example because a kind of activity the deck uses is not installed where it runs, the top of the page names the deck and the reason. A browser presentation requires a build containing the stage PDF; rebuild without `--no-stage` if it is missing.
 
 ![Deck library during a lecture. The card shows the first slide, when the deck was last presented and the running session's PIN; Continue returns to it. The three-dot menu holds the deck actions.](images/manual/01-deck-library.jpg)
 
@@ -293,7 +295,7 @@ Deck library during a lecture. The card shows the first slide, when the deck was
 - **Current slide, left:** the step being presented, including live quiz content.
 - **Next, upper right:** a preview of the next step. It may show the correct answer before the audience sees it.
 - **Notes, lower right:** switch between rendered **Page** and **Text** views. Use **A- / A+** for text size.
-- **Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices**. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.
+- **Top bar:** session PIN, connection indicator, latency, player count and join address, then **Record**, **Projector** and **Devices** - these three only in a window signed in with the presenter key, not on a paired device. Its three-dot menu holds **After the lecture**, **Results (CSV)**, **New game** and **Decks**.
 - **Bottom bar:** annotation tools, slide navigation, elapsed timer, display controls and Overview.
 
 Show the **Projector** window to the audience. Keep this presenter window private: its notes, previews and controls are for you. Drag the dividers to adjust the slide and notes areas; double-click a divider to restore its default position.
@@ -407,8 +409,9 @@ Choose **Overview** or press **G** to jump to a frame. Type a frame number and p
 
 ### Control what the room sees
 
-- **Black (B)** or **White (W)** temporarily covers the projector output.
-- **Freeze (F)** holds the projector while you navigate privately. Select it again to resume live display.
+- **Black (B)** or **White (W)** covers the projector picture.
+- **Freeze (F)** keeps the slide shown now on the projector. Select it again to show the live slide.
+- None of them pauses the lecture: every step you take still reaches the phones, so stepping on starts the next quiz round or opens the next activity. To look ahead privately, use the **Next** pane, or the overview (G) without choosing a slide.
 - **T** controls the elapsed lecture timer. It does not pause a live quiz round.
 
 Keep the overview private: its thumbnails may include reveal answers. Test your clicker and projector window before participants arrive.
@@ -445,13 +448,13 @@ texstage present deck.tex
 
 ### Open, close and reveal
 
-An activity opens when its frame comes to the projector, unless it says `open=manual`; leaving the frame closes it, and going back does not open it again. With `time=` its time counts down on the phones, in the panel and on the host console, and closes it at zero. A frame with `\reveal<n>` reveals the activity on its n-th slide - if it was opened: one that is not open yet (`open=manual`, or after **Reset**) stays as it is there, and **R** reveals it. Everything else is in the panel: choose **Activities** in the presenter's tools.
+An activity opens when you reach its frame - also under Freeze, Black or White -, unless it says `open=manual`; leaving the frame closes it, and going back does not open it again. With `time=` its time counts down on the phones, in the panel and on the host console, and closes it at zero. A frame with `\reveal<n>` reveals the activity on its n-th slide - if it was opened: one that is not open yet (`open=manual`, or after **Reset**) stays as it is there, and **R** reveals it. Everything else is in the panel: choose **Activities** in the presenter's tools.
 
 | Control | Key | What it does |
 | --- | --- | --- |
-| **Open** | O | Opens the activity - also again after it closed, going on with what was sent. A paused activity resumes. |
+| **Open** | O | Opens the activity - also again after it closed, going on with what was sent. A paused activity resumes. Opening one closes any other activity that is running. |
 | **Close** | C | Nothing new comes in; what waits is still checked. |
-| **Pause** / **Resume** | S | Stops the time, and the phones cannot send until it resumes. A quiz question that opens pauses the activity, and its end resumes it. |
+| **Pause** / **Resume** | S | Stops the time, and the phones cannot send until it resumes. A quiz question that opens pauses the activity, and its end resumes it. After the laptop sleeps or the server restarts, an open activity with a time comes back paused: resume it with **S** or **O**. |
 | **+30 s** / **No time** | + / - | **+30 s** adds half a minute to the countdown - an activity without a time gets one of 30 seconds, and closes when it runs out. **No time** stops the countdown: the activity stays open until it is closed. |
 | **Reveal** | R | Asks first. Every window marks the reference's group, and every phone shows whether its entry is right. With `solution=show`, the default, the projector also shows the references until **Reset**: a short one in a line above the bars, a query or a graph with its result in a card beside them - below them in a box taller than wide. `solution=mark` marks the reference's group alone. |
 | **Reset** | X | Asks first. The activity is ready again: what was sent stays in the archive but no longer counts, and the reveal and a shown group are gone; hidden groups, merges, approvals, the minimum and blocks stay. It opens again with **O** - or, unless the deck says `open=manual`, when a page of its frame before its reveal comes to the projector: the frame shown again from its start, say; a page from the reveal on opens nothing. Until then the phones show what they would without it: the waiting screen, or the quiz. |
@@ -478,7 +481,8 @@ Students see the prompt and its input - a query field with the deck's tokens, tw
 | Whiteboard / Grid | Insert a whiteboard page after the current frame. Write or draw on it as you would on a slide. It can be included in the annotated PDF. |
 | Poll | Ask an unplanned Yes / No, A-F, scale, word-cloud, text or sketch question. Set the question, choices and time, then choose Ask now. Return to the deck with the next-step command or Esc. |
 | Devices | On the laptop choose Pair a device. Open or scan the offered link on the other device, then approve the request on the laptop. Only approve devices you intend to give presenter control. |
-| Record | Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it. |
+| Record | It needs the presenter window on localhost or HTTPS. Choose the microphone, then in the browser chooser the projector's display or window - the intended audience output, not the private presenter view. The recording then waits in the top bar, not started: check its live miniature, put right what needs it (full screen, the browser's sharing bar), then choose **Start**; the cross beside it cancels. Stop recording before exporting it. |
+| Video | A deck's video plays on the projector, with its sound. The presenter's copy is muted and has a bar: a click into the video or **K** plays or pauses it, **J** goes back 10 seconds, and the position can be dragged. If the browser wants a click before it plays sound, the presenter says so: click into the projector window once. |
 | Sketches / Activities | These controls appear for matching content in the deck. Sketches lets you choose submitted drawings to display; Activities opens the panel of the deck's live activities: open, close, reveal and moderate them (Run a live activity). |
 
 Recording and device/screen integration depend on browser support and permissions. Microphone and screen recording were not part of the screenshot session. Rehearse them on the presenting computer before class. The [authoring guide](authoring.md) and [installation guide](installation.md) cover the wider workflows.
@@ -486,7 +490,7 @@ Recording and device/screen integration depend on browser support and permission
 
 ## Finish the session and export the material
 
-A podium slide finishes the quiz session and shows final standings on phones. **After the lecture**, in the top bar's three-dot menu, opens the export tools; opening that panel alone does not end a quiz. **New game**, or returning to the join slide after a podium, starts a new session with a new PIN.
+A podium slide finishes the quiz session and shows final standings on phones. **After the lecture**, in the top bar's three-dot menu, opens the export tools; opening that panel alone does not end a quiz. **New game**, or returning to the join slide after a podium, starts a new session with a new PIN. To end a lecture without starting another, choose **End lecture …** in the deck's **Lectures …** on the deck page.
 
 Choose **Make the PDF** for the last-shown version of each frame, ink and whiteboard pages; the PDF is also saved to the server archive. **Results (CSV)**, in the same menu, exports participant results. The archive ZIP combines the annotated PDF, if generated, and results. Recorded takes appear in the Recordings list. Review student-facing files before sharing; keep result data and presenter credentials private.
 
@@ -544,7 +548,7 @@ See [plain PowerPoint conversion](powerpoint.md) for resolution, output and note
 | Projector does not open or move | Allow its pop-up for this server. Move the window manually if automatic placement is unavailable. Use extended displays so the presenter stays private. |
 | The projector seems stuck | Check Freeze, Black and White. Return to normal display. Also check the presenter connection indicator. |
 | A question will not restart | Going backwards preserves its state. Choose Ask again for practice or New game for a new session; review the rewind effects first. |
-| A deck or stage PDF is missing | Reload the library after building, upload the .bundle.zip to the intended server, or rebuild without --no-stage. Check the first LaTeX error if the build failed. |
+| A deck or stage PDF is missing | Wait a few seconds after building (the deck page shows a new build by itself), upload the .bundle.zip to the intended server, or rebuild without --no-stage. Check the first LaTeX error if the build failed. |
 | A deck is not on the list | The top of the deck page says why this server does not play it: a kind of activity it lacks - install the kind's package where the server runs, as where the deck is built, and start the server again -, or choice, number or text activities on a server started with --activities f1. |
 | Phones wait for the lecturer's computer | With --activities f1, the presenter window checks the queries: keep it open, or start the server with --activities f1 --checks server - or without --activities f1: the default activity type, the activity framework's core, checks on the server. |
 | A phone says it could not be checked | The server could not check that entry - not the student's fault; sent again, it is checked again. When nothing of an activity is checked, its panel says why: a seed that does not load, a kind the server lacks. |
@@ -595,14 +599,14 @@ Before class: verify the build, join from a real phone, rehearse one question an
 | Whiteboard / Grid | N / Shift+N | Undo / Redo | Ctrl+Z / Ctrl+Y |
 | Activity: open or resume | O | Activity: close | C |
 | Activity: pause or resume | S | Activity: reveal / reset | R / X |
-| Activity: +30 s / no time | + / - |  |  |
+| Activity: +30 s / no time | + / - | Video: play or pause / 10 s back | K / J |
 
-This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown. The activity keys are for the activity on the current slide - not with --activities f1; Reveal and Reset ask first.
+This shortcut card is for the texstage browser presenter. PowerPoint uses its own presentation controls. The lecture timer shortcut does not pause a quiz countdown. Black, White and Freeze cover only the projector: the phones follow every step. The activity keys are for the activity on the current slide - not with --activities f1; Reveal and Reset ask first.
 
 
 ## About the screenshots and further help
 
-The screenshots were captured with texstage 0.2.1.dev3 from source revision `261776bbf3ed6b8e9275cd9fe3650ccbe67af737` on 15 November 2026, in one session. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. The capture version is recorded separately from the manual version.
+The screenshots were captured with texstage 0.2.1.dev3 from source revision `261776bbf3ed6b8e9275cd9fe3650ccbe67af737` on 15 November 2026, in one session; the deck page (01) was retaken with texstage 0.2.1.dev8 from source revision `262d45e7b6c41af1811baabcb22035ba5bf88628` on 21 November 2026. The desktop viewport was 1280 x 720; phone screens used a 390 x 844 browser viewport. Browser size is emulated; physical phone hardware was not tested for these captures. The capture version is recorded separately from the manual version.
 
 All content, nicknames and results are synthetic. Alex is an example participant. The PIN, local address and scores are illustrations, not credentials for a running class. The demonstration server was isolated from existing courses and presenter data. Phone controls shown here are in English, the example deck's language; for a German deck the phones, the slides' texts and the presenter windows are in German.
 

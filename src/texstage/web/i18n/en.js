@@ -221,7 +221,7 @@ export default {
   // as HTML, here and in the sections below: no < or & in it.
   lecturer: {
     key: "Presenter key",
-    keyWhere: (file) => `The key is in the server's data folder (${file}) and is printed when it starts.`,
+    keyWhere: (file) => `The key is in the server's data folder (${file}); the server prints its first characters when it starts, and all of it with --show-key.`,
     go: "Continue", connection: "connection", decks: "Decks", noDecks: "No decks on this server yet.",
     upload: (file) => `A deck this server does not have: upload its ${file} from the build folder, or drop it here.`,
     quizzes: (n) => `${n} ${n === 1 ? "quiz" : "quizzes"}`, slides: (n) => `${n} ${n === 1 ? "slide" : "slides"}`,

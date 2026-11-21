@@ -264,7 +264,8 @@ def build(tex: Path, out_dir: Path, opts: BuildOptions | None = None) -> BuildRe
     key = opts.key or find_key(server)
     if addin_slides and not key:
         warnings.append(f"no presenter key for {server}: the live slides will ask for it once - "
-                        f"give it with --key (texstage publish --url {server} --key=K --remember keeps it)")
+                        f"give it with --key (or upload this build and keep the key: texstage publish "
+                        f"--url {server} --key=K --remember {out_dir})")
     bundle_dir = out_dir / f"{name}.bundle"
     made = int(time.time() * 1000)                                       # the build's time, which its copies keep,
     bnd.write_bundle(bundle_dir, deck, keys, files, built=made, warnings=warnings)    # and its warnings (present)

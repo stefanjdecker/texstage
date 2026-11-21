@@ -590,7 +590,8 @@ def cmd_lecturer(args: argparse.Namespace) -> int:
     print(f"presenter key of {args.name.strip().lower()} (shown only now - the server keeps a hash):\n\n    {key}\n")
     print("Give it to the lecturer. They build their decks with it once:\n"
           "    texstage build <deck>.tex --server <this server's address> --key=<key>\n"
-          "(or remember it: texstage publish --url <address> --key=<key> --remember). A running server "
+          "(or upload their builds and keep it: texstage publish --url <address> --key=<key> --remember "
+          "<build folder>). A running server "
           "takes the change at once.")
     return 0
 

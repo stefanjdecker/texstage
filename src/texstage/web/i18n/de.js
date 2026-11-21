@@ -199,7 +199,7 @@ export default {
 
   lecturer: {
     key: "Präsentationsschlüssel",
-    keyWhere: (file) => `Der Schlüssel liegt im Datenordner des Servers (${file}) und wird beim Start des Servers ausgegeben.`,
+    keyWhere: (file) => `Der Schlüssel liegt im Datenordner des Servers (${file}); der Server zeigt beim Start seine ersten Zeichen, mit --show-key den ganzen Schlüssel.`,
     go: "Weiter", connection: "Verbindung", decks: "Foliensätze", noDecks: "Noch keine Foliensätze auf diesem Server.",
     upload: (file) => `Ein Foliensatz, den dieser Server nicht hat: Laden Sie seine ${file} aus dem Build-Ordner hoch, oder ziehen Sie sie hierher.`,
     quizzes: (n) => `${n} ${n === 1 ? "Quizfrage" : "Quizfragen"}`, slides: (n) => `${n} ${n === 1 ? "Folie" : "Folien"}`,

@@ -176,7 +176,9 @@ This writes, in the chapter's `build/texquiz/`:
 On the quiz server the deck is called `<course>-<chapter>`, e.g. `kg-06-sparql-semantics` -
 the course comes from `"course"` in the lecture's `lecture.json` (else the lecture folder's
 name), so chapters of different courses never mix. Every build is a version of its own: a
-PPTX always plays exactly the build it was made with, also next to newer ones.
+PPTX plays the build it was made with, also next to newer ones - unless a game of a newer build
+of the deck is open and was active in the last six hours. The server then refuses the older
+build: end that game (the deck's *Lectures …*, *End lecture …*) or play the newer build.
 
 Every build also makes the stage PDF for texstage, the browser presenter (below): the deck
 compiled once more with its own note pages, alongside the first; `--no-stage` skips it, for a
@@ -221,7 +223,9 @@ opens the projector window (a click in it makes it full screen). The presenter w
 current and the next step, your notes (as text with A−/A+, or the note page), a timer that starts
 with the first step - drag the dividers between them to share the window as in PowerPoint (a double
 click puts one back; each browser remembers them); B, W and F make the projector black, white or frozen, G shows all frames - the
-arrow keys and Enter choose one there -, a number and Enter jumps there. The quizzes run as with PowerPoint. Write on the slides with a pen
+arrow keys and Enter choose one there -, a number and Enter jumps there. B, W and F cover the projector
+only: every step still reaches the phones, so stepping on starts the next quiz round or opens the next
+activity - look ahead in the next step's pane, or in G without choosing. The quizzes run as with PowerPoint. Write on the slides with a pen
 (Wacom: *Use Windows Ink* on) - it draws without choosing a tool, its eraser end erases - or
 choose a tool: P pen, H highlighter, E eraser, L laser pointer (it is where the mouse, the pen or
 the finger is; with a mouse the cursor itself turns into the red dot), Z zoom (drag a box; the
@@ -253,7 +257,8 @@ results in the server's archive (`archive/<deck>/<date>-<PIN>/` in its data fold
 *Download the archive* gives as one ZIP. When the game ends - *New game*, a new build, the next
 lecture - its results, polls, questions and sketches go to that folder by themselves; an ended
 game's are under the deck's *Lectures …* (its card's ⋯). The phones in a game that ends say so,
-with *Join the new game* where the deck has one: one tap, the new PIN and the same nickname. A phone
+with *Join the new game* where the deck has one: it fills in the new PIN and the same nickname, and
+a tap on *Join* joins. A phone
 that still has the old PIN - the QR code, a form filled in before - is told the game is over and
 gets the new game's PIN, for two hours; it does not count as a wrong PIN (300 of those from one
 address in ten minutes lock that address out - through the tunnel, a whole lecture hall).
@@ -505,8 +510,10 @@ The key is your own presenter key on that server: whoever runs the server makes 
 (`texstage lecturer add <name>`) and gives it to you once. With it you see only your own
 decks, games and results - other lecturers on the same server have keys of their own. Give it
 as `--key=<key>`, with the `=`: an older key may start with `-`, and after a space it would read
-as an option. `texstage publish --url https://quiz.example.org --key=<key> --remember`
-remembers it, after that `--key` can be left out. A deck built for the server (`--server`) is
+as an option. `texstage publish --url https://quiz.example.org --key=<key> --remember` uploads
+the builds it finds - in the folders it is given, else in the current one - and then remembers the
+key; after that `--key` can be left out. Without a build it stops and keeps nothing. A deck built
+for the server (`--server`) is
 uploaded to it at the end of the build, complete - for PowerPoint, the host page and texstage.
 Decks built for the laptop and then retargeted, or built while the server could not be
 reached, go up with
