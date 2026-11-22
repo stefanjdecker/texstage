@@ -1,21 +1,7 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev8 candidate
+## Unreleased — 0.2.1.dev9 candidate
 
-- A build records what it warned of in its `built.json` (`"warnings"`, beside
-  its time; a build without warnings writes the file as before), and
-  `texstage present` says them again before it opens the build it presents -
-  the deck's newest, a build folder itself, one it built just now. Before,
-  only the build's own output said them: a lecturer who had not read it, or
-  presented a build made days before, presented ?? unwarned. The record is
-  no part of the bundle ID, its copies keep it, and servers read the time
-  alone, so the servers of 0.2.1.dev7 take such builds as they are.
-- The load runs count a run's worker ends, not their teardown's: the runner
-  read the server's log after killing its processes, and a pool that still
-  ran logged those kills as deaths (CI on 2d3d4ee, Ubuntu 3.13).
-- `docs/integration.md` names no pair any more: lecture-tools records the
-  texstage it was tested with (its `requirements/texstage.json` and
-  `texstage-assets.lock.json`), so a pairing changes nothing in texstage.
 - `texstage build` stops with the reason when a deck sets its own mode
   (`\texstagemode` or `\texquizmode`): that mode wins over the command's, and
   the build writes no quiz data. Before, it ended with a FileNotFoundError on
@@ -56,6 +42,27 @@
 - A test of the bundle store wrote built.json twice within one tick of the
   file system's clock, which hid the second write from the store's stamp, and
   failed now and then on Windows (CI on 453c041); it moves the file's time on.
+- texstage is 0.2.1.dev9: the documentation as the code has it, the build's
+  stop on a deck's own mode, the `max-chars` check and the messages above,
+  where 0.2.1.dev8 - the one lecture-tools 0.1.0.dev9 pins - has them not.
+  The kinds' packages still need 0.2.1.dev4 or later.
+
+## Earlier 0.2.1.dev8 candidate
+
+- A build records what it warned of in its `built.json` (`"warnings"`, beside
+  its time; a build without warnings writes the file as before), and
+  `texstage present` says them again before it opens the build it presents -
+  the deck's newest, a build folder itself, one it built just now. Before,
+  only the build's own output said them: a lecturer who had not read it, or
+  presented a build made days before, presented ?? unwarned. The record is
+  no part of the bundle ID, its copies keep it, and servers read the time
+  alone, so the servers of 0.2.1.dev7 take such builds as they are.
+- The load runs count a run's worker ends, not their teardown's: the runner
+  read the server's log after killing its processes, and a pool that still
+  ran logged those kills as deaths (CI on 2d3d4ee, Ubuntu 3.13).
+- `docs/integration.md` names no pair any more: lecture-tools records the
+  texstage it was tested with (its `requirements/texstage.json` and
+  `texstage-assets.lock.json`), so a pairing changes nothing in texstage.
 - texstage is 0.2.1.dev8: the warnings said again at present (above), where
   0.2.1.dev7 - the one lecture-tools 0.1.0.dev8 pins - has them not. The
   kinds' packages still need 0.2.1.dev4 or later.
