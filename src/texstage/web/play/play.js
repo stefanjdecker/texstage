@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The phone (docs/design.md, section 7): PIN -> nickname -> lobby -> answer per question
+// The phone (docs/architecture/design.md, section 7): PIN -> nickname -> lobby -> answer per question
 // type -> answer locked -> result -> final rank. Talks to the server over the shared client;
 // the server decides everything, this page only shows its state and sends answers.
 //
@@ -44,7 +44,7 @@ let switched = null;     // the round that brought the quiz tab back
 let listed = "";         // the questions as last drawn
 const redraw = () => { screenKey = ""; listed = ""; if (state) render(); };   // a formula's KaTeX arrived
 
-// texstage's content types on the phone (docs/live-activities-design.md, section 10): a type whose
+// texstage's content types on the phone (docs/architecture/live-activities-design.md, section 10): a type whose
 // part of the state is there (state[name], with its item's id) gets the screen while no quiz round
 // is open - the round comes first. Its screen owns its elements, so what is being typed survives
 // the pushes:  new PHONE_TYPES[name]({root, client, T, state})  .update(state)  .destroy()

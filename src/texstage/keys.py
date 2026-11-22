@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Presenter keys (docs/design.md, section 5.3): a server's own key lives in its data folder
+"""Presenter keys (docs/architecture/design.md, section 5.3): a server's own key lives in its data folder
 (presenter-key, made on the first start); a live deck carries the key of its server, so its
 slides pair by themselves; keys of servers elsewhere are given (--key, TEXSTAGE_KEY - or
 TEXQUIZ_KEY, its name until 2026-10-10) or remembered in servers.json in the data folder."""

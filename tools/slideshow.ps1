@@ -1,5 +1,5 @@
 <#
-Drive a PowerPoint slideshow over COM, for testing the texquiz add-in (docs/design.md M4):
+Drive a PowerPoint slideshow over COM, for testing the texquiz add-in (docs/architecture/design.md M4):
 
     .\slideshow.ps1 run deck.pptx "goto 2" "wait 3" "sim 20" "next" "wait 25" "shot q1" ... [-PresenterView]
 

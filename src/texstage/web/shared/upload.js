@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// A deck uploaded by hand (docs/design.md, section 8): texstage build writes the whole deck as
+// A deck uploaded by hand (docs/architecture/design.md, section 8): texstage build writes the whole deck as
 // one file, <name>.bundle.zip next to its PowerPoint file. The deck lists of the host page and
 // of texstage take it - a button, or the file dropped onto the page; several at once, a semester's
 // chapters, one after the other - and send it to POST /api/bundles with the presenter key, so a

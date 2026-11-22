@@ -1,12 +1,16 @@
 # texstage - one core, many kinds of live content (design)
 
-Status: 2026-10-10, a design - nothing of it is built yet. Decided the same day: the name
+Status: a design of 2026-10-10. Built since: the rename (N1), the core (N2), the video, local and
+online (N3), and as the next type the live activities (N6,
+[live-activities-design.md](live-activities-design.md)). Not built: the notebook cell's prepared
+results (N4) and the sign-in at a lecture hall's PC (H); live notebook cells (N5) and Python cells
+in the browser (N6) were dropped on 2026-10-17 (section 10). Decided on 2026-10-10: the name
 texstage; cells come from the exercise notebooks, named by tag, SPARQL first; videos local and
 online (not from Opencast); phones never run code; laptop and central server alike, and a lecture
 hall's PC as an option, signed in with the phone or a password, the university's single sign-on
 later (section 9). It extends [design.md](design.md) (the build, the server, PowerPoint) and
-[texstage-design.md](texstage-design.md) (the browser presenter), and refers to the current code
-by file and line where it builds on it.
+[texstage-design.md](texstage-design.md) (the browser presenter), and refers to the code of that
+day by file and line where it builds on it.
 
 ## 1. Idea in one paragraph
 
@@ -656,7 +660,7 @@ browser (section 8), videos stream from the server or the platform. What is miss
 - **Signing in with the phone** (the main way, decided 2026-10-10): the hall PC's presenter
   window shows a QR code and a short code; the lecturer scans it with the phone, which already
   holds a presenter sign-in (paired once from the laptop, as an iPad is today,
-  `docs/texstage-design.md` section 5), compares the code and allows it. The PC gets a
+  `docs/architecture/texstage-design.md` section 5), compares the code and allows it. The PC gets a
   **session**, not the key: a token of the lecturer's that ends with the day, with *Sign out* in
   the presenter window, or when the phone ends it under *Devices* - nothing typed on the PC. It
   is today's pairing the other way round: there the signed-in window shows the code and the new

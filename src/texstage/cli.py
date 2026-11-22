@@ -130,7 +130,7 @@ def on_this_machine(server: str) -> bool:
 
 
 def deliver(bundle: Path, out_dir: Path, server: str, key: str | None, data: Path) -> list[str]:
-    """Every deck reaches its quiz server through its build (docs/design.md, section 4) - the
+    """Every deck reaches its quiz server through its build (docs/architecture/design.md, section 4) - the
     PowerPoint file carries none: recorded for the server on this machine (builds.json - it
     finds the deck by itself, also when it starts later), uploaded to any other one (texstage
     publish). What happened, for the build's output."""

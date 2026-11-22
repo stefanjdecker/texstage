@@ -14,7 +14,7 @@
                                (with --stage also <stem>-stage.pdf)
 
 <name> is the file name of the deck - for a course chapter's slides.tex, the chapter
-folder's name. Steps (docs/design.md, section 4): compile in present mode with
+folder's name. Steps (docs/architecture/design.md, section 4): compile in present mode with
 second-screen notes (with --stage, alongside it the stage compile: stage.py); read the
 .tqz; render the slide halves and the phone images; plan the PowerPoint slides with their
 live boxes (a leaderboard slide after every scored quiz's reveal); write the bundle and the

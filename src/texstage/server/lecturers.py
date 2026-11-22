@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The lecturers of a quiz server and their presenter keys (docs/design.md, section 5.3).
+"""The lecturers of a quiz server and their presenter keys (docs/architecture/design.md, section 5.3).
 
 Every lecturer has a key of their own; a host connection or request is the lecturer whose
 key it brings, and sees only that lecturer's decks, games and results. The server keeps

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Live activities on the server (server/activity.py; docs/live-activities-design.md, section 7):
+"""Live activities on the server (server/activity.py; docs/architecture/live-activities-design.md, section 7):
 the crowd graph and the clusters through the engine with a fake clock - the presenter window's
 evaluation scripted -, a restarted server, the archive; and the whole over WebSockets. Then the
 server's checks (checking.py; docs/architecture/activity-framework-plan.md, F1, 4.5 and 4.6) with a

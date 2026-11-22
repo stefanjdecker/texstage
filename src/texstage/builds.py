@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""This machine's live decks (docs/design.md, section 4): every deck reaches its quiz server
-through its build. texstage build records the folder of every deck it builds in builds.json in
+"""This machine's live decks (docs/architecture/design.md, section 4): every deck reaches its quiz
+server through its build. texstage build records the folder of every deck it builds in builds.json in
 the data folder, and a quiz server with that data folder serves those decks too - for
 PowerPoint and texstage, without an upload; a server elsewhere gets the deck uploaded by the
 build (cli.deliver). The PowerPoint file carries none: PowerPoint keeps at most 2 MB for an

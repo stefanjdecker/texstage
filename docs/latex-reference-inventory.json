@@ -25,7 +25,7 @@
     {
       "file": "latex/texactivity.sty",
       "scope": "runtime",
-      "sha256": "979194249e697d8921bd02a2600e2e7515a7ac14d1451df45a1c3bfb7e156b06",
+      "sha256": "8bdfa39f66f79e20852ec4a6e23fe0223a640753457a468d0994cfbd3129a993",
       "commands": [
         "TexactivityPrompt",
         "TexactivityReference",
@@ -75,7 +75,7 @@
     {
       "file": "latex/texquiz.sty",
       "scope": "runtime",
-      "sha256": "6e0772d81f77d2f4f06a49fa49031c0e2770ddeffc31e13bca5200a58ebab0bb",
+      "sha256": "50a95e0da83dc6b8e2158f493cede1c8307c82cd9dc4ba115555340ad46c9cec",
       "commands": [
         "accept",
         "choice",
@@ -175,7 +175,7 @@
     {
       "file": "latex/texstage.sty",
       "scope": "runtime",
-      "sha256": "3a4f3d24935f5d5c5c1a0ce5fcfe24131224837cc6a057b091f167b013f8e231",
+      "sha256": "478aa6325066fad9784536d1fbdaf0463351a1a2bc634434b4c686169c5a1e29",
       "commands": [
         "texquizmode",
         "texquiznotes",
@@ -215,7 +215,7 @@
     {
       "file": "latex/texvideo.sty",
       "scope": "runtime",
-      "sha256": "68105ae1a224b28f3f01fee6603668335b13d96bc6f65ec31c9ad9751ecd4eab",
+      "sha256": "850fd6ee9fa5e4528206c675e930bd0e61b6b0ba27f5f792fdd9b865023c8f48",
       "commands": [
         "video"
       ],

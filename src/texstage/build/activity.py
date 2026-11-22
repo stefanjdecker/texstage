@@ -25,7 +25,7 @@ checks them - one that does not run stops the build, rather than showing in the 
     aliases   the keys of before kinds were named (the design's 17): input=tuple is kind=triples,
               input=code, engine=sparql is kind=sparql-query - sql: sql-query, turtle: turtle-graph
     PowerPoint nothing: the slide picture shows the activity's static form, and the add-in stays the
-              quiz's (docs/content-types-design.md, section 3)
+              quiz's (docs/architecture/content-types-design.md, section 3)
 """
 from __future__ import annotations
 

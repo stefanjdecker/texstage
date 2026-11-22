@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// texstage's projector window (docs/texstage-design.md, sections 4-7): the slide the lecturer
+// texstage's projector window (docs/architecture/texstage-design.md, sections 4-7): the slide the lecturer
 // shows, full screen and without any controls - the stage PDF's page with the live quiz views
 // (live.js), a video (video.js, with the sound), a live activity's picture (activity.js), the ink, the laser pointer, zoomed if the
 // presenter zooms, or a whiteboard page -,

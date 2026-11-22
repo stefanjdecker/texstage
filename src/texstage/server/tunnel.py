@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""A Cloudflare tunnel for the quiz server on a laptop (docs/design.md, section 8): phones join
+"""A Cloudflare tunnel for the quiz server on a laptop (docs/architecture/design.md, section 8): phones join
 at the tunnel's address on the internet, while PowerPoint and the host page keep talking to
 http://localhost. `texstage serve --tunnel NAME` runs `cloudflared tunnel run NAME` next to the
 server and ends it with the server, takes the address from cloudflared's config (the hostname

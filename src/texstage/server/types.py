@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The content types the server knows (docs/content-types-design.md, section 6.2;
-docs/live-activities-design.md, section 7.5).
+"""The content types the server knows (docs/architecture/content-types-design.md, section 6.2;
+docs/architecture/live-activities-design.md, section 7.5).
 
 The quiz is the game itself (game.py, with the audience it shares with polls, Q&A and
 sketches). Every other type lives on the stage and gives the server a module with

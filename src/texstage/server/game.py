@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The game: sessions, players, rounds and answers as a synchronous state machine
-(docs/design.md, section 6).
+(docs/architecture/design.md, section 6).
 
 The engine never reads a clock: every call gets `now` (milliseconds since the epoch), so
 tests drive it with a fake clock and the server (app.py) calls tick(now) when the next
@@ -28,7 +28,7 @@ closed and the keys after the reveal.
 A session also keeps what texstage's presenter window sets for the projector (screen:
 live, black, white or the slide frozen; the presenter's timer) - in the host view as
 `stage`, stored with the session. The timer goes on in the deck's next game (after the
-podium, a restart, a rebuild), unless the session went stale (docs/texstage-design.md).
+podium, a restart, a rebuild), unless the session went stale (docs/architecture/texstage-design.md).
 
 texstage M6 adds to a game: ad-hoc polls (polls.py) - quizzes of the game, asked when the
 lecturer types them and revealed as soon as they close -, sketch questions (the phones

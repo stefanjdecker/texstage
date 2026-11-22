@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The video (texvideo) in the build (docs/content-types-design.md, section 7; the registry:
+"""The video (texvideo) in the build (docs/architecture/content-types-design.md, section 7; the registry:
 types.py).
 
     records   video|id|src|poster|start|end|loop|muted|autoplay|link|tex file|line

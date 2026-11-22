@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The stage PDF for texstage, the browser presenter (docs/texstage-design.md, section 3).
+"""The stage PDF for texstage, the browser presenter (docs/architecture/texstage-design.md, section 3).
 
 texstage build (unless --no-stage) compiles the present deck a second time, alongside the
 first, with the deck's own note pages (\\def\\texquiznotes{stage}): every slide is a page of

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The engines of live activities (docs/live-activities-design.md, section 8.3), by the name a deck
+"""The engines of live activities (docs/architecture/live-activities-design.md, section 8.3), by the name a deck
 gives (engine=): the half of their table that the build and the server need - the files a seed may
 be, with the media type the server gives each (the first is the bundle's), the tokens every
 activity's bar offers, what a phone's keyboard hides, and what a student's text is called in the

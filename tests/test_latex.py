@@ -705,7 +705,7 @@ ACTIVITY_DECK = r"""\documentclass[aspectratio=169]{beamer}
 
 
 def test_a_live_activity(tmp_path):
-    """texactivity.sty (docs/live-activities-design.md, section 5): the box in every mode - the
+    """texactivity.sty (docs/architecture/live-activities-design.md, section 5): the box in every mode - the
     solutions add the reference, verbatim, its lines and its # kept -; in present mode the box on
     every slide that shows the activity (the steps of its frame, the frame again), the records
     and the prompt for the phones once."""

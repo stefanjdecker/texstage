@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Presenter devices (texstage, docs/texstage-design.md, section 5): an iPad or another
+"""Presenter devices (texstage, docs/architecture/texstage-design.md, section 5): an iPad or another
 computer that runs the presenter window for a lecturer.
 
 A device is paired once from the presenter window on the laptop (the presenter key): it

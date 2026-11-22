@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Questions from the audience (texstage M6, docs/texstage-design.md, sections 10 and 21).
+"""Questions from the audience (texstage M6, docs/architecture/texstage-design.md,
+sections 10 and 21).
 
 While the lecturer has them open, the phones ask questions - anonymous, up to 280 characters,
 formulas between $...$ - and upvote those of the others. The presenter window sees them by

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Ad-hoc polls (texstage M6, docs/texstage-design.md, sections 10 and 21): questions the
+"""Ad-hoc polls (texstage M6, docs/architecture/texstage-design.md, sections 10 and 21): questions the
 lecturer types during the lecture, with formulas between $...$:
 
     yesno    Yes / No                         poll, one answer

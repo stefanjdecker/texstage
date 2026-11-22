@@ -3,7 +3,7 @@
 """PDF pages for the build, with pypdfium2 (Apache-2.0/BSD-3-Clause; PDFium, the PDF engine of
 Chrome): a PDF's pages, their size, a page or a part of it rendered as an image, and the
 words on a page with their boxes. PyMuPDF did this before texstage M7; its AGPL does not go
-with texstage's Apache-2.0 (docs/texstage-design.md, sections 12 and 22).
+with texstage's Apache-2.0 (docs/architecture/texstage-design.md, sections 12 and 22).
 
     with Pdf(path) as pdf:
         page = pdf[0]                                  # also len(pdf), iteration

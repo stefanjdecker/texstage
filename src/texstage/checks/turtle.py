@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The Turtle check (web/engines/turtle.js in Python; docs/live-activities-design.md, section 8.9): a
+"""The Turtle check (web/engines/turtle.js in Python; docs/architecture/live-activities-design.md, section 8.9): a
 student's text read as Turtle by pyoxigraph's parser, the seed's @base and @prefix lines in front where
 the text does not declare them; the seed's triples are no part of anybody's graph.
 

@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// Ink for texstage (docs/texstage-design.md, section 7; the server's side: server/ink.py): the
+// Ink for texstage (docs/architecture/texstage-design.md, section 7; the server's side: server/ink.py): the
 // strokes of a frame - a deck frame "12" or a whiteboard page "board:<id>" -, loaded from the
 // server and kept up to date by its events, drawn as perfect-freehand outlines on a canvas over
 // the slide, also while they are being drawn; and the laser pointer. Coordinates are fractions

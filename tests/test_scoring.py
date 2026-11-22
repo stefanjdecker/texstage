@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Checking and scoring answers (server/scoring.py, docs/design.md section 6.3)."""
+"""Checking and scoring answers (server/scoring.py, docs/architecture/design.md section 6.3)."""
 from __future__ import annotations
 
 import pytest

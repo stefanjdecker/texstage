@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// texstage's recording (docs/texstage-design.md, sections 9 and 20): what the projector shows -
+// texstage's recording (docs/architecture/texstage-design.md, sections 9 and 20): what the projector shows -
 // the screen or window the lecturer picks in the browser's dialog, so slides, ink, pointer and
 // quiz views as the hall sees them - and the microphone, as one video file. MediaRecorder hands
 // out a part every 10 s, which goes to the server at once (PUT /api/recording/<take>/<part>, one

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The content types the build knows (docs/content-types-design.md, section 5.2).
+"""The content types the build knows (docs/architecture/content-types-design.md, section 5.2).
 
 The core (builder.py) compiles the deck, reads the records it writes (tqz.py), makes the
 slide pictures and the stage PDF, and asks the types for the rest: a type is a module with

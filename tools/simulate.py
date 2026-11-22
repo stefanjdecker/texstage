@@ -10,10 +10,10 @@ The host (presenter key from the data folder's presenter-key, ~/.texstage or ~/.
 live slides like a lecturer with a clicker; every phone answers each open question after
 a random delay (some wrongly, some not at all). Prints, per slide, how long the server took
 to tell all phones and the host, the final standings, and how long answers took to be
-accepted. For checking the server under load (docs/design.md: 300 players per session; M6)
+accepted. For checking the server under load (docs/architecture/design.md: 300 players per session; M6)
 and for watching the views in M3. wss:// URLs work too (a hosted server).
 
-A live activity (docs/live-activities-design.md) that opens while the phones are in the game gets
+A live activity (docs/architecture/live-activities-design.md) that opens while the phones are in the game gets
 their contributions too, spread over a minute as a class sends them - to a server of the core's type, a
 server's default, or of F1's (texstage serve --activities f1: the phones say which they meet, as a phone does
 from its welcome; docs/architecture/activity-framework-design.md, 10.4) -: triples about a lecture -

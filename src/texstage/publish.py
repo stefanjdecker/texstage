@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""texstage publish: live decks onto a hosted quiz server (docs/design.md, section 8).
+"""texstage publish: live decks onto a hosted quiz server (docs/architecture/design.md, section 8).
 
     texstage publish <bundles, or folders with bundles> --url https://quiz.example.org [--key K]
 

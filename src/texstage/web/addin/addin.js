@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The PowerPoint add-in "texstage" (docs/design.md, section 5): one instance per live
+// The PowerPoint add-in "texstage" (docs/architecture/design.md, section 5): one instance per live
 // slide, created by PowerPoint from the object the builder put over the slide. It reads its
 // properties ({server, deck, bundle, quiz, phase, slideId, key}), draws its slide with the shared
 // live views, and drives the game by the slides the lecturer shows - clicker only. It talks

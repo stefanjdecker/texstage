@@ -977,7 +977,7 @@ def test_the_video_when_the_slide_changes():
 
 
 def test_a_video_on_the_stage(tmp_path):
-    """A deck's video (docs/content-types-design.md, section 7): the presenter window plays,
+    """A deck's video (docs/architecture/content-types-design.md, section 7): the presenter window plays,
     pauses and seeks it - {playing, time, at} in the stage's state, for every window -; the next
     step of its frame lets it play on, a slide without it stops it where it is, a slide with a
     video that plays by itself starts that; the projector window only follows. The file goes out

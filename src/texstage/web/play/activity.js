@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// A live activity on the phone (docs/live-activities-design.md, section 10): play.js mounts this
+// A live activity on the phone (docs/architecture/live-activities-design.md, section 10): play.js mounts this
 // screen while the activity is open - or revealed - and no quiz round is. A tuple: its fields,
 // each offering the deck's suggestions and the terms the projector shows, and below the
 // student's own triples, each to be withdrawn. A query: a text field without autocorrection,

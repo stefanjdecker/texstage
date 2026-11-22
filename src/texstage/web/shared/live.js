@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The live views over a slide (docs/design.md, sections 5.2 and 7): what the projector shows
+// The live views over a slide (docs/architecture/design.md, sections 5.2 and 7): what the projector shows
 // on join, question, reveal, answer, leaderboard and podium slides (nothing on a quiz's
 // reading slide, the question alone before the lecturer's click). The same code runs in
 // the host console's slide host and, later, in the PowerPoint add-in: a stage shows one
@@ -21,7 +21,7 @@
 // gives: (quiz, players) => Promise of [{n, player, strokes}]); and over any slide the
 // audience's question the lecturer shows (stage.question).
 //
-// texstage's content types other than the quiz (docs/content-types-design.md, section 6.3) come
+// texstage's content types other than the quiz (docs/architecture/content-types-design.md, section 6.3) come
 // with a renderer each, given as `types` - {video: VideoBox} (stage/video.js) - with `host`, what
 // the window gives them (its role, send, the media files' addresses): see showTypes below.
 //

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The engines of live activities (docs/live-activities-design.md, section 8.3), by the name a deck
-// gives (engine=): the module the evaluator's worker imports (stage/evaluator-worker.js), and the
+// The engines of live activities (docs/architecture/live-activities-design.md, section 8.3), by the name a
+// deck gives (engine=): the module the evaluator's worker imports (stage/evaluator-worker.js), and the
 // WebAssembly that the window compiles once and hands to the worker (stage/evaluator.js) - the
 // worker reaches no network. The build's and the server's half of the table - the seed's file
 // types, the tokens every bar offers - is texstage/engines.py.

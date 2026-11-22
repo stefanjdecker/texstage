@@ -36,7 +36,10 @@
 - `maintenance/check_docs.py` also fails on text garbled by an encoding (UTF-8
   read as Windows-1252) in the maintained Markdown documents, and on a file
   that names another version than pyproject.toml's - the files
-  `docs/releasing.md` lists; the homepage said 0.2.1.dev6.
+  `docs/releasing.md` lists; the homepage said 0.2.1.dev6. It fails, too, on a
+  `docs/` path that is not in the repository, in any tracked text - the code's,
+  the LaTeX packages' and the tests' comments as well: 92 named the design
+  documents where they were before `docs/architecture/`, and point there now.
 - `docs/installation.md` is generated from the manual's install chapters
   (`maintenance/build_manual.py`, `--check` too), from which it had drifted.
 - The documentation as the code has it, after a review of 2026-11-21: the
@@ -45,7 +48,11 @@
   and the failures that stop a build), a structure to find one's way in (the
   authoring guide's sections, the manual's lettered appendix and its links in
   the PDF), dated records and details, and the setup docs (hosting from
-  `deploy/` step by step, lecture-tools' leftovers gone, CI's steps listed).
+  `deploy/` step by step, lecture-tools' leftovers gone, CI's steps listed),
+  and the notes: the design records say what of them is built,
+  `web/vendor/README.md` names the files the pages load and that Oxigraph and
+  sql.js serve `--activities f1` only, and `NOTICE` names psutil and pyoxigraph
+  and says that the two tools outside its licence are published.
 - A test of the bundle store wrote built.json twice within one tick of the
   file system's clock, which hid the second write from the store's stamp, and
   failed now and then on Windows (CI on 453c041); it moves the file's time on.

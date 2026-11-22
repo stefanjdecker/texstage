@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The live activity on the server (docs/live-activities-design.md, section 7; the registry:
+"""The live activity on the server (docs/architecture/live-activities-design.md, section 7; the registry:
 types.py).
 
 While an activity is open the phones send contributions; the server keeps them and reduces them

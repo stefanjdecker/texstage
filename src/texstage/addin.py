@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The PowerPoint add-in "texstage": its manifests and their registration on a PC
-(docs/design.md, sections 5.1 and 5.4).
+(docs/architecture/design.md, sections 5.1 and 5.4).
 
 The add-in is a content add-in: the builder puts one object of it over every live slide.
 Its page is served by a quiz server at /addin/, and PowerPoint loads it from the address

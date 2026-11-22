@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The quiz (texquiz) in the build: what the content type gives at the build's steps
-(docs/content-types-design.md, section 5.2; the registry: types.py).
+(docs/architecture/content-types-design.md, section 5.2; the registry: types.py).
 
     records    the quiz's own (Q P C S L A E N O; tqz.py reads them into Tqz.questions)
     plan       a leaderboard slide after the reveal of every scored quiz that has one

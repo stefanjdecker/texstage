@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The SPARQL engine of live activities (docs/live-activities-design.md, sections 8.3 and 8.4):
+// The SPARQL engine of live activities (docs/architecture/live-activities-design.md, sections 8.3 and 8.4):
 // Oxigraph (web/vendor/oxigraph) over the activity's seed, in the evaluator's worker
 // (stage/evaluator-worker.js; the engines: index.js).
 //

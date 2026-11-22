@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The PowerPoint add-in (addin.py, its routes in server/app.py, web/addin/): the manifest,
 the registration, and what the server serves it. The add-in itself runs inside PowerPoint
-and is tested there (tools/slideshow.ps1, docs/design.md M4)."""
+and is tested there (tools/slideshow.ps1, docs/architecture/design.md M4)."""
 from __future__ import annotations
 
 import sys

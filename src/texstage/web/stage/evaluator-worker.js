@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The evaluator's worker (evaluator.js; docs/live-activities-design.md, section 8.2): an engine
-// (web/engines/index.js) over an activity's seed, one query at a time. The server serves this
-// script with Content-Security-Policy: connect-src 'none' - a student's query reaches no network -,
-// and the window hands it the engine's compiled WebAssembly module and the seed.
+// The evaluator's worker (evaluator.js; docs/architecture/live-activities-design.md, section 8.2):
+// an engine (web/engines/index.js) over an activity's seed, one query at a time. The server serves
+// this script with Content-Security-Policy: connect-src 'none' - a student's query reaches no
+// network -, and the window hands it the engine's compiled WebAssembly module and the seed.
 //
 //   {t: "init", engine, module, seed}            -> {t: "ready"} | {t: "failed", error}
 //   {t: "eval", id, text, reference?, language?}  -> {t: "done", id, status, error?, key?, summary?}

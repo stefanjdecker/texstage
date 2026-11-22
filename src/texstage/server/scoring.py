@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Checking and scoring answers (docs/design.md, section 6.3). Pure functions.
+"""Checking and scoring answers (docs/architecture/design.md, section 6.3). Pure functions.
 
 A correct answer earns speed points, base x (1 - 1/2 x answer time / time limit): from the
 full base (1000, or 2000 with points=double) for an instant answer down to half of it at

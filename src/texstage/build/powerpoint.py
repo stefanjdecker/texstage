@@ -1,10 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """The PowerPoint file: one picture slide per page with its notes, and on live slides a
-content add-in object covering the whole slide (docs/design.md, sections 4 and 5).
+content add-in object covering the whole slide (docs/architecture/design.md, sections 4 and 5).
 
 python-pptx writes pictures and notes; the add-in object is raw OOXML, as verified in
-spike S1 (docs/design.md, section 9.1):
+spike S1 (docs/architecture/design.md, section 9.1):
 
     ppt/webextensions/webextensionN.xml   which add-in, its properties, a snapshot image
     p:graphicFrame (in mc:AlternateContent) on the slide, referring to that part; the

@@ -155,7 +155,7 @@ def write_zip(path: Path, deck: dict, keys: dict, files: dict[str, bytes], built
 
 def carried(deck: dict, keys: dict, files: dict[str, bytes]) -> bytes:
     """The bundle the PowerPoint files built before 2026-10-09 carry on their join slide
-    (docs/design.md, section 4): a zip of both JSON files, the phone images and the pictures of
+    (docs/architecture/design.md, section 4): a zip of both JSON files, the phone images and the pictures of
     the live slides - what a server needs for presenting in PowerPoint. Their add-in uploads it
     to a server that does not have the bundle, and the server still takes it (marked
     incomplete). New builds carry none: the build hands the deck over (cli.deliver)."""

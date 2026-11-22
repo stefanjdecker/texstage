@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The SQL engine of live activities (docs/live-activities-design.md, sections 8.3 and 8.8): SQLite
+// The SQL engine of live activities (docs/architecture/live-activities-design.md, sections 8.3 and 8.8): SQLite
 // (sql.js, web/vendor/sqljs) over the activity's seed - a script of CREATE TABLE and INSERT
 // statements -, in the evaluator's worker (stage/evaluator-worker.js; the engines: index.js).
 //

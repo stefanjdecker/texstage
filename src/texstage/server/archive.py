@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The lecture archive (texstage, docs/texstage-design.md, sections 9, 11, 19 to 21): per game
+"""The lecture archive (texstage, docs/architecture/texstage-design.md, sections 9, 11, 19 to 21): per game
 a folder
 
     <data>/archive/<deck>/<date>-<pin>/   annotated.pdf, <deck>-<date>-<pin>.csv (the results),

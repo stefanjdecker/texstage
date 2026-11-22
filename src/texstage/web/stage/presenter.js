@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// texstage's presenter window (docs/texstage-design.md, sections 5-8): the current step with
+// texstage's presenter window (docs/architecture/texstage-design.md, sections 5-8): the current step with
 // the live quiz views (live.js) and the lecturer's quiz buttons, ink, laser pointer and zoom on
 // it, whiteboard pages, the next step, the notes - the deck's own note page or its text -,
 // timer and clock, the overview of the frames, and the projector window it opens. It drives the
@@ -21,7 +21,7 @@
 // file - plays here without sound, with a bar to play, pause and move it; the projector window
 // plays it with the sound.
 //
-// Live activities (activity.js; docs/live-activities-design.md): the box draws the activity's
+// Live activities (activity.js; docs/architecture/live-activities-design.md): the box draws the activity's
 // picture here as on the projector; Activities opens the panel - open, close, reveal, the crowd
 // graph's terms (merge, hide, approve, the minimum), the clusters (show one on the projector, hide,
 // block) -; the agent holds the lease to lay the graph out and to evaluate the queries.
@@ -1348,7 +1348,7 @@ async function replaceOrKeep(e) {
 
 async function newOrContinued(e) {
   // the deck's ink and whiteboard pages from before: a new presentation leaves them to the lecture
-  // they belong to (in the archive), a continuation goes on with them (docs/texstage-design.md, 24)
+  // they belong to (in the archive), a continuation goes on with them (docs/architecture/texstage-design.md, 24)
   const E = T.presenter.earlier;
   const left = [e.frames ? E.ink(e.frames) : "", e.boards ? E.boards(e.boards) : ""].filter(Boolean);
   const what = left.length > 1 ? E.both(...left) : left[0] || "";

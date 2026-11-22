@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The presenter window's evaluator of the live activities' queries (docs/live-activities-design.md,
+// The presenter window's evaluator of the live activities' queries (docs/architecture/live-activities-design.md,
 // section 8): the work the agent gets with the lease (activity.work, activity.js) - the references
 // first, then each distinct query text - run in a module worker per activity (evaluator-worker.js,
 // never on this window's thread: a slide change must stay quick), each with a budget of 2 s: over

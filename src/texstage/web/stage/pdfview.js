@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// PDF.js for texstage (docs/texstage-design.md, section 4): the stage PDF of a --stage build,
+// PDF.js for texstage (docs/architecture/texstage-design.md, section 4): the stage PDF of a --stage build,
 // fetched once with the presenter key; its pages rendered at the size they are shown at, in
 // device pixels, and kept in a cache, so stepping on shows a page that is ready.
 //

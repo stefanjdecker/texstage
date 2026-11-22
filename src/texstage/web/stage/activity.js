@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// A live activity on the slide (texactivity.sty; docs/live-activities-design.md, sections 8 and 9):
+// A live activity on the slide (texactivity.sty; docs/architecture/live-activities-design.md, sections 8 and 9):
 // the renderer of its box for live.js's Stage - in the presenter and in the projector window -
 // and the presenter window's ActivityAgent.
 //

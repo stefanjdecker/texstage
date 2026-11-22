@@ -2,7 +2,7 @@
 % SPDX-License-Identifier: Apache-2.0
 %% texquiz.sty -- Kahoot-style live quizzes authored in Beamer decks: the quiz of
 %% texstage, built on its core, texstage.sty (the mode, the records, the log marks, the
-%% extra pages - docs/content-types-design.md, section 4.3).
+%% extra pages - docs/architecture/content-types-design.md, section 4.3).
 %%
 %% Three output modes, selected by defining \texquizmode before \documentclass
 %% (e.g. pdflatex "\def\texquizmode{present}\input{deck}"):
@@ -17,7 +17,7 @@
 %%             extra pages after the last slide.  Used by `texquiz build` only.
 %% The look is set by \texquizprompt, \texquizchoice, ... (see "theme hooks");
 %% texquiz-theme-dbis.sty is the look of the DBIS lectures.
-%% See docs/design.md, section 3, and docs/authoring.md.
+%% See docs/architecture/design.md, section 3, and docs/authoring.md.
 \NeedsTeXFormat{LaTeX2e}[2023-06-01]
 \ProvidesExplPackage{texquiz}{2026-10-01}{0.1.0}{Live quizzes for Beamer decks}
 \RequirePackage{tikz}

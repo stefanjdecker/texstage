@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The Turtle engine of live activities (docs/live-activities-design.md, sections 8.3 and 8.9): a
+// The Turtle engine of live activities (docs/architecture/live-activities-design.md, sections 8.3 and 8.9): a
 // student's text read as Turtle by Oxigraph's parser - the SPARQL engine's Oxigraph (sparql.js),
 // without a store -, in the evaluator's worker (stage/evaluator-worker.js; the engines: index.js).
 // Chapter 3's thesis, one graph in many spellings: texts that write the same graph get one key -

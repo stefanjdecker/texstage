@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// What the engines of live activities share (docs/live-activities-design.md, section 8.3), in the
+// What the engines of live activities share (docs/architecture/live-activities-design.md, section 8.3), in the
 // evaluator's worker (stage/evaluator-worker.js): the key of a result's canonical form, a result's
 // rows against a reference's, and a summary that fits into a message.
 //

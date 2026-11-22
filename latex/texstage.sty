@@ -1,7 +1,7 @@
 % SPDX-FileCopyrightText: 2026 Stefan Decker
 % SPDX-License-Identifier: Apache-2.0
 %% texstage.sty -- the core of texstage's LaTeX packages: what every kind of live content
-%% on a Beamer slide needs (docs/content-types-design.md, section 4.3).  texquiz.sty, the
+%% on a Beamer slide needs (docs/architecture/content-types-design.md, section 4.3).  texquiz.sty, the
 %% quiz, builds on it; a deck loads the content type's package, which loads this one.
 %%
 %%  * The mode, defined before \documentclass: \def\texstagemode{present}, or
@@ -169,7 +169,7 @@
 % transformation that \pdfsavepos does not see, so every position recorded inside a
 % shrunk frame is unscaled.  The point the scaling leaves in place is the body box's
 % reference point (its bottom left corner as TeX sees it; measured, see
-% docs/design.md, section 3.3).  In present mode a mark at the top left of the body
+% docs/architecture/design.md, section 3.3).  In present mode a mark at the top left of the body
 % (Z) and the factor with the body's height (K) are recorded, so the build can map
 % the rectangles.
 \dim_new:N \l__texstage_body_ht_dim

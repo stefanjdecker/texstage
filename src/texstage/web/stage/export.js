@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The annotated PDF for the students (docs/texstage-design.md, section 11): for every frame the
+// The annotated PDF for the students (docs/architecture/texstage-design.md, section 11): for every frame the
 // slide page of its last step - everything it shows -, copied from the stage PDF (its note pages
 // stay behind), with the frame's ink drawn over it as vector paths, and the whiteboard pages
 // where they came. Made in the presenter window with pdf-lib, so it works the same on the laptop

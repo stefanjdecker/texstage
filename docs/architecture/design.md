@@ -5,9 +5,9 @@ browser-first prototype in `research/latexpresenter`, which stays untouched for 
 
 **Since 2026-10-10 the whole system is called texstage, and texquiz is its quiz**
 ([content-types-design.md](content-types-design.md), sections 2 and 10, N1): the Python package
-is `texstage`, the commands are `texstage ...` (`texquiz ...` still works), the data folder
-`~/.texstage` (or `~/.texquiz`, where only that one exists). Where this document says texquiz
-for the whole, read texstage; `texquiz.sty` and the quiz keep their names.
+is `texstage`, the commands are `texstage ...` (`texquiz ...` worked until 2026-10-11), the data
+folder `~/.texstage` (or `~/.texquiz`, where only that one exists). Where this document says
+texquiz for the whole, read texstage; `texquiz.sty` and the quiz keep their names.
 
 ## 1. Goal
 

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Ink on texstage's slides (docs/texstage-design.md, sections 6-7).
+"""Ink on texstage's slides (docs/architecture/texstage-design.md, sections 6-7).
 
 A stroke belongs to a frame of a game - a deck frame ("12") or a whiteboard page
 ("board:<id>") - so it stays through the frame's overlay steps and when the lecturer comes

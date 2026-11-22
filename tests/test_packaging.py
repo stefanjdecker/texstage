@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The release (texstage M7, docs/texstage-design.md, section 22): what pyproject.toml packs,
+"""The release (texstage M7, docs/architecture/texstage-design.md, section 22): what pyproject.toml packs,
 the licence notices, no AGPL code (PyMuPDF), and a server that loads nothing of the build."""
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""texstage build: PowerPoint file, quiz bundle, layout check (docs/design.md, section 4)."""
+"""texstage build: PowerPoint file, quiz bundle, layout check (docs/architecture/design.md, section 4)."""
 from __future__ import annotations
 
 import hashlib
@@ -742,7 +742,7 @@ ACTIVITY_DECK = r"""\documentclass[aspectratio=169]{beamer}
 
 
 def test_an_activity_deck(tmp_path):
-    """Live activities (docs/live-activities-design.md, section 6; the activity framework's build: the
+    """Live activities (docs/architecture/live-activities-design.md, section 6; the activity framework's build: the
     plan of F2, 4.4): their items in deck.json - each its kind, through the aliases (input=tuple,
     engine=sparql), and F1's input beside it; a tuple's fields, suggestions and minimum, a query's
     engine, its tokens (the engine's added) and its seed, a file in data/ -, the deck's kinds with

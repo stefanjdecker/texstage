@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""Hosting (docs/design.md, section 8): texstage publish and the server's upload, the
+"""Hosting (docs/architecture/design.md, section 8): texstage publish and the server's upload, the
 presenter key behind a proxy, wrong PINs."""
 from __future__ import annotations
 

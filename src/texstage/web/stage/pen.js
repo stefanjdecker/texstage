@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
 // The pen's colours and widths, and a pen on a slide without the presenter's tools: the projector
-// window on a pen display in the lecture hall (docs/texstage-design.md, section 24). The pen draws
+// window on a pen display in the lecture hall (docs/architecture/texstage-design.md, section 24). The pen draws
 // in the presenter window's pen colour and width, its eraser end erases, and with its side button
 // held - hovering or touching - it is the laser pointer; mouse and finger do what they did. The
 // strokes go out under the presenter window's name for undo (ink.py) - a window it opens starts

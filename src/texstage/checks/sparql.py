@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The SPARQL check (web/engines/sparql.js in Python; docs/live-activities-design.md, sections 8.4 and
+"""The SPARQL check (web/engines/sparql.js in Python; docs/architecture/live-activities-design.md, sections 8.4 and
 8.6): Oxigraph - pyoxigraph - over the activity's seed, a Turtle graph whose @base and @prefix lines
 every query that does not declare them itself gets in front.
 

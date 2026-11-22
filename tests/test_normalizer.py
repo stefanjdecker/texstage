@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The pool's process that normalizes (texstage/server/normalizer.py; docs/architecture/activity-
-framework-plan-f2.md, package 4): its inputs in order, one that takes too long, a process that ends -
-while it works, while it waits, before it is ready -, three in a row that never are ready, and its end.
-The process is the tests' own (pool_engines.normalizer); the kinds' normalize through it: test_pool.py."""
+"""The pool's process that normalizes (texstage/server/normalizer.py;
+docs/architecture/activity-framework-plan-f2.md, package 4): its inputs in order, one that takes too long,
+a process that ends - while it works, while it waits, before it is ready -, three in a row that never are
+ready, and its end. The process is the tests' own (pool_engines.normalizer); the kinds' normalize through
+it: test_pool.py."""
 from __future__ import annotations
 
 import multiprocessing as mp

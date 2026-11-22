@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-# The hosted texstage server: texstage behind Caddy (HTTPS). docs/design.md, section 8.
+# The hosted texstage server: texstage behind Caddy (HTTPS). docs/architecture/design.md, section 8.
 #
 #   cd deploy
 #   echo TEXSTAGE_DOMAIN=quiz.example.org > .env

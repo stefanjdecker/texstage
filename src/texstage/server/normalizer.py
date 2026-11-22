@@ -1,9 +1,9 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The pool's process that normalizes and does nothing else (docs/architecture/activity-framework-
-design.md, 10.3; the plan of F2, 4.3): a kind's normalize is quick, and what is quick never waits
-behind a check. One process (worker.py, the message "normalize"), one input at a time, in the order
-they came.
+"""The pool's process that normalizes and does nothing else
+(docs/architecture/activity-framework-design.md, 10.3; the plan of F2, 4.3): a kind's normalize is
+quick, and what is quick never waits behind a check. One process (worker.py, the message
+"normalize"), one input at a time, in the order they came.
 
     normalizer = Normalizer(ctx, options).start()
     normalizer.submit("sql-query", item, keys, {"text": "select 1"}, "en").result()

@@ -1,15 +1,17 @@
 # Vendored libraries
 
 Third-party code the pages load from the server itself, so that presenting works without a
-network (docs/texstage-design.md, section 2). Each folder holds the files as published, with
-their licence; nothing here is edited.
+network (docs/architecture/texstage-design.md, section 2). Each folder holds the files as
+published, with their licence; nothing here is edited. The pages load them as
+`/static/vendor/<folder>/<file>`: the files below, flat in the folder - without the package's
+`build/` or `dist/`.
 
 | Folder | Library | Version | Licence | Files |
 |---|---|---|---|---|
-| `pdfjs/` | PDF.js (`pdfjs-dist` on npm) | 6.4.299 | Apache-2.0 | `build/pdf.min.mjs`, `build/pdf.worker.min.mjs`, `LICENSE` |
-| `perfect-freehand/` | perfect-freehand (Steve Ruiz) | 1.2.3 | MIT | `dist/esm/index.mjs`, `LICENSE` |
-| `pdf-lib/` | pdf-lib (Andrew Dillon) | 1.17.1 | MIT | `dist/pdf-lib.esm.min.js`, `LICENSE.md` |
-| `katex/` | KaTeX (Khan Academy and contributors) | 0.19.0 | MIT | `dist/katex.min.js`, `dist/katex.min.css`, `dist/fonts/*.woff2`, `LICENSE` |
+| `pdfjs/` | PDF.js (`pdfjs-dist` on npm) | 6.4.299 | Apache-2.0 | `pdf.min.mjs`, `pdf.worker.min.mjs` (from `build/`), `LICENSE` |
+| `perfect-freehand/` | perfect-freehand (Steve Ruiz) | 1.2.3 | MIT | `index.mjs` (from `dist/esm/`), `LICENSE` |
+| `pdf-lib/` | pdf-lib (Andrew Dillon) | 1.17.1 | MIT | `pdf-lib.esm.min.js` (from `dist/`), `LICENSE.md` |
+| `katex/` | KaTeX (Khan Academy and contributors) | 0.19.0 | MIT | `katex.min.js`, `katex.min.css`, `fonts/*.woff2` (from `dist/`), `LICENSE` |
 | `oxigraph/` | Oxigraph (Oxigraph developers) | 0.5.11 | MIT OR Apache-2.0 | `web.js`, `web_bg.wasm`, `LICENSE-MIT`, `LICENSE-APACHE` |
 | `sqljs/` | sql.js (sql.js authors) - SQLite, in the public domain | 1.14.2 | MIT | `sql-wasm-browser.js`, `sql-wasm-browser.wasm` (from `dist/`), `LICENSE`, `AUTHORS` |
 
@@ -41,13 +43,16 @@ checked). Not taken: the fonts as WOFF and TTF (the stylesheet names them after 
 files, which every current browser reads, so they are never fetched), the ES module (the same
 code, not minified) and the contrib extensions.
 
-To update: `npm pack <package>@<version>`, unpack it, copy the files over and change the
-version and integrity above.
+To update: `npm pack <package>@<version>`, unpack it, copy the files the table names into the
+folder, flat as they are now, and change the version and integrity above.
 
-Oxigraph runs the live activities' SPARQL queries in the presenter window's worker
-(`web/stage/evaluator-worker.js`, the engine `web/engines/sparql.js`; docs/live-activities-design.md,
-section 8), and its Turtle parser reads the Turtle engine's texts (`web/engines/turtle.js`, section
-8.9). Taken from `npm pack oxigraph@0.5.11` (2026-09-02; tarball integrity
+Oxigraph and sql.js serve only the older activity type's checks, `--activities f1`: a server of
+the core's type, the default, checks every entry itself, with the activity's kind (`kinds/`).
+With `--activities f1`, Oxigraph runs the live activities' SPARQL queries in the presenter
+window's worker, unless the server checks them (`web/stage/evaluator-worker.js`, the engine
+`web/engines/sparql.js`; docs/architecture/live-activities-design.md, section 8), and its Turtle
+parser reads the Turtle engine's texts (`web/engines/turtle.js`, section 8.9). Taken from
+`npm pack oxigraph@0.5.11` (2026-09-02; tarball integrity
 `sha512-zKdgmp1tsrutGzC1lCCywwZRPpLJKaJnKSDWoY2hIhMiwiCRRXNN1DU7WUyTInBvgPKT8Y5N+RgwTL8qKXpLng==`,
 checked by npm): its browser build, `web.js` and `web_bg.wasm` (4.0 MB). Not taken: the Node build,
 the TypeScript declarations and the README. The package carries no licence files: `LICENSE-MIT` and
@@ -55,8 +60,9 @@ the TypeScript declarations and the README. The package carries no licence files
 (fetched 2026-10-17).
 Oxigraph is licensed under either of them, at the licensee's option.
 
-sql.js runs the live activities' SQL queries in the same worker (the engine `web/engines/sql.js`;
-docs/live-activities-design.md, section 8.8): SQLite compiled to WebAssembly. Taken from
+sql.js runs the live activities' SQL queries in the same worker, with `--activities f1` too (the
+engine `web/engines/sql.js`; docs/architecture/live-activities-design.md, section 8.8): SQLite
+compiled to WebAssembly. Taken from
 `npm pack sql.js@1.14.2` (released 2026-08-14 - 1.15.0, four days old, was passed over; fetched
 2026-10-18; tarball integrity
 `sha512-3ZGPovObMFrdw79zrUHbfdE/DLIsy8jdNdssmMSQuRAymedU6q84asPt0kgiqrdMYlPegDItiIMfmIXzZnYFcw==`,

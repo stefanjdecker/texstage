@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The SQL check (web/engines/sql.js in Python; docs/live-activities-design.md, section 8.8): SQLite - Python's
-sqlite3 - over the activity's seed, a script of CREATE TABLE and INSERT statements.
+"""The SQL check (web/engines/sql.js in Python; docs/architecture/live-activities-design.md, section 8.8): SQLite -
+Python's sqlite3 - over the activity's seed, a script of CREATE TABLE and INSERT statements.
 
 A text is one statement - SELECT, VALUES or WITH ... SELECT -; anything else is refused, and the database
 is read-only besides (PRAGMA query_only): no query changes what the next one sees. The same result, the

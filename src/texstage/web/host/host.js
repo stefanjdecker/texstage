@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// The host console (docs/design.md, section 7): the lecturer's page. It pairs with the server
+// The host console (docs/architecture/design.md, section 7): the lecturer's page. It pairs with the server
 // (presenter key), picks a deck, and then is a browser slide host - the deck's slide pictures
 // with the same live views the PowerPoint add-in shows, navigated with the arrow keys or a
 // clicker - next to the players and the quizzes. The game runs without PowerPoint; with

@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The video on the server (docs/content-types-design.md, section 7; the registry: types.py).
+"""The video on the server (docs/architecture/content-types-design.md, section 7; the registry: types.py).
 
 Its state in the session, per video of the deck, {playing, time, at}: the media time (seconds)
 at the server's time at (ms) - as the timer keeps its time - set by a presenter window

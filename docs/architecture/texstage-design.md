@@ -807,13 +807,13 @@ Reported after that, the same day:
   text or opens a callout, and buttons ignore double taps (no zoom). On the iPad the strokes were
   lost all the same: the cause was Scribble (the last item). The guard stays, against a palm on
   the buttons.
-- **Every deck reaches its quiz server through its build** (`docs/design.md`, sections 4 and
+- **Every deck reaches its quiz server through its build** (`docs/architecture/design.md`, sections 4 and
   5.2): PowerPoint keeps at most 2 MB for an add-in, so a chapter's file could not bring its deck
   to the server. The PowerPoint file carries none now; `texstage build` records its build folder in
   the data folder (`builds.json`), and the quiz server on that machine serves those decks too -
   in texstage's deck list as well, with their stage PDFs, whatever folder it was started with -;
   a server elsewhere gets the deck uploaded at the end of the build.
-- **And by hand, to be sure** (`docs/design.md`, section 8): the build writes the deck as one
+- **And by hand, to be sure** (`docs/architecture/design.md`, section 8): the build writes the deck as one
   file too, `<name>.bundle.zip` next to the PowerPoint file, and the deck lists of texstage and
   of the host page upload it - **Upload a deck**, or the file dropped onto the list - with the
   presenter key (`POST /api/bundles`); the list then says what arrived, or that the server had
@@ -906,7 +906,7 @@ Reported after that, the same day:
   `tools/scripts/texstage-present.py <chapter>` - builds the deck when its build is missing, has
   no stage PDF or is older than its sources, uses the quiz server already running on this
   machine or starts one, and opens the presenter window on the deck, or with `--powerpoint`
-  the live PPTX (`docs/design.md`, section 8). The presenter takes `?bundle=<id>` as a click on
+  the live PPTX (`docs/architecture/design.md`, section 8). The presenter takes `?bundle=<id>` as a click on
   the deck's *Present* and drops it from the address, so a reload goes back into the lecture as
   before. Every build has the stage PDF now (`--no-stage` leaves it out, `--stage` is still
   taken): every deck of the server can be presented either way. `texstage serve` stays for the

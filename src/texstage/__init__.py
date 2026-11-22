@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
 """texstage: Beamer decks presented live - with quizzes (texquiz), in the browser or in
-PowerPoint (docs/content-types-design.md)."""
+PowerPoint (docs/architecture/content-types-design.md)."""
 from pathlib import Path
 
 __version__ = "0.2.1.dev8"   # a build's warnings said again at present; dev7: the review of 2026-11-19's fixes; dev6: the core's type the default; dev5: Built.warnings; dev4: the contract

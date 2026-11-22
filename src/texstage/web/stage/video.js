@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Stefan Decker
 // SPDX-License-Identifier: Apache-2.0
-// A video on the slide (texvideo.sty; docs/content-types-design.md, section 7): the renderer of
+// A video on the slide (texvideo.sty; docs/architecture/content-types-design.md, section 7): the renderer of
 // its box for live.js's Stage, in the presenter and in the projector window - a file of the
 // deck (by its ticket), or an online one: YouTube's or Vimeo's player, or a <video> for an
 // address of a file (build/video.py `player`).

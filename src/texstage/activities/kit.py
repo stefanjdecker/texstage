@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The kit: the test every kind passes, texstage's own ones too (docs/architecture/activity-framework-
-design.md, 7.5; the plan of F2, 4.9).
+"""The kit: the test every kind passes, texstage's own ones too
+(docs/architecture/activity-framework-design.md, 7.5; the plan of F2, 4.9).
 
     texstage kinds check [name ...]
 

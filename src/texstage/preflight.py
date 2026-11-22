@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""texstage check: is a live deck ready to present on this PC? (docs/design.md, section 5.4)
+"""texstage check: is a live deck ready to present on this PC? (docs/architecture/design.md, section 5.4)
 
     texstage check deck.pptx
 

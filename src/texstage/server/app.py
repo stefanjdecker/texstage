@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2026 Stefan Decker
 # SPDX-License-Identifier: Apache-2.0
-"""The texstage server: HTTP and WebSocket around the engine (docs/design.md, sections 6-8).
+"""The texstage server: HTTP and WebSocket around the engine (docs/architecture/design.md, sections 6-8).
 
     GET /                                    -> /play;  GET /api/status: status (no PINs, no names)
     GET /play                                the phone page; /host the host console
@@ -1205,7 +1205,7 @@ class Server:
 
     def media_ticket(self, bundle: str, name: str, now: int) -> str:
         """The address of a video file for the lecturer's windows: a <video> cannot send the key,
-        so the address is the key - random, for a lecture day (docs/content-types-design.md, section 7)."""
+        so the address is the key - random, for a lecture day (docs/architecture/content-types-design.md, section 7)."""
         for ticket in [k for k, (_, _, until) in self.media.items() if until < now]:
             del self.media[ticket]
         ticket = secrets.token_urlsafe(18)
@@ -1737,7 +1737,7 @@ def create_app(config: ServerConfig) -> Starlette:
 
     async def deck_pdf(request: Request):
         """The stage PDF (texstage): every page of the deck, reveal pages too, so for hosts
-        only - not a picture name to guess (docs/texstage-design.md, section 3)."""
+        only - not a picture name to guess (docs/architecture/texstage-design.md, section 3)."""
         lect = lecturer(request)
         if lect is None:
             return refuse("key-required", "presenter key required", 403)
