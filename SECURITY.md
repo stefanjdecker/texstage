@@ -11,9 +11,9 @@ vulnerability** action. Do not put exploit details, presenter credentials,
 student responses or private course files in a public issue. Include the affected
 version, a minimal synthetic reproduction and the expected security boundary.
 
-LaTeX sources and notebooks are executable inputs. Build only material you trust
-or use an appropriately isolated environment. Notebook execution runs the
-notebook's code. Do not treat no-shell-escape as a complete TeX sandbox.
+LaTeX sources are executable inputs. Build only material you trust or use an
+appropriately isolated environment. Do not treat no-shell-escape as a complete
+TeX sandbox.
 
 For texstage deployments, keep presenter keys and server data out of Git and
 student-facing downloads. Live PowerPoint decks may carry presenter credentials;

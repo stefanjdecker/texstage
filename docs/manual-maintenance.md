@@ -2,7 +2,9 @@
 
 The [Markdown manual](manual.md), [PDF](manual.pdf) and
 [LaTeX edition](manual-latex/README.md) share
-[manual-content.json](manual-content.json) as their text source.
+[manual-content.json](manual-content.json) as their text source, and so does
+[installation.md](installation.md): the pages marked `installation: true`, the
+manual's install chapters, on their own.
 [build_manual.py](../maintenance/build_manual.py) handles the page layouts,
 Markdown generation, capture integrity checks and build manifest.
 [manual_latex.py](../maintenance/manual_latex.py) exports ordinary TeX, and
@@ -31,9 +33,10 @@ To preview without replacing the committed outputs:
 python maintenance/build_manual.py --output-dir .manual-build
 ```
 
-The normal build writes manual.md, manual.pdf, manual-latex/main.tex and
-manual-build.json in docs. With --output-dir, the screenshot assets, LaTeX style
-and build instructions are copied too, so the exported TeX project can compile.
+The normal build writes manual.md, manual.pdf, manual-latex/main.tex,
+latex-reference.md, installation.md and manual-build.json in docs. With
+--output-dir, the screenshot assets, LaTeX style and build instructions are
+copied too, so the exported TeX project can compile.
 The manifest records hashes of the text, renderer, capture inventory and outputs.
 The offline --check path uses only the Python standard library. It checks the
 generated Markdown and TeX, manifest and screenshot hashes; it does not replace

@@ -29,7 +29,7 @@ python maintenance/check_docs.py
 
 For the full suites install `pdflatex`, Beamer, latexmk, German language support,
 recommended fonts and extra LaTeX packages. CI uses these Ubuntu packages:
-`texlive-latex-extra texlive-fonts-recommended texlive-lang-german latexmk`.
+`texlive-latex-extra texlive-fonts-recommended texlive-lang-german lmodern latexmk`.
 TeX Live/MiKTeX can supply the Windows equivalents. Node 24 runs the JavaScript
 tests without npm installation; JavaScript libraries are committed with notices.
 The browser smoke tests need Chrome (or Edge) installed - Playwright, in
@@ -37,26 +37,46 @@ The browser smoke tests need Chrome (or Edge) installed - Playwright, in
 
 ## CI scope
 
-The configured matrix targets Ubuntu 24.04 with Python 3.12, 3.13 and 3.14, and
-Windows 2025 with Python 3.14. Linux installs TeX. Windows runs Python/JavaScript
-checks and the isolated test registry checks where applicable; TeX-dependent
-tests skip there unless TeX is installed. Linux skips Windows-only registry and
-event-loop tests. Reports show skips explicitly.
+The CI workflow, `.github/workflows/ci.yml`, runs on every push and pull request
+on GitHub and passes on `main`; a failed run shows on the repository's Actions
+page. Its test job runs on Ubuntu 24.04 with Python 3.12, 3.13 and 3.14, and on
+Windows 2025 with Python 3.14. Its steps, the scripts in `maintenance/`:
 
-This is the intended CI matrix, not a claim that hosted runs have already passed.
-The browser smoke tests run on every job, in the runner's Chrome, and fail there
-instead of skipping (`TEXSTAGE_BROWSER_TESTS=required`). macOS, browsers other than
-Chrome (Safari on iPhones), interactive Office behavior and real-course renderings
-require separate validation. No CI job opens a real course or uses a production server.
+1. Linux: install TeX, the Ubuntu packages above.
+2. Install the locked `requirements/dev.txt`, hashes checked.
+3. Check the locks and the documentation: `lock_dependencies.py --check`,
+   `check_public_content.py`, `check_docs.py`, `check_latex_reference.py` and
+   `build_manual.py --check`.
+4. Linux with Python 3.14: rebuild the illustrated manual into `.manual-build`.
+5. Install texstage and the kinds of live activities, then `texstage kinds check`.
+6. Linux with Python 3.14: compile the authoring examples
+   (`check_reference_examples.py`) and rehearse the feature showcase
+   (`check_showcase_example.py`).
+7. Run the test suite, `python -m pytest tests -ra`.
+8. Linux with Python 3.14: build and verify the distributions
+   (`check_distributions.py`), install the wheels in a new environment and check
+   them there (`pip check`, `check_installed.py`, `check_kinds_served.py`).
+9. Keep the test report, `dist/`, the manual and the showcase's output for 14
+   days, as the artifact `checks-<os>-py<python>`.
 
-A separate Linux job builds the Docker image with locked Python dependencies and
-checks its health endpoint. It runs the kinds' kit in the container and
-`maintenance/check_kinds_served.py`: a server of the core's activity type there
-takes a deck with an activity of each of texstage's kinds and checks a phone's
-entry of each in its pool. It uses a disposable container/volume and publishes
-no image or network port. The phase-3 validation on Windows had no Docker
-daemon for it; the job's steps were run locally with Docker Desktop for F2's
-package 11 (2026-11-16).
+Windows has no TeX: its TeX-dependent tests skip, and it runs the Python and
+JavaScript tests and the isolated test registry checks. Linux skips the
+Windows-only registry and event-loop tests. Reports show skips explicitly. The
+browser smoke tests run on every job, in the runner's Chrome, and fail there
+instead of skipping (`TEXSTAGE_BROWSER_TESTS=required`). CI does not cover macOS,
+browsers other than Chrome (Safari on iPhones), interactive Office behavior, real
+phones on a real network or real-course renderings: they need separate
+validation. No CI job opens a real course or uses a production server.
+
+The workflow's second job, `container`, builds the Docker image on Linux with
+locked Python dependencies and checks its health endpoint. It runs the kinds'
+kit in the container and `maintenance/check_kinds_served.py`: a server of the
+core's activity type there takes a deck with an activity of each of texstage's
+kinds and checks a phone's entry of each in its pool. It uses a disposable
+container/volume and publishes no image or network port. The phase-3 validation
+on Windows had no Docker daemon for it; the job's steps were run locally with
+Docker Desktop for F2's package 11 (2026-11-16). Another workflow, `pages.yml`,
+publishes the homepage and the manual PDF when a push to `main` changes them.
 
 ## Run the source suite
 
@@ -76,9 +96,11 @@ the kinds' own tests find their sources in `kinds/`.
 
 An editable install keeps the version it was installed with. After a pull that
 changes texstage's version, run the first two lines again: until then
-`texstage kinds` and a build's deck.json name the old version, and `pip check`
-fails, as the kinds need texstage 0.2.1.dev4 or later
-(`tests/test_packaging.py` says so too).
+`texstage kinds` and a build's deck.json name the old version. `pip check` does
+not notice - the kinds need texstage 0.2.1.dev4 or later, which an older
+candidate's install still is -, but the test
+`tests/test_packaging.py::test_the_installed_metadata_is_this_texstages` fails
+and says what to run.
 
 The tests exercise Python, server/WebSocket behavior, Node-based browser logic,
 LaTeX and PowerPoint file generation. Windows registration tests use the

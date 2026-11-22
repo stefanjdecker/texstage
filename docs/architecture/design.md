@@ -798,9 +798,11 @@ holds bundles, games and the presenter key) behind Caddy, which gets a Let's Enc
 certificate for the domain and passes WebSockets through:
 
 ```
-cd deploy && echo TEXQUIZ_DOMAIN=quiz.example.org > .env && docker compose up -d --build
-docker compose exec texquiz texstage lecturer add decker --data /data     # a key per lecturer
+cd deploy && echo TEXSTAGE_DOMAIN=quiz.example.org > .env && docker compose up -d --build
+docker compose exec texstage texstage lecturer add NAME --data /data     # a key per lecturer
 ```
+
+The steps, with the number of workers: `docs/installation-advanced.md`, Hosting.
 
 A deck built for the hosted server (`--server https://quiz…`) is uploaded at the end of its
 build (§4), complete - for PowerPoint, the host page (the ordinary slides' pictures) and
@@ -845,8 +847,10 @@ the last phone within 75 ms, answers accepted within 9 ms, the server used 5 s C
 game and 160 MB. With 1000 phones answering within 1.5 s: slides within 0.27 s, answers within
 19 ms (95 %), 18 s CPU in 103 s, 430 MB. One process is plenty for a lecture hall.
 
-**Not done.** The Docker image was not built here (this machine's Docker runs Windows
-containers only); real phones on a real network, the lecture hall's network and PC.
+**Not done.** Real phones on a real network, the lecture hall's network and PC. (The Docker
+image, not built here at first - this machine's Docker ran Windows containers only -, is built
+and started by CI's container job on every push, and its steps ran with Docker Desktop for F2's
+package 11, 2026-11-16.)
 Office.js comes from Microsoft's CDN, so PowerPoint needs the internet; without it, the browser
 slide host (`/host`, F for full screen) plays the deck instead - it needs no internet. A shared
 add-in catalog or central deployment by the university's admins would need the PPTX's add-in

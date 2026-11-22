@@ -56,13 +56,15 @@ Create and activate a fresh virtual environment as described in
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt -r requirements/build.txt
 python -m pip install --no-deps --no-build-isolation . ./kinds/texstage-kinds-sql ./kinds/texstage-kinds-rdf
 texstage pdf --present examples/demo/demo.tex
-texstage present examples/demo/demo.tex
+texstage present examples/demo/demo.tex --data .demo-data --port 8765 --no-tunnel
 ```
 
 The second line installs texstage and the kinds of live activities of its
 `kinds/` folder: crowd graphs, SQL, SPARQL and Turtle activities need them where
 their decks are built and served. The `present` command opens the presenter;
-**Projector** opens the audience window.
+**Projector** opens the audience window. Its options keep the demo apart from your
+lectures: a data folder of its own (`.demo-data`, ignored by git), a port where no
+lecture's server runs and no remembered tunnel - see the [demo](examples/demo/README.md).
 Use a source copy for experimentation. Student-facing exports should be the
 handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 
@@ -85,8 +87,8 @@ handout or solutions, not a live PowerPoint deck carrying presenter credentials.
 | [Architecture](docs/architecture/texstage-design.md) | Design context; some planned features may be unimplemented |
 
 DBIS course commands, themes and subject notation belong to the separate
-lecture-tools package, maintained in the lecture-tools-next repository.
-Texstage has no dependency on that project. Existing courses keep their own
+lecture-tools package, maintained in the lecture-tools-next repository, which is
+not public. Texstage has no dependency on that project. Existing courses keep their own
 pinned toolchain and setup instructions.
 
 ## License and contributions

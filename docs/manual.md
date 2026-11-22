@@ -100,7 +100,7 @@ The browser workflow is the starting path in this manual. PowerPoint integration
 | Use DBIS notation or appearance | Use lecture-tools' reusable LaTeX modules. DBIS branding is an optional theme, not a texstage prerequisite. |
 | Edit a Jupyter notebook | Use the lecture-tools notebook manual. This path needs neither texstage nor TeX. |
 
-The companion Python package is named lecture-tools and is maintained in the separate lecture-tools-next repository. It owns slide splitting and assembly, course settings, notebook workflows and DBIS styles. Texstage owns generic LaTeX compilation, PowerPoint conversion and live presentation. In an existing course, follow that course's pinned setup instructions; installing Texstage does not reconnect or upgrade its tools. See the [integration guide](integration.md) for the package boundary and tested pair.
+The companion Python package is named lecture-tools and is maintained in the separate lecture-tools-next repository, which is not public: the courses that use it carry it and its manuals. It owns slide splitting and assembly, course settings, notebook workflows and DBIS styles. Texstage owns generic LaTeX compilation, PowerPoint conversion and live presentation. In an existing course, follow that course's pinned setup instructions; installing Texstage does not reconnect or upgrade its tools. See the [integration guide](integration.md) for the package boundary.
 
 | Term used here | Meaning |
 | --- | --- |

@@ -1,9 +1,12 @@
 # Refactoring history
 
-Current release infrastructure is documented in [development.md](development.md),
-[dependencies.md](dependencies.md) and [releasing.md](releasing.md). CI workflows,
-hashed locks, synthetic examples and public guides are now present. Hosted CI
-runs and publication decisions are still pending.
+This page is the record of texstage's first refactoring increment, 27 October
+2026, and is not kept current. Since then CI runs on every push
+([development.md](development.md)) and the source is public; packaged releases
+are still to be decided ([releasing.md](releasing.md)), and the locks are
+described in [dependencies.md](dependencies.md). The plan's steps below were
+texstage's and lecture-tools' together; the record's notes on lecture-tools'
+own behavior are in lecture-tools-next's `docs/implementation-status.md`.
 
 ## First refactoring increment (historical record)
 
@@ -33,12 +36,6 @@ The full release and real-course migration plan remains incomplete.
 ## Compatibility and boundaries
 
 - Course wrappers use `texstage.api`, never a sibling runtime source path.
-- The legacy `lecture.py` shim selects its owning course before CWD ancestors;
-  explicit `LECTURE_ROOT` takes precedence. The CLI additionally accepts `--root`.
-- Existing course IDs, file paths and `build/texquiz` output naming remain.
-- DBIS settings and macros remain unchanged. English/tight and German/classic
-  synthetic courses compile; no new Python or TEXINPUTS requirement for plain TeX.
-- Shared skills remain usable without slide/server dependencies.
 - Generic styles have one canonical owner in texstage. Their copies are generated,
   hash checked and accompanied by LICENSE/NOTICE.
 - Developer/migration utilities are retained as source, not promoted to installed
@@ -49,10 +46,8 @@ The full release and real-course migration plan remains incomplete.
 ## Validation scope
 
 The source suites exercise generic rendering, quiz bundles, server behavior,
-JavaScript, PowerPoint exports, note extraction, course commands and skills.
-Windows registry tests use a temporary test key. Synthetic course tests cover
-legacy LaTeX loading, language/box settings, label resolution, configuration,
-deck IDs, notes and rejection of a mismatched texstage pair.
+JavaScript, PowerPoint exports and note extraction. Windows registry tests use a
+temporary test key.
 
 Wheel/source-archive build and isolated installed-package checks are recorded in
 `validation-results.json`. Testing here used Windows and Python 3.14 with local

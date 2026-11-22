@@ -16,6 +16,39 @@
 - `docs/integration.md` names no pair any more: lecture-tools records the
   texstage it was tested with (its `requirements/texstage.json` and
   `texstage-assets.lock.json`), so a pairing changes nothing in texstage.
+- `texstage build` stops with the reason when a deck sets its own mode
+  (`\texstagemode` or `\texquizmode`): that mode wins over the command's, and
+  the build writes no quiz data. Before, it ended with a FileNotFoundError on
+  the missing `.tqz`.
+- texquiz.sty checks that `max-chars` is 1-200, as the LaTeX reference says.
+  Before, it checked only the digits, and `max-chars=0` made a question that
+  refused every answer.
+- `texstage check` tells a deck whose first slide prepares the live slides to
+  start the slideshow there; only older builds are told to show the join slide
+  once.
+- The hints of `texstage lecturer add` and of a build without a presenter key
+  give `texstage publish --remember` a build folder, as it keeps no key without
+  a build. The key form says that the server prints the key's first
+  characters when it starts, and all of it with `--show-key`; it said the
+  server printed the key.
+- The Poll button's tooltip says A-F, the answers its dialog offers, in
+  English and German; it said A-D.
+- `maintenance/check_docs.py` also fails on text garbled by an encoding (UTF-8
+  read as Windows-1252) in the maintained Markdown documents, and on a file
+  that names another version than pyproject.toml's - the files
+  `docs/releasing.md` lists; the homepage said 0.2.1.dev6.
+- `docs/installation.md` is generated from the manual's install chapters
+  (`maintenance/build_manual.py`, `--check` too), from which it had drifted.
+- The documentation as the code has it, after a review of 2026-11-21: the
+  lecture room (what Freeze, Black and White cover, a rebuilt deck's new tab,
+  where the presenter key is), the authoring facts (the LaTeX reference's keys
+  and the failures that stop a build), a structure to find one's way in (the
+  authoring guide's sections, the manual's lettered appendix and its links in
+  the PDF), dated records and details, and the setup docs (hosting from
+  `deploy/` step by step, lecture-tools' leftovers gone, CI's steps listed).
+- A test of the bundle store wrote built.json twice within one tick of the
+  file system's clock, which hid the second write from the store's stamp, and
+  failed now and then on Windows (CI on 453c041); it moves the file's time on.
 - texstage is 0.2.1.dev8: the warnings said again at present (above), where
   0.2.1.dev7 - the one lecture-tools 0.1.0.dev8 pins - has them not. The
   kinds' packages still need 0.2.1.dev4 or later.

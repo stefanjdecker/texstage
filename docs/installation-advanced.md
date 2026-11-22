@@ -4,8 +4,14 @@ For a first source installation, use [installation.md](installation.md). These r
 
 ## From a candidate wheel
 
-Verify its SHA-256 against the candidate's SHA256SUMS, use the matching
-requirements/runtime.txt, and install in a new environment:
+No release publishes wheels yet ([releasing.md](releasing.md)). A candidate's
+wheels - texstage's and the kinds' - and their SHA256SUMS come from
+`python maintenance/check_distributions.py --out dist/candidate` in a checkout
+([development guide](development.md#build-and-test-the-installed-distribution)),
+or from a CI run on GitHub, which keeps them for 14 days in its
+`checks-ubuntu-24.04-py3.14` artifact (downloading it needs a GitHub account).
+Verify each wheel's SHA-256 against that SHA256SUMS, use the
+requirements/runtime.txt of the same revision, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
@@ -42,9 +48,28 @@ user setup action; package installation and CI do not configure Office itself.
 ## Hosting
 
 [deploy/docker-compose.yml](../deploy/docker-compose.yml) runs texstage behind
-Caddy. Configure a domain, DNS and deployment secrets as described in the
-[authoring guide](authoring.md), then build from the repository root. The Docker
-build uses the committed Python runtime/build locks and installs the kinds of
+Caddy, which gets a Let's Encrypt certificate for the domain by itself and passes
+WebSockets through. The machine needs Docker with Compose, a DNS name pointing at
+it and ports 80 and 443 open. In a checkout of this repository:
+
+```sh
+cd deploy
+echo TEXSTAGE_DOMAIN=quiz.example.org > .env
+echo TEXSTAGE_WORKERS=2 >> .env          # optional: the worker processes (below), default 2
+docker compose up -d --build
+docker compose exec texstage texstage lecturer add NAME --data /data
+```
+
+`.env` holds the domain and, optionally, the number of workers; git ignores it.
+The last line makes a presenter key for one lecturer and shows it only then: give
+it to that lecturer, and run it again with another name for the next one. A
+running server takes a new key at once. The lecturers build their decks for the
+server and upload them - and for PowerPoint register its add-in once per PC - as
+"On a hosted server" in the [authoring guide](authoring.md#laptop-or-hosted-server)
+describes. After a `git pull`, `docker compose up -d --build` builds and starts
+the new version; the volumes keep bundles, games and keys.
+
+The Docker build uses the committed Python runtime/build locks and installs the kinds of
 live activities after texstage. The image's command - and the `command` of
 docker-compose.yml - serves with the default activity type, the activity
 framework's core, which uses them; with `--activities f1` added it serves with

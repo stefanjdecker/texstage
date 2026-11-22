@@ -166,8 +166,9 @@ def test_a_distributions_build_takes_away_what_it_left_and_nothing_else(tmp_path
 
 def test_the_installed_metadata_is_this_texstages():
     """An editable install keeps the version it was installed with: after a pull that changes texstage's
-    version, `texstage kinds` and deck.json's kinds say the old one until it is installed anew, and pip check
-    fails for the kinds, which need 0.2.1.dev4 or later (docs/development.md)."""
+    version, `texstage kinds` and deck.json's kinds say the old one until it is installed anew. pip check does
+    not notice - the kinds need 0.2.1.dev4 or later, which the old one still is -: this test does
+    (docs/development.md)."""
     from importlib.metadata import version
     import texstage
     assert version("texstage") == texstage.__version__ == PROJECT["project"]["version"], \

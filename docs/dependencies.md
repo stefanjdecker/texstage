@@ -14,14 +14,7 @@ No local paths, private indexes or credentials are embedded in the locks.
 | `*.in` | Generated direct inputs; edit pyproject.toml (texstage's, or a kind's in `kinds/`) rather than these files |
 | `lock-manifest.json` | Hashes of dependency metadata (the kinds' too), generator, inputs and lock outputs |
 
-For lecture-tools, `runtime.txt` includes **all optional authoring dependencies**
-(slides, live and notebooks); its base wheel still has no third-party dependencies.
-The unpublished texstage package itself is deliberately absent from these locks.
-`requirements/texstage.json` records the runtime requirements extracted from the
-exact wheel named in `texstage-assets.lock.json`. Install the tested companion
-wheel separately with `--no-deps`; do not resolve the development version on PyPI.
-
-For texstage, `runtime.txt` is its full runtime dependency set. Vendored JavaScript
+`runtime.txt` is texstage's full runtime dependency set. Vendored JavaScript
 and LaTeX are committed resources, not packages downloaded by these lockfiles.
 It also holds what the kinds of live activities beside texstage need
 (`kinds/*/pyproject.toml`, their dependencies but texstage and the kinds' own
@@ -79,15 +72,10 @@ the resolver version also requires updating `UV_VERSION` in the generator and
 regenerating with that version. The script resolves all profiles before replacing
 the committed outputs.
 
-When lecture-tools adopts another texstage artifact, synchronize the assets with
-`maintenance/sync_texstage_latex.py`, update the exact extras in pyproject.toml,
-and update `requirements/texstage.json` from that verified wheel's METADATA
-(base Requires-Dist entries, Requires-Python, version and artifact SHA-256).
-Regenerate locks, then run `maintenance/check_pair.py` against the installed
-companion. A same-version wheel rebuilt for CI may have different archive bytes;
-the pair check compares version, API, dependency metadata and actual style bytes.
-The asset lock continues to identify the original artifact that supplied the
-vendored snapshot. Change that provenance only through explicit synchronization.
+lecture-tools pins texstage by its wheel and vendors its LaTeX styles: pairing it
+with another texstage build is lecture-tools-next's own work, described in that
+repository's `docs/dependencies.md` ("Pair with another texstage"); the
+repository is not public.
 
 ## Save a wheelhouse for offline work
 

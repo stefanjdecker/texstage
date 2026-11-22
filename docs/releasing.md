@@ -44,9 +44,8 @@ general audit of all sensitive content.
    GitHub Releases, PyPI or both. Check package-name availability before using a
    package index. Update package and runtime versions together, refresh locks
    and coordinate the companion pin.
-5. Confirm the browser/Office/OS matrix with actual runs and record successful
-   package and paired-integration CI results. A skipped integration job is not
-   release evidence.
+5. Confirm the browser/Office/OS matrix with actual runs and record the release
+   commit's successful CI runs.
 
 ## GitHub setup
 
@@ -54,21 +53,13 @@ Package CI uses `push`, `pull_request` and manual triggers, read-only contents
 permissions, immutable action commit pins, and no package-publishing credentials.
 The separate Pages deployment job requests Pages and OIDC permissions.
 Dependabot proposes action updates monthly. Dependency upgrades are explicit lock refreshes so the
-three lock profiles stay consistent.
+four lock profiles (runtime, build, dev and docs) stay consistent.
 
-Lecture-tools has an independent base workflow and a separate paired workflow.
-Set repository variables `TEXSTAGE_REPOSITORY` (`owner/name`) and `TEXSTAGE_REF`
-(full 40-character commit SHA) to the public companion revision being tested.
-The paired workflow then runs on pushes and pull requests. Manual runs can supply
-both values instead. Both repositories must be accessible to checkout using the
-standard read-only token; private cross-repository credentials are not configured.
-If both variables are absent, the summary explicitly reports that integration
-has **not run**. One missing or malformed value fails configuration. An unconfigured
-or skipped integration check is not release evidence.
-
-Run the workflows on the hosting service and set appropriate required checks on the
-default branch, including the paired `integration` job. Do not treat a local
-Windows run as proof of a successful Linux or hosted Actions run.
+Set required checks on the default branch: the CI workflow's four test jobs and
+its container job. Do not treat a local Windows run as proof of a successful
+Linux or hosted Actions run. lecture-tools tests its pairing with texstage in
+workflows of its own, described in lecture-tools-next's `docs/releasing.md`
+(that repository is not public).
 
 ## Candidate validation
 
@@ -88,12 +79,20 @@ compares every uncompressed wheel member with the direct build. ZIP/tar
 timestamps may differ; artifact SHA-256 hashes identify the actual archives.
 Run the installed-wheel smoke check from the development guide and keep the
 test reports with the candidate. Review the archive contents, including notices,
-web assets, styles, skills and documentation as applicable.
+web assets, styles and documentation as applicable.
 
-For a release changing the texstage pair, install the candidate texstage wheel,
-run lecture-tools' metadata/API/style check and full synthetic regression suite,
-and record the exact Git revisions and wheel hashes. Refresh the generated
-LaTeX snapshot only from a verified wheel. Do not silently retarget old courses.
+A new version changes `pyproject.toml` and `src/texstage/__init__.py` (a test
+compares both with the installed metadata) and the files that name the current
+version: README.md, the newest heading of CHANGELOG.md, site/index.html,
+docs/manual-content.json (then regenerate the manual), this file,
+compilation.md, powerpoint.md, installation-advanced.md, development.md and
+examples/showcase/COVERAGE.md. `maintenance/check_docs.py` fails while one of
+them names another version.
+
+A candidate reaches courses only through lecture-tools, which pairs with its
+verified wheel and runs its own checks (lecture-tools-next's
+`docs/dependencies.md`, "Pair with another texstage"); a texstage release
+changes no course's pin by itself.
 
 ## Release and rollback
 
