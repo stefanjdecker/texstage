@@ -5,8 +5,8 @@ rendered PDF page becomes an image slide, and its Beamer notes become PowerPoint
 speaker notes. Overlays become separate slides. Text and diagrams remain images,
 not editable PowerPoint objects. PowerPoint itself is not needed to convert.
 
-Introduced in 0.2.1.dev1, this command is included in the current 0.2.1.dev9
-candidate. Install this checkout in a
+Introduced in 0.2.1.dev1, this command is included in the current 1.0.0
+release. Install this checkout in a
 fresh environment using the [installation guide](installation.md). Python 3.12+
 and `pdflatex` with Beamer and pgfpages must be available on PATH. Conversion does
 not start a server or require a course root or DBIS styles.

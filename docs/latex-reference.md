@@ -33,7 +33,7 @@ Packages, commands, options and developer interfaces
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](manual.md). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 0.2.1.dev9 candidate.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 1.0.0 release.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -441,7 +441,7 @@ The activity label hooks are ordinary macros. By default they give the text of t
 
 ## Core interfaces for package developers
 
-These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are documented for maintainers of the current candidate, not a promise of a versioned plugin ABI. Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.
+These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are documented for maintainers of the current release, not a promise of a versioned plugin ABI. Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -491,7 +491,7 @@ Names containing @, names beginning __, parser temporaries and global state vari
 | `Reference/seed breaks compilation` | Use a fragile frame for inline verbatim, or external UTF-8 data/reference files. |
 | `No correct slider value` | Choose bounds and a positive step that actually contain a value in answer +/- tolerance. |
 | `Answers appear in a handout` | Check the selected build mode and whether authored answer frames carry the answer option. |
-| `Static activity in PowerPoint` | Expected for this candidate. Use the browser presenter for live activities. |
+| `Static activity in PowerPoint` | Expected for this release. Use the browser presenter for live activities. |
 | `Deck skipped: start the server without --activities f1` | The deck has a choice, number or text activity, which only the activity framework's core runs, a server's default activity type. Start the server without `--activities f1`: `texstage present deck.tex` or `texstage serve`. |
 | `Overfull or excessive shrink` | The build checks quiz and answer frames only. It fails at a vertical overfull of 1 pt or more (content in the footline), a horizontal one of 5 pt or more, or a shrink of `--max-shrink` (default 15 %) or more; smaller overfulls are listed as notes. Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
 | `Theme overlay is misaligned` | Keep answer-box width/height and lower-left reference point consistent with the hook contract. |

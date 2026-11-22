@@ -18,7 +18,7 @@ src/texstage/build/beamer.py was moved from the general course converter
 src/lecture_tools/media/beamer_to_pptx.py at lecture-tools-next commit
 82b4c33a318abad75a9211c803c5508c367087bb. Its original license was not
 specified; moving it does not relicense it. Resolve its publication license
-with the rights holders before distributing this candidate.
+with the rights holders before distributing this release.
 
 Third-party software included (src/texstage/web/vendor/, each with its licence file there):
 

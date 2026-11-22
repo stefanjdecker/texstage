@@ -1,6 +1,20 @@
 # Changelog
 
-## Unreleased — 0.2.1.dev9 candidate
+## 1.0.0 — the current stable release (2026-11-22)
+
+- texstage is 1.0.0, the current stable release, tagged v1.0: the code of
+  0.2.1.dev9 (ad4a1d7) under the release's name. The files that called it the
+  development candidate - the README, the homepage, the manual, releasing.md,
+  SECURITY.md, CONTRIBUTING.md and NOTICE - call it the release, and the
+  classifier says Production/Stable; `maintenance/check_docs.py` looks for
+  the release's wording. It is published as source: a packaged release
+  (PyPI, a container image) is still to come, and `Private :: Do Not Upload`
+  stays. The kinds' packages stay 0.1.0 and still need 0.2.1.dev4 or later.
+  A server of 1.0.0 plays decks built with 0.2.1 - texstage's own kinds go
+  with texstage across its major version -; one of 0.2.1 refuses a deck of
+  1.0.0 that uses texstage's own kinds (choice, number, text).
+
+## Earlier 0.2.1.dev9 candidate
 
 - `texstage build` stops with the reason when a deck sets its own mode
   (`\texstagemode` or `\texquizmode`): that mode wins over the command's, and

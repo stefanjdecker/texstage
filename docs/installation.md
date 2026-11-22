@@ -53,7 +53,7 @@ The companion Python package is named lecture-tools and is maintained in the sep
 
 ## Install Python and obtain the source
 
-Use CPython 3.12, 3.13 or 3.14 for this candidate; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
+Use CPython 3.12, 3.13 or 3.14 for this release; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
 
 The public source is [stefanjdecker/texstage on GitHub](https://github.com/stefanjdecker/texstage). With Git installed, open a terminal in the parent folder where you want to keep the source, then run:
 
@@ -110,7 +110,7 @@ python -m pip install --require-hashes --only-binary=:all: -r requirements/build
 python -m pip install --no-deps --no-build-isolation .
 ```
 
-The first two commands install the tested dependency versions and packaging tools. The third installs this source copy. Keep the requirements files from the same candidate. If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.
+The first two commands install the tested dependency versions and packaging tools. The third installs this source copy. Keep the requirements files from the same release. If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.
 
 Decks with crowd graphs, SQL, SPARQL or Turtle activities also need the kinds of activities they are of - packages of their own in kinds/ - where they are built and where they are served: the build asks an activity's kind, and runs its references as the server does. Their dependencies are among the locked ones just installed. texstage's own kinds - choice, number and text - come with texstage.
 
@@ -125,7 +125,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 0.2.1.dev9 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 1.0.0 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
