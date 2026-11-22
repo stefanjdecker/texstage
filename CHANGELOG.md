@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased — 1.0.1.dev1 candidate
+
+- The server's state files - the deck page's `library.json`, `lecturers.json`
+  and `devices.json` - are saved again for a moment when Windows refuses to
+  replace one: a virus scanner or the search indexer may still hold a file
+  just written (WinError 5). Before, the save gave up at once, and the deck
+  page's change failed (the full suite of 2026-11-22, on Windows).
+  `server/files.py` holds the retry, with the uploads' rename it came from
+  (app.py).
+- texstage is 1.0.1.dev1, the development candidate after 1.0.0, the current
+  stable release: the README, the homepage, the manual, releasing.md and the
+  docs that name the version say so, and `maintenance/check_docs.py` looks
+  for their wording. SECURITY.md, CONTRIBUTING.md, NOTICE and the manual's
+  general sentences say "this version", which the next release leaves as
+  it is.
+
 ## 1.0.0 — the current stable release (2026-11-22)
 
 - texstage is 1.0.0, the current stable release, tagged v1.0: the code of

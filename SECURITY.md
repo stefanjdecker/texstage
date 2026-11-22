@@ -1,7 +1,7 @@
 # Security and sensitive reports
 
-The public source is the current stable release. No support or response
-time commitment has been established. Before declaring a supported release,
+Stable releases are tagged in the repository, v1.0 the first. No support or
+response time commitment has been established. Before declaring a supported release,
 the maintainer must confirm a monitored private reporting route and identify
 supported versions in this document. This page does not confirm that private
 reporting is enabled.

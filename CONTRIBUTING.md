@@ -20,7 +20,7 @@ explain intentional differences. CI does not replace browser, Office or
 real-course rehearsal. Course migrations are separate changes with explicit
 approval and a recorded rollback pin.
 
-Read [NOTICE](NOTICE) before copying or contributing material. This release
+Read [NOTICE](NOTICE) before copying or contributing material. This version
 still has unresolved publication rights listed in [the release guide](docs/releasing.md).
 The maintainer must settle the contribution license and publish a reporting
 contact before opening public contributions; this file does not grant rights to

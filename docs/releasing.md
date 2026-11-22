@@ -6,14 +6,15 @@ The source is public at [stefanjdecker/texstage](https://github.com/stefanjdecke
 with project information at [www.texstage.org](https://www.texstage.org).
 The `main` branch includes the PowerPoint conversion, shared compilation and
 German-language compatibility changes. The current version is
-1.0.0, the current stable release, tagged v1.0 and published as source; a
-packaged release - wheels on PyPI, a container image - is still to come
-(below). Follow [installation.md](installation.md) to install the checkout
-with its matching dependency locks.
+1.0.1.dev1, a development candidate after 1.0.0, the current stable release
+(tag v1.0, published as source); a packaged release - wheels on PyPI, a
+container image - is still to come (below). Follow
+[installation.md](installation.md) to install the checkout with its matching
+dependency locks.
 
 The package CI workflows build and test candidates. They do not upload releases
 to GitHub Releases, PyPI or a container registry. The `Private :: Do Not Upload`
-classifier remains set: this release is published as source only. Separately,
+classifier remains set: texstage is published as source only. Separately,
 the public repository's Pages workflow publishes the homepage and manual PDF on
 relevant pushes to `main`.
 

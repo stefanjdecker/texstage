@@ -30,17 +30,17 @@ DOCS_PATH = re.compile(r"(?<![\w./-])((?:\.\./)*docs/[\w./-]*[\w/])")
 VERSION = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]["version"]
 V = r"(\d+(?:\.\d+)*(?:\.?(?:a|b|rc|dev|post)\d+)*)"          # a version such as 0.2.1.dev8
 CURRENT = {
-    "README.md": [rf"\*\*texstage {V}\*\*, the current stable release"],
-    "CHANGELOG.md": [rf"\A# Changelog\s+## {V} — the current stable release"],
-    "site/index.html": [rf"texstage {V} is the current stable release"],
-    "docs/manual-content.json": [rf'(?m)^  "version": "{V}"', rf"Version {V} - the current stable release",
+    "README.md": [rf"\*\*{V} development candidate\*\*"],
+    "CHANGELOG.md": [rf"\A# Changelog\s+## Unreleased — {V} candidate"],
+    "site/index.html": [rf"main, version {V}, is the next development candidate"],
+    "docs/manual-content.json": [rf'(?m)^  "version": "{V}"', rf"Version {V} - development candidate",
                                  rf"the version is {V} for this edition"],
-    "docs/releasing.md": [rf"The current version is\s+{V}, the current stable release"],
-    "docs/compilation.md": [rf"the current\s+{V}\s+release"],
-    "docs/powerpoint.md": [rf"the current\s+{V}\s+release"],
+    "docs/releasing.md": [rf"The current version is\s+{V}, a development candidate"],
+    "docs/compilation.md": [rf"the current\s+{V}\s+candidate"],
+    "docs/powerpoint.md": [rf"the current\s+{V}\s+candidate"],
     "docs/installation-advanced.md": [rf"texstage-{V}-py3-none-any\.whl"],
     "docs/development.md": [rf"texstage-{V}-py3-none-any\.whl"],
-    "examples/showcase/COVERAGE.md": [rf"the current texstage\s+{V}\s+release"],
+    "examples/showcase/COVERAGE.md": [rf"the current texstage\s+{V}\s+candidate"],
 }
 
 # A UTF-8 lead byte, then one to three continuation bytes (0x80-0xBF), each as Windows-1252 shows it.

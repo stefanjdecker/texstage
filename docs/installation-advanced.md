@@ -15,7 +15,7 @@ requirements/runtime.txt of the same revision, and install in a new environment:
 
 ```sh
 python -m pip install --require-hashes --only-binary=:all: -r requirements/runtime.txt
-python -m pip install --no-deps path/to/texstage-1.0.0-py3-none-any.whl
+python -m pip install --no-deps path/to/texstage-1.0.1.dev1-py3-none-any.whl
 python -m pip install --no-deps path/to/texstage_kinds_rdf-0.1.0-py3-none-any.whl path/to/texstage_kinds_sql-0.1.0-py3-none-any.whl
 python -m pip check
 ```

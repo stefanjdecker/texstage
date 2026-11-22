@@ -21,6 +21,7 @@ import secrets
 from pathlib import Path
 
 from texstage.keys import new_key
+from texstage.server import files
 
 NAME = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
 
@@ -71,7 +72,7 @@ class Lecturers:
         tmp = self.path.with_name(self.path.name + ".tmp")
         tmp.write_text(json.dumps({n: {"key": h} for n, h in sorted(entries.items())}, indent=2) + "\n",
                        encoding="utf-8")
-        tmp.replace(self.path)
+        files.replace(tmp, self.path)              # tried again while Windows refuses it
         self._stamp = None
 
     def who(self, key) -> str | None:

@@ -137,6 +137,7 @@ from texstage.server.bundles import BundleError, BundleStore, built_time, change
 from texstage.server import datafolder
 from texstage.server.checking import MODES, Checks
 from texstage.server.devices import PAIR_MS, Devices
+from texstage.server.files import rename        # tried again while Windows refuses it
 from texstage.server.lecturers import Lecturers
 from texstage.server.library import Library, LibraryError
 from texstage.server.game import Engine, GameError, Settings, clean_nickname, token_hash
@@ -233,19 +234,6 @@ def refuse(code: str, message: str, status: int, **more) -> JSONResponse:
     """The HTTP API's refusal: its words for whoever reads the API (English, as the log), its code
     for the windows, which say it in their deck's language (web/i18n, errors)."""
     return JSONResponse({"error": message, "code": code, **more}, status_code=status)
-
-
-def rename(src: Path, dest: Path, tries: int = 6):
-    """src.rename(dest) - tried again for a moment if Windows refuses it: a virus scanner or the
-    search indexer may still hold a file that was just written (WinError 5 or 32)."""
-    for attempt in range(tries):
-        try:
-            src.rename(dest)
-            return
-        except PermissionError:
-            if attempt == tries - 1:
-                raise
-            time.sleep(0.05 * 2 ** attempt)           # 0.05 s to 0.8 s: 1.55 s in all
 
 
 def make_icon(size: int) -> bytes:

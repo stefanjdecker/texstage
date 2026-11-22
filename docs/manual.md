@@ -61,7 +61,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants. Includes a first-session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.
 
-Version 1.0.0 - the current stable release, available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
+Version 1.0.1.dev1 - development candidate after the stable release 1.0.0, available as public source; installation uses the repository and its dependency locks. Screenshots use a synthetic session and a mobile-sized browser viewport; they are not photographs of a physical phone.
 
 ![The private presenter workspace.](images/manual/02-presenter-workspace.jpg)
 
@@ -113,7 +113,7 @@ The companion Python package is named lecture-tools and is maintained in the sep
 
 ## Install Python and obtain the source
 
-Use CPython 3.12, 3.13 or 3.14 for this release; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
+Use CPython 3.12, 3.13 or 3.14 for this version; these are the versions targeted by its checks. Install Python from [python.org](https://www.python.org/downloads/) or your operating system package manager. Open a new terminal after installation. On Windows use PowerShell; on macOS or Linux use Terminal. Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.
 
 The public source is [stefanjdecker/texstage on GitHub](https://github.com/stefanjdecker/texstage). With Git installed, open a terminal in the parent folder where you want to keep the source, then run:
 
@@ -170,7 +170,7 @@ python -m pip install --require-hashes --only-binary=:all: -r requirements/build
 python -m pip install --no-deps --no-build-isolation .
 ```
 
-The first two commands install the tested dependency versions and packaging tools. The third installs this source copy. Keep the requirements files from the same release. If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.
+The first two commands install the tested dependency versions and packaging tools. The third installs this source copy. Keep the requirements files from the same version. If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.
 
 Decks with crowd graphs, SQL, SPARQL or Turtle activities also need the kinds of activities they are of - packages of their own in kinds/ - where they are built and where they are served: the build asks an activity's kind, and runs its references as the server does. Their dependencies are among the locked ones just installed. texstage's own kinds - choice, number and text - come with texstage.
 
@@ -185,7 +185,7 @@ python -m pip check
 python -c "from importlib.metadata import version; print(version('texstage'))"
 ```
 
-Success means the command list appears, pip reports no broken requirements, and the version is 1.0.0 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
+Success means the command list appears, pip reports no broken requirements, and the version is 1.0.1.dev1 for this edition. texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-query of texstage-kinds-sql, and triples, sparql-query and turtle-graph of texstage-kinds-rdf. The kinds' packages need texstage 0.2.1.dev4 or later; pip check reports an older one. If texstage is not found, check the environment paths above; on Windows its executable is .venv/Scripts/texstage.exe. There is no python -m texstage entry point.
 
 LaTeX source is text; a TeX distribution turns it into a PDF. Beamer is the LaTeX document class for slides. Install a current full [TeX Live](https://tug.org/texlive/) distribution, [MacTeX](https://tug.org/mactex/) on macOS, or [MiKTeX](https://miktex.org/howto/install-miktex) on Windows. With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build. A LaTeX editor alone does not supply the compiler.
 
@@ -643,7 +643,7 @@ The same text is published on its own as [latex-reference.md](latex-reference.md
 
 Use this section as a lookup after completing the first-session tutorial in the [user manual](#what-texstage-does). Install and verify texstage with the [installation guide](installation.md); the CLI makes the packaged styles available to TeX. Authors usually begin with texquiz.sty and the complete small-quiz example earlier in the manual. Load texvideo or texactivity only when the deck uses those features.
 
-This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 1.0.0 release.
+This reference covers all four shipped LaTeX packages and their author-facing commands, environments, keys and theme hooks. Beamer, TikZ and other upstream commands retain their own upstream contracts. Core developer interfaces are identified separately. Examples target the current 1.0.1.dev1 candidate.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -1051,7 +1051,7 @@ The activity label hooks are ordinary macros. By default they give the text of t
 
 ## Core interfaces for package developers
 
-These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are documented for maintainers of the current release, not a promise of a versioned plugin ABI. Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.
+These expl3 interfaces are shared by texquiz, texvideo and texactivity. They are documented for maintainers of the current version, not a promise of a versioned plugin ABI. Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.
 
 | Syntax / option | Meaning and default |
 | --- | --- |
@@ -1101,7 +1101,7 @@ Names containing @, names beginning __, parser temporaries and global state vari
 | `Reference/seed breaks compilation` | Use a fragile frame for inline verbatim, or external UTF-8 data/reference files. |
 | `No correct slider value` | Choose bounds and a positive step that actually contain a value in answer +/- tolerance. |
 | `Answers appear in a handout` | Check the selected build mode and whether authored answer frames carry the answer option. |
-| `Static activity in PowerPoint` | Expected for this release. Use the browser presenter for live activities. |
+| `Static activity in PowerPoint` | Expected for this version. Use the browser presenter for live activities. |
 | `Deck skipped: start the server without --activities f1` | The deck has a choice, number or text activity, which only the activity framework's core runs, a server's default activity type. Start the server without `--activities f1`: `texstage present deck.tex` or `texstage serve`. |
 | `Overfull or excessive shrink` | The build checks quiz and answer frames only. It fails at a vertical overfull of 1 pt or more (content in the footline), a horizontal one of 5 pt or more, or a shrink of `--max-shrink` (default 15 %) or more; smaller overfulls are listed as notes. Shorten the content, reduce material on the frame, or select appropriate columns/box sizes. Run the checked build rather than hiding the warning. |
 | `Theme overlay is misaligned` | Keep answer-box width/height and lower-left reference point consistent with the hook contract. |

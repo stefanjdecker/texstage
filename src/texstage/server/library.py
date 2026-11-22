@@ -11,13 +11,16 @@ A deck is kept by its deck ID, so its folder and its name stay when it is built 
 when it was taken off the list: its builds up to then are no longer listed, a newer build is (the
 deck page never deletes a laptop's build folder - the next build brings the deck back; an uploaded
 deck is deleted by the server, app.py). Folders nest; deleting one moves what it holds up to its
-parent. Read on every call, written whole (a temporary file, then a rename), as lecturers.json."""
+parent. Read on every call, written whole (a temporary file, then a rename, tried again while
+Windows refuses it: files.py), as lecturers.json."""
 from __future__ import annotations
 
 import json
 import secrets
 import threading
 from pathlib import Path
+
+from texstage.server import files
 
 NAME_MAX = 80          # a folder's name, characters
 LABEL_MAX = 120        # a deck's shown name
@@ -59,7 +62,7 @@ class Library:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
         tmp.write_text(json.dumps(data, indent=1, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-        tmp.replace(self.path)
+        files.replace(tmp, self.path)              # tried again while Windows refuses it
 
     @staticmethod
     def _own(data: dict, lecturer: str) -> dict:

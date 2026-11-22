@@ -3,7 +3,7 @@
 \providecommand{\manualdocroot}{../}
 \documentclass[a4paper,11pt]{article}
 \usepackage{manual}
-\newcommand{\manualversion}{1.0.0}
+\newcommand{\manualversion}{1.0.1.dev1}
 \newcommand{\manualdate}{November 2026}
 \hypersetup{pdftitle={texstage user manual},pdfauthor={texstage project}}
 \title{texstage user manual\\[0.5em]\large Presenter and participant guide}
@@ -16,7 +16,7 @@ A practical guide to presenting Beamer decks, running live quizzes and participa
 
 For presenters and participants.\allowbreak{} Includes a first-\allowbreak{}session walkthrough, illustrated controls, answer formats, exports and a participant quick reference.\par
 
-Version 1.\allowbreak{}0.\allowbreak{}0 -\allowbreak{} the current stable release, available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
+Version 1.\allowbreak{}0.\allowbreak{}1.\allowbreak{}dev1 -\allowbreak{} development candidate after the stable release 1.\allowbreak{}0.\allowbreak{}0, available as public source; installation uses the repository and its dependency locks.\allowbreak{} Screenshots use a synthetic session and a mobile-\allowbreak{}sized browser viewport; they are not photographs of a physical phone.\par
 
 \end{abstract}
 {\small\setlength{\parskip}{0pt}\tableofcontents}
@@ -111,7 +111,7 @@ texstage /\allowbreak{} texquiz & texstage is the installed command and applicat
 \end{longtable}}
 
 \manualsection{Install Python and obtain the source}\label{sec:install-python-and-obtain-the-source}
-Use CPython 3.\allowbreak{}12, 3.\allowbreak{}13 or 3.\allowbreak{}14 for this release; these are the versions targeted by its checks.\allowbreak{} Install Python from \href{https://www.python.org/downloads/}{python.\allowbreak{}org} or your operating system package manager.\allowbreak{} Open a new terminal after installation.\allowbreak{} On Windows use PowerShell; on macOS or Linux use Terminal.\allowbreak{} Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.\par
+Use CPython 3.\allowbreak{}12, 3.\allowbreak{}13 or 3.\allowbreak{}14 for this version; these are the versions targeted by its checks.\allowbreak{} Install Python from \href{https://www.python.org/downloads/}{python.\allowbreak{}org} or your operating system package manager.\allowbreak{} Open a new terminal after installation.\allowbreak{} On Windows use PowerShell; on macOS or Linux use Terminal.\allowbreak{} Commands below are entered in that terminal, not in a Python prompt or a LaTeX editor.\par
 
 The public source is \href{https://github.com/stefanjdecker/texstage}{stefanjdecker/\allowbreak{}texstage on GitHub}.\allowbreak{} With Git installed, open a terminal in the parent folder where you want to keep the source, then run:\par
 
@@ -175,7 +175,7 @@ python -m pip install --no-deps --no-build-isolation .
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-The first two commands install the tested dependency versions and packaging tools.\allowbreak{} The third installs this source copy.\allowbreak{} Keep the requirements files from the same release.\allowbreak{} If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.\par
+The first two commands install the tested dependency versions and packaging tools.\allowbreak{} The third installs this source copy.\allowbreak{} Keep the requirements files from the same version.\allowbreak{} If a hash check or binary download fails, check the Python version, platform and download source instead of removing the checks.\par
 
 Decks with crowd graphs, SQL, SPARQL or Turtle activities also need the kinds of activities they are of -\allowbreak{} packages of their own in kinds/\allowbreak{} -\allowbreak{} where they are built and where they are served: the build asks an activity's kind, and runs its references as the server does.\allowbreak{} Their dependencies are among the locked ones just installed.\allowbreak{} texstage's own kinds -\allowbreak{} choice, number and text -\allowbreak{} come with texstage.\par
 
@@ -194,7 +194,7 @@ python -c "from importlib.metadata import version; print(version('texstage'))"
 \end{Verbatim}
 \end{minipage}\par\smallskip
 
-Success means the command list appears, pip reports no broken requirements, and the version is 1.\allowbreak{}0.\allowbreak{}0 for this edition.\allowbreak{} texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-\allowbreak{}query of texstage-\allowbreak{}kinds-\allowbreak{}sql, and triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph of texstage-\allowbreak{}kinds-\allowbreak{}rdf.\allowbreak{} The kinds' packages need texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 or later; pip check reports an older one.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
+Success means the command list appears, pip reports no broken requirements, and the version is 1.\allowbreak{}0.\allowbreak{}1.\allowbreak{}dev1 for this edition.\allowbreak{} texstage kinds lists seven kinds: choice, number and text of texstage itself, sql-\allowbreak{}query of texstage-\allowbreak{}kinds-\allowbreak{}sql, and triples, sparql-\allowbreak{}query and turtle-\allowbreak{}graph of texstage-\allowbreak{}kinds-\allowbreak{}rdf.\allowbreak{} The kinds' packages need texstage 0.\allowbreak{}2.\allowbreak{}1.\allowbreak{}dev4 or later; pip check reports an older one.\allowbreak{} If texstage is not found, check the environment paths above; on Windows its executable is .\allowbreak{}venv/\allowbreak{}Scripts/\allowbreak{}texstage.\allowbreak{}exe.\allowbreak{} There is no python -\allowbreak{}m texstage entry point.\par
 
 LaTeX source is text; a TeX distribution turns it into a PDF.\allowbreak{} Beamer is the LaTeX document class for slides.\allowbreak{} Install a current full \href{https://tug.org/texlive/}{TeX Live} distribution, \href{https://tug.org/mactex/}{MacTeX} on macOS, or \href{https://miktex.org/howto/install-miktex}{MiKTeX} on Windows.\allowbreak{} With MiKTeX, install missing packages and updates through MiKTeX Console before an unattended build.\allowbreak{} A LaTeX editor alone does not supply the compiler.\par
 
@@ -757,7 +757,7 @@ Screenshot sources and hashes are listed in \href{\manualdocroot images/manual/c
 \manualsection{LaTeX reference: packages and loading}\label{sec:latex-reference-packages-and-loading}
 Use this section as a lookup after completing the first-\allowbreak{}session tutorial in the \hyperref[sec:what-texstage-does]{user manual}.\allowbreak{} Install and verify texstage with the \href{\manualdocroot installation.md}{installation guide}; the CLI makes the packaged styles available to TeX.\allowbreak{} Authors usually begin with texquiz.\allowbreak{}sty and the complete small-\allowbreak{}quiz example earlier in the manual.\allowbreak{} Load texvideo or texactivity only when the deck uses those features.\par
 
-This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 1.\allowbreak{}0.\allowbreak{}0 release.\par
+This reference covers all four shipped LaTeX packages and their author-\allowbreak{}facing commands, environments, keys and theme hooks.\allowbreak{} Beamer, TikZ and other upstream commands retain their own upstream contracts.\allowbreak{} Core developer interfaces are identified separately.\allowbreak{} Examples target the current 1.\allowbreak{}0.\allowbreak{}1.\allowbreak{}dev1 candidate.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
@@ -1394,7 +1394,7 @@ The activity label hooks are ordinary macros.\allowbreak{} By default they give 
 \end{minipage}\par\smallskip
 
 \manualsection{Core interfaces for package developers}\label{sec:core-interfaces-for-package-developers}
-These expl3 interfaces are shared by texquiz, texvideo and texactivity.\allowbreak{} They are documented for maintainers of the current release, not a promise of a versioned plugin ABI.\allowbreak{} Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.\par
+These expl3 interfaces are shared by texquiz, texvideo and texactivity.\allowbreak{} They are documented for maintainers of the current version, not a promise of a versioned plugin ABI.\allowbreak{} Use ExplSyntaxOn when writing extension code; ordinary slide authors should use the content packages.\par
 
 {\small
 \begin{longtable}{>{\raggedright\arraybackslash}p{\dimexpr0.350000\linewidth-2\tabcolsep\relax}>{\raggedright\arraybackslash}p{\dimexpr0.650000\linewidth-2\tabcolsep\relax}}
@@ -1478,7 +1478,7 @@ Names containing @, names beginning \_\allowbreak{}\_\allowbreak{}, parser tempo
 \texttt{Reference/\allowbreak{}seed breaks compilatio\allowbreak{}n} & Use a fragile frame for inline verbatim, or external UTF-\allowbreak{}8 data/\allowbreak{}reference files. \\ \addlinespace[3pt]
 \texttt{No correct slider value} & Choose bounds and a positive step that actually contain a value in answer +/\allowbreak{}-\allowbreak{} tolerance. \\ \addlinespace[3pt]
 \texttt{Answers appear in a handout} & Check the selected build mode and whether authored answer frames carry the answer option. \\ \addlinespace[3pt]
-\texttt{Static activity in PowerPoint} & Expected for this release.\allowbreak{} Use the browser presenter for live activities. \\ \addlinespace[3pt]
+\texttt{Static activity in PowerPoint} & Expected for this version.\allowbreak{} Use the browser presenter for live activities. \\ \addlinespace[3pt]
 \texttt{Deck skipped: start the server without -\allowbreak{}-\allowbreak{}activities\allowbreak{} f1} & The deck has a choice, number or text activity, which only the activity framework's core runs, a server's default activity type.\allowbreak{} Start the server without \texttt{-\allowbreak{}-\allowbreak{}activities\allowbreak{} f1}: \texttt{texstage present deck.\allowbreak{}tex} or \texttt{texstage serve}. \\ \addlinespace[3pt]
 \texttt{Overfull or excessive shrink} & The build checks quiz and answer frames only.\allowbreak{} It fails at a vertical overfull of 1 pt or more (content in the footline), a horizontal one of 5 pt or more, or a shrink of \texttt{-\allowbreak{}-\allowbreak{}max-\allowbreak{}shrink} (default 15 \%) or more; smaller overfulls are listed as notes.\allowbreak{} Shorten the content, reduce material on the frame, or select appropriate columns/\allowbreak{}box sizes.\allowbreak{} Run the checked build rather than hiding the warning. \\ \addlinespace[3pt]
 \texttt{Theme overlay is misaligned} & Keep answer-\allowbreak{}box width/\allowbreak{}height and lower-\allowbreak{}left reference point consistent with the hook contract. \\ \addlinespace[3pt]

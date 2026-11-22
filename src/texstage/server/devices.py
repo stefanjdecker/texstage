@@ -25,6 +25,8 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
+from texstage.server import files
+
 PAIR_MS = 120_000            # a pairing code is valid this long
 CODE = "ACDEFHJKLMNPQRTUVWXY3479"    # the device's code: no characters that look alike
 NAME_MAX = 40
@@ -82,7 +84,7 @@ class Devices:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
         tmp.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        tmp.replace(self.path)
+        files.replace(tmp, self.path)              # tried again while Windows refuses it
         self._stamp = None
 
     def who(self, token, now: int) -> tuple[str, str] | None:

@@ -1,6 +1,6 @@
 # Showcase feature coverage
 
-Target: the current texstage 1.0.0 release. This is a tour of every major
+Target: the current texstage 1.0.1.dev1 candidate. This is a tour of every major
 user-facing feature family, not a test of every low-level core macro or every
 combination of configuration keys. The command reference remains authoritative
 for exhaustive option syntax.
