@@ -212,6 +212,10 @@ def test_a_change_of_built_json_alone_is_seen_and_the_record_is_the_stores_own(t
     store = BundleStore([tmp_path / "decks"])
     assert store.bundles[a.id].built == 1_700_000_000_000
     (a.path / BUILT).write_text(json.dumps({"built": 1_700_000_600_000}), encoding="utf-8")
+    # the same length, the same file, and on Windows often the same tick of the clock: the stamp - device, inode,
+    # time, size - could not tell the two apart (CI on 453c041). A rebuild comes seconds later: its time moves on.
+    t = os.stat(a.path / BUILT).st_mtime + 5
+    os.utime(a.path / BUILT, (t, t))
     store.scan()
     assert store.bundles[a.id].built == 1_700_000_600_000                  # (built.json is in the stamp)
     known = store.bundles[a.id]
